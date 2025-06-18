@@ -10,8 +10,12 @@ import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
 import { TestCases } from './pages/TestCases';
+
+import MyTestCasePage from './pages/MyTestCasePage';
+
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -83,6 +87,18 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
+
+
+        <Route
+          path="/danu"
+          element={
+            <ProtectedRoute>
+              <MyTestCasePage />
+            </ProtectedRoute>
+          }
+        />
+
+
         <Route
           path="/releases"
           element={
