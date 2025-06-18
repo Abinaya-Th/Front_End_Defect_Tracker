@@ -18,6 +18,7 @@ const navigation = [
   { name: 'Projects', href: '/projects', icon: FolderOpen },
   { name: 'Defects', href: '/defects', icon: Bug },
   { name: 'Test Cases', href: '/test-cases', icon: FileText },
+  { name: 'Test', href: '/test', icon: FileText },
   { name: 'Releases', href: '/releases', icon: Rocket },
   { name: 'Workflow', href: '/workflow', icon: GitBranch },
 ];

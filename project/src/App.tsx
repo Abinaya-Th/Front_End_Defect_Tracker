@@ -12,6 +12,7 @@ import { Defects } from './pages/Defects';
 import { TestCases } from './pages/TestCases';
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
+import Test from './pages/Test';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -84,6 +85,14 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
+          path="/test"
+          element={
+            <ProtectedRoute>
+              <Test/>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/releases"
           element={
             <ProtectedRoute>
@@ -99,6 +108,8 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
