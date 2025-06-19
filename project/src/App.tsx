@@ -9,7 +9,8 @@ import { Employees } from './pages/Employees';
 import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
-import { TestCases } from './pages/TestCases';
+// import { TestCases } from './pages/TestCases';
+import { TestCases } from './pages/newTestCases';
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
 
@@ -75,8 +76,16 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
+        {/* <Route
           path="/test-cases"
+          element={
+            <ProtectedRoute>
+              <TestCases />
+            </ProtectedRoute>
+          }
+        /> */}
+                <Route
+          path="/newTestCases"
           element={
             <ProtectedRoute>
               <TestCases />

@@ -59,7 +59,7 @@ export interface Defect {
 export interface TestCase {
   id: string;
   title: string;
-  description: string;
+  testDescription: string;
   steps: string[];
   expectedResult: string;
   priority: 'low' | 'medium' | 'high';

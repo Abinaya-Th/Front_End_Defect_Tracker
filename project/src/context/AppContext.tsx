@@ -304,9 +304,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // E-commerce Platform Test Cases
     {
       id: 'TC001',
-      module: 'Authentication',
-      subModule: 'Login',
-      description: 'Verify user login functionality with valid credentials',
+      testDescription: 'Verify user login functionality with valid credentials',
       steps: [
         'Navigate to login page',
         'Enter valid email and password',
@@ -321,9 +319,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC002',
-      module: 'Payment',
-      subModule: 'Checkout',
-      description: 'Test payment gateway integration with multiple payment methods',
+      testDescription: 'Test payment gateway integration with multiple payment methods',
       steps: [
         'Add items to cart',
         'Proceed to checkout',
@@ -339,9 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC003',
-      module: 'Product',
-      subModule: 'Search',
-      description: 'Verify product search functionality with filters',
+      testDescription: 'Verify product search functionality with filters',
       steps: [
         'Enter search term',
         'Apply category filter',
@@ -356,9 +350,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC004',
-      module: 'Cart',
-      subModule: 'Management',
-      description: 'Test shopping cart operations',
+      testDescription: 'Test shopping cart operations',
       steps: [
         'Add items to cart',
         'Update quantities',
@@ -375,9 +367,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Mobile Banking App Test Cases
     {
       id: 'TC005',
-      module: 'Security',
-      subModule: 'Encryption',
-      description: 'Verify data encryption during transmission',
+      testDescription: 'Verify data encryption during transmission',
       steps: [
         'Submit sensitive data',
         'Check network traffic',
@@ -392,9 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC006',
-      module: 'UI',
-      subModule: 'Responsive Design',
-      description: 'Test responsive layout across different devices',
+      testDescription: 'Test responsive layout across different devices',
       steps: [
         'Open on different screen sizes',
         'Check layout adaptation',
@@ -409,9 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC007',
-      module: 'Transaction',
-      subModule: 'Transfer',
-      description: 'Verify fund transfer functionality',
+      testDescription: 'Verify fund transfer functionality',
       steps: [
         'Select recipient',
         'Enter amount',
@@ -429,9 +415,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Inventory Management Test Cases
     {
       id: 'TC008',
-      module: 'Database',
-      subModule: 'CRUD Operations',
-      description: 'Test database operations for inventory items',
+      testDescription: 'Test database operations for inventory items',
       steps: [
         'Create new inventory item',
         'Read existing item details',
@@ -446,9 +430,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     {
       id: 'TC009',
-      module: 'Reporting',
-      subModule: 'Analytics',
-      description: 'Verify inventory analytics and reporting',
+      testDescription: 'Verify inventory analytics and reporting',
       steps: [
         'Generate stock level report',
         'Check reorder suggestions',
