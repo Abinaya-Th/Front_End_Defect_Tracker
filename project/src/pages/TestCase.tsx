@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Eye, CheckSquare, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, CheckSquare, ChevronRight, ChevronLeft, ChevronDown, Upload } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/Badge';
 import { useParams, useNavigate } from 'react-router-dom';
 import QuickAddTestCase from './QuickAddTestCase';
 import QuickAddDefect from './QuickAddDefect';
+import * as XLSX from 'xlsx';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -179,6 +180,7 @@ export const TestCase: React.FC = () => {
   const [bulkRows, setBulkRows] = useState([
     { module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }
   ]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -433,6 +435,31 @@ export const TestCase: React.FC = () => {
     });
     setBulkRows([{ module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }]);
     setIsBulkAddModalOpen(false);
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      if (!data) return;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
+      const rows = json.slice(1).map((row: any[]) => ({
+        module: row[0] || '',
+        subModule: row[1] || '',
+        description: row[2] || '',
+        steps: row[3] || '',
+        type: row[4] || 'functional',
+        severity: row[5] || 'medium',
+      })).filter(row => row.module && row.subModule && row.description && row.steps);
+      if (rows.length > 0) setBulkRows(rows);
+    };
+    reader.readAsBinaryString(file);
   };
 
   return (
@@ -1016,6 +1043,23 @@ export const TestCase: React.FC = () => {
         size="xl"
       >
         <form onSubmit={handleBulkAddSubmit} className="space-y-4">
+          <div className="flex items-center mb-2">
+            <button
+              type="button"
+              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import from Excel/CSV
+            </button>
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={handleImportExcel}
+              ref={fileInputRef}
+              className="hidden"
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full border">
               <thead>
