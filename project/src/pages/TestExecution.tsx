@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { ChevronLeft, Eye, ChevronRight, Play } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
+import { nanoid } from 'nanoid';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -64,6 +65,9 @@ export const TestExecution: React.FC = () => {
   const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
   const [executionStatuses, setExecutionStatuses] = useState<{ [key: string]: TestCase['executionStatus'] }>({});
   const [activeReleaseId, setActiveReleaseId] = useState<string | null>(null);
+  const [defects, setDefects] = useState<{ [testCaseId: string]: { id: string; details: string } }>({});
+  const [defectModalOpen, setDefectModalOpen] = useState<string | null>(null);
+  const [defectFormValue, setDefectFormValue] = useState('');
 
   useEffect(() => {
     if (selectedProject) {
@@ -300,71 +304,82 @@ export const TestExecution: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr className="border-b border-gray-200">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Test Case ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Steps
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Severity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Execution Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Case ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Steps</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Execution Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Defect ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTestCases.map((testCase: TestCase) => (
-                    <tr key={testCase.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {testCase.id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {testCase.description}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <button
-                          onClick={() => handleViewSteps(testCase)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          title="View Steps"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>View</span>
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {testCase.type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
-                          {testCase.severity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <select
-                          value={executionStatuses[testCase.id] || 'not-started'}
-                          onChange={(e) => handleExecutionStatusChange(testCase.id, e.target.value as TestCase['executionStatus'])}
-                          className={`px-2 py-1 rounded-full text-xs font-medium border-0 focus:ring-2 focus:ring-blue-500 ${getExecutionStatusColor(executionStatuses[testCase.id] || 'not-started')}`}
-                        >
-                          <option value="not-started">Not Started</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="passed">Passed</option>
-                          <option value="failed">Failed</option>
-                          <option value="blocked">Blocked</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
+                  {filteredTestCases.map((testCase: TestCase) => {
+                    const status = executionStatuses[testCase.id] || 'not-started';
+                    const isFailed = status === 'failed';
+                    const isPassed = status === 'passed';
+                    const defect = defects[testCase.id];
+                    return (
+                      <tr key={testCase.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{testCase.description}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <button
+                            onClick={() => handleViewSteps(testCase)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            title="View Steps"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.type}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>{testCase.severity}</span>
+                        </td>
+                        {/* Execution Status mini-tabs */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex rounded border border-gray-200 bg-white shadow overflow-hidden w-fit">
+                            <button
+                              type="button"
+                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${isPassed ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-green-100'}`}
+                              style={{ borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }}
+                              onClick={() => {
+                                setExecutionStatuses(prev => ({ ...prev, [testCase.id]: 'passed' }));
+                                setDefectModalOpen(null);
+                              }}
+                              aria-pressed={isPassed}
+                            >
+                              Pass
+                            </button>
+                            <button
+                              type="button"
+                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${isFailed ? 'bg-red-500 text-white' : 'bg-white text-gray-700 hover:bg-red-100'}`}
+                              style={{ borderTopRightRadius: 6, borderBottomRightRadius: 6, borderLeft: '1px solid #e5e7eb' }}
+                              onClick={() => {
+                                if (!isFailed) {
+                                  const newId = `DFT-${nanoid(6).toUpperCase()}`;
+                                  setExecutionStatuses(prev => ({ ...prev, [testCase.id]: 'failed' }));
+                                  setDefects(prev => ({ ...prev, [testCase.id]: { id: newId, details: '' } }));
+                                  setDefectFormValue('');
+                                  setDefectModalOpen(testCase.id);
+                                } else {
+                                  setDefectModalOpen(testCase.id);
+                                }
+                              }}
+                              aria-pressed={isFailed}
+                            >
+                              Fail
+                            </button>
+                          </div>
+                        </td>
+                        {/* Defect ID column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {isFailed && defect ? defect.id : ''}
+                        </td>
+                        {/* Actions: Only View button */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <button
                             onClick={() => handleViewTestCase(testCase)}
                             className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
@@ -372,17 +387,10 @@ export const TestExecution: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleExecutionStatusChange(testCase.id, 'in-progress')}
-                            className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
-                            title="Start Execution"
-                          >
-                            <Play className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </CardContent>
@@ -482,6 +490,67 @@ export const TestExecution: React.FC = () => {
                 </Button>
               </div>
             </div>
+          )}
+        </Modal>
+
+        {/* Defect Entry Modal */}
+        <Modal
+          isOpen={!!defectModalOpen}
+          onClose={() => setDefectModalOpen(null)}
+          title="Log Defect Details"
+        >
+          {defectModalOpen && (
+            <form
+              className="space-y-4"
+              onSubmit={e => {
+                e.preventDefault();
+                setDefects(prev => ({
+                  ...prev,
+                  [defectModalOpen]: {
+                    ...prev[defectModalOpen],
+                    details: defectFormValue
+                  }
+                }));
+                setDefectModalOpen(null);
+              }}
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Defect ID</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-100"
+                  value={defects[defectModalOpen]?.id || ''}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Defect Details</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  placeholder="Enter defect details..."
+                  value={defectFormValue}
+                  onChange={e => setDefectFormValue(e.target.value)}
+                  required
+                  autoFocus
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  className="text-xs px-3 py-1 rounded border border-gray-300 hover:bg-gray-100"
+                  onClick={() => setDefectModalOpen(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-red-600 text-white px-4 py-1 rounded text-xs font-semibold hover:bg-red-700"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           )}
         </Modal>
       </div>
