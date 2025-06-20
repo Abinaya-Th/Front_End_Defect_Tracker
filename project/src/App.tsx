@@ -12,6 +12,9 @@ import { Defects } from './pages/Defects';
 import { TestCase } from './pages/TestCase';
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
+import { ProjectDashboard } from './pages/ProjectDashboard';
+import { useParams } from 'react-router-dom';
+import { ReleaseDetails } from './pages/ReleaseDetails';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -68,15 +71,15 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/defects"
+          path="/projects/:projectId"
           element={
             <ProtectedRoute>
-              <Defects />
+              <ProjectDashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/test-cases"
+          path="/projects/:projectId/test-cases"
           element={
             <ProtectedRoute>
               <TestCase />
@@ -84,10 +87,26 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/releases"
+          path="/projects/:projectId/releases"
           element={
             <ProtectedRoute>
               <Releases />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/:releaseId"
+          element={
+            <ProtectedRoute>
+              <ReleaseDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/defects"
+          element={
+            <ProtectedRoute>
+              <Defects />
             </ProtectedRoute>
           }
         />

@@ -6,23 +6,10 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 import { ProjectFormData, Project } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 // Mock data for initial projects
 const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'E-Commerce Platform',
-    prefix: 'ECOM',
-    projectType: 'development',
-    status: 'active',
-    startDate: '2024-01-15',
-    endDate: '2024-06-30',
-    manager: '1',
-    priority: 'high',
-    teamMembers: [],
-    description: 'Building a modern e-commerce platform with advanced features',
-    createdAt: new Date().toISOString(),
-  },
   {
     id: '2',
     name: 'Mobile App Redesign',
@@ -54,7 +41,7 @@ const mockProjects: Project[] = [
 ];
 
 export const Projects: React.FC = () => {
-  const { projects, addProject, updateProject, deleteProject, employees } = useApp();
+  const { projects, addProject, updateProject, deleteProject, employees, setSelectedProjectId } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPrivileges, setShowPrivileges] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
@@ -93,6 +80,8 @@ export const Projects: React.FC = () => {
     { id: '4', firstName: 'Emily', lastName: 'Davis', designation: 'Project Manager' },
     { id: '5', firstName: 'David', lastName: 'Wilson', designation: 'Lead Project Manager' }
   ];
+
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,6 +253,10 @@ export const Projects: React.FC = () => {
               key={`${project.id}-${index}`} 
               hover 
               className="relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+              onClick={() => {
+                setSelectedProjectId(project.id);
+                navigate(`/projects/${project.id}`);
+              }}
             >
               <div className={`absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8 rotate-45 ${getProjectTypeColor(project.projectType)} opacity-10`} />
               <CardContent className="p-6">

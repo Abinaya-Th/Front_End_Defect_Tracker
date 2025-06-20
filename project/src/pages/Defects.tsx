@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Bug, AlertCircle, Clock, CheckCircle, X, FileText, Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Bug, AlertCircle, Clock, CheckCircle, X, FileText, Edit2, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
+import { useParams, useNavigate } from 'react-router-dom';
 
 export const Defects: React.FC = () => {
-  const { defects, projects, releases, testCases = [], addDefect, updateDefect, deleteDefect } = useApp();
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const { defects, projects, releases, testCases = [], addDefect, updateDefect, deleteDefect, setSelectedProjectId } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<any>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
@@ -20,15 +23,18 @@ export const Defects: React.FC = () => {
     priority: 'medium' as 'low' | 'medium' | 'high' | 'critical',
     severity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
     status: 'open' as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
-    projectId: '',
+    projectId: projectId || '',
     releaseId: '',
     testCaseId: '',
     assignedTo: '',
     reportedBy: '',
   });
 
+  // Only show defects for the current project
+  const projectDefects = defects.filter(d => d.projectId === projectId);
+
   // Group defects by module
-  const defectsByModule = defects.reduce((acc, defect) => {
+  const defectsByModule = projectDefects.reduce((acc, defect) => {
     if (!acc[defect.module]) {
       acc[defect.module] = [];
     }
@@ -53,6 +59,7 @@ export const Defects: React.FC = () => {
     if (editingDefect) {
       updateDefect({
         ...formData,
+        projectId: projectId || '',
         id: editingDefect.id,
         createdAt: editingDefect.createdAt,
         updatedAt: new Date().toISOString(),
@@ -60,6 +67,7 @@ export const Defects: React.FC = () => {
     } else {
       const newDefect = {
         ...formData,
+        projectId: projectId || '',
         id: `DEF-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -105,7 +113,7 @@ export const Defects: React.FC = () => {
       priority: 'medium',
       severity: 'medium',
       status: 'open',
-      projectId: '',
+      projectId: projectId || '',
       releaseId: '',
       testCaseId: '',
       assignedTo: '',
@@ -168,8 +176,57 @@ export const Defects: React.FC = () => {
     }
   };
 
+  // Project selection handler
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    navigate(`/projects/${id}/defects`);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Project Selection Panel */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
+          <div className="relative flex items-center">
+            <button
+              onClick={() => {
+                const container = document.getElementById('project-scroll');
+                if (container) container.scrollLeft -= 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div
+              id="project-scroll"
+              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+            >
+              {projects.map(project => (
+                <Button
+                  key={project.id}
+                  variant={projectId === project.id ? 'primary' : 'secondary'}
+                  onClick={() => handleProjectSelect(project.id)}
+                  className="whitespace-nowrap"
+                >
+                  {project.name}
+                </Button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                const container = document.getElementById('project-scroll');
+                if (container) container.scrollLeft += 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+      {/* End Project Selection Panel */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Defects</h1>
@@ -315,7 +372,7 @@ export const Defects: React.FC = () => {
         ))}
       </div>
 
-      {defects.length === 0 && (
+      {projectDefects.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <Bug className="w-16 h-16 text-gray-400 mx-auto mb-4" />

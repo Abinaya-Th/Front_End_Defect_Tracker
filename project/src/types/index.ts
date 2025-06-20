@@ -58,10 +58,8 @@ export interface Defect {
 
 export interface TestCase {
   id: string;
-  title: string;
   description: string;
-  steps: string[];
-  expectedResult: string;
+  steps: string;
   priority: 'low' | 'medium' | 'high';
   projectId: string;
   createdBy: string;
@@ -78,9 +76,9 @@ export interface Release {
   version: string;
   description: string;
   projectId: string;
-  status: 'planned' | 'in-progress' | 'testing' | 'released';
+  status: 'planned' | 'in-progress' | 'testing' | 'released' | 'completed';
   releaseDate?: string;
-  Testcase: string[];
+  Testcase: string[]; // List of test case IDs (capital C for consistency with AppContext)
   features: string[];
   bugFixes: string[];
   createdAt: string;
