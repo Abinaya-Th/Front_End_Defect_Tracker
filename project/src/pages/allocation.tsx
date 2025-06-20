@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -17,7 +17,7 @@ export const Allocation: React.FC = () => {
   const navigate = useNavigate();
   const { projects, releases, employees, testCases, setSelectedProjectId } = useApp();
   const [activeTab, setActiveTab] = useState<'release' | 'qa'>('release');
-  const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null);
+  const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedSubmodule, setSelectedSubmodule] = useState('');
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
@@ -25,6 +25,10 @@ export const Allocation: React.FC = () => {
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
+  const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
+  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
 
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
@@ -44,6 +48,45 @@ export const Allocation: React.FC = () => {
   const projectReleases = releases.filter(r => r.projectId === projectId);
   // Filter test cases for this project
   const projectTestCases = testCases.filter(tc => tc.projectId === projectId);
+
+  // --- Bulk selection effect for test cases ---
+  useEffect(() => {
+    if (activeTab === 'release' && selectedReleaseIds.length > 0 && (bulkModuleSelect || bulkSubmoduleSelect)) {
+      let ids: string[] = [];
+      if (bulkModuleSelect && selectedModules.length > 0) {
+        ids = [
+          ...ids,
+          ...projectTestCases.filter(tc => selectedModules.includes(tc.module)).map(tc => tc.id)
+        ];
+      }
+      if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+        ids = [
+          ...ids,
+          ...projectTestCases.filter(tc => selectedSubmodules.includes(tc.subModule)).map(tc => tc.id)
+        ];
+      }
+      setSelectedTestCases(Array.from(new Set(ids)));
+    }
+  }, [activeTab, selectedReleaseIds, bulkModuleSelect, bulkSubmoduleSelect, selectedModules, selectedSubmodules, projectTestCases]);
+
+  // --- Filtered test cases for table ---
+  let filteredTestCases = projectTestCases;
+  if (activeTab === 'release' && selectedReleaseIds.length > 0 && (bulkModuleSelect || bulkSubmoduleSelect)) {
+    let ids: Set<string> = new Set();
+    if (bulkModuleSelect && selectedModules.length > 0) {
+      projectTestCases.forEach(tc => {
+        if (selectedModules.includes(tc.module)) ids.add(tc.id);
+      });
+    }
+    if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+      projectTestCases.forEach(tc => {
+        if (selectedSubmodules.includes(tc.subModule)) ids.add(tc.id);
+      });
+    }
+    filteredTestCases = projectTestCases.filter(tc => ids.has(tc.id));
+  } else if (selectedModule) {
+    filteredTestCases = projectTestCases.filter(tc => tc.module === selectedModule && (!selectedSubmodule || tc.subModule === selectedSubmodule));
+  }
 
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
@@ -96,21 +139,49 @@ export const Allocation: React.FC = () => {
   );
 
   const ReleaseCardsPanel = () => (
-    <div className="flex space-x-4 mb-4 overflow-x-auto">
-      {projectReleases.map(release => (
-        <Card
-          key={release.id}
-          hover
-          className={`min-w-[200px] cursor-pointer border-2 ${selectedReleaseId === release.id ? 'border-blue-500' : 'border-transparent'}`}
-          onClick={() => setSelectedReleaseId(release.id)}
-        >
-          <CardContent className="p-4 flex flex-col items-center">
-            <span className="font-bold text-blue-700 text-lg mb-1">{release.name}</span>
-            <span className="text-xs text-gray-500 mb-2">v{release.version}</span>
-            <Badge variant={release.status === 'completed' ? 'success' : 'info'}>{release.status}</Badge>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="mb-4">
+      <div className="flex space-x-2 overflow-x-auto">
+        {projectReleases.map(release => {
+          const isSelected = selectedReleaseIds.includes(release.id);
+          return (
+            <div
+              key={release.id}
+              className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
+                ${isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-200 hover:bg-gray-50'}`}
+              style={{ boxShadow: isSelected ? '0 0 0 2px #3b82f6' : undefined }}
+            >
+              <div className="truncate font-semibold mb-1">{release.name}</div>
+              <div className="text-xs text-gray-500 truncate mb-2">v{release.version}</div>
+              <Button
+                size="sm"
+                variant={isSelected ? 'primary' : 'secondary'}
+                className="w-full"
+                onClick={() => {
+                  setSelectedReleaseIds(prev =>
+                    isSelected
+                      ? prev.filter(id => id !== release.id)
+                      : [...prev, release.id]
+                  );
+                }}
+              >
+                {isSelected ? 'Selected' : 'Select'}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+      {/* Allocate button appears if at least one release is selected */}
+      {selectedReleaseIds.length > 0 && (
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="primary"
+            disabled={selectedTestCases.length === 0}
+            onClick={() => {/* Allocation logic here */}}
+          >
+            Allocate
+          </Button>
+        </div>
+      )}
     </div>
   );
 
@@ -119,6 +190,18 @@ export const Allocation: React.FC = () => {
       <CardContent className="p-4">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-semibold text-gray-900">Module Selection</h2>
+          {activeTab === 'release' && selectedReleaseIds.length > 0 && (
+            <Button
+              size="sm"
+              variant={bulkModuleSelect ? 'primary' : 'secondary'}
+              onClick={() => {
+                setBulkModuleSelect(v => !v);
+                setSelectedModules([]);
+              }}
+            >
+              {bulkModuleSelect ? 'Cancel Bulk' : 'Bulk Select'}
+            </Button>
+          )}
         </div>
         <div className="relative flex items-center">
           <button
@@ -139,16 +222,27 @@ export const Allocation: React.FC = () => {
               const moduleTestCases = testCases.filter(
                 (tc: any) => tc.projectId === projectId && tc.module === module.name
               );
+              const isSelected = bulkModuleSelect
+                ? selectedModules.includes(module.name)
+                : selectedModule === module.name;
               return (
                 <Button
                   key={module.id}
-                  variant={selectedModule === module.name ? 'primary' : 'secondary'}
+                  variant={isSelected ? 'primary' : 'secondary'}
                   onClick={() => {
-                    setSelectedModule(module.name);
-                    setSelectedSubmodule('');
-                    setSelectedTestCases([]);
+                    if (bulkModuleSelect) {
+                      setSelectedModules(prev =>
+                        prev.includes(module.name)
+                          ? prev.filter(m => m !== module.name)
+                          : [...prev, module.name]
+                      );
+                    } else {
+                      setSelectedModule(module.name);
+                      setSelectedSubmodule('');
+                      setSelectedTestCases([]);
+                    }
                   }}
-                  className="whitespace-nowrap"
+                  className={`whitespace-nowrap${isSelected ? ' ring-2 ring-blue-400 border-blue-500' : ''}`}
                 >
                   {module.name}
                   <Badge variant="info" className="ml-2">
@@ -179,6 +273,18 @@ export const Allocation: React.FC = () => {
         <CardContent className="p-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-semibold text-gray-900">Submodule Selection</h2>
+            {activeTab === 'release' && selectedReleaseIds.length > 0 && (
+              <Button
+                size="sm"
+                variant={bulkSubmoduleSelect ? 'primary' : 'secondary'}
+                onClick={() => {
+                  setBulkSubmoduleSelect(v => !v);
+                  setSelectedSubmodules([]);
+                }}
+              >
+                {bulkSubmoduleSelect ? 'Cancel Bulk' : 'Bulk Select'}
+              </Button>
+            )}
           </div>
           <div className="relative flex items-center">
             <button
@@ -199,12 +305,25 @@ export const Allocation: React.FC = () => {
                 const submoduleTestCases = testCases.filter(
                   (tc: any) => tc.projectId === projectId && tc.module === selectedModule && tc.subModule === submodule
                 );
+                const isSelected = bulkSubmoduleSelect
+                  ? selectedSubmodules.includes(submodule)
+                  : selectedSubmodule === submodule;
                 return (
                   <Button
                     key={submodule}
-                    variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
-                    onClick={() => setSelectedSubmodule(submodule)}
-                    className="whitespace-nowrap"
+                    variant={isSelected ? 'primary' : 'secondary'}
+                    onClick={() => {
+                      if (bulkSubmoduleSelect) {
+                        setSelectedSubmodules(prev =>
+                          prev.includes(submodule)
+                            ? prev.filter(s => s !== submodule)
+                            : [...prev, submodule]
+                        );
+                      } else {
+                        setSelectedSubmodule(submodule);
+                      }
+                    }}
+                    className={`whitespace-nowrap${isSelected ? ' ring-2 ring-blue-400 border-blue-500' : ''}`}
                   >
                     {submodule}
                     <Badge variant="info" className="ml-2">
@@ -246,10 +365,6 @@ export const Allocation: React.FC = () => {
   };
 
   // Selection logic
-  const filteredTestCases = projectTestCases.filter(tc =>
-    (!selectedModule || tc.module === selectedModule) &&
-    (!selectedSubmodule || tc.subModule === selectedSubmodule)
-  );
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedTestCases(filteredTestCases.map(tc => tc.id));
