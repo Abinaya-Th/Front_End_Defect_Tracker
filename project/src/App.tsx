@@ -10,6 +10,7 @@ import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
 import { TestCase } from './pages/TestCase';
+import { TestExecution } from './pages/TestExecution';
 import { Workflow } from './pages/Workflow';
 import { ProjectDashboard } from './pages/ProjectDashboard';
 import { useParams } from 'react-router-dom';
@@ -99,6 +100,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Allocation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/test-execution"
+          element={
+            <ProtectedRoute>
+              <TestExecution />
             </ProtectedRoute>
           }
         />

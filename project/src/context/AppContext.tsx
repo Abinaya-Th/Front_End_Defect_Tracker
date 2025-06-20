@@ -265,7 +265,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-AUT-BIO-0002',
@@ -276,7 +277,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-AUT-PIN-0001',
@@ -287,7 +289,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'critical',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-AUT-PIN-0002',
@@ -298,7 +301,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-AUT-PAS-0001',
@@ -309,7 +313,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-AUT-PAS-0002',
@@ -320,7 +325,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-AUT-SES-0001',
@@ -331,7 +337,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-AUT-SES-0002',
@@ -342,7 +349,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'medium',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-ACC-OVE-0003',
@@ -353,7 +361,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-TRA-QUI-0004',
@@ -364,7 +373,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'critical',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R002'
     },
     {
       id: 'TC-BIL-LIS-0005',
@@ -375,7 +385,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-SEC-2FA-0006',
@@ -386,7 +397,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'critical',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-SUP-CHT-0007',
@@ -397,7 +409,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'functional',
       severity: 'medium',
       status: 'active',
-      projectId: '2'
+      projectId: '2',
+      releaseId: 'R005'
     },
     {
       id: 'TC-AUT-PIN-0003',
