@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 export const ProjectDashboard: React.FC = () => {
   const { projectId } = useParams();
@@ -94,6 +96,11 @@ export const ProjectDashboard: React.FC = () => {
         </div>
       </div>
       {/* Add more project summary widgets here as needed */}
+      {/* Fixed Quick Add Button */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 }; 

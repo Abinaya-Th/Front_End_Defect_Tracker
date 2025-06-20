@@ -6,6 +6,8 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 import { useParams, useNavigate } from 'react-router-dom';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -241,7 +243,7 @@ export const Defects: React.FC = () => {
         {Object.entries(defectsByModule).map(([module, moduleDefects]) => (
           <Card key={module}>
             <CardContent className="p-0">
-              <div 
+              <div
                 className="p-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
                 onClick={() => toggleModule(module)}
               >
@@ -306,7 +308,7 @@ export const Defects: React.FC = () => {
                       {moduleDefects.map((defect) => {
                         const StatusIcon = getStatusIcon(defect.status);
                         const project = projects.find(p => p.id === defect.projectId);
-                        
+
                         return (
                           <tr key={defect.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -398,7 +400,7 @@ export const Defects: React.FC = () => {
             onChange={(e) => handleInputChange('title', e.target.value)}
             required
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
@@ -411,7 +413,7 @@ export const Defects: React.FC = () => {
               required
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Module"
@@ -442,7 +444,7 @@ export const Defects: React.FC = () => {
                 <option value="enhancement">Enhancement</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Priority
@@ -476,7 +478,7 @@ export const Defects: React.FC = () => {
                 <option value="critical">Critical</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project
@@ -515,7 +517,7 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Test Case
@@ -534,14 +536,14 @@ export const Defects: React.FC = () => {
               </select>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Assigned To"
               value={formData.assignedTo}
               onChange={(e) => handleInputChange('assignedTo', e.target.value)}
             />
-            
+
             <Input
               label="Reported By"
               value={formData.reportedBy}
@@ -562,6 +564,11 @@ export const Defects: React.FC = () => {
           </div>
         </form>
       </Modal>
+      {/* Fixed Quick Add Buttons */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };

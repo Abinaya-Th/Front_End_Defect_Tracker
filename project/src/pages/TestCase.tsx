@@ -7,6 +7,8 @@ import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 import { Badge } from '../components/ui/Badge';
 import { useParams, useNavigate } from 'react-router-dom';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -173,6 +175,10 @@ export const TestCase: React.FC = () => {
   const [selectedDescription, setSelectedDescription] = useState('');
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
+  const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState([
+    { module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }
+  ]);
 
   useEffect(() => {
     if (projectId) {
@@ -395,8 +401,42 @@ export const TestCase: React.FC = () => {
     setIsDescriptionModalOpen(true);
   };
 
+  const handleBulkRowChange = (idx: number, field: string, value: string) => {
+    setBulkRows(rows => rows.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+  };
+
+  const handleAddBulkRow = () => {
+    setBulkRows(rows => [...rows, { module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }]);
+  };
+
+  const handleRemoveBulkRow = (idx: number) => {
+    setBulkRows(rows => rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows);
+  };
+
+  const handleBulkAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const validRows = bulkRows.filter(row => row.module && row.subModule && row.description && row.steps);
+    validRows.forEach((tc, idx) => {
+      const moduleId = tc.module.substring(0, 3).toUpperCase();
+      const subModuleId = tc.subModule.substring(0, 3).toUpperCase();
+      const timestamp = (Date.now() + idx).toString().slice(-4);
+      addTestCase({
+        id: `TC-${moduleId}-${subModuleId}-${timestamp}`,
+        module: tc.module,
+        subModule: tc.subModule,
+        description: tc.description,
+        steps: tc.steps,
+        type: tc.type as 'functional' | 'regression' | 'smoke' | 'integration',
+        severity: tc.severity as 'low' | 'medium' | 'high' | 'critical',
+        projectId: projectId,
+      });
+    });
+    setBulkRows([{ module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }]);
+    setIsBulkAddModalOpen(false);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
       <div className="flex-none p-6 pb-4">
         <div className="flex justify-between items-center mb-4">
@@ -406,14 +446,7 @@ export const TestCase: React.FC = () => {
               {projectId ? `Project: ${projects.find(p => p.id === projectId)?.name}` : 'Select a project to begin'}
             </p>
           </div>
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2"
-            disabled={!projectId}
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Test Case</span>
-          </Button>
+
         </div>
 
         {/* Project Selection Panel */}
@@ -616,6 +649,19 @@ export const TestCase: React.FC = () => {
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete ({selectedTestCases.length})</span>
+              </Button>
+            </div>
+          )}
+
+          {/* Bulk Add Button above the table */}
+          {projectId && (
+            <div className="flex justify-end mb-4">
+              <Button
+                onClick={() => setIsBulkAddModalOpen(true)}
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Bulk Add</span>
               </Button>
             </div>
           )}
@@ -961,6 +1007,141 @@ export const TestCase: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Bulk Add Modal */}
+      <Modal
+        isOpen={isBulkAddModalOpen}
+        onClose={() => setIsBulkAddModalOpen(false)}
+        title="Bulk Add Test Cases"
+        size="xl"
+      >
+        <form onSubmit={handleBulkAddSubmit} className="space-y-4">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-2 py-1 border">Module</th>
+                  <th className="px-2 py-1 border">Submodule</th>
+                  <th className="px-2 py-1 border">Description</th>
+                  <th className="px-2 py-1 border">Steps</th>
+                  <th className="px-2 py-1 border">Type</th>
+                  <th className="px-2 py-1 border">Severity</th>
+                  <th className="px-2 py-1 border">Remove</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkRows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td className="px-2 py-1 border">
+                      <select
+                        value={row.module}
+                        onChange={e => handleBulkRowChange(idx, 'module', e.target.value)}
+                        className="w-32 px-2 py-1 border rounded"
+                        required
+                      >
+                        <option value="">Select</option>
+                        {projectModules.map(module => (
+                          <option key={module.id} value={module.name}>{module.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1 border">
+                      <select
+                        value={row.subModule}
+                        onChange={e => handleBulkRowChange(idx, 'subModule', e.target.value)}
+                        className="w-32 px-2 py-1 border rounded"
+                        required
+                        disabled={!row.module}
+                      >
+                        <option value="">Select</option>
+                        {(projectModules.find(m => m.name === row.module)?.submodules || []).map(submodule => (
+                          <option key={submodule} value={submodule}>{submodule}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1 border">
+                      <input
+                        type="text"
+                        value={row.description}
+                        onChange={e => handleBulkRowChange(idx, 'description', e.target.value)}
+                        className="w-48 px-2 py-1 border rounded"
+                        required
+                      />
+                    </td>
+                    <td className="px-2 py-1 border">
+                      <input
+                        type="text"
+                        value={row.steps}
+                        onChange={e => handleBulkRowChange(idx, 'steps', e.target.value)}
+                        className="w-48 px-2 py-1 border rounded"
+                        required
+                      />
+                    </td>
+                    <td className="px-2 py-1 border">
+                      <select
+                        value={row.type}
+                        onChange={e => handleBulkRowChange(idx, 'type', e.target.value)}
+                        className="w-28 px-2 py-1 border rounded"
+                      >
+                        <option value="functional">Functional</option>
+                        <option value="regression">Regression</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="integration">Integration</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1 border">
+                      <select
+                        value={row.severity}
+                        onChange={e => handleBulkRowChange(idx, 'severity', e.target.value)}
+                        className="w-28 px-2 py-1 border rounded"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1 border text-center">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => handleRemoveBulkRow(idx)}
+                        className="px-2 py-1"
+                        disabled={bulkRows.length === 1}
+                      >
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <Button type="button" onClick={handleAddBulkRow} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+              + Add Row
+            </Button>
+            <div className="flex space-x-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsBulkAddModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Test Cases
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Fixed Quick Add Button */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };

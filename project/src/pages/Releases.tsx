@@ -6,6 +6,8 @@ import { Badge } from '../components/ui/Badge';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Modal } from '../components/ui/Modal';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 export const Releases: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -104,6 +106,12 @@ export const Releases: React.FC = () => {
             </Card>
           ))}
         </div>
+      </div>
+
+      {/* Fixed Quick Add Button */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
       </div>
     </div>
   );
