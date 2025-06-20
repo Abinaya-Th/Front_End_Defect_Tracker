@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,14 +11,14 @@ import {
   UserCheck,
   ChevronDown,
   ChevronUp,
-} from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+} from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Employees', href: '/employees', icon: Users },
-  { name: 'Bench', href: '/bench', icon: UserCheck },
-  { name: 'Workflow', href: '/workflow', icon: GitBranch },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Employees", href: "/employees", icon: Users },
+  { name: "Bench", href: "/bench", icon: UserCheck },
+  { name: "Workflow", href: "/workflow", icon: GitBranch },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -29,14 +29,14 @@ export const Sidebar: React.FC = () => {
 
   // Open dropdown if any project-related route is active
   React.useEffect(() => {
-    if (location.pathname.startsWith('/projects/') && selectedProjectId) {
+    if (location.pathname.startsWith("/projects/") && selectedProjectId) {
       setOpen(true);
     }
   }, [location.pathname, selectedProjectId]);
 
   const handleProjectsClick = () => {
     setSelectedProjectId(null);
-    navigate('/projects');
+    navigate("/projects");
   };
 
   return (
@@ -50,8 +50,8 @@ export const Sidebar: React.FC = () => {
               className={({ isActive }) =>
                 `group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm'
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm"
                 }`
               }
             >
@@ -64,9 +64,9 @@ export const Sidebar: React.FC = () => {
           <div className="relative">
             <button
               className={`group flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                location.pathname.startsWith('/projects')
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm'
+                location.pathname.startsWith("/projects")
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:shadow-sm"
               }`}
               onClick={handleProjectsClick}
               aria-expanded={open}
@@ -75,24 +75,24 @@ export const Sidebar: React.FC = () => {
             >
               <FolderOpen className="mr-3 h-5 w-5 flex-shrink-0" />
               Projects
-              {selectedProjectId && (
-                open ? (
+              {selectedProjectId &&
+                (open ? (
                   <ChevronUp className="ml-auto w-4 h-4" />
                 ) : (
                   <ChevronDown className="ml-auto w-4 h-4" />
-                )
-              )}
+                ))}
             </button>
             {/* Only show dropdown if a project is selected */}
             {selectedProjectId && open && (
               <div id="project-dropdown" className="ml-8 mt-1 space-y-1">
                 <NavLink
                   to={`/projects/${selectedProjectId}`}
+                  end
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-blue-100 text-blue-800"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >
@@ -104,8 +104,8 @@ export const Sidebar: React.FC = () => {
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-blue-100 text-blue-800"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >
@@ -117,8 +117,8 @@ export const Sidebar: React.FC = () => {
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-blue-100 text-blue-800"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >
@@ -130,8 +130,8 @@ export const Sidebar: React.FC = () => {
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-blue-100 text-blue-800"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >
