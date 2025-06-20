@@ -7,7 +7,6 @@ import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 
 export const TestCases: React.FC = () => {
-  const { testCases, addTestCase, updateTestCase, deleteTestCase, releases } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -435,11 +434,6 @@ export const TestCases: React.FC = () => {
               required
             >
               <option value="">Select a release</option>
-              {releases.map(release => (
-                <option key={release.id} value={release.id}>
-                  {release.name} - {release.version}
-                </option>
-              ))}
             </select>
           </div>
           <div className="flex justify-end space-x-3 pt-4">

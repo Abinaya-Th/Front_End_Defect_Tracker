@@ -149,7 +149,7 @@ const mockTestCases: TestCase[] = [
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, testCases = [], addTestCase, updateTestCase, deleteTestCase, releases, setSelectedProjectId } = useApp();
+  const { projects, testCases = [], addTestCase, updateTestCase, deleteTestCase, setSelectedProjectId } = useApp();
   const [selectedModule, setSelectedModule] = useState('');
   const [selectedSubmodule, setSelectedSubmodule] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

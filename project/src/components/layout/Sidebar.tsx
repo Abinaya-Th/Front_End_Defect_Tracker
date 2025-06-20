@@ -111,13 +111,12 @@ export const Sidebar: React.FC = () => {
                   <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
                   Test Cases
                 </NavLink>
+                {/* Releases Tab */}
                 <NavLink
                   to={`/projects/${selectedProjectId}/releases`}
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? "bg-blue-100 text-blue-800"
-                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      isActive ? "bg-blue-100 text-blue-800" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >

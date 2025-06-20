@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { defects, projects, releases, testCases = [], addDefect, updateDefect, deleteDefect, setSelectedProjectId } = useApp();
+  const { defects, projects, testCases = [], addDefect, updateDefect, deleteDefect, setSelectedProjectId } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<any>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
@@ -508,11 +508,6 @@ export const Defects: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select a release</option>
-                {releases.map((release) => (
-                  <option key={release.id} value={release.id}>
-                    {release.name} (v{release.version})
-                  </option>
-                ))}
               </select>
             </div>
             
