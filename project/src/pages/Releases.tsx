@@ -18,7 +18,7 @@ export const Releases: React.FC = () => {
   const filteredReleases = releases.filter(r => r.projectId === selectedProject);
 
   return (
-    <div className="min-h-screen w-full flex flex-col">
+    <div className="max-w-6xl mx-auto py-8">
       {/* Project Selection Panel */}
       <div className="flex-none p-6 pb-2">
         <Card>

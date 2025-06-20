@@ -183,7 +183,7 @@ export const Defects: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto py-8">
       {/* Project Selection Panel */}
       <Card>
         <CardContent className="p-4">

@@ -33,7 +33,7 @@ export const ProjectDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto py-8">
       {/* Project Selection Panel */}
       <Card>
         <CardContent className="p-4">
@@ -58,7 +58,7 @@ export const ProjectDashboard: React.FC = () => {
                   key={project.id}
                   variant={projectId === project.id ? 'primary' : 'secondary'}
                   onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap m-2"
                 >
                   {project.name}
                 </Button>

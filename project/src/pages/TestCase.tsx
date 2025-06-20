@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Eye, CheckSquare, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -189,7 +189,8 @@ export const TestCase: React.FC = () => {
   const projectModules = projectId ? mockModules[projectId] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
-  const selectedTestCaseIds = React.useMemo(() => {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const selectedTestCaseIds = useMemo(() => {
     let ids: string[] = [];
     if (selectedModules.length > 0) {
       ids = [
@@ -255,12 +256,12 @@ export const TestCase: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Generate module and submodule IDs
     const moduleId = formData.module.substring(0, 3).toUpperCase();
     const subModuleId = formData.subModule.substring(0, 3).toUpperCase();
     const timestamp = Date.now().toString().slice(-4);
-    
+
     if (editingTestCase) {
       updateTestCase({
         ...formData,
@@ -395,7 +396,7 @@ export const TestCase: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col">
+    <div className="max-w-6xl mx-auto py-8">
       {/* Fixed Header Section */}
       <div className="flex-none p-6 pb-4">
         <div className="flex justify-between items-center mb-4">
@@ -405,8 +406,8 @@ export const TestCase: React.FC = () => {
               {projectId ? `Project: ${projects.find(p => p.id === projectId)?.name}` : 'Select a project to begin'}
             </p>
           </div>
-          <Button 
-            onClick={() => setIsModalOpen(true)} 
+          <Button
+            onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2"
             disabled={!projectId}
           >
@@ -438,8 +439,11 @@ export const TestCase: React.FC = () => {
                   <Button
                     key={project.id}
                     variant={projectId === project.id ? 'primary' : 'secondary'}
-                    onClick={() => handleProjectSelect(project.id)}
-                    className="whitespace-nowrap"
+                    onClick={() => {
+                      setSelectedProjectId(project.id);
+                      navigate(`/projects/${project.id}/test-cases`);
+                    }}
+                    className="whitespace-nowrap m-2"
                   >
                     {project.name}
                   </Button>
@@ -462,8 +466,8 @@ export const TestCase: React.FC = () => {
       {/* Content Area - Now scrollable at page level */}
       <div className="flex-1 px-6 pb-6">
         <div className="flex flex-col">
-          
-          
+
+
           {/* Module Selection Panel */}
           {projectId && (
             <Card className="mb-4">
@@ -495,7 +499,7 @@ export const TestCase: React.FC = () => {
                           key={module.id}
                           variant={selectedModule === module.name ? 'primary' : 'secondary'}
                           onClick={() => handleModuleSelect(module.name)}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap m-2"
                         >
                           {module.name}
                           <Badge variant="info" className="ml-2">
@@ -556,7 +560,7 @@ export const TestCase: React.FC = () => {
                               <Button
                                 variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
                                 onClick={() => handleSubmoduleSelect(submodule)}
-                                className="whitespace-nowrap border-0"
+                                className="whitespace-nowrap border-0 m-1"
                               >
                                 {submodule}
                                 <Badge variant="info" className="ml-2">
@@ -601,7 +605,7 @@ export const TestCase: React.FC = () => {
           {/* Bulk Operations Panel */}
           {projectId && selectedModule && selectedTestCases.length > 0 && (
             <div className="flex justify-end space-x-3 mb-4">
-              <Button 
+              <Button
                 onClick={() => {
                   if (window.confirm(`Are you sure you want to delete ${selectedTestCases.length} test case(s)?`)) {
                     selectedTestCases.forEach(id => deleteTestCase(id));
@@ -732,18 +736,40 @@ export const TestCase: React.FC = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Module"
-              value={formData.module}
-              onChange={(e) => handleInputChange('module', e.target.value)}
-              required
-            />
-            <Input
-              label="Sub Module"
-              value={formData.subModule}
-              onChange={(e) => handleInputChange('subModule', e.target.value)}
-              required
-            />
+            {/* Module Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+              <select
+                value={formData.module}
+                onChange={e => {
+                  handleInputChange('module', e.target.value);
+                  handleInputChange('subModule', ''); // Reset submodule when module changes
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select Module</option>
+                {projectModules.map(module => (
+                  <option key={module.id} value={module.name}>{module.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* Submodule Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
+              <select
+                value={formData.subModule}
+                onChange={e => handleInputChange('subModule', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled={!formData.module}
+              >
+                <option value="">Select Sub Module</option>
+                {(projectModules.find(m => m.name === formData.module)?.submodules || []).map(submodule => (
+                  <option key={submodule} value={submodule}>{submodule}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
