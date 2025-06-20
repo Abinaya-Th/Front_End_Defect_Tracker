@@ -80,7 +80,7 @@ export interface Release {
   projectId: string;
   status: 'planned' | 'in-progress' | 'testing' | 'released';
   releaseDate?: string;
-  testCases: string[];
+  Testcase: string[];
   features: string[];
   bugFixes: string[];
   createdAt: string;

@@ -15,7 +15,7 @@ import { CheckCircle as CheckCircleIcon, XCircle, AlertCircle } from 'lucide-rea
 
 export const Releases: React.FC = () => {
   const navigate = useNavigate();
-  const { releases, projects, testCases, addRelease, updateRelease, addDefect, updateTestCase } = useApp();
+  const { releases, projects, TestCase, addRelease, updateRelease, addDefect, updateTestCase } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDefectModalOpen, setIsDefectModalOpen] = useState(false);
   const [selectedRelease, setSelectedRelease] = useState<string>('');
@@ -31,7 +31,7 @@ export const Releases: React.FC = () => {
     projectId: '',
     status: 'planned' as 'planned' | 'in-progress' | 'testing' | 'released' | 'completed',
     releaseDate: '',
-    testCases: [] as string[],
+    TestCase: [] as string[],
   });
   const [defectFormData, setDefectFormData] = useState({
     title: '',
@@ -51,7 +51,7 @@ export const Releases: React.FC = () => {
       projectId: '',
       status: 'planned',
       releaseDate: '',
-      testCases: [],
+      TestCase: [],
     });
     setIsModalOpen(false);
   };
@@ -229,7 +229,7 @@ export const Releases: React.FC = () => {
                           </div>
                           <div className="flex items-center space-x-2">
                             <Users className="w-4 h-4" />
-                            <span>{release.testCases.length} tests</span>
+                            <span>{release.TestCase.length} tests</span>
                           </div>
                         </div>
                       </CardContent>
@@ -301,8 +301,8 @@ export const Releases: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-4">
-                      {testCases
-                        .filter(tc => release.testCases.includes(tc.id))
+                      {TestCase
+                        .filter(tc => release.TestCase.includes(tc.id))
                         .map((testCase) => (
                           <div key={testCase.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                             <div className="space-y-1">

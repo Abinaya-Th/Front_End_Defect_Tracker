@@ -255,13 +255,13 @@ export const Projects: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...mockProjects, ...projects].map((project) => {
+        {[...mockProjects, ...projects].map((project, index) => {
           const manager = sampleManagers.find(emp => emp.id === project.manager);
           const daysLeft = project.endDate ? Math.ceil((new Date(project.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
           
           return (
             <Card 
-              key={project.id} 
+              key={`${project.id}-${index}`} 
               hover 
               className="relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
             >

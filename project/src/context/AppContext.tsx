@@ -59,7 +59,7 @@ interface AppContextType {
   updateRelease: (release: Release) => void;
   deleteRelease: (releaseId: string) => void;
   updateWorkflowItem: (id: string, updates: Partial<WorkflowItem>) => void;
-  moveTestCasesToRelease: (testCaseIds: string[], releaseId: string) => void;
+  moveTestCaseToRelease: (testCaseIds: string[], releaseId: string) => void;
   allocateEmployee: (allocation: Omit<BenchAllocation, 'id' | 'createdAt'>) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
@@ -137,30 +137,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     {
       id: '1',
       name: 'E-commerce Platform',
+      prefix: 'ECOM',
       description: 'Online shopping platform with payment integration',
-      status: 'in-progress',
+      status: 'active',
       startDate: '2024-01-01',
       endDate: '2024-06-30',
       manager: 'John Smith',
       priority: 'high',
       projectType: 'web',
-      progress: 65
+      progress: 65,
+      teamMembers: [],
+      createdAt: '2024-01-01T00:00:00Z'
     },
     {
       id: '2',
       name: 'Mobile Banking App',
+      prefix: 'MBAP',
       description: 'Secure banking application for iOS and Android',
       status: 'active',
       startDate: '2024-02-01',
       endDate: '2024-08-31',
       manager: 'Sarah Johnson',
-      priority: 'critical',
+      priority: 'high',
       projectType: 'mobile',
-      progress: 45
+      progress: 45,
+      teamMembers: [],
+      createdAt: '2024-02-01T00:00:00Z'
     },
     {
       id: '3',
       name: 'Inventory Management',
+      prefix: 'INVM',
       description: 'Enterprise inventory tracking system',
       status: 'completed',
       startDate: '2023-09-01',
@@ -168,7 +175,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       manager: 'Mike Brown',
       priority: 'medium',
       projectType: 'desktop',
-      progress: 100
+      progress: 100,
+      teamMembers: [],
+      createdAt: '2023-09-01T00:00:00Z'
     }
   ]);
   
@@ -337,129 +346,399 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       projectId: '1',
       releaseId: 'R001'
     },
-    {
-      id: 'TC003',
-      module: 'Product',
-      subModule: 'Search',
-      description: 'Verify product search functionality with filters',
-      steps: [
-        'Enter search term',
-        'Apply category filter',
-        'Apply price range filter',
-        'Verify search results'
-      ],
-      type: 'functional',
-      severity: 'medium',
-      status: 'active',
-      projectId: '1',
-      releaseId: 'R001'
-    },
-    {
-      id: 'TC004',
-      module: 'Cart',
-      subModule: 'Management',
-      description: 'Test shopping cart operations',
-      steps: [
-        'Add items to cart',
-        'Update quantities',
-        'Remove items',
-        'Verify total calculation'
-      ],
-      type: 'functional',
-      severity: 'high',
-      status: 'active',
-      projectId: '1',
-      releaseId: 'R001'
-    },
-
     // Mobile Banking App Test Cases
     {
-      id: 'TC005',
-      module: 'Security',
-      subModule: 'Encryption',
-      description: 'Verify data encryption during transmission',
+      id: 'TC-AUT-BIO-0001',
+      title: 'Biometric Login Validation',
+      module: 'Authentication',
+      subModule: 'Biometric Login',
+      description: 'Verify that users can log in using biometric authentication',
       steps: [
-        'Submit sensitive data',
-        'Check network traffic',
-        'Verify encryption protocol',
-        'Validate data integrity'
+        'Open the mobile banking app',
+        'Select biometric login option',
+        'Authenticate using fingerprint/face ID',
+        'Verify successful login and redirection to dashboard'
       ],
-      type: 'security',
-      severity: 'critical',
-      status: 'active',
-      projectId: '2',
-      releaseId: 'R002'
-    },
-    {
-      id: 'TC006',
-      module: 'UI',
-      subModule: 'Responsive Design',
-      description: 'Test responsive layout across different devices',
-      steps: [
-        'Open on different screen sizes',
-        'Check layout adaptation',
-        'Verify content visibility',
-        'Test touch interactions'
-      ],
-      type: 'ui',
-      severity: 'medium',
-      status: 'active',
-      projectId: '2',
-      releaseId: 'R002'
-    },
-    {
-      id: 'TC007',
-      module: 'Transaction',
-      subModule: 'Transfer',
-      description: 'Verify fund transfer functionality',
-      steps: [
-        'Select recipient',
-        'Enter amount',
-        'Add transfer note',
-        'Confirm transaction',
-        'Verify confirmation'
-      ],
-      type: 'functional',
-      severity: 'critical',
-      status: 'active',
-      projectId: '2',
-      releaseId: 'R002'
-    },
-
-    // Inventory Management Test Cases
-    {
-      id: 'TC008',
-      module: 'Database',
-      subModule: 'CRUD Operations',
-      description: 'Test database operations for inventory items',
-      steps: [
-        'Create new inventory item',
-        'Read existing item details',
-        'Update item information',
-        'Delete item record'
-      ],
+      expectedResult: 'User should be successfully logged in using biometric authentication',
+      actualResult: '',
       type: 'functional',
       severity: 'high',
       status: 'active',
-      projectId: '3',
-      releaseId: 'R003'
+      projectId: '2'
     },
     {
-      id: 'TC009',
-      module: 'Reporting',
-      subModule: 'Analytics',
-      description: 'Verify inventory analytics and reporting',
+      id: 'TC-AUT-BIO-0002',
+      title: 'Biometric Login Fallback',
+      module: 'Authentication',
+      subModule: 'Biometric Login',
+      description: 'Verify fallback to PIN login when biometric authentication fails',
       steps: [
-        'Generate stock level report',
-        'Check reorder suggestions',
-        'Verify trend analysis',
-        'Export report data'
+        'Open the mobile banking app',
+        'Select biometric login option',
+        'Fail biometric authentication 3 times',
+        'Verify fallback to PIN login screen',
+        'Enter correct PIN',
+        'Verify successful login'
       ],
+      expectedResult: 'System should fallback to PIN login after 3 failed biometric attempts',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0001',
+      title: 'PIN Login Security',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Test PIN login security features',
+      steps: [
+        'Enter incorrect PIN 3 times',
+        'Verify account lockout',
+        'Wait for lockout period',
+        'Enter correct PIN',
+        'Verify successful login'
+      ],
+      expectedResult: 'Account should be locked after 3 failed attempts and unlocked after waiting period',
+      actualResult: '',
+      type: 'functional',
+      severity: 'critical',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0002',
+      title: 'PIN Change Process',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Verify PIN change functionality',
+      steps: [
+        'Log in to the app',
+        'Navigate to security settings',
+        'Select change PIN option',
+        'Enter current PIN',
+        'Enter new PIN twice',
+        'Verify PIN change confirmation'
+      ],
+      expectedResult: 'PIN should be changed successfully with proper validation',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PAS-0001',
+      title: 'Password Reset Request',
+      module: 'Authentication',
+      subModule: 'Password Reset',
+      description: 'Test password reset request process',
+      steps: [
+        'Click forgot password link',
+        'Enter registered email address',
+        'Verify OTP sent to email',
+        'Enter OTP',
+        'Set new password',
+        'Verify password change confirmation'
+      ],
+      expectedResult: 'Password reset process should complete successfully with email verification',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PAS-0002',
+      title: 'Password Strength Validation',
+      module: 'Authentication',
+      subModule: 'Password Reset',
+      description: 'Verify password strength requirements',
+      steps: [
+        'Initiate password reset',
+        'Enter weak password (less than 8 characters)',
+        'Verify error message',
+        'Enter password without special character',
+        'Verify error message',
+        'Enter strong password meeting all requirements',
+        'Verify acceptance'
+      ],
+      expectedResult: 'System should enforce password strength requirements',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-SES-0001',
+      title: 'Session Timeout',
+      module: 'Authentication',
+      subModule: 'Session Management',
+      description: 'Verify session timeout functionality',
+      steps: [
+        'Log in to the app',
+        'Leave app idle for 5 minutes',
+        'Attempt to perform an action',
+        'Verify session timeout message',
+        'Verify redirection to login screen'
+      ],
+      expectedResult: 'Session should timeout after 5 minutes of inactivity',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-SES-0002',
+      title: 'Multiple Device Session',
+      module: 'Authentication',
+      subModule: 'Session Management',
+      description: 'Test session handling across multiple devices',
+      steps: [
+        'Log in on first device',
+        'Log in on second device',
+        'Verify session status on first device',
+        'Perform action on second device',
+        'Verify session remains active on both devices'
+      ],
+      expectedResult: 'System should maintain separate sessions for different devices',
+      actualResult: '',
       type: 'functional',
       severity: 'medium',
       status: 'active',
-      projectId: '3',
-      releaseId: 'R003'
+      projectId: '2'
+    },
+    {
+      id: 'TC-ACC-OVE-0003',
+      title: 'Account Overview Display',
+      module: 'Account Management',
+      subModule: 'Account Overview',
+      description: 'Verify account overview displays correct information',
+      steps: [
+        'Log in to the app',
+        'Navigate to account overview',
+        'Verify account balance display',
+        'Check recent transactions list',
+        'Verify account details accuracy'
+      ],
+      expectedResult: 'Account overview should display accurate balance and recent transactions',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-TRA-QUI-0004',
+      title: 'Quick Transfer Functionality',
+      module: 'Money Transfer',
+      subModule: 'Quick Transfer',
+      description: 'Test quick transfer feature between accounts',
+      steps: [
+        'Select quick transfer option',
+        'Choose source and destination accounts',
+        'Enter transfer amount',
+        'Confirm transfer',
+        'Verify transaction completion'
+      ],
+      expectedResult: 'Transfer should be completed successfully with correct amount',
+      actualResult: '',
+      type: 'functional',
+      severity: 'critical',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-BIL-LIS-0005',
+      title: 'Bill List Management',
+      module: 'Bill Payments',
+      subModule: 'Bill List',
+      description: 'Verify bill list management functionality',
+      steps: [
+        'Navigate to bill payments section',
+        'Add new biller',
+        'Verify biller details',
+        'Check bill list display',
+        'Test bill payment process'
+      ],
+      expectedResult: 'Bill list should be managed correctly with accurate biller information',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-SEC-2FA-0006',
+      title: 'Two-Factor Authentication',
+      module: 'Security Features',
+      subModule: 'Two-Factor Auth',
+      description: 'Test two-factor authentication process',
+      steps: [
+        'Enable 2FA in security settings',
+        'Log out and attempt login',
+        'Enter primary credentials',
+        'Enter 2FA code',
+        'Verify successful authentication'
+      ],
+      expectedResult: '2FA should provide additional security layer during login',
+      actualResult: '',
+      type: 'functional',
+      severity: 'critical',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-SUP-CHT-0007',
+      title: 'Chat Support Functionality',
+      module: 'Customer Support',
+      subModule: 'Chat Support',
+      description: 'Verify in-app chat support features',
+      steps: [
+        'Access customer support section',
+        'Initiate chat session',
+        'Send test message',
+        'Verify message delivery',
+        'Check response handling'
+      ],
+      expectedResult: 'Chat support should provide real-time communication with support team',
+      actualResult: '',
+      type: 'functional',
+      severity: 'medium',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0003',
+      title: 'PIN Length Validation',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Verify PIN length requirements and validation',
+      steps: [
+        'Navigate to PIN change screen',
+        'Enter PIN with less than 6 digits',
+        'Verify error message for short PIN',
+        'Enter PIN with more than 6 digits',
+        'Verify error message for long PIN',
+        'Enter valid 6-digit PIN',
+        'Verify PIN acceptance'
+      ],
+      expectedResult: 'System should enforce 6-digit PIN requirement',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0004',
+      title: 'Consecutive Numbers PIN',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Test validation for consecutive numbers in PIN',
+      steps: [
+        'Navigate to PIN change screen',
+        'Enter PIN with consecutive numbers (e.g., 123456)',
+        'Verify warning message',
+        'Enter PIN with non-consecutive numbers',
+        'Verify PIN acceptance'
+      ],
+      expectedResult: 'System should warn against using consecutive numbers in PIN',
+      actualResult: '',
+      type: 'functional',
+      severity: 'medium',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0005',
+      title: 'PIN Lockout Duration',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Verify PIN lockout duration and reset functionality',
+      steps: [
+        'Enter incorrect PIN 3 times',
+        'Verify account lockout message',
+        'Wait for 15 minutes',
+        'Attempt login with correct PIN',
+        'Verify successful login',
+        'Enter incorrect PIN 3 times again',
+        'Verify new lockout period'
+      ],
+      expectedResult: 'Account should be locked for 15 minutes after 3 failed attempts',
+      actualResult: '',
+      type: 'functional',
+      severity: 'critical',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0006',
+      title: 'PIN Reset via OTP',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Test PIN reset process using OTP verification',
+      steps: [
+        'Select forgot PIN option',
+        'Enter registered mobile number',
+        'Verify OTP sent to mobile',
+        'Enter received OTP',
+        'Set new PIN',
+        'Confirm new PIN',
+        'Verify PIN reset confirmation'
+      ],
+      expectedResult: 'PIN should be reset successfully after OTP verification',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0007',
+      title: 'PIN History Validation',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Verify that users cannot reuse previous PINs',
+      steps: [
+        'Change PIN to a new value',
+        'Log out and log back in',
+        'Navigate to PIN change screen',
+        'Attempt to set previous PIN',
+        'Verify error message',
+        'Set different PIN',
+        'Verify successful PIN change'
+      ],
+      expectedResult: 'System should prevent reuse of previous PINs',
+      actualResult: '',
+      type: 'functional',
+      severity: 'high',
+      status: 'active',
+      projectId: '2'
+    },
+    {
+      id: 'TC-AUT-PIN-0008',
+      title: 'PIN Entry Masking',
+      module: 'Authentication',
+      subModule: 'PIN Login',
+      description: 'Verify PIN entry field security features',
+      steps: [
+        'Navigate to PIN entry screen',
+        'Enter PIN digits',
+        'Verify digits are masked',
+        'Toggle show/hide PIN option',
+        'Verify PIN visibility toggle works',
+        'Verify PIN is masked by default after screen timeout'
+      ],
+      expectedResult: 'PIN digits should be masked by default with option to show/hide',
+      actualResult: '',
+      type: 'functional',
+      severity: 'medium',
+      status: 'active',
+      projectId: '2'
     }
   ]);
 
@@ -472,7 +751,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       projectId: '1',
       status: 'in-progress',
       releaseDate: '2024-03-15',
-      testCases: ['TC001', 'TC002', 'TC003', 'TC004']
+      TestCase: ['TC001', 'TC002', 'TC003', 'TC004']
     },
     {
       id: 'R002',
@@ -482,7 +761,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       projectId: '2',
       status: 'planned',
       releaseDate: '2024-04-01',
-      testCases: ['TC005', 'TC006', 'TC007']
+      TestCase: ['TC005', 'TC006', 'TC007']
     },
     {
       id: 'R003',
@@ -492,7 +771,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       projectId: '3',
       status: 'completed',
       releaseDate: '2024-02-15',
-      testCases: ['TC008', 'TC009']
+      TestCase: ['TC008', 'TC009']
     }
   ]);
 
@@ -550,15 +829,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTestCase = (testCase: TestCase) => {
-    // Implementation for adding test case
+    setTestCases(prev => [...prev, testCase]);
   };
 
   const updateTestCase = (testCase: TestCase) => {
-    // Implementation for updating test case
+    setTestCases(prev => prev.map(tc => tc.id === testCase.id ? testCase : tc));
   };
 
   const deleteTestCase = (testCaseId: string) => {
-    // Implementation for deleting test case
+    setTestCases(prev => prev.filter(tc => tc.id !== testCaseId));
   };
 
   const addRelease = (release: Release) => {
@@ -579,7 +858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const moveTestCasesToRelease = (testCaseIds: string[], releaseId: string) => {
+  const moveTestCaseToRelease = (testCaseIds: string[], releaseId: string) => {
     // Implementation for moving test cases to a release
   };
 
@@ -623,7 +902,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateRelease,
         deleteRelease,
         updateWorkflowItem,
-        moveTestCasesToRelease,
+        moveTestCaseToRelease,
         allocateEmployee,
         updateWorkflowStatuses,
         updateTransitions,

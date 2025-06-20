@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 
 export const Defects: React.FC = () => {
-  const { defects, projects, releases, testCases, addDefect, updateDefect, deleteDefect } = useApp();
+  const { defects, projects, releases, testCases = [], addDefect, updateDefect, deleteDefect } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<any>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());

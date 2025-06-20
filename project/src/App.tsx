@@ -9,7 +9,7 @@ import { Employees } from './pages/Employees';
 import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
-import { TestCases } from './pages/TestCases';
+import { TestCase } from './pages/TestCase';
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
 
@@ -79,7 +79,7 @@ const AppRoutes: React.FC = () => {
           path="/test-cases"
           element={
             <ProtectedRoute>
-              <TestCases />
+              <TestCase />
             </ProtectedRoute>
           }
         />
