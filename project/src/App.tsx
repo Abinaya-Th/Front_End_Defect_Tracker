@@ -9,14 +9,15 @@ import { Employees } from './pages/Employees';
 import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
-import { TestCasePage } from './pages/TestCase';
-import { Releases } from './pages/Releases';
+import { TestCase } from './pages/TestCase';
+import { TestExecution } from './pages/TestExecution';
 import { Workflow } from './pages/Workflow';
 import { ProjectDashboard } from './pages/ProjectDashboard';
 import { ModuleManagement } from './pages/ModuleManagement';
 import { useParams } from 'react-router-dom';
 import { Releases } from './pages/release';
 import { Allocation } from './pages/allocation';
+import { ReleaseView } from './pages/ReleaseView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -84,7 +85,7 @@ const AppRoutes: React.FC = () => {
           path="/projects/:projectId/test-cases"
           element={
             <ProtectedRoute>
-              <TestCasePage />
+              <TestCase />
             </ProtectedRoute>
           }
         />
@@ -97,10 +98,18 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/releases/:releaseId"
+          path="/projects/:projectId/releases/allocation"
           element={
             <ProtectedRoute>
-              <ReleaseDetails />
+              <Allocation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/test-execution"
+          element={
+            <ProtectedRoute>
+              <TestExecution />
             </ProtectedRoute>
           }
         />

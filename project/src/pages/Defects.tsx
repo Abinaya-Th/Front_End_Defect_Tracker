@@ -7,9 +7,6 @@ import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
-import QuickAddTestCase from './QuickAddTestCase';
-import QuickAddDefect from './QuickAddDefect';
-
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -274,7 +271,7 @@ export const Defects: React.FC = () => {
   }, [highlightId]);
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
+    <div className="p-6 space-y-6">
       {/* Project Selection Panel */}
       <Card>
         <CardContent className="p-4">
@@ -396,30 +393,15 @@ export const Defects: React.FC = () => {
       {/* Defect Table in a single frame with search/filter in one line */}
       <Card>
             <CardContent className="p-0">
-              <div
-                className="p-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                onClick={() => toggleModule(module)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {expandedModules.has(module) ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    )}
-                    <h3 className="text-lg font-semibold text-gray-900">{module}</h3>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                      {moduleDefects.length} defects
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-500">
-                      {moduleDefects.filter(d => d.status === 'open').length} open
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {moduleDefects.filter(d => d.status === 'in-progress').length} in progress
-                    </span>
-                  </div>
+          <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
+            {/* Search Field (right) */}
+            <div className="flex items-center ml-auto">
+              <Input
+                placeholder="Search..."
+                value={filters.search || ''}
+                onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+                className="w-40"
+              />
                 </div>
               </div>
                 <div className="overflow-x-auto">
@@ -440,14 +422,24 @@ export const Defects: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {moduleDefects.map((defect) => {
-                        const StatusIcon = getStatusIcon(defect.status);
-                        const project = projects.find(p => p.id === defect.projectId);
-
-                        return (
-                          <tr key={defect.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {defect.id}
+                {filteredDefects.length > 0 ? filteredDefects.map(defect => (
+                          <tr
+                            key={defect.id}
+                            ref={highlightId === defect.id ? highlightedRowRef : undefined}
+                            className={`hover:bg-gray-50${highlightId === defect.id ? ' bg-yellow-100 border-2 border-yellow-400' : ''}`}
+                          >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{defect.id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{defect.title}</td>
+                    <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
+                      <button
+                        type="button"
+                        className="flex items-center space-x-1 hover:underline"
+                        onClick={() => { setViewingSteps(defect.description); setIsViewStepsModalOpen(true); }}
+                        title="View Steps"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        <span>View</span>
+                      </button>
                             </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{defect.module}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{defect.subModule}</td>
@@ -524,7 +516,7 @@ export const Defects: React.FC = () => {
             onChange={(e) => handleInputChange('title', e.target.value)}
             required
           />
-
+          {/* Steps */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Steps</label>
             <textarea
@@ -535,22 +527,7 @@ export const Defects: React.FC = () => {
               required
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Module"
-              value={formData.module}
-              onChange={(e) => handleInputChange('module', e.target.value)}
-              required
-            />
-            <Input
-              label="Sub Module"
-              value={formData.subModule}
-              onChange={(e) => handleInputChange('subModule', e.target.value)}
-              required
-            />
-          </div>
-
+          {/* Modules and Submodules */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Modules</label>
@@ -566,7 +543,6 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Submodules</label>
               <select
@@ -599,7 +575,6 @@ export const Defects: React.FC = () => {
                 <option value="minor">Minor</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
               <select
@@ -624,15 +599,12 @@ export const Defects: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="">Select a release</option>
-                {releases.map((release) => (
-                  <option key={release.id} value={release.id}>
-                    {release.name} (v{release.version})
-                  </option>
-                ))}
+                <option value="">Select type</option>
+                <option value="ui-issue">UI Issue</option>
+                <option value="functional-bug">Functional Bug</option>
+                <option value="performance-issue">Performance Issue</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
@@ -650,18 +622,24 @@ export const Defects: React.FC = () => {
               </select>
             </div>
           </div>
-
+          {/* Show rejection comment if status is rejected */}
+          {formData.status === 'rejected' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Comment</label>
+              <Input
+                value={formData.rejectionComment}
+                onChange={e => handleInputChange('rejectionComment', e.target.value)}
+                placeholder="Enter reason for rejection"
+                required={formData.status === 'rejected'}
+              />
+            </div>
+          )}
+          {/* Assigned To */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Assigned To"
               value={formData.assignedTo}
-              onChange={(e) => handleInputChange('assignedTo', e.target.value)}
-            />
-
-            <Input
-              label="Reported By"
-              value={formData.reportedBy}
-              onChange={(e) => handleInputChange('reportedBy', e.target.value)}
+              onChange={e => handleInputChange('assignedTo', e.target.value)}
               required
             />
           </div>
@@ -671,11 +649,40 @@ export const Defects: React.FC = () => {
           </div>
         </form>
       </Modal>
-      {/* Fixed Quick Add Buttons */}
-      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <QuickAddTestCase />
-        <QuickAddDefect />
-      </div>
+
+      {/* Modal for viewing steps */}
+      <Modal
+        isOpen={isViewStepsModalOpen}
+        onClose={() => setIsViewStepsModalOpen(false)}
+        title="Defect Steps"
+        size="md"
+      >
+        <div className="whitespace-pre-line text-gray-800 text-base">
+          {viewingSteps}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button type="button" variant="secondary" onClick={() => setIsViewStepsModalOpen(false)}>
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal for viewing rejection comment */}
+      <Modal
+        isOpen={isRejectionCommentModalOpen}
+        onClose={() => setIsRejectionCommentModalOpen(false)}
+        title="Rejection Comment"
+        size="md"
+      >
+        <div className="text-gray-800 text-base whitespace-pre-line">
+          {viewingRejectionComment}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button type="button" variant="secondary" onClick={() => setIsRejectionCommentModalOpen(false)}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };
