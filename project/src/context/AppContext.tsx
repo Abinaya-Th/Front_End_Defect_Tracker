@@ -65,6 +65,8 @@ interface AppContextType {
   allocateEmployee: (allocation: Omit<BenchAllocation, 'id' | 'createdAt'>) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
+  testCaseDefectMap: { [testCaseId: string]: string };
+  setTestCaseDefectMap: React.Dispatch<React.SetStateAction<{ [testCaseId: string]: string }>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -541,6 +543,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [workflowStatuses, setWorkflowStatuses] = useState<WorkflowStatus[]>([]);
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [testCaseDefectMap, setTestCaseDefectMap] = useState<{ [testCaseId: string]: string }>({});
 
   const addEmployee = (employeeData: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newEmployee: Employee = {
@@ -579,15 +582,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addDefect = (defect: Defect) => {
-    // Implementation for adding defect
+    setDefects(prev => [...prev, defect]);
   };
 
   const updateDefect = (defect: Defect) => {
-    // Implementation for updating defect
+    setDefects(prev => prev.map(d => d.id === defect.id ? defect : d));
   };
 
   const deleteDefect = (defectId: string) => {
-    // Implementation for deleting defect
+    setDefects(prev => prev.filter(d => d.id !== defectId));
   };
 
   const addTestCase = (testCase: TestCase) => {
@@ -670,6 +673,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         allocateEmployee,
         updateWorkflowStatuses,
         updateTransitions,
+        testCaseDefectMap,
+        setTestCaseDefectMap,
       }}
     >
       {children}
