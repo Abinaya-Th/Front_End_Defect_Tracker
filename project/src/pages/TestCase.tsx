@@ -432,7 +432,7 @@ export const TestCase: React.FC = () => {
               <div
                 id="project-scroll"
                 className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {projects.map(project => (
                   <Button

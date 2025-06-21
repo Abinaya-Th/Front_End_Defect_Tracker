@@ -84,9 +84,9 @@ export const Sidebar: React.FC = () => {
             </button>
             {/* Only show dropdown if a project is selected */}
             {selectedProjectId && open && (
-              <div id="project-dropdown" className="ml-8 mt-1 space-y-1">
-                <NavLink
-                  to={`/projects/${selectedProjectId}`}
+              <div id="project-dropdown" className="ml-8 mt-4 space-y-1">
+                {/* <NavLink
+                  to={`/projects/${selectedProjectId}/project-dashboard/`}
                   end
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
@@ -98,7 +98,7 @@ export const Sidebar: React.FC = () => {
                 >
                   <FolderOpen className="mr-2 h-4 w-4 flex-shrink-0" />
                   Project Dashboard
-                </NavLink>
+                </NavLink> */}
                 <NavLink
                   to={`/projects/${selectedProjectId}/test-cases`}
                   className={({ isActive }) =>

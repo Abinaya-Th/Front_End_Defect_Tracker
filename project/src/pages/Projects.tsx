@@ -255,7 +255,7 @@ export const Projects: React.FC = () => {
               className="relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
               onClick={() => {
                 setSelectedProjectId(project.id);
-                navigate(`/projects/${project.id}`);
+                navigate(`/projects/${project.id}/test-cases`);
               }}
             >
               <div className={`absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8 rotate-45 ${getProjectTypeColor(project.projectType)} opacity-10`} />
