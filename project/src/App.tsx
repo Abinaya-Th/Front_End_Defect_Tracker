@@ -73,14 +73,14 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/projects/:projectId"
+        {/* <Route
+          path="/projects/:projectId/project-dashboard"
           element={
             <ProtectedRoute>
               <ProjectDashboard />
             </ProtectedRoute>
           }
-        />
+        /> */}
         <Route
           path="/projects/:projectId/test-cases"
           element={

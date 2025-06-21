@@ -124,7 +124,7 @@ export const Allocation: React.FC = () => {
             .map((tc) => tc.id),
         ];
       }
-      if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+      else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
         ids = [
           ...ids,
           ...projectTestCases
@@ -134,15 +134,7 @@ export const Allocation: React.FC = () => {
       }
       setSelectedTestCases(Array.from(new Set(ids)));
     }
-  }, [
-    activeTab,
-    selectedReleaseIds,
-    bulkModuleSelect,
-    bulkSubmoduleSelect,
-    selectedModules,
-    selectedSubmodules,
-    projectTestCases,
-  ]);
+  }, [ bulkModuleSelect, bulkSubmoduleSelect, selectedModules, selectedSubmodules]);
 
   // --- Filtered test cases for table ---
   let filteredTestCases = projectTestCases;
@@ -226,6 +218,7 @@ export const Allocation: React.FC = () => {
       </CardContent>
     </Card>
   );
+console.log("selectedTestCases", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
@@ -273,9 +266,7 @@ export const Allocation: React.FC = () => {
           <Button
             variant="primary"
             disabled={selectedTestCases.length === 0}
-            onClick={() => {
-              /* Allocation logic here */
-            }}
+            onClick={() => {console.log('Allocate button clicked');}}
           >
             Allocate
           </Button>
