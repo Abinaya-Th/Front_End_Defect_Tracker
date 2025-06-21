@@ -7,6 +7,7 @@ import { ChevronLeft, Eye, ChevronRight, Play } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { nanoid } from 'nanoid';
+import { Input } from '../components/ui/Input';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -20,6 +21,7 @@ interface TestCase {
   projectId: string;
   releaseId?: string;
   executionStatus?: 'not-started' | 'in-progress' | 'passed' | 'failed' | 'blocked';
+  assignee?: string;
 }
 
 interface Module {
@@ -55,7 +57,7 @@ const mockModules: { [key: string]: Module[] } = {
 export const TestExecution: React.FC = () => {
   const { projectId, releaseId } = useParams();
   const navigate = useNavigate();
-  const { projects, releases, testCases, setSelectedProjectId } = useApp();
+  const { projects, releases, testCases, setSelectedProjectId, addDefect, testCaseDefectMap, setTestCaseDefectMap, defects } = useApp();
   const [selectedProject, setSelectedProject] = useState<string | null>(projectId || null);
   const [selectedRelease, setSelectedRelease] = useState<string | null>(releaseId || null);
   const [selectedModule, setSelectedModule] = useState('');
@@ -65,9 +67,23 @@ export const TestExecution: React.FC = () => {
   const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
   const [executionStatuses, setExecutionStatuses] = useState<{ [key: string]: TestCase['executionStatus'] }>({});
   const [activeReleaseId, setActiveReleaseId] = useState<string | null>(null);
-  const [defects, setDefects] = useState<{ [testCaseId: string]: { id: string; details: string } }>({});
   const [defectModalOpen, setDefectModalOpen] = useState<string | null>(null);
-  const [defectFormValue, setDefectFormValue] = useState('');
+  const [defectFormData, setDefectFormData] = useState({
+    title: '',
+    description: '',
+    module: '',
+    subModule: '',
+    type: 'bug',
+    priority: 'medium',
+    severity: 'medium',
+    status: 'open',
+    projectId: projectId || '',
+    releaseId: releaseId || '',
+    testCaseId: '',
+    assignedTo: '',
+    reportedBy: '',
+    rejectionComment: '',
+  });
 
   useEffect(() => {
     if (selectedProject) {
@@ -163,6 +179,77 @@ export const TestExecution: React.FC = () => {
   const handleViewTestCase = (testCase: TestCase) => {
     setViewingTestCase(testCase);
     setIsViewTestCaseModalOpen(true);
+  };
+
+  // Add getNextDefectId function (copied from Defects.tsx)
+  const getNextDefectId = () => {
+    const projectDefects = defects.filter(d => d.projectId === selectedProject);
+    const ids = projectDefects
+      .map(d => d.id)
+      .map(id => parseInt(id.replace('DEF-', '')))
+      .filter(n => !isNaN(n));
+    const nextNum = ids.length > 0 ? Math.max(...ids) + 1 : 1;
+    return `DEF-${nextNum.toString().padStart(4, '0')}`;
+  };
+
+  // Handler for input changes
+  const handleDefectInputChange = (field: string, value: string) => {
+    setDefectFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handler for submitting the defect form
+  const handleDefectFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newDefect = {
+      ...defectFormData,
+      type: defectFormData.type as 'bug' | 'test-failure' | 'enhancement',
+      priority: defectFormData.priority as 'low' | 'medium' | 'high' | 'critical',
+      severity: defectFormData.severity as 'low' | 'medium' | 'high' | 'critical',
+      status: defectFormData.status as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
+      id: getNextDefectId(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    addDefect(newDefect);
+    setTestCaseDefectMap(prev => ({ ...prev, [defectFormData.testCaseId]: newDefect.id }));
+    setDefectModalOpen(null);
+  };
+
+  // Handler for opening defect modal with prefilled data
+  const handleFailClick = (testCase: TestCase) => {
+    // Map test case type to defect type
+    const mapTestCaseTypeToDefectType = (testCaseType: string) => {
+      switch (testCaseType) {
+        case 'functional':
+          return 'functional-bug';
+        case 'regression':
+          return 'functional-bug';
+        case 'smoke':
+          return 'functional-bug';
+        case 'integration':
+          return 'functional-bug';
+        default:
+          return 'bug';
+      }
+    };
+
+    setDefectFormData({
+      title: testCase.description,
+      description: testCase.steps,
+      module: testCase.module,
+      subModule: testCase.subModule,
+      type: mapTestCaseTypeToDefectType(testCase.type),
+      priority: 'medium',
+      severity: testCase.severity || 'medium',
+      status: 'open',
+      projectId: selectedProject || '',
+      releaseId: selectedRelease || '',
+      testCaseId: testCase.id,
+      assignedTo: '',
+      reportedBy: '',
+      rejectionComment: '',
+    });
+    setDefectModalOpen(testCase.id);
   };
 
   // If we're in detailed execution view (release selected)
@@ -309,6 +396,7 @@ export const TestExecution: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Steps</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Execution Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Defect ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -319,7 +407,6 @@ export const TestExecution: React.FC = () => {
                     const status = executionStatuses[testCase.id] || 'not-started';
                     const isFailed = status === 'failed';
                     const isPassed = status === 'passed';
-                    const defect = defects[testCase.id];
                     return (
                       <tr key={testCase.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
@@ -337,6 +424,16 @@ export const TestExecution: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.type}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>{testCase.severity}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <img
+                              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(testCase.assignee || 'User')}`}
+                              alt={testCase.assignee || 'Assignee'}
+                              className="w-8 h-8 rounded-full border inline-block"
+                            />
+                            <span>{testCase.assignee || 'Unassigned'}</span>
+                          </div>
                         </td>
                         {/* Execution Status mini-tabs */}
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -359,13 +456,10 @@ export const TestExecution: React.FC = () => {
                               style={{ borderTopRightRadius: 6, borderBottomRightRadius: 6, borderLeft: '1px solid #e5e7eb' }}
                               onClick={() => {
                                 if (!isFailed) {
-                                  const newId = `DFT-${nanoid(6).toUpperCase()}`;
                                   setExecutionStatuses(prev => ({ ...prev, [testCase.id]: 'failed' }));
-                                  setDefects(prev => ({ ...prev, [testCase.id]: { id: newId, details: '' } }));
-                                  setDefectFormValue('');
-                                  setDefectModalOpen(testCase.id);
+                                  handleFailClick(testCase);
                                 } else {
-                                  setDefectModalOpen(testCase.id);
+                                  handleFailClick(testCase);
                                 }
                               }}
                               aria-pressed={isFailed}
@@ -376,7 +470,17 @@ export const TestExecution: React.FC = () => {
                         </td>
                         {/* Defect ID column */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {isFailed && defect ? defect.id : ''}
+                          {isFailed && testCaseDefectMap[testCase.id] ? (
+                            <button
+                              className="px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold hover:bg-blue-200 transition"
+                              onClick={() => navigate(`/projects/${selectedProject}/defects?highlight=${testCaseDefectMap[testCase.id]}`)}
+                              title="View Defect"
+                            >
+                              {testCaseDefectMap[testCase.id]}
+                            </button>
+                          ) : (
+                            ''
+                          )}
                         </td>
                         {/* Actions: Only View button */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -497,61 +601,116 @@ export const TestExecution: React.FC = () => {
         <Modal
           isOpen={!!defectModalOpen}
           onClose={() => setDefectModalOpen(null)}
-          title="Log Defect Details"
+          title="Report New Defect"
+          size="lg"
         >
-          {defectModalOpen && (
-            <form
-              className="space-y-4"
-              onSubmit={e => {
-                e.preventDefault();
-                setDefects(prev => ({
-                  ...prev,
-                  [defectModalOpen]: {
-                    ...prev[defectModalOpen],
-                    details: defectFormValue
-                  }
-                }));
-                setDefectModalOpen(null);
-              }}
-            >
+          <form onSubmit={handleDefectFormSubmit} className="space-y-4">
+            <Input
+              label="Brief Description"
+              value={defectFormData.title}
+              onChange={e => handleDefectInputChange('title', e.target.value)}
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Steps</label>
+              <textarea
+                value={defectFormData.description}
+                onChange={e => handleDefectInputChange('description', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={3}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Defect ID</label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-100"
-                  value={defects[defectModalOpen]?.id || ''}
-                  readOnly
+                <label className="block text-sm font-medium text-gray-700 mb-1">Modules</label>
+                <input className="w-full px-3 py-2 border border-gray-300 rounded-lg" value={defectFormData.module} disabled />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Submodules</label>
+                <input className="w-full px-3 py-2 border border-gray-300 rounded-lg" value={defectFormData.subModule} disabled />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                <input 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100" 
+                  value={defectFormData.severity} 
+                  disabled 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Defect Details</label>
-                <textarea
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                  placeholder="Enter defect details..."
-                  value={defectFormValue}
-                  onChange={e => setDefectFormValue(e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  value={defectFormData.priority}
+                  onChange={e => handleDefectInputChange('priority', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
-                  autoFocus
-                  rows={3}
+                >
+                  <option value="">Select priority</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Types</label>
+                <select
+                  value={defectFormData.type}
+                  onChange={e => handleDefectInputChange('type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select type</option>
+                  <option value="ui-issue">UI Issue</option>
+                  <option value="functional-bug">Functional Bug</option>
+                  <option value="performance-issue">Performance Issue</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={defectFormData.status}
+                  onChange={e => handleDefectInputChange('status', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select status</option>
+                  <option value="open">Open</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+            {defectFormData.status === 'rejected' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Comment</label>
+                <Input
+                  value={defectFormData.rejectionComment}
+                  onChange={e => handleDefectInputChange('rejectionComment', e.target.value)}
+                  placeholder="Enter reason for rejection"
+                  required={defectFormData.status === 'rejected'}
                 />
               </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  className="text-xs px-3 py-1 rounded border border-gray-300 hover:bg-gray-100"
-                  onClick={() => setDefectModalOpen(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-red-600 text-white px-4 py-1 rounded text-xs font-semibold hover:bg-red-700"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          )}
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Assigned To"
+                value={defectFormData.assignedTo}
+                onChange={e => handleDefectInputChange('assignedTo', e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button type="button" variant="secondary" onClick={() => setDefectModalOpen(null)}>Cancel</Button>
+              <Button type="submit">Report Defect</Button>
+            </div>
+          </form>
         </Modal>
       </div>
     );

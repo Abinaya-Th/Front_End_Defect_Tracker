@@ -454,20 +454,22 @@ export const Defects: React.FC = () => {
                                 {defect.priority}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(defect.status)}`}>
-                                {defect.status}
-                              </span>
-                      {defect.status === 'rejected' && defect.rejectionComment && (
-                        <button
-                          type="button"
-                          className="ml-2 text-blue-600 hover:text-blue-800"
-                          title="View rejection comment"
-                          onClick={() => { setViewingRejectionComment(defect.rejectionComment || ''); setIsRejectionCommentModalOpen(true); }}
-                        >
-                          <MessageSquareWarning className="w-4 h-4 inline text-red-700" />
-                        </button>
-                      )}
+                            <td className="px-6 py-4 whitespace-nowrap w-32">
+                              <div className="flex items-center justify-between">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(defect.status)}`}>
+                                  {defect.status}
+                                </span>
+                                {defect.status === 'rejected' && defect.rejectionComment && (
+                                  <button
+                                    type="button"
+                                    className="ml-1 text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                    title="View rejection comment"
+                                    onClick={() => { setViewingRejectionComment(defect.rejectionComment || ''); setIsRejectionCommentModalOpen(true); }}
+                                  >
+                                    <MessageSquareWarning className="w-4 h-4 text-red-700" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{defect.assignedTo}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
