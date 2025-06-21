@@ -9,10 +9,11 @@ import { Employees } from './pages/Employees';
 import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
-import { TestCase } from './pages/TestCase';
+import { TestCasePage } from './pages/TestCase';
 import { Releases } from './pages/Releases';
 import { Workflow } from './pages/Workflow';
 import { ProjectDashboard } from './pages/ProjectDashboard';
+import { ModuleManagement } from './pages/ModuleManagement';
 import { useParams } from 'react-router-dom';
 import { ReleaseDetails } from './pages/ReleaseDetails';
 
@@ -82,7 +83,7 @@ const AppRoutes: React.FC = () => {
           path="/projects/:projectId/test-cases"
           element={
             <ProtectedRoute>
-              <TestCase />
+              <TestCasePage />
             </ProtectedRoute>
           }
         />
@@ -107,6 +108,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Defects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/module-management"
+          element={
+            <ProtectedRoute>
+              <ModuleManagement />
             </ProtectedRoute>
           }
         />

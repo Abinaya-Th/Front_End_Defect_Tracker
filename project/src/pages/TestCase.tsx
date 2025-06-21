@@ -10,21 +10,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import QuickAddTestCase from './QuickAddTestCase';
 import QuickAddDefect from './QuickAddDefect';
 import * as XLSX from 'xlsx';
+import { TestCase } from '../types/index';
 
 // Define interfaces for our data types
-interface TestCase {
-  id: string;
-  module: string;
-  subModule: string;
-  description: string;
-  steps: string;
-  type: 'functional' | 'regression' | 'smoke' | 'integration';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  // status: 'active' | 'inactive';
-  projectId: string;
-  releaseId?: string;
-}
-
 interface Module {
   id: string;
   name: string;
@@ -32,7 +20,7 @@ interface Module {
 }
 
 // Mock data for modules and submodules
-const mockModules: { [key: string]: Module[] } = {
+export const mockModules: { [key: string]: Module[] } = {
   '2': [ // Mobile Banking App
     { id: 'auth', name: 'Authentication', submodules: ['Biometric Login', 'PIN Login', 'Password Reset', 'Session Management'] },
     { id: 'acc', name: 'Account Management', submodules: ['Account Overview', 'Transaction History', 'Account Statements', 'Account Settings'] },
@@ -55,101 +43,7 @@ const mockModules: { [key: string]: Module[] } = {
   ]
 };
 
-// Mock test cases data
-const mockTestCases: TestCase[] = [
-  {
-    id: 'TC-PAY-TRA-0005',
-    module: 'Payment Processing',
-    subModule: 'Transactions',
-    description: 'Verify payment transaction processing',
-    steps: 'Select items for purchase\nProceed to checkout\nEnter payment details\nComplete transaction',
-    type: 'functional',
-    severity: 'critical',
-    projectId: '2'
-  },
-  {
-    id: 'TC-PAY-REF-0006',
-    module: 'Payment Processing',
-    subModule: 'Refunds',
-    description: 'Test refund processing functionality',
-    steps: 'Navigate to order history\nSelect order for refund\nEnter refund amount\nSubmit refund request\nVerify refund status',
-    type: 'functional',
-    severity: 'high',
-    projectId: '2'
-  },
-  {
-    id: 'TC-PAY-INV-0007',
-    module: 'Payment Processing',
-    subModule: 'Invoices',
-    description: 'Verify invoice generation and delivery',
-    steps: 'Complete a purchase\nCheck invoice generation\nVerify invoice details\nConfirm email delivery',
-    type: 'functional',
-    severity: 'medium',
-    projectId: '2'
-  },
-  {
-    id: 'TC-REP-ANA-0008',
-    module: 'Reporting',
-    subModule: 'Analytics',
-    description: 'Test report generation functionality',
-    steps: 'Navigate to reports section\nSelect report type\nSet date range\nGenerate report\nVerify report content',
-    type: 'functional',
-    severity: 'medium',
-    projectId: '3'
-  },
-  {
-    id: 'TC-REP-EXP-0009',
-    module: 'Reporting',
-    subModule: 'Exports',
-    description: 'Verify data export functionality',
-    steps: 'Select data to export\nChoose export format\nInitiate export\nDownload file\nVerify file contents',
-    type: 'functional',
-    severity: 'medium',
-    projectId: '3'
-  },
-  {
-    id: 'TC-REP-DAS-0010',
-    module: 'Reporting',
-    subModule: 'Dashboards',
-    description: 'Test dashboard widget functionality',
-    steps: 'Add new widget\nConfigure widget settings\nVerify data display\nTest widget interactions',
-    type: 'functional',
-    severity: 'low',
-    projectId: '3'
-  },
-  {
-    id: 'TC-AUT-REG-0011',
-    module: 'Authentication',
-    subModule: 'Registration',
-    description: 'Test new user registration process',
-    steps: 'Navigate to registration page\nFill registration form\nSubmit form\nVerify email verification\nComplete registration',
-    type: 'functional',
-    severity: 'high',
-    projectId: '4'
-  },
-  {
-    id: 'TC-USE-SET-0012',
-    module: 'User Management',
-    subModule: 'Settings',
-    description: 'Verify user settings functionality',
-    steps: 'Access settings page\nModify preferences\nSave changes\nVerify settings persistence',
-    type: 'functional',
-    severity: 'medium',
-    projectId: '4'
-  },
-  {
-    id: 'TC-CON-MED-0013',
-    module: 'Content Management',
-    subModule: 'Media',
-    description: 'Test media file upload functionality',
-    steps: 'Navigate to media section\nSelect file to upload\nUpload file\nVerify file display\nTest file operations',
-    type: 'functional',
-    severity: 'medium',
-    projectId: '4'
-  }
-];
-
-export const TestCase: React.FC = () => {
+export const TestCasePage: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects, testCases = [], addTestCase, updateTestCase, deleteTestCase, releases, setSelectedProjectId } = useApp();

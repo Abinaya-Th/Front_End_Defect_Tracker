@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import QuickAddTestCase from './QuickAddTestCase';
 import QuickAddDefect from './QuickAddDefect';
+import { mockModules } from './TestCase';
 
 export const ProjectDashboard: React.FC = () => {
   const { projectId } = useParams();
@@ -25,14 +26,8 @@ export const ProjectDashboard: React.FC = () => {
   const project = projects.find((p) => p.id === projectId);
   const projectDefects = defects.filter((d) => d.projectId === projectId);
 
-  // Example: mock modules for the project (replace with real data if available)
-  const mockModules = [
-    'Authentication',
-    'User Management',
-    'Content Management',
-    'Payment Processing',
-    'Reporting',
-  ];
+  // Get modules for the selected project from mockModules
+  const projectModules = projectId && mockModules[projectId] ? mockModules[projectId].map((m: { name: string }) => m.name) : [];
 
   return (
     <div className="max-w-6xl mx-auto py-8">
@@ -89,7 +84,7 @@ export const ProjectDashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-2 text-gray-800">Modules</h2>
           <ul className="list-disc pl-5 text-gray-700">
-            {mockModules.map((mod) => (
+            {projectModules.map((mod: string) => (
               <li key={mod}>{mod}</li>
             ))}
           </ul>
