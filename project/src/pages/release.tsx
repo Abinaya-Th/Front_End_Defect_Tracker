@@ -1,16 +1,16 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
-import { Rocket, ListChecks } from 'lucide-react';
+import { Rocket, ListChecks, Eye } from 'lucide-react';
 
 export const Releases: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
 
   return (
-    <div className="max-w-3xl mx-auto py-10">
+    <div className="max-w-4xl mx-auto py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Releases</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Execution Card */}
         <Card
           hover
@@ -33,6 +33,18 @@ export const Releases: React.FC = () => {
             <ListChecks className="w-12 h-12 text-green-500 mb-4 group-hover:text-green-700 transition-colors" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Allocation</h2>
             <p className="text-gray-600 text-center">Allocate and organize test cases for releases.</p>
+          </CardContent>
+        </Card>
+        {/* View Card */}
+        <Card
+          hover
+          className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate(`/projects/${projectId}/releases/view`)}
+        >
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <Eye className="w-12 h-12 text-purple-500 mb-4 group-hover:text-purple-700 transition-colors" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">View</h2>
+            <p className="text-gray-600 text-center">View release overviews and summaries.</p>
           </CardContent>
         </Card>
       </div>
