@@ -428,7 +428,7 @@ export const ModuleManagement: React.FC = () => {
             {selectedItems.length > 0 && (
               <Button
                 onClick={handleBulkAssignment}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Allocate ({selectedItems.length})</span>
