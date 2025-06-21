@@ -7,6 +7,8 @@ import { Input } from '../components/ui/Input';
 import { ChevronLeft, ChevronRight, Calendar, FileText, Users, Eye, Edit2, Trash2, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -200,7 +202,7 @@ export const ReleaseView: React.FC = () => {
     const currentProject = projects.find(p => p.id === selectedProject);
 
     return (
-      <div className="min-h-screen w-full flex flex-col">
+      <div className="max-w-6xl mx-auto">
         {/* Fixed Header Section */}
         <div className="flex-none p-6 pb-4">
           <div className="flex justify-between items-center mb-4">
@@ -736,6 +738,21 @@ export const ReleaseView: React.FC = () => {
           </div>
         </form>
       </Modal>
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 }; 

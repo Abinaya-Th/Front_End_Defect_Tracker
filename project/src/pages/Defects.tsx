@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, CheckCircle, Eye, MessageSquareWarning } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle, Eye, MessageSquareWarning, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useApp } from '../context/AppContext';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -271,25 +273,58 @@ export const Defects: React.FC = () => {
   }, [highlightId]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
       <Card>
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
-          <div className="flex flex-wrap gap-2">
-              {projects.map(project => (
-                <Button
-                  key={project.id}
-                  variant={projectId === project.id ? 'primary' : 'secondary'}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
-                >
-                  {project.name}
-                </Button>
-              ))}
-          </div>
-        </CardContent>
-      </Card>
+          <CardContent className="p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Project Selection
+            </h2>
+            <div className="relative flex items-center">
+              <button
+                onClick={() => {
+                  const container = document.getElementById("project-scroll");
+                  if (container) container.scrollLeft -= 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <div
+                id="project-scroll"
+                className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  maxWidth: "100%",
+                }}
+              >
+                {projects.map((project) => (
+                  <Button
+                    key={project.id}
+                    variant={projectId === project.id ? "primary" : "secondary"}
+                    onClick={() => {
+                      setSelectedProjectId(project.id);
+                      navigate(`/projects/${project.id}/test-cases`);
+                    }}
+                    className="whitespace-nowrap m-2"
+                  >
+                    {project.name}
+                  </Button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const container = document.getElementById("project-scroll");
+                  if (container) container.scrollLeft += 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Add Defect Button */}
       <div className="flex justify-between items-center mb-4">
@@ -683,6 +718,21 @@ export const Defects: React.FC = () => {
           </Button>
         </div>
       </Modal>
+      {/* Fixed Quick Add Button */}
+            <div
+              style={{
+                position: "fixed",
+                bottom: 32,
+                right: 32,
+                zIndex: 50,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <QuickAddTestCase />
+              <QuickAddDefect />
+            </div>
     </div>
   );
 };

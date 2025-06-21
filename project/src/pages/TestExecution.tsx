@@ -8,6 +8,8 @@ import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { nanoid } from 'nanoid';
 import { Input } from '../components/ui/Input';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -881,6 +883,22 @@ export const TestExecution: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };

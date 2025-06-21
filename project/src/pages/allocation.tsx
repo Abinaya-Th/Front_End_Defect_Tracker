@@ -6,6 +6,8 @@ import { Badge } from '../components/ui/Badge';
 import { ChevronLeft, Eye, Edit2, Trash2, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 const TABS = [
   { key: 'release', label: 'Release Allocation' },
@@ -572,6 +574,21 @@ export const Allocation: React.FC = () => {
           </div>
         )}
       </Modal>
+      {/* Fixed Quick Add Button */}
+            <div
+              style={{
+                position: "fixed",
+                bottom: 32,
+                right: 32,
+                zIndex: 50,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <QuickAddTestCase />
+              <QuickAddDefect />
+            </div>
     </div>
   );
 };

@@ -90,7 +90,7 @@ export const ReleaseDetails: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto">
       <Button variant="secondary" onClick={() => navigate(`/projects/${projectId}/releases`)} className="mb-4 flex items-center">
         <ChevronLeft className="w-4 h-4 mr-1" /> Back to Releases
       </Button>
