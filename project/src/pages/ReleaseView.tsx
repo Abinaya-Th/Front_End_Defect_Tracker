@@ -7,6 +7,8 @@ import { Input } from '../components/ui/Input';
 import { ChevronLeft, ChevronRight, Calendar, FileText, Users, Eye, Edit2, Trash2, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -200,7 +202,7 @@ export const ReleaseView: React.FC = () => {
     const currentProject = projects.find(p => p.id === selectedProject);
 
     return (
-      <div className="min-h-screen w-full flex flex-col">
+      <div className="max-w-6xl mx-auto">
         {/* Fixed Header Section */}
         <div className="flex-none p-6 pb-4">
           <div className="flex justify-between items-center mb-4">
@@ -248,7 +250,7 @@ export const ReleaseView: React.FC = () => {
                         key={module.id}
                         variant={selectedModule === module.name ? 'primary' : 'secondary'}
                         onClick={() => handleModuleSelect(module.name)}
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap m-2"
                       >
                         {module.name}
                         <Badge variant="info" className="ml-2">
@@ -287,7 +289,7 @@ export const ReleaseView: React.FC = () => {
                 </button>
                 <div
                   id="submodule-scroll"
-                  className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                  className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
                 >
                   {projectModules
@@ -301,7 +303,7 @@ export const ReleaseView: React.FC = () => {
                           key={submodule}
                           variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
                           onClick={() => handleSubmoduleSelect(submodule)}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap m-2"
                         >
                           {submodule}
                           <Badge variant="info" className="ml-2">
@@ -513,7 +515,7 @@ export const ReleaseView: React.FC = () => {
             </button>
             <div
               id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
             >
               {projects.map(project => (
@@ -736,6 +738,21 @@ export const ReleaseView: React.FC = () => {
           </div>
         </form>
       </Modal>
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 }; 

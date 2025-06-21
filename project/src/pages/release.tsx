@@ -2,13 +2,15 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Rocket, ListChecks, Eye } from 'lucide-react';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 export const Releases: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
 
   return (
-    <div className="max-w-4xl mx-auto py-10">
+    <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Releases</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Execution Card */}
@@ -47,6 +49,21 @@ export const Releases: React.FC = () => {
             <p className="text-gray-600 text-center">View release overviews and summaries.</p>
           </CardContent>
         </Card>
+      </div>
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
       </div>
     </div>
   );
