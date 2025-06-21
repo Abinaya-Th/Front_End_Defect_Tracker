@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, UserPlus, Shuffle, Eye, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, UserPlus,  ChevronRight, ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -8,6 +8,8 @@ import { useApp } from '../context/AppContext';
 import { Badge } from '../components/ui/Badge';
 import { useParams, useNavigate } from 'react-router-dom';
 import { mockModules } from './TestCase';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 interface Module {
   id: string;
@@ -883,6 +885,11 @@ export const ModuleManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Fixed Quick Add Button */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };
