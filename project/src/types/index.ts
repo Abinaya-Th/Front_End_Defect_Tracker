@@ -54,6 +54,10 @@ export interface Defect {
   attachments?: string[];
   createdAt: string;
   updatedAt: string;
+  module?: string;
+  subModule?: string;
+  type?: string;
+  score?: string;
 }
 
 export interface TestCase {

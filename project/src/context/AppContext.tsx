@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Employee, Project, Defect, TestCase, Release, WorkflowItem, BenchAllocation, WorkflowStatus, StatusTransition } from '../types';
+import { Employee, Project, Defect, TestCase, Release, WorkflowItem, BenchAllocation, WorkflowStatus, StatusTransition } from '../types/index';
 
 export interface Project {
   id: string;
@@ -139,30 +139,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     {
       id: '2',
       name: 'Mobile Banking App',
-      prefix: 'MBAP',
       description: 'Secure banking application for iOS and Android',
       status: 'active',
       startDate: '2024-02-01',
-      endDate: '2024-08-31',
       manager: 'Sarah Johnson',
       priority: 'high',
-      projectType: 'mobile',
-      progress: 45,
       teamMembers: [],
       createdAt: '2024-02-01T00:00:00Z'
     },
     {
       id: '3',
       name: 'Inventory Management',
-      prefix: 'INVM',
       description: 'Enterprise inventory tracking system',
       status: 'completed',
       startDate: '2023-09-01',
-      endDate: '2024-01-31',
       manager: 'Mike Brown',
       priority: 'medium',
-      projectType: 'desktop',
-      progress: 100,
       teamMembers: [],
       createdAt: '2023-09-01T00:00:00Z'
     }
@@ -566,15 +558,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addDefect = (defect: Defect) => {
-    // Implementation for adding defect
+    setDefects(prev => [...prev, defect]);
   };
 
   const updateDefect = (defect: Defect) => {
-    // Implementation for updating defect
+    setDefects(prev => prev.map(d => d.id === defect.id ? { ...d, ...defect } : d));
   };
 
   const deleteDefect = (defectId: string) => {
-    // Implementation for deleting defect
+    setDefects(prev => prev.filter(d => d.id !== defectId));
   };
 
   const addTestCase = (testCase: TestCase) => {
