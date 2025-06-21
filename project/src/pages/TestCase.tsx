@@ -717,7 +717,7 @@ export const TestCase: React.FC = () => {
                                     : "secondary"
                                 }
                                 onClick={() => handleSubmoduleSelect(submodule)}
-                                className="whitespace-nowrap border-0 m-1"
+                                className="whitespace-nowrap border-0 m-2"
                               >
                                 {submodule}
                                 <Badge variant="info" className="ml-2">

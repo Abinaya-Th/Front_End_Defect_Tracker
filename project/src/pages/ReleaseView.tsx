@@ -250,7 +250,7 @@ export const ReleaseView: React.FC = () => {
                         key={module.id}
                         variant={selectedModule === module.name ? 'primary' : 'secondary'}
                         onClick={() => handleModuleSelect(module.name)}
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap m-2"
                       >
                         {module.name}
                         <Badge variant="info" className="ml-2">
@@ -289,7 +289,7 @@ export const ReleaseView: React.FC = () => {
                 </button>
                 <div
                   id="submodule-scroll"
-                  className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                  className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
                 >
                   {projectModules
@@ -303,7 +303,7 @@ export const ReleaseView: React.FC = () => {
                           key={submodule}
                           variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
                           onClick={() => handleSubmoduleSelect(submodule)}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap m-2"
                         >
                           {submodule}
                           <Badge variant="info" className="ml-2">
@@ -515,7 +515,7 @@ export const ReleaseView: React.FC = () => {
             </button>
             <div
               id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
             >
               {projects.map(project => (

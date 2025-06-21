@@ -38,7 +38,7 @@ export const Releases: React.FC = () => {
               </button>
               <div
                 id="project-scroll"
-                className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
               >
                 {projects.map(project => (
@@ -46,7 +46,7 @@ export const Releases: React.FC = () => {
                     key={project.id}
                     variant={selectedProject === project.id ? 'primary' : 'secondary'}
                     onClick={() => setSelectedProject(project.id)}
-                    className="whitespace-nowrap"
+                    className="whitespace-nowrap m-2"
                   >
                     {project.name}
                   </Button>
