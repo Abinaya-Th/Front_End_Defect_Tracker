@@ -16,6 +16,7 @@ import { ProjectDashboard } from './pages/ProjectDashboard';
 import { useParams } from 'react-router-dom';
 import { Releases } from './pages/release';
 import { Allocation } from './pages/allocation';
+import { ReleaseView } from './pages/ReleaseView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -108,6 +109,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <TestExecution />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/view"
+          element={
+            <ProtectedRoute>
+              <ReleaseView />
             </ProtectedRoute>
           }
         />
