@@ -22,6 +22,7 @@ import { ProjectManagement } from "./pages/ProjectManagement";
 import { Releases } from "./pages/release";
 import { Allocation } from "./pages/allocation";
 import { ReleaseView } from "./pages/ReleaseView";
+import Configurations from "./pages/Configurations";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -158,6 +159,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Workflow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations"
+          element={
+            <ProtectedRoute>
+              <Configurations />
             </ProtectedRoute>
           }
         />
