@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
-import { Rocket, ListChecks, Eye } from 'lucide-react';
+import { Rocket, ListChecks } from 'lucide-react';
 import QuickAddTestCase from './QuickAddTestCase';
 import QuickAddDefect from './QuickAddDefect';
 
@@ -37,18 +37,6 @@ export const Releases: React.FC = () => {
             <p className="text-gray-600 text-center">Allocate and organize test cases for releases.</p>
           </CardContent>
         </Card>
-        {/* View Card */}
-        <Card
-          hover
-          className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
-          onClick={() => navigate(`/projects/${projectId}/releases/view`)}
-        >
-          <CardContent className="flex flex-col items-center justify-center p-8">
-            <Eye className="w-12 h-12 text-purple-500 mb-4 group-hover:text-purple-700 transition-colors" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">View</h2>
-            <p className="text-gray-600 text-center">View release overviews and summaries.</p>
-          </CardContent>
-        </Card>
       </div>
       {/* Fixed Quick Add Button */}
       <div
@@ -67,4 +55,4 @@ export const Releases: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

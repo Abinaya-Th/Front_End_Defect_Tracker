@@ -17,9 +17,8 @@ import { Defects } from "./pages/Defects";
 import { TestCase } from "./pages/TestCase";
 import { TestExecution } from "./pages/TestExecution";
 import { Workflow } from "./pages/Workflow";
-import { ProjectDashboard } from "./pages/ProjectDashboard";
 import { ModuleManagement } from "./pages/ModuleManagement";
-import { useParams } from "react-router-dom";
+import { ProjectManagement } from "./pages/ProjectManagement";
 import { Releases } from "./pages/release";
 import { Allocation } from "./pages/allocation";
 import { ReleaseView } from "./pages/ReleaseView";
@@ -82,14 +81,14 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
+        {/* <Route
           path="/projects/:projectId"
           element={
             <ProtectedRoute>
               <ProjectDashboard />
             </ProtectedRoute>
           }
-        />
+        /> */}
         <Route
           path="/projects/:projectId/test-cases"
           element={
@@ -123,7 +122,7 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/releases/view"
+          path="/projects/:projectId/project-management/view"
           element={
             <ProtectedRoute>
               <ReleaseView />
@@ -135,6 +134,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Defects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/project-management"
+          element={
+            <ProtectedRoute>
+              <ProjectManagement />
             </ProtectedRoute>
           }
         />
