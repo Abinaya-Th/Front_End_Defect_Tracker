@@ -1,16 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Eye, CheckSquare, ChevronRight, ChevronLeft, ChevronDown, Upload } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Modal } from '../components/ui/Modal';
-import { useApp } from '../context/AppContext';
-import { Badge } from '../components/ui/Badge';
-import { useParams, useNavigate } from 'react-router-dom';
-import QuickAddTestCase from './QuickAddTestCase';
-import QuickAddDefect from './QuickAddDefect';
-import * as XLSX from 'xlsx';
-import { TestCase } from '../types/index';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  CheckSquare,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Upload,
+} from "lucide-react";
+import { Card, CardContent } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
+import { useApp } from "../context/AppContext";
+import { Badge } from "../components/ui/Badge";
+import { useParams, useNavigate } from "react-router-dom";
+import QuickAddTestCase from "./QuickAddTestCase";
+import QuickAddDefect from "./QuickAddDefect";
+import * as XLSX from "xlsx";
+import { TestCase } from "../types/index";
 
 // Define interfaces for our data types
 interface Module {
@@ -21,60 +31,162 @@ interface Module {
 
 // Mock data for modules and submodules
 export const mockModules: { [key: string]: Module[] } = {
-  '2': [ // Mobile Banking App
-    { id: 'auth', name: 'Authentication', submodules: ['Biometric Login', 'PIN Login', 'Password Reset', 'Session Management'] },
-    { id: 'acc', name: 'Account Management', submodules: ['Account Overview', 'Transaction History', 'Account Statements', 'Account Settings'] },
-    { id: 'tra', name: 'Money Transfer', submodules: ['Quick Transfer', 'Scheduled Transfer', 'International Transfer', 'Transfer Limits'] },
-    { id: 'bil', name: 'Bill Payments', submodules: ['Bill List', 'Payment Scheduling', 'Payment History', 'Recurring Payments'] },
-    { id: 'sec', name: 'Security Features', submodules: ['Two-Factor Auth', 'Device Management', 'Security Alerts', 'Fraud Protection'] },
-    { id: 'sup', name: 'Customer Support', submodules: ['Chat Support', 'FAQs', 'Contact Us', 'Feedback'] }
+  "2": [
+    // Mobile Banking App
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: [
+        "Biometric Login",
+        "PIN Login",
+        "Password Reset",
+        "Session Management",
+      ],
+    },
+    {
+      id: "acc",
+      name: "Account Management",
+      submodules: [
+        "Account Overview",
+        "Transaction History",
+        "Account Statements",
+        "Account Settings",
+      ],
+    },
+    {
+      id: "tra",
+      name: "Money Transfer",
+      submodules: [
+        "Quick Transfer",
+        "Scheduled Transfer",
+        "International Transfer",
+        "Transfer Limits",
+      ],
+    },
+    {
+      id: "bil",
+      name: "Bill Payments",
+      submodules: [
+        "Bill List",
+        "Payment Scheduling",
+        "Payment History",
+        "Recurring Payments",
+      ],
+    },
+    {
+      id: "sec",
+      name: "Security Features",
+      submodules: [
+        "Two-Factor Auth",
+        "Device Management",
+        "Security Alerts",
+        "Fraud Protection",
+      ],
+    },
+    {
+      id: "sup",
+      name: "Customer Support",
+      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
+    },
   ],
-  '3': [ // Analytics Dashboard
-    { id: 'auth', name: 'Authentication', submodules: ['Login', 'Registration', 'Password Reset'] },
-    { id: 'reporting', name: 'Reporting', submodules: ['Analytics', 'Exports', 'Dashboards', 'Custom Reports'] },
-    { id: 'data', name: 'Data Management', submodules: ['Data Import', 'Data Processing', 'Data Export'] },
-    { id: 'visualization', name: 'Visualization', submodules: ['Charts', 'Graphs', 'Widgets'] }
+  "3": [
+    // Analytics Dashboard
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "reporting",
+      name: "Reporting",
+      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
+    },
+    {
+      id: "data",
+      name: "Data Management",
+      submodules: ["Data Import", "Data Processing", "Data Export"],
+    },
+    {
+      id: "visualization",
+      name: "Visualization",
+      submodules: ["Charts", "Graphs", "Widgets"],
+    },
   ],
-  '4': [ // Content Management
-    { id: 'auth', name: 'Authentication', submodules: ['Login', 'Registration', 'Password Reset'] },
-    { id: 'content', name: 'Content Management', submodules: ['Articles', 'Media', 'Categories', 'Templates'] },
-    { id: 'user', name: 'User Management', submodules: ['Profile', 'Settings', 'Permissions', 'Roles'] },
-    { id: 'workflow', name: 'Workflow', submodules: ['Approval Process', 'Review Process', 'Publishing'] }
-  ]
+  "4": [
+    // Content Management
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "content",
+      name: "Content Management",
+      submodules: ["Articles", "Media", "Categories", "Templates"],
+    },
+    {
+      id: "user",
+      name: "User Management",
+      submodules: ["Profile", "Settings", "Permissions", "Roles"],
+    },
+    {
+      id: "workflow",
+      name: "Workflow",
+      submodules: ["Approval Process", "Review Process", "Publishing"],
+    },
+  ],
 };
 
 export const TestCasePage: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, testCases = [], addTestCase, updateTestCase, deleteTestCase, releases, setSelectedProjectId } = useApp();
-  const [selectedModule, setSelectedModule] = useState('');
-  const [selectedSubmodule, setSelectedSubmodule] = useState('');
+  const {
+    projects,
+    testCases = [],
+    addTestCase,
+    updateTestCase,
+    deleteTestCase,
+    releases,
+    setSelectedProjectId,
+  } = useApp();
+  const [selectedModule, setSelectedModule] = useState("");
+  const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
   const [editingTestCase, setEditingTestCase] = useState<TestCase | null>(null);
-  const [formData, setFormData] = useState<Omit<TestCase, 'id'>>({
-    module: '',
-    subModule: '',
-    description: '',
-    steps: '',
-    type: 'functional',
-    severity: 'medium',
+  const [formData, setFormData] = useState<Omit<TestCase, "id">>({
+    module: "",
+    subModule: "",
+    description: "",
+    steps: "",
+    type: "functional",
+    severity: "medium",
     // status: 'active',
-    projectId: '',
+    projectId: "",
   });
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
-  const [selectedDescription, setSelectedDescription] = useState('');
+  const [selectedDescription, setSelectedDescription] = useState("");
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
   const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([
-    { module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }
+    {
+      module: "",
+      subModule: "",
+      description: "",
+      steps: "",
+      type: "functional",
+      severity: "medium",
+    },
   ]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [filterText, setFilterText] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterSeverity, setFilterSeverity] = useState("");
 
   useEffect(() => {
     if (projectId) {
@@ -84,7 +196,11 @@ export const TestCasePage: React.FC = () => {
 
   // If no projectId, show a message or redirect
   if (!projectId) {
-    return <div className="p-8 text-center text-gray-500">Please select a project to view its test cases.</div>;
+    return (
+      <div className="p-8 text-center text-gray-500">
+        Please select a project to view its test cases.
+      </div>
+    );
   }
 
   // Get modules for selected project
@@ -97,16 +213,28 @@ export const TestCasePage: React.FC = () => {
     if (selectedModules.length > 0) {
       ids = [
         ...new Set(
-          testCases.filter(tc => tc.projectId === projectId && selectedModules.includes(tc.module)).map(tc => tc.id)
-        )
+          testCases
+            .filter(
+              (tc) =>
+                tc.projectId === projectId &&
+                selectedModules.includes(tc.module)
+            )
+            .map((tc) => tc.id)
+        ),
       ];
     }
     if (selectedSubmodules.length > 0) {
       ids = [
         ...ids,
         ...new Set(
-          testCases.filter(tc => tc.projectId === projectId && selectedSubmodules.includes(tc.subModule)).map(tc => tc.id)
-        )
+          testCases
+            .filter(
+              (tc) =>
+                tc.projectId === projectId &&
+                selectedSubmodules.includes(tc.subModule)
+            )
+            .map((tc) => tc.id)
+        ),
       ];
     }
     return Array.from(new Set(ids));
@@ -114,32 +242,47 @@ export const TestCasePage: React.FC = () => {
 
   // Compute filtered test cases for the table (union of all selected modules/submodules)
   const filteredTestCases = React.useMemo(() => {
-    if (selectedModules.length > 0) {
-      return testCases.filter(tc => tc.projectId === projectId && selectedModules.includes(tc.module));
-    }
-    if (selectedSubmodules.length > 0) {
-      return testCases.filter(tc => tc.projectId === projectId && selectedSubmodules.includes(tc.subModule));
-    }
-    return testCases.filter(tc => {
+    let cases = testCases.filter((tc) => {
       if (!projectId) return false;
       if (tc.projectId !== projectId) return false;
-      if (tc.module !== selectedModule) return false;
-      return selectedSubmodule ? tc.subModule === selectedSubmodule : true;
+      if (selectedModule && tc.module !== selectedModule) return false;
+      if (selectedSubmodule && tc.subModule !== selectedSubmodule) return false;
+      return true;
     });
-  }, [selectedModules, selectedSubmodules, testCases, projectId, selectedModule, selectedSubmodule]);
+    if (filterText) {
+      cases = cases.filter((tc) =>
+        tc.description.toLowerCase().includes(filterText.toLowerCase())
+      );
+    }
+    if (filterType) {
+      cases = cases.filter((tc) => tc.type === filterType);
+    }
+    if (filterSeverity) {
+      cases = cases.filter((tc) => tc.severity === filterSeverity);
+    }
+    return cases;
+  }, [
+    testCases,
+    projectId,
+    selectedModule,
+    selectedSubmodule,
+    filterText,
+    filterType,
+    filterSeverity,
+  ]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSelectedModule('');
-    setSelectedSubmodule('');
+    setSelectedModule("");
+    setSelectedSubmodule("");
     setSelectedTestCases([]);
   };
 
   // Handle module selection
   const handleModuleSelect = (moduleName: string) => {
     setSelectedModule(moduleName);
-    setSelectedSubmodule('');
+    setSelectedSubmodule("");
     setSelectedTestCases([]);
   };
 
@@ -196,19 +339,19 @@ export const TestCasePage: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this test case?')) {
+    if (window.confirm("Are you sure you want to delete this test case?")) {
       deleteTestCase(id);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      module: '',
-      subModule: '',
-      description: '',
-      steps: '',
-      type: 'functional',
-      severity: 'medium',
+      module: "",
+      subModule: "",
+      description: "",
+      steps: "",
+      type: "functional",
+      severity: "medium",
       // status: 'active',
       projectId: projectId,
     });
@@ -217,40 +360,43 @@ export const TestCasePage: React.FC = () => {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleStepChange = (index: number, value: string) => {
-    const newSteps = [...formData.steps.split('\n')];
+    const newSteps = [...formData.steps.split("\n")];
     newSteps[index] = value;
-    setFormData(prev => ({ ...prev, steps: newSteps.join('\n') }));
+    setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
   };
 
   const addStep = () => {
-    if (formData.steps.split('\n').length < 5) {
-      setFormData(prev => ({ ...prev, steps: [...prev.steps.split('\n'), ''].join('\n') }));
+    if (formData.steps.split("\n").length < 5) {
+      setFormData((prev) => ({
+        ...prev,
+        steps: [...prev.steps.split("\n"), ""].join("\n"),
+      }));
     }
   };
 
   const removeStep = (index: number) => {
-    if (formData.steps.split('\n').length > 1) {
-      const newSteps = formData.steps.split('\n').filter((_, i) => i !== index);
-      setFormData(prev => ({ ...prev, steps: newSteps.join('\n') }));
+    if (formData.steps.split("\n").length > 1) {
+      const newSteps = formData.steps.split("\n").filter((_, i) => i !== index);
+      setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "high":
+        return "bg-orange-100 text-orange-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -266,7 +412,7 @@ export const TestCasePage: React.FC = () => {
     if (checked) {
       setSelectedTestCases([...selectedTestCases, testCaseId]);
     } else {
-      setSelectedTestCases(selectedTestCases.filter(id => id !== testCaseId));
+      setSelectedTestCases(selectedTestCases.filter((id) => id !== testCaseId));
     }
   };
 
@@ -281,7 +427,7 @@ export const TestCasePage: React.FC = () => {
   };
 
   const toggleRowExpansion = (testCaseId: string) => {
-    setExpandedRows(prev => {
+    setExpandedRows((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(testCaseId)) {
         newSet.delete(testCaseId);
@@ -298,20 +444,36 @@ export const TestCasePage: React.FC = () => {
   };
 
   const handleBulkRowChange = (idx: number, field: string, value: string) => {
-    setBulkRows(rows => rows.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+    setBulkRows((rows) =>
+      rows.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
+    );
   };
 
   const handleAddBulkRow = () => {
-    setBulkRows(rows => [...rows, { module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }]);
+    setBulkRows((rows) => [
+      ...rows,
+      {
+        module: "",
+        subModule: "",
+        description: "",
+        steps: "",
+        type: "functional",
+        severity: "medium",
+      },
+    ]);
   };
 
   const handleRemoveBulkRow = (idx: number) => {
-    setBulkRows(rows => rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows);
+    setBulkRows((rows) =>
+      rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
+    );
   };
 
   const handleBulkAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const validRows = bulkRows.filter(row => row.module && row.subModule && row.description && row.steps);
+    const validRows = bulkRows.filter(
+      (row) => row.module && row.subModule && row.description && row.steps
+    );
     validRows.forEach((tc, idx) => {
       const moduleId = tc.module.substring(0, 3).toUpperCase();
       const subModuleId = tc.subModule.substring(0, 3).toUpperCase();
@@ -322,12 +484,21 @@ export const TestCasePage: React.FC = () => {
         subModule: tc.subModule,
         description: tc.description,
         steps: tc.steps,
-        type: tc.type as 'functional' | 'regression' | 'smoke' | 'integration',
-        severity: tc.severity as 'low' | 'medium' | 'high' | 'critical',
+        type: tc.type as "functional" | "regression" | "smoke" | "integration",
+        severity: tc.severity as "low" | "medium" | "high" | "critical",
         projectId: projectId,
       });
     });
-    setBulkRows([{ module: '', subModule: '', description: '', steps: '', type: 'functional', severity: 'medium' }]);
+    setBulkRows([
+      {
+        module: "",
+        subModule: "",
+        description: "",
+        steps: "",
+        type: "functional",
+        severity: "medium",
+      },
+    ]);
     setIsBulkAddModalOpen(false);
   };
 
@@ -338,19 +509,24 @@ export const TestCasePage: React.FC = () => {
     reader.onload = (evt) => {
       const data = evt.target?.result;
       if (!data) return;
-      const workbook = XLSX.read(data, { type: 'binary' });
+      const workbook = XLSX.read(data, { type: "binary" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json.slice(1).map((row: any[]) => ({
-        module: row[0] || '',
-        subModule: row[1] || '',
-        description: row[2] || '',
-        steps: row[3] || '',
-        type: row[4] || 'functional',
-        severity: row[5] || 'medium',
-      })).filter(row => row.module && row.subModule && row.description && row.steps);
+      const rows = json
+        .slice(1)
+        .map((row: any[]) => ({
+          module: row[0] || "",
+          subModule: row[1] || "",
+          description: row[2] || "",
+          steps: row[3] || "",
+          type: row[4] || "functional",
+          severity: row[5] || "medium",
+        }))
+        .filter(
+          (row) => row.module && row.subModule && row.description && row.steps
+        );
       if (rows.length > 0) setBulkRows(rows);
     };
     reader.readAsBinaryString(file);
@@ -364,20 +540,23 @@ export const TestCasePage: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
-              {projectId ? `Project: ${projects.find(p => p.id === projectId)?.name}` : 'Select a project to begin'}
+              {projectId
+                ? `Project: ${projects.find((p) => p.id === projectId)?.name}`
+                : "Select a project to begin"}
             </p>
           </div>
-
         </div>
 
         {/* Project Selection Panel */}
         <Card>
           <CardContent className="p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Project Selection
+            </h2>
             <div className="relative flex items-center">
               <button
                 onClick={() => {
-                  const container = document.getElementById('project-scroll');
+                  const container = document.getElementById("project-scroll");
                   if (container) container.scrollLeft -= 200;
                 }}
                 className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -387,12 +566,16 @@ export const TestCasePage: React.FC = () => {
               <div
                 id="project-scroll"
                 className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  maxWidth: "100%",
+                }}
               >
-                {projects.map(project => (
+                {projects.map((project) => (
                   <Button
                     key={project.id}
-                    variant={projectId === project.id ? 'primary' : 'secondary'}
+                    variant={projectId === project.id ? "primary" : "secondary"}
                     onClick={() => {
                       setSelectedProjectId(project.id);
                       navigate(`/projects/${project.id}/test-cases`);
@@ -405,7 +588,7 @@ export const TestCasePage: React.FC = () => {
               </div>
               <button
                 onClick={() => {
-                  const container = document.getElementById('project-scroll');
+                  const container = document.getElementById("project-scroll");
                   if (container) container.scrollLeft += 200;
                 }}
                 className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -420,19 +603,20 @@ export const TestCasePage: React.FC = () => {
       {/* Content Area - Now scrollable at page level */}
       <div className="flex-1 px-6 pb-6">
         <div className="flex flex-col">
-
-
           {/* Module Selection Panel */}
           {projectId && (
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">Module Selection</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Module Selection
+                  </h2>
                 </div>
                 <div className="relative flex items-center">
                   <button
                     onClick={() => {
-                      const container = document.getElementById('module-scroll');
+                      const container =
+                        document.getElementById("module-scroll");
                       if (container) container.scrollLeft -= 200;
                     }}
                     className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -442,16 +626,22 @@ export const TestCasePage: React.FC = () => {
                   <div
                     id="module-scroll"
                     className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
-                    {projectModules.map(module => {
+                    {projectModules.map((module) => {
                       const moduleTestCases = testCases.filter(
-                        (tc: TestCase) => tc.projectId === projectId && tc.module === module.name
+                        (tc: TestCase) =>
+                          tc.projectId === projectId &&
+                          tc.module === module.name
                       );
                       return (
                         <Button
                           key={module.id}
-                          variant={selectedModule === module.name ? 'primary' : 'secondary'}
+                          variant={
+                            selectedModule === module.name
+                              ? "primary"
+                              : "secondary"
+                          }
                           onClick={() => handleModuleSelect(module.name)}
                           className="whitespace-nowrap m-2"
                         >
@@ -465,7 +655,8 @@ export const TestCasePage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => {
-                      const container = document.getElementById('module-scroll');
+                      const container =
+                        document.getElementById("module-scroll");
                       if (container) container.scrollLeft += 200;
                     }}
                     className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -482,12 +673,15 @@ export const TestCasePage: React.FC = () => {
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">Submodule Selection</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Submodule Selection
+                  </h2>
                 </div>
                 <div className="relative flex items-center">
                   <button
                     onClick={() => {
-                      const container = document.getElementById('submodule-scroll');
+                      const container =
+                        document.getElementById("submodule-scroll");
                       if (container) container.scrollLeft -= 200;
                     }}
                     className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -497,22 +691,30 @@ export const TestCasePage: React.FC = () => {
                   <div
                     id="submodule-scroll"
                     className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+                    style={{
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                      maxWidth: "100%",
+                    }}
                   >
                     {projectModules
-                      .find(m => m.name === selectedModule)
-                      ?.submodules.map(submodule => {
+                      .find((m) => m.name === selectedModule)
+                      ?.submodules.map((submodule) => {
                         const submoduleTestCases = testCases.filter(
-                          (tc: TestCase) => tc.projectId === projectId && tc.module === selectedModule && tc.subModule === submodule
+                          (tc: TestCase) =>
+                            tc.projectId === projectId &&
+                            tc.module === selectedModule &&
+                            tc.subModule === submodule
                         );
                         return (
-                          <div
-                            key={submodule}
-                            className="flex items-center"
-                          >
+                          <div key={submodule} className="flex items-center">
                             <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
                               <Button
-                                variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
+                                variant={
+                                  selectedSubmodule === submodule
+                                    ? "primary"
+                                    : "secondary"
+                                }
                                 onClick={() => handleSubmoduleSelect(submodule)}
                                 className="whitespace-nowrap border-0 m-1"
                               >
@@ -525,11 +727,11 @@ export const TestCasePage: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setFormData(prev => ({
+                                  setFormData((prev) => ({
                                     ...prev,
                                     module: selectedModule,
                                     subModule: submodule,
-                                    projectId: projectId
+                                    projectId: projectId,
                                   }));
                                   setIsModalOpen(true);
                                 }}
@@ -544,7 +746,8 @@ export const TestCasePage: React.FC = () => {
                   </div>
                   <button
                     onClick={() => {
-                      const container = document.getElementById('submodule-scroll');
+                      const container =
+                        document.getElementById("submodule-scroll");
                       if (container) container.scrollLeft += 200;
                     }}
                     className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -561,8 +764,12 @@ export const TestCasePage: React.FC = () => {
             <div className="flex justify-end space-x-3 mb-4">
               <Button
                 onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete ${selectedTestCases.length} test case(s)?`)) {
-                    selectedTestCases.forEach(id => deleteTestCase(id));
+                  if (
+                    window.confirm(
+                      `Are you sure you want to delete ${selectedTestCases.length} test case(s)?`
+                    )
+                  ) {
+                    selectedTestCases.forEach((id) => deleteTestCase(id));
                     setSelectedTestCases([]);
                   }
                 }}
@@ -587,6 +794,54 @@ export const TestCasePage: React.FC = () => {
             </div>
           )}
 
+          {/* Filter Options Above Table */}
+          {projectId && selectedModule && (
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Search by description..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{ minWidth: 220 }}
+              />
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Types</option>
+                <option value="functional">Functional</option>
+                <option value="regression">Regression</option>
+                <option value="smoke">Smoke</option>
+                <option value="integration">Integration</option>
+              </select>
+              <select
+                value={filterSeverity}
+                onChange={(e) => setFilterSeverity(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Severities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+              {(filterText || filterType || filterSeverity) && (
+                <button
+                  onClick={() => {
+                    setFilterText("");
+                    setFilterType("");
+                    setFilterSeverity("");
+                  }}
+                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Test Cases Table - Now with dynamic height */}
           {projectId && selectedModule && (
             <Card>
@@ -597,7 +852,10 @@ export const TestCasePage: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <input
                           type="checkbox"
-                          checked={selectedTestCases.length === filteredTestCases.length}
+                          checked={
+                            selectedTestCases.length ===
+                            filteredTestCases.length
+                          }
                           onChange={(e) => handleSelectAll(e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -630,7 +888,12 @@ export const TestCasePage: React.FC = () => {
                             <input
                               type="checkbox"
                               checked={selectedTestCases.includes(testCase.id)}
-                              onChange={(e) => handleSelectTestCase(testCase.id, e.target.checked)}
+                              onChange={(e) =>
+                                handleSelectTestCase(
+                                  testCase.id,
+                                  e.target.checked
+                                )
+                              }
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </td>
@@ -654,7 +917,11 @@ export const TestCasePage: React.FC = () => {
                             {testCase.type}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                                testCase.severity
+                              )}`}
+                            >
                               {testCase.severity}
                             </span>
                           </td>
@@ -705,35 +972,46 @@ export const TestCasePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             {/* Module Dropdown */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Module
+              </label>
               <select
                 value={formData.module}
-                onChange={e => {
-                  handleInputChange('module', e.target.value);
-                  handleInputChange('subModule', ''); // Reset submodule when module changes
+                onChange={(e) => {
+                  handleInputChange("module", e.target.value);
+                  handleInputChange("subModule", ""); // Reset submodule when module changes
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select Module</option>
-                {projectModules.map(module => (
-                  <option key={module.id} value={module.name}>{module.name}</option>
+                {projectModules.map((module) => (
+                  <option key={module.id} value={module.name}>
+                    {module.name}
+                  </option>
                 ))}
               </select>
             </div>
             {/* Submodule Dropdown */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sub Module
+              </label>
               <select
                 value={formData.subModule}
-                onChange={e => handleInputChange('subModule', e.target.value)}
+                onChange={(e) => handleInputChange("subModule", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={!formData.module}
               >
                 <option value="">Select Sub Module</option>
-                {(projectModules.find(m => m.name === formData.module)?.submodules || []).map(submodule => (
-                  <option key={submodule} value={submodule}>{submodule}</option>
+                {(
+                  projectModules.find((m) => m.name === formData.module)
+                    ?.submodules || []
+                ).map((submodule) => (
+                  <option key={submodule} value={submodule}>
+                    {submodule}
+                  </option>
                 ))}
               </select>
             </div>
@@ -745,7 +1023,7 @@ export const TestCasePage: React.FC = () => {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => handleInputChange("description", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={1}
               required
@@ -761,7 +1039,7 @@ export const TestCasePage: React.FC = () => {
             <div className="space-y-2">
               <textarea
                 value={formData.steps}
-                onChange={(e) => handleInputChange('steps', e.target.value)}
+                onChange={(e) => handleInputChange("steps", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={6}
                 required
@@ -776,7 +1054,7 @@ export const TestCasePage: React.FC = () => {
               </label>
               <select
                 value={formData.type}
-                onChange={(e) => handleInputChange('type', e.target.value)}
+                onChange={(e) => handleInputChange("type", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="functional">Functional</option>
@@ -792,7 +1070,7 @@ export const TestCasePage: React.FC = () => {
               </label>
               <select
                 value={formData.severity}
-                onChange={(e) => handleInputChange('severity', e.target.value)}
+                onChange={(e) => handleInputChange("severity", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="low">Low</option>
@@ -804,15 +1082,11 @@ export const TestCasePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={resetForm}
-            >
+            <Button type="button" variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
             <Button type="submit">
-              {editingTestCase ? 'Update Test Case' : 'Create Test Case'}
+              {editingTestCase ? "Update Test Case" : "Create Test Case"}
             </Button>
           </div>
         </form>
@@ -862,26 +1136,40 @@ export const TestCasePage: React.FC = () => {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                <p className="mt-1 text-sm text-gray-900">{viewingTestCase.description}</p>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Description
+                </h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {viewingTestCase.description}
+                </p>
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Test Steps</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                Test Steps
+              </h3>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-700 whitespace-pre-line">{viewingTestCase.steps}</p>
+                <p className="text-gray-700 whitespace-pre-line">
+                  {viewingTestCase.steps}
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Severity</h3>
-                <span className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(viewingTestCase.severity)}`}>
+                <span
+                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                    viewingTestCase.severity
+                  )}`}
+                >
                   {viewingTestCase.severity}
                 </span>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Module</h3>
-                <p className="mt-1 text-sm text-gray-900">{viewingTestCase.module} / {viewingTestCase.subModule}</p>
+                <p className="mt-1 text-sm text-gray-900">
+                  {viewingTestCase.module} / {viewingTestCase.subModule}
+                </p>
               </div>
             </div>
             <div className="flex justify-end pt-4">
@@ -905,7 +1193,7 @@ export const TestCasePage: React.FC = () => {
         isOpen={isDescriptionModalOpen}
         onClose={() => {
           setIsDescriptionModalOpen(false);
-          setSelectedDescription('');
+          setSelectedDescription("");
         }}
         title="Test Case Description"
       >
@@ -920,7 +1208,7 @@ export const TestCasePage: React.FC = () => {
               variant="secondary"
               onClick={() => {
                 setIsDescriptionModalOpen(false);
-                setSelectedDescription('');
+                setSelectedDescription("");
               }}
             >
               Close
@@ -973,27 +1261,38 @@ export const TestCasePage: React.FC = () => {
                     <td className="px-2 py-1 border">
                       <select
                         value={row.module}
-                        onChange={e => handleBulkRowChange(idx, 'module', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(idx, "module", e.target.value)
+                        }
                         className="w-32 px-2 py-1 border rounded"
                         required
                       >
                         <option value="">Select</option>
-                        {projectModules.map(module => (
-                          <option key={module.id} value={module.name}>{module.name}</option>
+                        {projectModules.map((module) => (
+                          <option key={module.id} value={module.name}>
+                            {module.name}
+                          </option>
                         ))}
                       </select>
                     </td>
                     <td className="px-2 py-1 border">
                       <select
                         value={row.subModule}
-                        onChange={e => handleBulkRowChange(idx, 'subModule', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(idx, "subModule", e.target.value)
+                        }
                         className="w-32 px-2 py-1 border rounded"
                         required
                         disabled={!row.module}
                       >
                         <option value="">Select</option>
-                        {(projectModules.find(m => m.name === row.module)?.submodules || []).map(submodule => (
-                          <option key={submodule} value={submodule}>{submodule}</option>
+                        {(
+                          projectModules.find((m) => m.name === row.module)
+                            ?.submodules || []
+                        ).map((submodule) => (
+                          <option key={submodule} value={submodule}>
+                            {submodule}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -1001,7 +1300,13 @@ export const TestCasePage: React.FC = () => {
                       <input
                         type="text"
                         value={row.description}
-                        onChange={e => handleBulkRowChange(idx, 'description', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(
+                            idx,
+                            "description",
+                            e.target.value
+                          )
+                        }
                         className="w-48 px-2 py-1 border rounded"
                         required
                       />
@@ -1010,7 +1315,9 @@ export const TestCasePage: React.FC = () => {
                       <input
                         type="text"
                         value={row.steps}
-                        onChange={e => handleBulkRowChange(idx, 'steps', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(idx, "steps", e.target.value)
+                        }
                         className="w-48 px-2 py-1 border rounded"
                         required
                       />
@@ -1018,7 +1325,9 @@ export const TestCasePage: React.FC = () => {
                     <td className="px-2 py-1 border">
                       <select
                         value={row.type}
-                        onChange={e => handleBulkRowChange(idx, 'type', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(idx, "type", e.target.value)
+                        }
                         className="w-28 px-2 py-1 border rounded"
                       >
                         <option value="functional">Functional</option>
@@ -1030,7 +1339,9 @@ export const TestCasePage: React.FC = () => {
                     <td className="px-2 py-1 border">
                       <select
                         value={row.severity}
-                        onChange={e => handleBulkRowChange(idx, 'severity', e.target.value)}
+                        onChange={(e) =>
+                          handleBulkRowChange(idx, "severity", e.target.value)
+                        }
                         className="w-28 px-2 py-1 border rounded"
                       >
                         <option value="low">Low</option>
@@ -1056,7 +1367,11 @@ export const TestCasePage: React.FC = () => {
             </table>
           </div>
           <div className="flex justify-between items-center mt-2">
-            <Button type="button" onClick={handleAddBulkRow} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+            <Button
+              type="button"
+              onClick={handleAddBulkRow}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+            >
               + Add Row
             </Button>
             <div className="flex space-x-3">
@@ -1067,16 +1382,24 @@ export const TestCasePage: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                Add Test Cases
-              </Button>
+              <Button type="submit">Add Test Cases</Button>
             </div>
           </div>
         </form>
       </Modal>
 
       {/* Fixed Quick Add Button */}
-      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
         <QuickAddTestCase />
         <QuickAddDefect />
       </div>
