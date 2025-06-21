@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Eye, CheckSquare } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, CheckSquare, ArrowLeft, ChevronRight, FileText, CheckCircle } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -8,11 +8,18 @@ import { useApp } from '../context/AppContext';
 
 export const TestCases: React.FC = () => {
   const { testCases, addTestCase, updateTestCase, deleteTestCase, releases } = useApp();
+  
+  // Navigation state
+  const [currentView, setCurrentView] = useState<'modules' | 'submodules' | 'releases' | 'testcases'>('modules');
+  const [selectedModule, setSelectedModule] = useState('');
+  const [selectedSubModule, setSelectedSubModule] = useState('');
+  const [selectedRelease, setSelectedRelease] = useState('');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
-  const [selectedRelease, setSelectedRelease] = useState('');
+  const [selectedReleaseForAllocation, setSelectedReleaseForAllocation] = useState('');
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
   const [editingTestCase, setEditingTestCase] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -26,6 +33,62 @@ export const TestCases: React.FC = () => {
     status: 'active' as 'active' | 'inactive',
     projectId: '',
   });
+
+  // Get unique modules from test cases
+  const modules = [...new Set(testCases.map(tc => tc.module))].filter(Boolean);
+
+  // Get sub-modules for selected module
+  const subModules = selectedModule 
+    ? [...new Set(testCases.filter(tc => tc.module === selectedModule).map(tc => tc.subModule))].filter(Boolean)
+    : [];
+
+  // Get releases for selected sub-module
+  const releasesForSubModule = selectedSubModule 
+    ? releases.filter(r => {
+        const subModuleTestCases = testCases.filter(tc => tc.subModule === selectedSubModule);
+        return subModuleTestCases.some(tc => tc.releaseId === r.id);
+      })
+    : [];
+
+  // Get test cases for selected release
+  const testCasesForRelease = selectedRelease 
+    ? testCases.filter(tc => tc.releaseId === selectedRelease)
+    : [];
+
+  const handleModuleSelect = (module: string) => {
+    setSelectedModule(module);
+    setSelectedSubModule('');
+    setSelectedRelease('');
+    setCurrentView('submodules');
+  };
+
+  const handleSubModuleSelect = (subModule: string) => {
+    setSelectedSubModule(subModule);
+    setSelectedRelease('');
+    setCurrentView('releases');
+  };
+
+  const handleReleaseSelect = (releaseId: string) => {
+    setSelectedRelease(releaseId);
+    setCurrentView('testcases');
+  };
+
+  const handleBack = () => {
+    switch (currentView) {
+      case 'submodules':
+        setCurrentView('modules');
+        setSelectedModule('');
+        break;
+      case 'releases':
+        setCurrentView('submodules');
+        setSelectedSubModule('');
+        break;
+      case 'testcases':
+        setCurrentView('releases');
+        setSelectedRelease('');
+        break;
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,26 +184,26 @@ export const TestCases: React.FC = () => {
   };
 
   const handleAllocate = () => {
-    if (selectedTestCases.length === 0 || !selectedRelease) return;
+    if (selectedTestCases.length === 0 || !selectedReleaseForAllocation) return;
     
     selectedTestCases.forEach(testCaseId => {
       const testCase = testCases.find(tc => tc.id === testCaseId);
       if (testCase) {
         updateTestCase({
           ...testCase,
-          releaseId: selectedRelease
+          releaseId: selectedReleaseForAllocation
         });
       }
     });
     
     setSelectedTestCases([]);
-    setSelectedRelease('');
+    setSelectedReleaseForAllocation('');
     setIsAllocateModalOpen(false);
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedTestCases(testCases.map(tc => tc.id));
+      setSelectedTestCases(testCasesForRelease.map(tc => tc.id));
     } else {
       setSelectedTestCases([]);
     }
@@ -159,132 +222,389 @@ export const TestCases: React.FC = () => {
     setIsViewStepsModalOpen(true);
   };
 
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
-        <div className="flex space-x-3">
-          {selectedTestCases.length > 0 && (
-            <Button 
-              onClick={() => setIsAllocateModalOpen(true)}
-              className="flex items-center space-x-2"
-            >
-              <CheckSquare className="w-4 h-4" />
-              <span>Allocate ({selectedTestCases.length})</span>
+  const renderModulesView = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Test Cases by Module</h1>
+          <p className="text-gray-600">Select a module to view its sub-modules</p>
+        </div>
+        <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+          <Plus className="w-4 h-4" />
+          <span>Add Test Case</span>
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {modules.map((module) => {
+          const moduleTestCases = testCases.filter(tc => tc.module === module);
+          const activeCount = moduleTestCases.filter(tc => tc.status === 'active').length;
+          const inactiveCount = moduleTestCases.filter(tc => tc.status === 'inactive').length;
+          
+          return (
+            <div key={module} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleModuleSelect(module)}>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="w-8 h-8 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">{module}</h3>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Test Cases:</span>
+                      <span className="font-medium">{moduleTestCases.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Active:</span>
+                      <span className="font-medium text-green-600">{activeCount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Inactive:</span>
+                      <span className="font-medium text-gray-600">{inactiveCount}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      {modules.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No modules found</h3>
+            <p className="text-gray-500 mb-4">No test cases have been created yet</p>
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+              <Plus className="w-4 h-4" />
+              <span>Add Test Case</span>
             </Button>
-          )}
-          <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
-            <Plus className="w-4 h-4" />
-            <span>Add Test Case</span>
-          </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  const renderSubModulesView = () => (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-4 mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={handleBack}
+          className="flex items-center space-x-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Modules</span>
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Sub-Modules</h1>
+          <p className="text-gray-600">Module: {selectedModule}</p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <input
-                      type="checkbox"
-                      checked={selectedTestCases.length === testCases.length}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Case ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Module
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sub Module
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Steps
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Severity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {testCases.map((testCase) => (
-                  <tr key={testCase.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedTestCases.includes(testCase.id)}
-                        onChange={(e) => handleSelectTestCase(testCase.id, e.target.checked)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {testCase.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {testCase.module}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {testCase.subModule}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                      {testCase.description}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      <button
-                        onClick={() => handleViewSteps(testCase)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>{testCase.steps.length} steps</span>
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {testCase.type}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
-                        {testCase.severity}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(testCase)}
-                          className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(testCase.id)}
-                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {subModules.map((subModule) => {
+          const subModuleTestCases = testCases.filter(tc => tc.subModule === subModule);
+          const activeCount = subModuleTestCases.filter(tc => tc.status === 'active').length;
+          const inactiveCount = subModuleTestCases.filter(tc => tc.status === 'inactive').length;
+          
+          return (
+            <div key={subModule} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleSubModuleSelect(subModule)}>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <CheckSquare className="w-8 h-8 text-green-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">{subModule}</h3>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Test Cases:</span>
+                      <span className="font-medium">{subModuleTestCases.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Active:</span>
+                      <span className="font-medium text-green-600">{activeCount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Inactive:</span>
+                      <span className="font-medium text-gray-600">{inactiveCount}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      {subModules.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <CheckSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No sub-modules found</h3>
+            <p className="text-gray-500 mb-4">No test cases have been created for this module</p>
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+              <Plus className="w-4 h-4" />
+              <span>Add Test Case</span>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  const renderReleasesView = () => (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-4 mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={handleBack}
+          className="flex items-center space-x-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Sub-Modules</span>
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Releases</h1>
+          <p className="text-gray-600">{selectedModule} → {selectedSubModule}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {releasesForSubModule.map((release) => {
+          const releaseTestCases = testCases.filter(tc => tc.releaseId === release.id);
+          const activeCount = releaseTestCases.filter(tc => tc.status === 'active').length;
+          const inactiveCount = releaseTestCases.filter(tc => tc.status === 'inactive').length;
+          
+          return (
+            <div key={release.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleReleaseSelect(release.id)}>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-8 h-8 text-purple-600" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{release.name}</h3>
+                        <p className="text-sm text-gray-500">v{release.version}</p>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Test Cases:</span>
+                      <span className="font-medium">{releaseTestCases.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Active:</span>
+                      <span className="font-medium text-green-600">{activeCount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Inactive:</span>
+                      <span className="font-medium text-gray-600">{inactiveCount}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      {releasesForSubModule.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No releases found</h3>
+            <p className="text-gray-500 mb-4">No test cases have been allocated to releases for this sub-module</p>
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+              <Plus className="w-4 h-4" />
+              <span>Add Test Case</span>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  const renderTestCasesView = () => {
+    const selectedReleaseData = releases.find(r => r.id === selectedRelease);
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button 
+            variant="ghost" 
+            onClick={handleBack}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Releases</span>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
+            <p className="text-gray-600">{selectedModule} → {selectedSubModule} → {selectedReleaseData?.name} (v{selectedReleaseData?.version})</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">
+              {testCasesForRelease.length} test case{testCasesForRelease.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="flex space-x-3">
+            {selectedTestCases.length > 0 && (
+              <Button 
+                onClick={() => setIsAllocateModalOpen(true)}
+                className="flex items-center space-x-2"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span>Allocate ({selectedTestCases.length})</span>
+              </Button>
+            )}
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+              <Plus className="w-4 h-4" />
+              <span>Add Test Case</span>
+            </Button>
+          </div>
+        </div>
+
+        {testCasesForRelease.length > 0 ? (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input
+                          type="checkbox"
+                          checked={selectedTestCases.length === testCasesForRelease.length}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Test Case ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Steps
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Severity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {testCasesForRelease.map((testCase) => (
+                      <tr key={testCase.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={selectedTestCases.includes(testCase.id)}
+                            onChange={(e) => handleSelectTestCase(testCase.id, e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {testCase.id}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          {testCase.description}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <button
+                            onClick={() => handleViewSteps(testCase)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>{testCase.steps.length} steps</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {testCase.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
+                            {testCase.severity}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            testCase.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {testCase.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(testCase)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(testCase.id)}
+                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No test cases found</h3>
+              <p className="text-gray-500 mb-4">No test cases have been allocated to this release</p>
+              <Button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2">
+                <Plus className="w-4 h-4" />
+                <span>Add Test Case</span>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-6">
+      {/* Render current view */}
+      {currentView === 'modules' && renderModulesView()}
+      {currentView === 'submodules' && renderSubModulesView()}
+      {currentView === 'releases' && renderReleasesView()}
+      {currentView === 'testcases' && renderTestCasesView()}
 
       <Modal
         isOpen={isModalOpen}
@@ -419,7 +739,7 @@ export const TestCases: React.FC = () => {
         isOpen={isAllocateModalOpen}
         onClose={() => {
           setIsAllocateModalOpen(false);
-          setSelectedRelease('');
+          setSelectedReleaseForAllocation('');
         }}
         title="Allocate Test Cases to Release"
       >
@@ -429,8 +749,8 @@ export const TestCases: React.FC = () => {
               Select Release
             </label>
             <select
-              value={selectedRelease}
-              onChange={(e) => setSelectedRelease(e.target.value)}
+              value={selectedReleaseForAllocation}
+              onChange={(e) => setSelectedReleaseForAllocation(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             >
@@ -448,7 +768,7 @@ export const TestCases: React.FC = () => {
               variant="secondary"
               onClick={() => {
                 setIsAllocateModalOpen(false);
-                setSelectedRelease('');
+                setSelectedReleaseForAllocation('');
               }}
             >
               Cancel
@@ -456,7 +776,7 @@ export const TestCases: React.FC = () => {
             <Button
               type="button"
               onClick={handleAllocate}
-              disabled={!selectedRelease}
+              disabled={!selectedReleaseForAllocation}
             >
               Allocate
             </Button>

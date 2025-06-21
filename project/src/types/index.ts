@@ -54,6 +54,7 @@ export interface Defect {
   attachments?: string[];
   createdAt: string;
   updatedAt: string;
+  rejectionComment?: string;
 }
 
 export interface TestCase {
