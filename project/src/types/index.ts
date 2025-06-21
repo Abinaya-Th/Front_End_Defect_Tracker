@@ -69,6 +69,11 @@ export interface TestCase {
   estimatedTime?: number; // minutes
   createdAt: string;
   selected?: boolean;
+  releaseId?: string;
+  module?: string;
+  subModule?: string;
+  type?: 'functional' | 'regression' | 'smoke' | 'integration';
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface Release {

@@ -10,11 +10,12 @@ import { Bench } from './pages/Bench';
 import { Projects } from './pages/Projects';
 import { Defects } from './pages/Defects';
 import { TestCase } from './pages/TestCase';
-import { Releases } from './pages/Releases';
+import { TestExecution } from './pages/TestExecution';
 import { Workflow } from './pages/Workflow';
 import { ProjectDashboard } from './pages/ProjectDashboard';
 import { useParams } from 'react-router-dom';
-import { ReleaseDetails } from './pages/ReleaseDetails';
+import { Releases } from './pages/release';
+import { Allocation } from './pages/allocation';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -95,10 +96,18 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/releases/:releaseId"
+          path="/projects/:projectId/releases/allocation"
           element={
             <ProtectedRoute>
-              <ReleaseDetails />
+              <Allocation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/test-execution"
+          element={
+            <ProtectedRoute>
+              <TestExecution />
             </ProtectedRoute>
           }
         />
