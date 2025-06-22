@@ -86,24 +86,24 @@ export const ReleaseView: React.FC = () => {
   const projectModules = selectedProject ? mockModules[selectedProject] || [] : [];
 
   // Filter test cases for selected release
-  const releaseTestCases = testCases.filter(tc => 
+  const releaseTestCases = testCases.filter(tc =>
     tc.projectId === selectedProject && tc.releaseId === selectedRelease
   );
 
   // Filter test cases based on module/submodule selection
   const filteredTestCases = React.useMemo(() => {
     if (!selectedRelease) return [];
-    
+
     let filtered = releaseTestCases;
-    
+
     if (selectedModule) {
       filtered = filtered.filter(tc => tc.module === selectedModule);
     }
-    
+
     if (selectedSubmodule) {
       filtered = filtered.filter(tc => tc.subModule === selectedSubmodule);
     }
-    
+
     return filtered;
   }, [releaseTestCases, selectedModule, selectedSubmodule, selectedRelease]);
 
@@ -163,7 +163,7 @@ export const ReleaseView: React.FC = () => {
   // Handle create release
   const handleCreateRelease = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedProject) return;
 
     const newRelease = {
@@ -212,7 +212,7 @@ export const ReleaseView: React.FC = () => {
                 {currentProject?.name} - {currentRelease?.name}
               </p>
             </div>
-            <Button 
+            <Button
               variant="secondary"
               onClick={() => setSelectedRelease(null)}
               className="flex items-center space-x-2"
@@ -490,9 +490,9 @@ export const ReleaseView: React.FC = () => {
     <div className="max-w-6xl mx-auto py-8">
       {/* Back Button at the top right */}
       <div className="mb-4 flex justify-end">
-        <Button 
-          variant="secondary" 
-          onClick={() => navigate(`/projects/${projectId}/releases`)} 
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${projectId}/project-management`)}
           className="flex items-center"
         >
           <ChevronLeft className="w-5 h-5 mr-2" /> Back
@@ -547,8 +547,8 @@ export const ReleaseView: React.FC = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Release Overview</h2>
-            <Button 
-              onClick={() => setIsCreateReleaseModalOpen(true)} 
+            <Button
+              onClick={() => setIsCreateReleaseModalOpen(true)}
               className="flex items-center space-x-2"
               disabled={!selectedProject}
             >
@@ -558,7 +558,7 @@ export const ReleaseView: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projectReleases.map(release => {
-              const releaseTestCases = testCases.filter(tc => 
+              const releaseTestCases = testCases.filter(tc =>
                 tc.projectId === selectedProject && tc.releaseId === release.id
               );
               const totalTestCases = releaseTestCases.length;

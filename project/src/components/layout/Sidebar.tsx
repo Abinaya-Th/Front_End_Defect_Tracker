@@ -110,18 +110,6 @@ export const Sidebar: React.FC = () => {
                   Project Management
                 </NavLink>
                 <NavLink
-                  to={`/projects/${selectedProjectId}/module-management`}
-                  className={({ isActive }) =>
-                    `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 w-full overflow-hidden text-ellipsis whitespace-nowrap ${isActive
-                      ? "bg-blue-100 text-blue-800"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                    }`
-                  }
-                >
-                  <Settings className="mr-2 h-4 w-4 flex-shrink-0" />
-                  Module Management
-                </NavLink>
-                <NavLink
                   to={`/projects/${selectedProjectId}/test-cases`}
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 w-full overflow-hidden text-ellipsis whitespace-nowrap ${isActive
@@ -157,7 +145,7 @@ export const Sidebar: React.FC = () => {
                   <Bug className="mr-2 h-4 w-4 flex-shrink-0" />
                   Defects
                 </NavLink>
-                
+
               </div>
             )}
           </div>

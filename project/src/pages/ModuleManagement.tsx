@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, UserPlus,  ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, UserPlus, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -33,7 +33,7 @@ interface ModuleAssignment {
 export const ModuleManagement: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, employees, setSelectedProjectId } = useApp();
+  const { projects, employees, setSelectedProjectId, selectedProjectId } = useApp();
 
   // State for modules (extended version of mockModules)
   const [modules, setModules] = useState<Module[]>([]);
@@ -60,8 +60,13 @@ export const ModuleManagement: React.FC = () => {
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
+    }
+  }, [projectId, setSelectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProjectId) {
       // Initialize modules from mockModules
-      const projectModules = mockModules[projectId] || [];
+      const projectModules = mockModules[selectedProjectId] || [];
       const extendedModules: Module[] = projectModules.map(module => ({
         id: module.id,
         name: module.name,
@@ -74,7 +79,7 @@ export const ModuleManagement: React.FC = () => {
       }));
       setModules(extendedModules);
     }
-  }, [projectId, setSelectedProjectId]);
+  }, [selectedProjectId]);
 
   // Filter developers (engineers/developers)
   const availableDevelopers = employees.filter(emp =>
@@ -349,11 +354,11 @@ export const ModuleManagement: React.FC = () => {
     return Array.from(allDevIds);
   };
 
-  if (!projectId) {
+  if (!selectedProjectId) {
     return <div className="p-8 text-center text-gray-500">Please select a project to manage modules.</div>;
   }
 
-  const project = projects.find(p => p.id === projectId);
+  const project = projects.find(p => p.id === selectedProjectId);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -363,7 +368,7 @@ export const ModuleManagement: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Module Management</h1>
             <p className="text-sm text-gray-500">
-              {projectId ? `Project: ${project?.name}` : 'Select a project to begin'}
+              {selectedProjectId ? `Project: ${project?.name}` : 'Select a project to begin'}
             </p>
           </div>
         </div>
@@ -390,10 +395,9 @@ export const ModuleManagement: React.FC = () => {
                 {projects.map(project => (
                   <Button
                     key={project.id}
-                    variant={projectId === project.id ? 'primary' : 'secondary'}
+                    variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
                     onClick={() => {
                       setSelectedProjectId(project.id);
-                      navigate(`/projects/${project.id}/module-management`);
                     }}
                     className="whitespace-nowrap m-2"
                   >
