@@ -26,6 +26,13 @@ import Configurations from "./pages/Configurations";
 import Designation from "./pages/Designation";
 import Role from "./pages/Role";
 import DefectType from "./pages/DefectType";
+import Privileges from "./pages/Privileges";
+import EmailConfiguration from "./pages/EmailConfiguration";
+import ReleaseType from "./pages/ReleaseType";
+import Severity from "./pages/Severity";
+import Priority from "./pages/Priority";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -53,6 +60,8 @@ const AppRoutes: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/dashboard"
           element={
@@ -150,14 +159,6 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/module-management"
-          element={
-            <ProtectedRoute>
-              <ModuleManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/workflow"
           element={
             <ProtectedRoute>
@@ -194,6 +195,46 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <DefectType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/privileges"
+          element={
+            <ProtectedRoute>
+              <Privileges />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/email-configuration"
+          element={
+            <ProtectedRoute>
+              <EmailConfiguration />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/release-type"
+          element={
+            <ProtectedRoute>
+              <ReleaseType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/severity"
+          element={
+            <ProtectedRoute>
+              <Severity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/priority"
+          element={
+            <ProtectedRoute>
+              <Priority />
             </ProtectedRoute>
           }
         />

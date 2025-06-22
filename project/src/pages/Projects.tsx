@@ -247,15 +247,15 @@ export const Projects: React.FC = () => {
         {[...mockProjects, ...projects].map((project, index) => {
           const manager = sampleManagers.find(emp => emp.id === project.manager);
           const daysLeft = project.endDate ? Math.ceil((new Date(project.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
-          
+
           return (
-            <Card 
-              key={`${project.id}-${index}`} 
-              hover 
+            <Card
+              key={`${project.id}-${index}`}
+              hover
               className="relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
               onClick={() => {
                 setSelectedProjectId(project.id);
-                navigate(`/projects/${project.id}/test-cases`);
+                navigate(`/projects/${project.id}/project-management`);
               }}
             >
               <div className={`absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8 rotate-45 ${getProjectTypeColor(project.projectType)} opacity-10`} />
@@ -309,7 +309,7 @@ export const Projects: React.FC = () => {
                     <Clock className="w-5 h-5 text-blue-500" />
                     <span className="font-medium">Timeline:</span>
                     <span className="text-gray-900">
-                      {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'Not set'} - 
+                      {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'Not set'} -
                       {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'Not set'}
                     </span>
                   </div>
