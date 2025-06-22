@@ -75,6 +75,7 @@ export interface Defect {
   reportedBy: string;
   createdAt: string;
   updatedAt: string;
+  rejectionComment?: string;
 }
 
 // ... rest of the types ... 

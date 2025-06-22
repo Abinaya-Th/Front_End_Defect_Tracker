@@ -79,6 +79,10 @@ interface AppContextType {
   ) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
+  testCaseDefectMap: { [testCaseId: string]: string };
+  setTestCaseDefectMap: React.Dispatch<
+    React.SetStateAction<{ [testCaseId: string]: string }>
+  >;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -300,8 +304,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       projectType: "web",
       progress: 100,
       teamMembers: [],
-      createdAt: "2023-06-01T00:00:00Z",
+      createdAt: "2023-09-01T00:00:00Z",
     },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // },
+    // {
+    //   id: '3',
+    //   name: 'Inventory Management',
+    //   prefix: 'INVM',
+    //   description: 'Enterprise inventory tracking system',
+    //   status: 'completed',
+    //   startDate: '2023-09-01',
+    //   endDate: '2024-01-31',
+    //   manager: 'Mike Brown',
+    //   priority: 'medium',
+    //   projectType: 'desktop',
+    //   progress: 100,
+    //   teamMembers: [],
+    //   createdAt: '2023-09-01T00:00:00Z'
+    // }
   ]);
 
   const [defects, setDefects] = useState<Defect[]>([
@@ -694,6 +803,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
   );
+  const [testCaseDefectMap, setTestCaseDefectMap] = useState<{
+    [testCaseId: string]: string;
+  }>({});
 
   const addEmployee = (
     employeeData: Omit<Employee, "id" | "createdAt" | "updatedAt">
@@ -734,15 +846,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addDefect = (defect: Defect) => {
-    // Implementation for adding defect
+    setDefects((prev) => [...prev, defect]);
   };
 
   const updateDefect = (defect: Defect) => {
-    // Implementation for updating defect
+    setDefects((prev) => prev.map((d) => (d.id === defect.id ? defect : d)));
   };
 
   const deleteDefect = (defectId: string) => {
-    // Implementation for deleting defect
+    setDefects((prev) => prev.filter((d) => d.id !== defectId));
   };
 
   const addTestCase = (testCase: TestCase) => {
@@ -829,6 +941,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         allocateEmployee,
         updateWorkflowStatuses,
         updateTransitions,
+        testCaseDefectMap,
+        setTestCaseDefectMap,
       }}
     >
       {children}

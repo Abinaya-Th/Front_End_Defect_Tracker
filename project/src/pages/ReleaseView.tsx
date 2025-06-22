@@ -7,6 +7,8 @@ import { Input } from '../components/ui/Input';
 import { ChevronLeft, ChevronRight, Calendar, FileText, Users, Eye, Edit2, Trash2, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -84,24 +86,24 @@ export const ReleaseView: React.FC = () => {
   const projectModules = selectedProject ? mockModules[selectedProject] || [] : [];
 
   // Filter test cases for selected release
-  const releaseTestCases = testCases.filter(tc => 
+  const releaseTestCases = testCases.filter(tc =>
     tc.projectId === selectedProject && tc.releaseId === selectedRelease
   );
 
   // Filter test cases based on module/submodule selection
   const filteredTestCases = React.useMemo(() => {
     if (!selectedRelease) return [];
-    
+
     let filtered = releaseTestCases;
-    
+
     if (selectedModule) {
       filtered = filtered.filter(tc => tc.module === selectedModule);
     }
-    
+
     if (selectedSubmodule) {
       filtered = filtered.filter(tc => tc.subModule === selectedSubmodule);
     }
-    
+
     return filtered;
   }, [releaseTestCases, selectedModule, selectedSubmodule, selectedRelease]);
 
@@ -161,7 +163,7 @@ export const ReleaseView: React.FC = () => {
   // Handle create release
   const handleCreateRelease = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedProject) return;
 
     const newRelease = {
@@ -200,7 +202,7 @@ export const ReleaseView: React.FC = () => {
     const currentProject = projects.find(p => p.id === selectedProject);
 
     return (
-      <div className="min-h-screen w-full flex flex-col">
+      <div className="max-w-6xl mx-auto">
         {/* Fixed Header Section */}
         <div className="flex-none p-6 pb-4">
           <div className="flex justify-between items-center mb-4">
@@ -210,7 +212,7 @@ export const ReleaseView: React.FC = () => {
                 {currentProject?.name} - {currentRelease?.name}
               </p>
             </div>
-            <Button 
+            <Button
               variant="secondary"
               onClick={() => setSelectedRelease(null)}
               className="flex items-center space-x-2"
@@ -248,7 +250,7 @@ export const ReleaseView: React.FC = () => {
                         key={module.id}
                         variant={selectedModule === module.name ? 'primary' : 'secondary'}
                         onClick={() => handleModuleSelect(module.name)}
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap m-2"
                       >
                         {module.name}
                         <Badge variant="info" className="ml-2">
@@ -287,7 +289,7 @@ export const ReleaseView: React.FC = () => {
                 </button>
                 <div
                   id="submodule-scroll"
-                  className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                  className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
                 >
                   {projectModules
@@ -301,7 +303,7 @@ export const ReleaseView: React.FC = () => {
                           key={submodule}
                           variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
                           onClick={() => handleSubmoduleSelect(submodule)}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap m-2"
                         >
                           {submodule}
                           <Badge variant="info" className="ml-2">
@@ -488,9 +490,9 @@ export const ReleaseView: React.FC = () => {
     <div className="max-w-6xl mx-auto py-8">
       {/* Back Button at the top right */}
       <div className="mb-4 flex justify-end">
-        <Button 
-          variant="secondary" 
-          onClick={() => navigate(`/projects/${projectId}/releases`)} 
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${projectId}/project-management`)}
           className="flex items-center"
         >
           <ChevronLeft className="w-5 h-5 mr-2" /> Back
@@ -513,7 +515,7 @@ export const ReleaseView: React.FC = () => {
             </button>
             <div
               id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
             >
               {projects.map(project => (
@@ -545,8 +547,8 @@ export const ReleaseView: React.FC = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Release Overview</h2>
-            <Button 
-              onClick={() => setIsCreateReleaseModalOpen(true)} 
+            <Button
+              onClick={() => setIsCreateReleaseModalOpen(true)}
               className="flex items-center space-x-2"
               disabled={!selectedProject}
             >
@@ -556,7 +558,7 @@ export const ReleaseView: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projectReleases.map(release => {
-              const releaseTestCases = testCases.filter(tc => 
+              const releaseTestCases = testCases.filter(tc =>
                 tc.projectId === selectedProject && tc.releaseId === release.id
               );
               const totalTestCases = releaseTestCases.length;
@@ -736,6 +738,21 @@ export const ReleaseView: React.FC = () => {
           </div>
         </form>
       </Modal>
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 }; 

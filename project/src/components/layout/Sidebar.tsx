@@ -19,6 +19,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Bench", href: "/bench", icon: UserCheck },
+  { name: "Configurations", href: "/configurations", icon: Settings },
   { name: "Workflow", href: "/workflow", icon: GitBranch },
 ];
 
@@ -84,7 +85,7 @@ export const Sidebar: React.FC = () => {
             {/* Only show dropdown if a project is selected */}
             {selectedProjectId && open && (
               <div id="project-dropdown" className="pl-7 mt-3 space-y-1 w-full">
-                <NavLink
+                {/* <NavLink
                   to={`/projects/${selectedProjectId}`}
                   end
                   className={({ isActive }) =>
@@ -96,9 +97,9 @@ export const Sidebar: React.FC = () => {
                 >
                   <FolderOpen className="mr-2 h-4 w-4 flex-shrink-0" />
                   Project Dashboard
-                </NavLink>
+                </NavLink> */}
                 <NavLink
-                  to={`/projects/${selectedProjectId}/module-management`}
+                  to={`/projects/${selectedProjectId}/project-management`}
                   className={({ isActive }) =>
                     `group flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 w-full overflow-hidden text-ellipsis whitespace-nowrap ${isActive
                       ? "bg-blue-100 text-blue-800"
@@ -106,8 +107,8 @@ export const Sidebar: React.FC = () => {
                     }`
                   }
                 >
-                  <Settings className="mr-2 h-4 w-4 flex-shrink-0" />
-                  Module Management
+                  <FolderOpen className="mr-2 h-4 w-4 flex-shrink-0" />
+                  Project Management
                 </NavLink>
                 <NavLink
                   to={`/projects/${selectedProjectId}/test-cases`}
@@ -145,7 +146,7 @@ export const Sidebar: React.FC = () => {
                   <Bug className="mr-2 h-4 w-4 flex-shrink-0" />
                   Defects
                 </NavLink>
-                
+
               </div>
             )}
           </div>

@@ -20,7 +20,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
-import { TestCase } from "../types/index";
+import { TestCase as TestCaseType } from "../types/index";
 
 // Define interfaces for our data types
 interface Module {
@@ -155,16 +155,19 @@ export const TestCasePage: React.FC = () => {
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
-  const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
-  const [editingTestCase, setEditingTestCase] = useState<TestCase | null>(null);
-  const [formData, setFormData] = useState<Omit<TestCase, "id">>({
+  const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(
+    null
+  );
+  const [editingTestCase, setEditingTestCase] = useState<TestCaseType | null>(
+    null
+  );
+  const [formData, setFormData] = useState<Omit<TestCaseType, "id">>({
     module: "",
     subModule: "",
     description: "",
     steps: "",
     type: "functional",
     severity: "medium",
-    // status: 'active',
     projectId: "",
   });
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -323,7 +326,7 @@ export const TestCasePage: React.FC = () => {
     resetForm();
   };
 
-  const handleEdit = (testCase: TestCase) => {
+  const handleEdit = (testCase: TestCaseType) => {
     setEditingTestCase(testCase);
     setFormData({
       module: testCase.module,
@@ -332,7 +335,6 @@ export const TestCasePage: React.FC = () => {
       steps: testCase.steps,
       type: testCase.type,
       severity: testCase.severity,
-      // status: testCase.status,
       projectId: testCase.projectId,
     });
     setIsModalOpen(true);
@@ -352,7 +354,6 @@ export const TestCasePage: React.FC = () => {
       steps: "",
       type: "functional",
       severity: "medium",
-      // status: 'active',
       projectId: projectId,
     });
     setEditingTestCase(null);
@@ -402,7 +403,7 @@ export const TestCasePage: React.FC = () => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedTestCases(filteredTestCases.map((tc: TestCase) => tc.id));
+      setSelectedTestCases(filteredTestCases.map((tc: TestCaseType) => tc.id));
     } else {
       setSelectedTestCases([]);
     }
@@ -416,12 +417,12 @@ export const TestCasePage: React.FC = () => {
     }
   };
 
-  const handleViewSteps = (testCase: TestCase) => {
+  const handleViewSteps = (testCase: TestCaseType) => {
     setViewingTestCase(testCase);
     setIsViewStepsModalOpen(true);
   };
 
-  const handleViewTestCase = (testCase: TestCase) => {
+  const handleViewTestCase = (testCase: TestCaseType) => {
     setViewingTestCase(testCase);
     setIsViewTestCaseModalOpen(true);
   };
@@ -716,7 +717,7 @@ export const TestCasePage: React.FC = () => {
                                     : "secondary"
                                 }
                                 onClick={() => handleSubmoduleSelect(submodule)}
-                                className="whitespace-nowrap border-0 m-1"
+                                className="whitespace-nowrap border-0 m-2"
                               >
                                 {submodule}
                                 <Badge variant="info" className="ml-2">
@@ -881,7 +882,7 @@ export const TestCasePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTestCases.map((testCase: TestCase) => (
+                    {filteredTestCases.map((testCase: TestCaseType) => (
                       <React.Fragment key={testCase.id}>
                         <tr className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">

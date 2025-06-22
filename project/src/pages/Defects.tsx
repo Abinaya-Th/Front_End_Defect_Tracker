@@ -1,67 +1,145 @@
-import React, { useState } from 'react';
-import { Plus, Bug, AlertCircle, Clock, CheckCircle, X, FileText, Edit2, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Modal } from '../components/ui/Modal';
-import { useApp } from '../context/AppContext';
-import { useParams, useNavigate } from 'react-router-dom';
-import QuickAddTestCase from './QuickAddTestCase';
-import QuickAddDefect from './QuickAddDefect';
+import React, { useState } from "react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle,
+  Eye,
+  MessageSquareWarning,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Card, CardContent } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
+import { useApp } from "../context/AppContext";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import QuickAddTestCase from "./QuickAddTestCase";
+import QuickAddDefect from "./QuickAddDefect";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { defects, projects, releases, testCases = [], addDefect, updateDefect, deleteDefect, setSelectedProjectId } = useApp();
+  const location = useLocation();
+  const {
+    defects,
+    projects,
+    releases,
+    addDefect,
+    updateDefect,
+    deleteDefect,
+    setSelectedProjectId,
+  } = useApp();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<any>(null);
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    module: '',
-    subModule: '',
-    type: 'bug' as 'bug' | 'test-failure' | 'enhancement',
-    priority: 'medium' as 'low' | 'medium' | 'high' | 'critical',
-    severity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
-    status: 'open' as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
-    projectId: projectId || '',
-    releaseId: '',
-    testCaseId: '',
-    assignedTo: '',
-    reportedBy: '',
+    title: "",
+    description: "",
+    module: "",
+    subModule: "",
+    type: "bug" as "bug" | "test-failure" | "enhancement",
+    priority: "medium" as "low" | "medium" | "high" | "critical",
+    severity: "medium" as "low" | "medium" | "high" | "critical",
+    status: "open" as
+      | "open"
+      | "in-progress"
+      | "resolved"
+      | "closed"
+      | "rejected",
+    projectId: projectId || "",
+    releaseId: "",
+    testCaseId: "",
+    assignedTo: "",
+    reportedBy: "",
+    rejectionComment: "",
   });
 
-  // Only show defects for the current project
-  const projectDefects = defects.filter(d => d.projectId === projectId);
+  const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
+  const [viewingSteps, setViewingSteps] = useState<string | null>(null);
+  const [isRejectionCommentModalOpen, setIsRejectionCommentModalOpen] =
+    useState(false);
+  const [viewingRejectionComment, setViewingRejectionComment] = useState<
+    string | null
+  >(null);
 
-  // Group defects by module
-  const defectsByModule = projectDefects.reduce((acc, defect) => {
-    if (!acc[defect.module]) {
-      acc[defect.module] = [];
-    }
-    acc[defect.module].push(defect);
-    return acc;
-  }, {} as Record<string, typeof defects>);
+  // Filter state
+  const [filters, setFilters] = useState({
+    id: "",
+    module: "",
+    subModule: "",
+    type: "",
+    severity: "",
+    priority: "",
+    status: "",
+    assignedTo: "",
+    search: "",
+  });
 
-  const toggleModule = (module: string) => {
-    setExpandedModules(prev => {
-      const next = new Set(prev);
-      if (next.has(module)) {
-        next.delete(module);
-      } else {
-        next.add(module);
-      }
-      return next;
-    });
+  // Filtered defects based on filters
+  const filteredDefects = defects.filter(
+    (d) =>
+      d.projectId === projectId &&
+      (filters.id === "" ||
+        d.id.toLowerCase().includes(filters.id.toLowerCase())) &&
+      (filters.module === "" || d.module === filters.module) &&
+      (filters.subModule === "" || d.subModule === filters.subModule) &&
+      (filters.type === "" || d.type === filters.type) &&
+      (filters.severity === "" || d.severity === filters.severity) &&
+      (filters.priority === "" || d.priority === filters.priority) &&
+      (filters.status === "" || d.status === filters.status) &&
+      (filters.assignedTo === "" ||
+        (d.assignedTo || "")
+          .toLowerCase()
+          .includes(filters.assignedTo.toLowerCase())) &&
+      (filters.search === "" ||
+        d.id.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (d.title || "").toLowerCase().includes(filters.search.toLowerCase()) ||
+        (d.description || "")
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) ||
+        (d.module || "").toLowerCase().includes(filters.search.toLowerCase()) ||
+        (d.subModule || "")
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) ||
+        (d.type || "").toLowerCase().includes(filters.search.toLowerCase()) ||
+        (d.severity || "")
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) ||
+        (d.priority || "")
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()) ||
+        (d.status || "").toLowerCase().includes(filters.search.toLowerCase()) ||
+        (d.assignedTo || "")
+          .toLowerCase()
+          .includes(filters.search.toLowerCase()))
+  );
+
+  // Project selection handler
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    navigate(`/projects/${id}/defects`);
   };
 
+  // Helper to generate next defect ID in order
+  const getNextDefectId = () => {
+    const projectDefects = defects.filter((d) => d.projectId === projectId);
+    const ids = projectDefects
+      .map((d) => d.id)
+      .map((id) => parseInt(id.replace("DEF-", "")))
+      .filter((n) => !isNaN(n));
+    const nextNum = ids.length > 0 ? Math.max(...ids) + 1 : 1;
+    return `DEF-${nextNum.toString().padStart(4, "0")}`;
+  };
+
+  // CRUD handlers
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
       updateDefect({
         ...formData,
-        projectId: projectId || '',
+        projectId: projectId || "",
         id: editingDefect.id,
         createdAt: editingDefect.createdAt,
         updatedAt: new Date().toISOString(),
@@ -69,8 +147,8 @@ export const Defects: React.FC = () => {
     } else {
       const newDefect = {
         ...formData,
-        projectId: projectId || '',
-        id: `DEF-${Date.now()}`,
+        projectId: projectId || "",
+        id: getNextDefectId(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -78,7 +156,6 @@ export const Defects: React.FC = () => {
     }
     resetForm();
   };
-
   const handleEdit = (defect: any) => {
     setEditingDefect(defect);
     setFormData({
@@ -91,109 +168,296 @@ export const Defects: React.FC = () => {
       severity: defect.severity,
       status: defect.status,
       projectId: defect.projectId,
-      releaseId: defect.releaseId || '',
-      testCaseId: defect.testCaseId || '',
-      assignedTo: defect.assignedTo || '',
+      releaseId: defect.releaseId || "",
+      testCaseId: defect.testCaseId || "",
+      assignedTo: defect.assignedTo || "",
       reportedBy: defect.reportedBy,
+      rejectionComment: defect.rejectionComment || "",
     });
     setIsModalOpen(true);
   };
-
   const handleDelete = (defectId: string) => {
-    if (window.confirm('Are you sure you want to delete this defect?')) {
+    if (window.confirm("Are you sure you want to delete this defect?")) {
       deleteDefect(defectId);
     }
   };
-
   const resetForm = () => {
     setFormData({
-      title: '',
-      description: '',
-      module: '',
-      subModule: '',
-      type: 'bug',
-      priority: 'medium',
-      severity: 'medium',
-      status: 'open',
-      projectId: projectId || '',
-      releaseId: '',
-      testCaseId: '',
-      assignedTo: '',
-      reportedBy: '',
+      title: "",
+      description: "",
+      module: "",
+      subModule: "",
+      type: "bug",
+      priority: "medium",
+      severity: "medium",
+      status: "open",
+      projectId: projectId || "",
+      releaseId: "",
+      testCaseId: "",
+      assignedTo: "",
+      reportedBy: "",
+      rejectionComment: "",
     });
     setEditingDefect(null);
     setIsModalOpen(false);
   };
-
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Color helpers
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "high":
+        return "bg-orange-100 text-orange-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'critical':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "high":
+        return "bg-orange-100 text-orange-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
-        return 'bg-red-100 text-red-800';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'resolved':
-        return 'bg-green-100 text-green-800';
-      case 'closed':
-        return 'bg-gray-100 text-gray-800';
-      case 'rejected':
-        return 'bg-purple-100 text-purple-800';
+      case "open":
+        return "bg-purple-100 text-purple-800";
+      case "in-progress":
+        return "bg-blue-100 text-blue-800";
+      case "resolved":
+        return "bg-green-100 text-green-800";
+      case "closed":
+        return "bg-gray-100 text-gray-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'open':
-        return AlertCircle;
-      case 'in-progress':
-        return Clock;
-      case 'resolved':
-        return CheckCircle;
-      case 'closed':
-        return CheckCircle;
-      case 'rejected':
-        return X;
-      default:
-        return Bug;
-    }
+  // Use the same mockModules structure as in TestCase.tsx
+  interface Module {
+    id: string;
+    name: string;
+    submodules: string[];
+  }
+  // Project-specific modules and submodules
+  const mockModules: { [key: string]: Module[] } = {
+    "2": [
+      // Mobile Banking App
+      {
+        id: "auth",
+        name: "Authentication",
+        submodules: [
+          "Biometric Login",
+          "PIN Login",
+          "Password Reset",
+          "Session Management",
+        ],
+      },
+      {
+        id: "acc",
+        name: "Account Management",
+        submodules: [
+          "Account Overview",
+          "Transaction History",
+          "Account Statements",
+          "Account Settings",
+        ],
+      },
+      {
+        id: "tra",
+        name: "Money Transfer",
+        submodules: [
+          "Quick Transfer",
+          "Scheduled Transfer",
+          "International Transfer",
+          "Transfer Limits",
+        ],
+      },
+      {
+        id: "bil",
+        name: "Bill Payments",
+        submodules: [
+          "Bill List",
+          "Payment Scheduling",
+          "Payment History",
+          "Recurring Payments",
+        ],
+      },
+      {
+        id: "sec",
+        name: "Security Features",
+        submodules: [
+          "Two-Factor Auth",
+          "Device Management",
+          "Security Alerts",
+          "Fraud Protection",
+        ],
+      },
+      {
+        id: "sup",
+        name: "Customer Support",
+        submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
+      },
+    ],
+    "3": [
+      // Analytics Dashboard
+      {
+        id: "auth",
+        name: "Authentication",
+        submodules: ["Login", "Registration", "Password Reset"],
+      },
+      {
+        id: "reporting",
+        name: "Reporting",
+        submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
+      },
+      {
+        id: "data",
+        name: "Data Management",
+        submodules: ["Data Import", "Data Processing", "Data Export"],
+      },
+      {
+        id: "visualization",
+        name: "Visualization",
+        submodules: ["Charts", "Graphs", "Widgets"],
+      },
+    ],
+    "4": [
+      // Content Management
+      {
+        id: "auth",
+        name: "Authentication",
+        submodules: ["Login", "Registration", "Password Reset"],
+      },
+      {
+        id: "content",
+        name: "Content Management",
+        submodules: ["Articles", "Media", "Categories", "Templates"],
+      },
+      {
+        id: "user",
+        name: "User Management",
+        submodules: ["Profile", "Settings", "Permissions", "Roles"],
+      },
+      {
+        id: "workflow",
+        name: "Workflow",
+        submodules: ["Approval Process", "Review Process", "Publishing"],
+      },
+    ],
   };
 
-  // Project selection handler
-  const handleProjectSelect = (id: string) => {
-    setSelectedProjectId(id);
-    navigate(`/projects/${id}/defects`);
-  };
+  // Get modules and submodules for the current project
+  const modulesList =
+    projectId && mockModules[projectId]
+      ? mockModules[projectId].map((m) => m.name)
+      : [];
+  const submodulesList =
+    formData.module && projectId && mockModules[projectId]
+      ? mockModules[projectId].find((m) => m.name === formData.module)
+          ?.submodules || []
+      : [];
+
+  // Unique values for dropdowns
+  const uniqueModules = modulesList;
+  const uniqueSubmodules =
+    formData.module && modulesList.includes(formData.module)
+      ? submodulesList
+      : Array.from(
+          new Set(
+            defects
+              .filter((d) => d.projectId === projectId)
+              .map((d) => d.subModule)
+              .filter(Boolean)
+          )
+        );
+  const uniqueTypes = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.type)
+        .filter(Boolean)
+    )
+  );
+  const uniqueSeverities = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.severity)
+        .filter(Boolean)
+    )
+  );
+  const uniquePriorities = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.priority)
+        .filter(Boolean)
+    )
+  );
+  const uniqueStatuses = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.status)
+        .filter(Boolean)
+    )
+  );
+  const uniqueAssignedTo = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.assignedTo)
+        .filter(Boolean)
+    )
+  );
+
+  // Get highlight param from URL
+  const highlightId = React.useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("highlight");
+  }, [location.search]);
+  // Ref for scrolling
+  const highlightedRowRef = React.useRef<HTMLTableRowElement>(null);
+  React.useEffect(() => {
+    if (highlightedRowRef.current) {
+      highlightedRowRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [highlightId]);
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
       <Card>
         <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Project Selection
+          </h2>
           <div className="relative flex items-center">
             <button
               onClick={() => {
-                const container = document.getElementById('project-scroll');
+                const container = document.getElementById("project-scroll");
                 if (container) container.scrollLeft -= 200;
               }}
               className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -203,14 +467,18 @@ export const Defects: React.FC = () => {
             <div
               id="project-scroll"
               className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                maxWidth: "100%",
+              }}
             >
-              {projects.map(project => (
+              {projects.map((project) => (
                 <Button
                   key={project.id}
-                  variant={projectId === project.id ? 'primary' : 'secondary'}
+                  variant={projectId === project.id ? "primary" : "secondary"}
                   onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap m-2"
                 >
                   {project.name}
                 </Button>
@@ -218,7 +486,7 @@ export const Defects: React.FC = () => {
             </div>
             <button
               onClick={() => {
-                const container = document.getElementById('project-scroll');
+                const container = document.getElementById("project-scroll");
                 if (container) container.scrollLeft += 200;
               }}
               className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -228,165 +496,357 @@ export const Defects: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      {/* End Project Selection Panel */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Defects</h1>
-          <p className="text-gray-600">Track and manage defects by module</p>
-        </div>
+
+      {/* Add Defect Button */}
+      <div className="flex justify-between items-center m-4">
+        <h1 className="text-2xl font-bold text-gray-900">Defects</h1>
         <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-          Report Defect
+          Add Defect
         </Button>
       </div>
 
-      <div className="space-y-4">
-        {Object.entries(defectsByModule).map(([module, moduleDefects]) => (
-          <Card key={module}>
-            <CardContent className="p-0">
-              <div
-                className="p-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                onClick={() => toggleModule(module)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {expandedModules.has(module) ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
-                    )}
-                    <h3 className="text-lg font-semibold text-gray-900">{module}</h3>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                      {moduleDefects.length} defects
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-500">
-                      {moduleDefects.filter(d => d.status === 'open').length} open
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {moduleDefects.filter(d => d.status === 'in-progress').length} in progress
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {expandedModules.has(module) && (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          ID
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Title
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Sub Module
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Priority
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Severity
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Project
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {moduleDefects.map((defect) => {
-                        const StatusIcon = getStatusIcon(defect.status);
-                        const project = projects.find(p => p.id === defect.projectId);
-
-                        return (
-                          <tr key={defect.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {defect.id}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              <div className="flex items-center">
-                                <StatusIcon className="w-4 h-4 mr-2" />
-                                {defect.title}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {defect.subModule}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {defect.type}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(defect.priority)}`}>
-                                {defect.priority}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(defect.severity)}`}>
-                                {defect.severity}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(defect.status)}`}>
-                                {defect.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {project?.name || 'Unknown'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleEdit(defect)}
-                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                                  title="Edit Defect"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(defect.id)}
-                                  className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                                  title="Delete Defect"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      {/* Filter Row - move above the defect table card */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-4 mb-6">
+        <div className="grid grid-cols-8 gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              ID
+            </label>
+            <Input
+              placeholder="Defect ID"
+              value={filters.id}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, id: e.target.value }))
+              }
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Module
+            </label>
+            <select
+              value={filters.module}
+              onChange={(e) =>
+                setFilters((f) => ({
+                  ...f,
+                  module: e.target.value,
+                  subModule: "",
+                }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueModules.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Submodule
+            </label>
+            <select
+              value={filters.subModule}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, subModule: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+              disabled={!filters.module}
+            >
+              <option value="">All</option>
+              {uniqueSubmodules.map((sm) => (
+                <option key={sm} value={sm}>
+                  {sm}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Type
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, type: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Severity
+            </label>
+            <select
+              value={filters.severity}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, severity: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueSeverities.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Priority
+            </label>
+            <select
+              value={filters.priority}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, priority: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniquePriorities.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, status: e.target.value }))
+              }
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Assigned To
+            </label>
+            <Input
+              placeholder="Name"
+              value={filters.assignedTo}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, assignedTo: e.target.value }))
+              }
+              className="w-full"
+            />
+          </div>
+        </div>
       </div>
 
-      {projectDefects.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Bug className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No defects reported</h3>
-            <p className="text-gray-500 mb-4">Start by reporting your first defect</p>
-            <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-              Report Defect
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Defect Table in a single frame with search/filter in one line */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
+            {/* Search Field (right) */}
+            <div className="flex items-center ml-auto">
+              <Input
+                placeholder="Search..."
+                value={filters.search || ""}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, search: e.target.value }))
+                }
+                className="w-40"
+              />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Defect ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Brief Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Steps
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Module
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Submodule
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Severity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Priority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Assigned To
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredDefects.length > 0 ? (
+                  filteredDefects.map((defect) => (
+                    <tr
+                      key={defect.id}
+                      ref={
+                        highlightId === defect.id
+                          ? highlightedRowRef
+                          : undefined
+                      }
+                      className={`hover:bg-gray-50${
+                        highlightId === defect.id
+                          ? " bg-yellow-100 border-2 border-yellow-400"
+                          : ""
+                      }`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {defect.id}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {defect.title}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
+                        <button
+                          type="button"
+                          className="flex items-center space-x-1 hover:underline"
+                          onClick={() => {
+                            setViewingSteps(defect.description);
+                            setIsViewStepsModalOpen(true);
+                          }}
+                          title="View Steps"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          <span>View</span>
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {defect.module}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {defect.subModule}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {defect.type}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                            defect.severity
+                          )}`}
+                        >
+                          {defect.severity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                            defect.priority
+                          )}`}
+                        >
+                          {defect.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap w-32">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              defect.status
+                            )}`}
+                          >
+                            {defect.status}
+                          </span>
+                          {defect.status === "rejected" &&
+                            defect.rejectionComment && (
+                              <button
+                                type="button"
+                                className="ml-1 text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                title="View rejection comment"
+                                onClick={() => {
+                                  setViewingRejectionComment(
+                                    defect.rejectionComment || ""
+                                  );
+                                  setIsRejectionCommentModalOpen(true);
+                                }}
+                              >
+                                <MessageSquareWarning className="w-4 h-4 text-red-700" />
+                              </button>
+                            )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {defect.assignedTo}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(defect)}
+                            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                            title="Edit Defect"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(defect.id)}
+                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                            title="Delete Defect"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={10} className="p-12 text-center text-gray-500">
+                      <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <div className="text-lg font-medium text-gray-900 mb-2">
+                        No defects found
+                      </div>
+                      <div className="text-gray-500 mb-4">
+                        No defects have been reported for this project
+                      </div>
+                      <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
+                        Add Defect
+                      </Button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* Modal for Add/Edit Defect */}
       <Modal
         isOpen={isModalOpen}
         onClose={resetForm}
@@ -394,74 +854,67 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Brief Description */}
           <Input
-            label="Defect Title"
+            label="Brief Description"
             value={formData.title}
-            onChange={(e) => handleInputChange('title', e.target.value)}
+            onChange={(e) => handleInputChange("title", e.target.value)}
             required
           />
-
+          {/* Steps */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Steps
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => handleInputChange("description", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={4}
+              rows={3}
               required
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Module"
-              value={formData.module}
-              onChange={(e) => handleInputChange('module', e.target.value)}
-              required
-            />
-            <Input
-              label="Sub Module"
-              value={formData.subModule}
-              onChange={(e) => handleInputChange('subModule', e.target.value)}
-              required
-            />
-          </div>
-
+          {/* Modules and Submodules */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
+                Modules
               </label>
               <select
-                value={formData.type}
-                onChange={(e) => handleInputChange('type', e.target.value)}
+                value={formData.module}
+                onChange={(e) => handleInputChange("module", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               >
-                <option value="bug">Bug</option>
-                <option value="test-failure">Test Failure</option>
-                <option value="enhancement">Enhancement</option>
+                <option value="">Select a module</option>
+                {modulesList.map((module: string) => (
+                  <option key={module} value={module}>
+                    {module}
+                  </option>
+                ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Priority
+                Submodules
               </label>
               <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange('priority', e.target.value)}
+                value={formData.subModule}
+                onChange={(e) => handleInputChange("subModule", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled={!formData.module}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
+                <option value="">Select a submodule</option>
+                {submodulesList.map((submodule: string) => (
+                  <option key={submodule} value={submodule}>
+                    {submodule}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
-
+          {/* Severity, Priority, Type, Status */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -469,103 +922,158 @@ export const Defects: React.FC = () => {
               </label>
               <select
                 value={formData.severity}
-                onChange={(e) => handleInputChange('severity', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project
-              </label>
-              <select
-                value={formData.projectId}
-                onChange={(e) => handleInputChange('projectId', e.target.value)}
+                onChange={(e) => handleInputChange("severity", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="">Select a project</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
+                <option value="">Select severity</option>
+                <option value="critical">Critical</option>
+                <option value="major">Major</option>
+                <option value="minor">Minor</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => handleInputChange("priority", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
               </select>
             </div>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Release
+                Types
               </label>
               <select
-                value={formData.releaseId}
-                onChange={(e) => handleInputChange('releaseId', e.target.value)}
+                value={formData.type}
+                onChange={(e) => handleInputChange("type", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               >
-                <option value="">Select a release</option>
-                {releases.map((release) => (
-                  <option key={release.id} value={release.id}>
-                    {release.name} (v{release.version})
-                  </option>
-                ))}
+                <option value="">Select type</option>
+                <option value="ui-issue">UI Issue</option>
+                <option value="functional-bug">Functional Bug</option>
+                <option value="performance-issue">Performance Issue</option>
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Test Case
+                Status
               </label>
               <select
-                value={formData.testCaseId}
-                onChange={(e) => handleInputChange('testCaseId', e.target.value)}
+                value={formData.status}
+                onChange={(e) => handleInputChange("status", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               >
-                <option value="">Select a test case</option>
-                {testCases.map((testCase) => (
-                  <option key={testCase.id} value={testCase.id}>
-                    {testCase.id} - {testCase.description}
-                  </option>
-                ))}
+                <option value="">Select status</option>
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
           </div>
-
+          {/* Show rejection comment if status is rejected */}
+          {formData.status === "rejected" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Rejection Comment
+              </label>
+              <Input
+                value={formData.rejectionComment}
+                onChange={(e) =>
+                  handleInputChange("rejectionComment", e.target.value)
+                }
+                placeholder="Enter reason for rejection"
+                required={formData.status === "rejected"}
+              />
+            </div>
+          )}
+          {/* Assigned To */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Assigned To"
               value={formData.assignedTo}
-              onChange={(e) => handleInputChange('assignedTo', e.target.value)}
-            />
-
-            <Input
-              label="Reported By"
-              value={formData.reportedBy}
-              onChange={(e) => handleInputChange('reportedBy', e.target.value)}
+              onChange={(e) => handleInputChange("assignedTo", e.target.value)}
               required
             />
           </div>
-
           <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={resetForm}
-            >
+            <Button type="button" variant="secondary" onClick={resetForm}>
               Cancel
             </Button>
-            <Button type="submit">Report Defect</Button>
+            <Button type="submit">
+              {editingDefect ? "Update Defect" : "Report Defect"}
+            </Button>
           </div>
         </form>
       </Modal>
-      {/* Fixed Quick Add Buttons */}
-      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Modal for viewing steps */}
+      <Modal
+        isOpen={isViewStepsModalOpen}
+        onClose={() => setIsViewStepsModalOpen(false)}
+        title="Defect Steps"
+        size="md"
+      >
+        <div className="whitespace-pre-line text-gray-800 text-base">
+          {viewingSteps}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsViewStepsModalOpen(false)}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal for viewing rejection comment */}
+      <Modal
+        isOpen={isRejectionCommentModalOpen}
+        onClose={() => setIsRejectionCommentModalOpen(false)}
+        title="Rejection Comment"
+        size="md"
+      >
+        <div className="text-gray-800 text-base whitespace-pre-line">
+          {viewingRejectionComment}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsRejectionCommentModalOpen(false)}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
         <QuickAddTestCase />
         <QuickAddDefect />
       </div>
