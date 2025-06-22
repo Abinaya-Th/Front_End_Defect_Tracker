@@ -62,6 +62,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/release-type')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Rocket className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
@@ -73,6 +74,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/severity')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <AlertTriangle className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
@@ -84,6 +86,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/priority')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Flag className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />

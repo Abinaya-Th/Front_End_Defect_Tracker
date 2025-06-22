@@ -28,6 +28,9 @@ import Role from "./pages/Role";
 import DefectType from "./pages/DefectType";
 import Privileges from "./pages/Privileges";
 import EmailConfiguration from "./pages/EmailConfiguration";
+import ReleaseType from "./pages/ReleaseType";
+import Severity from "./pages/Severity";
+import Priority from "./pages/Priority";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -204,6 +207,30 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <EmailConfiguration />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/release-type"
+          element={
+            <ProtectedRoute>
+              <ReleaseType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/severity"
+          element={
+            <ProtectedRoute>
+              <Severity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/priority"
+          element={
+            <ProtectedRoute>
+              <Priority />
             </ProtectedRoute>
           }
         />
