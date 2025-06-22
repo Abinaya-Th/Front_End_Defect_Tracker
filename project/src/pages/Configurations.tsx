@@ -83,6 +83,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/status')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <ListChecks className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />

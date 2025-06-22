@@ -31,6 +31,7 @@ import {
   Trash2,
   Edit2,
   ArrowRight,
+  ChevronLeft,
 } from 'lucide-react';
 
 // Custom edge component
@@ -160,7 +161,7 @@ const availableStatuses = [
   { label: 'HOLD', color: '#F97316' },
 ];
 
-export const Workflow: React.FC = () => {
+const StatusWorkflow: React.FC = () => {
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -174,9 +175,9 @@ export const Workflow: React.FC = () => {
   useEffect(() => {
     const loadSavedWorkflow = () => {
       try {
-        const savedNodes = localStorage.getItem('workflowNodes');
-        const savedEdges = localStorage.getItem('workflowEdges');
-        const savedLayout = localStorage.getItem('workflowLayout');
+        const savedNodes = localStorage.getItem('statusWorkflowNodes');
+        const savedEdges = localStorage.getItem('statusWorkflowEdges');
+        const savedLayout = localStorage.getItem('statusWorkflowLayout');
         
         if (savedNodes) {
           const parsedNodes = JSON.parse(savedNodes);
@@ -212,9 +213,9 @@ export const Workflow: React.FC = () => {
     if (!isInitialized) return;
 
     try {
-      localStorage.setItem('workflowNodes', JSON.stringify(nodes));
-      localStorage.setItem('workflowEdges', JSON.stringify(edges));
-      localStorage.setItem('workflowLayout', JSON.stringify(isVertical));
+      localStorage.setItem('statusWorkflowNodes', JSON.stringify(nodes));
+      localStorage.setItem('statusWorkflowEdges', JSON.stringify(edges));
+      localStorage.setItem('statusWorkflowLayout', JSON.stringify(isVertical));
     } catch (error) {
       console.error('Error saving workflow:', error);
     }
@@ -223,9 +224,9 @@ export const Workflow: React.FC = () => {
   // Handle window unload to ensure state is saved
   useEffect(() => {
     const handleBeforeUnload = () => {
-      localStorage.setItem('workflowNodes', JSON.stringify(nodes));
-      localStorage.setItem('workflowEdges', JSON.stringify(edges));
-      localStorage.setItem('workflowLayout', JSON.stringify(isVertical));
+      localStorage.setItem('statusWorkflowNodes', JSON.stringify(nodes));
+      localStorage.setItem('statusWorkflowEdges', JSON.stringify(edges));
+      localStorage.setItem('statusWorkflowLayout', JSON.stringify(isVertical));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -377,7 +378,7 @@ export const Workflow: React.FC = () => {
           <Button
             variant="secondary"
             className="w-full"
-            icon={ArrowLeft}
+            icon={ChevronLeft}
             onClick={() => window.history.back()}
           >
             Go Back
@@ -422,7 +423,6 @@ export const Workflow: React.FC = () => {
                 color: '#94a3b8',
               },
             }}
-            connectionMode="loose"
             connectionRadius={20}
             snapToGrid={true}
             snapGrid={[15, 15]}
@@ -483,3 +483,5 @@ export const Workflow: React.FC = () => {
     </div>
   );
 };
+
+export default StatusWorkflow; 

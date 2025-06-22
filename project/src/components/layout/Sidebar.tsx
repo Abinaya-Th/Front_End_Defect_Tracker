@@ -20,7 +20,6 @@ const navigation = [
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Bench", href: "/bench", icon: UserCheck },
   { name: "Configurations", href: "/configurations", icon: Settings },
-  { name: "Workflow", href: "/workflow", icon: GitBranch },
 ];
 
 export const Sidebar: React.FC = () => {
