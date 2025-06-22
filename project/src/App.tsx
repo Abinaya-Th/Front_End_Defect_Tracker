@@ -16,7 +16,6 @@ import { Projects } from "./pages/Projects";
 import { Defects } from "./pages/Defects";
 import { TestCase } from "./pages/TestCase";
 import { TestExecution } from "./pages/TestExecution";
-import { Workflow } from "./pages/Workflow";
 import { ModuleManagement } from "./pages/ModuleManagement";
 import { ProjectManagement } from "./pages/ProjectManagement";
 import { Releases } from "./pages/release";
@@ -33,6 +32,9 @@ import Severity from "./pages/Severity";
 import Priority from "./pages/Priority";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Status from "./pages/Status";
+import StatusWorkflow from "./pages/StatusWorkflow";
+import StatusType from "./pages/StatusType";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -159,10 +161,10 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/workflow"
+          path="/projects/:projectId/module-management"
           element={
             <ProtectedRoute>
-              <Workflow />
+              <ModuleManagement />
             </ProtectedRoute>
           }
         />
@@ -235,6 +237,30 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Priority />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status"
+          element={
+            <ProtectedRoute>
+              <Status />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status/workflow"
+          element={
+            <ProtectedRoute>
+              <StatusWorkflow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status/type"
+          element={
+            <ProtectedRoute>
+              <StatusType />
             </ProtectedRoute>
           }
         />
