@@ -4,11 +4,18 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Eye, ChevronLeft, Settings } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
+import { useApp } from '../context/AppContext';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const [showModuleManagement, setShowModuleManagement] = useState(false);
+  const { projects, setSelectedProjectId } = useApp();
+
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    navigate(`/projects/${id}/project-management`);
+  };
 
   if (showModuleManagement) {
     return (
@@ -29,7 +36,32 @@ export const ProjectManagement: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Project Management</h1>
+      {/* Project Selection Panel */}
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
+          <div className="relative flex items-center">
+            <div
+              id="project-scroll"
+              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+            >
+              {projects.map(project => (
+                <Button
+                  key={project.id}
+                  variant={projectId === project.id ? 'primary' : 'secondary'}
+                  onClick={() => handleProjectSelect(project.id)}
+                  className="whitespace-nowrap m-2"
+                >
+                  {project.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      {/* End Project Selection Panel */}
+      <h1 className="text-2xl font-bold text-gray-900 mb-8 mt-2">Project Management</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* View Card */}
         <Card
