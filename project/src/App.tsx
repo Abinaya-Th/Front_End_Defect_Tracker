@@ -1,19 +1,37 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { AppProvider } from './context/AppContext';
-import { Layout } from './components/layout/Layout';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { Employees } from './pages/Employees';
-import { Bench } from './pages/Bench';
-import { Projects } from './pages/Projects';
-import { Defects } from './pages/Defects';
-import { TestCases } from './pages/TestCases';
-import { Releases } from './pages/Releases';
-import { Workflow } from './pages/Workflow';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AppProvider } from "./context/AppContext";
+import { Layout } from "./components/layout/Layout";
+import { Login } from "./pages/Login";
+import { Dashboard } from "./pages/Dashboard";
+import { Employees } from "./pages/Employees";
+import { Bench } from "./pages/Bench";
+import { Projects } from "./pages/Projects";
+import { Defects } from "./pages/Defects";
+import { TestCase } from "./pages/TestCase";
+import { TestExecution } from "./pages/TestExecution";
+import { ModuleManagement } from "./pages/ModuleManagement";
+import { ProjectManagement } from "./pages/ProjectManagement";
+import { Releases } from "./pages/release";
+import { Allocation } from "./pages/allocation";
+import { ReleaseView } from "./pages/ReleaseView";
+import Configurations from "./pages/Configurations";
+import Designation from "./pages/Designation";
+import Role from "./pages/Role";
+import DefectType from "./pages/DefectType";
+import Status from "./pages/Status";
+import StatusWorkflow from "./pages/StatusWorkflow";
+import StatusType from "./pages/StatusType";
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -21,7 +39,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading DefectTracker Pro...</p>
+          <p className="text-gray-600 font-medium">
+            Loading DefectTracker Pro...
+          </p>
         </div>
       </div>
     );
@@ -67,24 +87,24 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/defects"
+        {/* <Route
+          path="/projects/:projectId"
           element={
             <ProtectedRoute>
-              <Defects />
+              <ProjectDashboard />
+            </ProtectedRoute>
+          }
+        /> */}
+        <Route
+          path="/projects/:projectId/test-cases"
+          element={
+            <ProtectedRoute>
+              <TestCase />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/test-cases"
-          element={
-            <ProtectedRoute>
-              <TestCases />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/releases"
+          path="/projects/:projectId/releases"
           element={
             <ProtectedRoute>
               <Releases />
@@ -92,10 +112,106 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/workflow"
+          path="/projects/:projectId/releases/allocation"
           element={
             <ProtectedRoute>
-              <Workflow />
+              <Allocation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/test-execution"
+          element={
+            <ProtectedRoute>
+              <TestExecution />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/project-management/view"
+          element={
+            <ProtectedRoute>
+              <ReleaseView />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/defects"
+          element={
+            <ProtectedRoute>
+              <Defects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/project-management"
+          element={
+            <ProtectedRoute>
+              <ProjectManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/module-management"
+          element={
+            <ProtectedRoute>
+              <ModuleManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations"
+          element={
+            <ProtectedRoute>
+              <Configurations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/designation"
+          element={
+            <ProtectedRoute>
+              <Designation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/role"
+          element={
+            <ProtectedRoute>
+              <Role />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/defect-type"
+          element={
+            <ProtectedRoute>
+              <DefectType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status"
+          element={
+            <ProtectedRoute>
+              <Status />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status/workflow"
+          element={
+            <ProtectedRoute>
+              <StatusWorkflow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/status/type"
+          element={
+            <ProtectedRoute>
+              <StatusType />
             </ProtectedRoute>
           }
         />

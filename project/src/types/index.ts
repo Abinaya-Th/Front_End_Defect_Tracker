@@ -54,14 +54,13 @@ export interface Defect {
   attachments?: string[];
   createdAt: string;
   updatedAt: string;
+  rejectionComment?: string;
 }
 
 export interface TestCase {
   id: string;
-  title: string;
   description: string;
-  steps: string[];
-  expectedResult: string;
+  steps: string;
   priority: 'low' | 'medium' | 'high';
   projectId: string;
   createdBy: string;
@@ -70,6 +69,11 @@ export interface TestCase {
   estimatedTime?: number; // minutes
   createdAt: string;
   selected?: boolean;
+  releaseId?: string;
+  module?: string;
+  subModule?: string;
+  type?: 'functional' | 'regression' | 'smoke' | 'integration';
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface Release {
@@ -78,9 +82,9 @@ export interface Release {
   version: string;
   description: string;
   projectId: string;
-  status: 'planned' | 'in-progress' | 'testing' | 'released';
+  status: 'planned' | 'in-progress' | 'testing' | 'released' | 'completed';
   releaseDate?: string;
-  testCases: string[];
+  Testcase: string[]; // List of test case IDs (capital C for consistency with AppContext)
   features: string[];
   bugFixes: string[];
   createdAt: string;
