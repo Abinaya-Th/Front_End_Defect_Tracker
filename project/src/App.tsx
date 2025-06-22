@@ -16,7 +16,7 @@ import { Projects } from "./pages/Projects";
 import { Defects } from "./pages/Defects";
 import { TestCasePage } from "./pages/TestCase";
 import { TestExecution } from "./pages/TestExecution";
-import { Workflow } from "./pages/Workflow";
+import { ModuleManagement } from "./pages/ModuleManagement";
 import { ProjectManagement } from "./pages/ProjectManagement";
 import { Releases } from "./pages/release";
 import { Allocation } from "./pages/allocation";
@@ -25,13 +25,9 @@ import Configurations from "./pages/Configurations";
 import Designation from "./pages/Designation";
 import Role from "./pages/Role";
 import DefectType from "./pages/DefectType";
-import Privileges from "./pages/Privileges";
-import EmailConfiguration from "./pages/EmailConfiguration";
-import ReleaseType from "./pages/ReleaseType";
-import Severity from "./pages/Severity";
-import Priority from "./pages/Priority";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
+import Status from "./pages/Status";
+import StatusWorkflow from "./pages/StatusWorkflow";
+import StatusType from "./pages/StatusType";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -158,10 +154,10 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/workflow"
+          path="/projects/:projectId/module-management"
           element={
             <ProtectedRoute>
-              <Workflow />
+              <ModuleManagement />
             </ProtectedRoute>
           }
         />
@@ -198,42 +194,26 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/configurations/privileges"
+          path="/configurations/status"
           element={
             <ProtectedRoute>
-              <Privileges />
+              <Status />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/configurations/email-configuration"
+          path="/configurations/status/workflow"
           element={
             <ProtectedRoute>
-              <EmailConfiguration />
+              <StatusWorkflow />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/configurations/release-type"
+          path="/configurations/status/type"
           element={
             <ProtectedRoute>
-              <ReleaseType />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/configurations/severity"
-          element={
-            <ProtectedRoute>
-              <Severity />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/configurations/priority"
-          element={
-            <ProtectedRoute>
-              <Priority />
+              <StatusType />
             </ProtectedRoute>
           }
         />

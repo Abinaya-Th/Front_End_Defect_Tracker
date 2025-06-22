@@ -78,4 +78,10 @@ export interface Defect {
   rejectionComment?: string;
 }
 
+export interface StatusType {
+  id: string;
+  name: string;
+  color: string;
+}
+
 // ... rest of the types ... 
