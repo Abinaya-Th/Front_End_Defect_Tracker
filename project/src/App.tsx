@@ -23,6 +23,9 @@ import { Releases } from "./pages/release";
 import { Allocation } from "./pages/allocation";
 import { ReleaseView } from "./pages/ReleaseView";
 import Configurations from "./pages/Configurations";
+import Designation from "./pages/Designation";
+import Role from "./pages/Role";
+import DefectType from "./pages/DefectType";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -167,6 +170,30 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <Configurations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/designation"
+          element={
+            <ProtectedRoute>
+              <Designation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/role"
+          element={
+            <ProtectedRoute>
+              <Role />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/defect-type"
+          element={
+            <ProtectedRoute>
+              <DefectType />
             </ProtectedRoute>
           }
         />

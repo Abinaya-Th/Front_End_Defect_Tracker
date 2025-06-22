@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Briefcase, UserCog, Bug, Rocket, AlertTriangle, Flag, Mail, ListChecks } from 'lucide-react';
 
 const Configurations: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-6xl mx-auto p-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Configurations</h1>
@@ -11,6 +14,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/designation')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Briefcase className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
@@ -22,6 +26,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/role')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <UserCog className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
@@ -33,6 +38,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/defect-type')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Bug className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
