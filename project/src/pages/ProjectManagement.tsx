@@ -1,11 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
-import { Eye } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Eye, ChevronLeft, Settings } from 'lucide-react';
+import { ModuleManagement } from './ModuleManagement';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const [showModuleManagement, setShowModuleManagement] = useState(false);
+
+  if (showModuleManagement) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="secondary"
+            onClick={() => setShowModuleManagement(false)}
+            className="flex items-center"
+          >
+            <ChevronLeft className="w-5 h-5 mr-2" /> Back
+          </Button>
+        </div>
+        <ModuleManagement />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -23,14 +43,16 @@ export const ProjectManagement: React.FC = () => {
             <p className="text-gray-600 text-center">View release overviews and summaries.</p>
           </CardContent>
         </Card>
-        {/* Module Card (static placeholder) */}
+        {/* Module Management Card */}
         <Card
-          className="group transition-all duration-300"
+          hover
+          className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => setShowModuleManagement(true)}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
-            <svg className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16"/><path d="M9 4v16"/></svg>
+            <Settings className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Module Management</h2>
-            <p className="text-gray-600 text-center">Module management placeholder.</p>
+            <p className="text-gray-600 text-center">Manage project modules and developer assignments.</p>
           </CardContent>
         </Card>
       </div>

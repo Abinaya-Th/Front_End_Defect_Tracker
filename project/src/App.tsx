@@ -26,6 +26,8 @@ import Configurations from "./pages/Configurations";
 import Designation from "./pages/Designation";
 import Role from "./pages/Role";
 import DefectType from "./pages/DefectType";
+import Privileges from "./pages/Privileges";
+import EmailConfiguration from "./pages/EmailConfiguration";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -150,14 +152,6 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/module-management"
-          element={
-            <ProtectedRoute>
-              <ModuleManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/workflow"
           element={
             <ProtectedRoute>
@@ -194,6 +188,22 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <DefectType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/privileges"
+          element={
+            <ProtectedRoute>
+              <Privileges />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configurations/email-configuration"
+          element={
+            <ProtectedRoute>
+              <EmailConfiguration />
             </ProtectedRoute>
           }
         />

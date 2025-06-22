@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
-import { Briefcase, UserCog, Bug, Rocket, AlertTriangle, Flag, Mail, ListChecks } from 'lucide-react';
+import { Briefcase, UserCog, Bug, Rocket, AlertTriangle, Flag, Mail, ListChecks, Shield } from 'lucide-react';
 
 const Configurations: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +32,18 @@ const Configurations: React.FC = () => {
             <UserCog className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Role</h2>
             <p className="text-gray-600 text-center">Manage role-related configurations.</p>
+          </CardContent>
+        </Card>
+        {/* Privileges Card */}
+        <Card
+          hover
+          className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/privileges')}
+        >
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <Shield className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Privileges</h2>
+            <p className="text-gray-600 text-center">Manage user privileges and permissions.</p>
           </CardContent>
         </Card>
         {/* Defect Type Card */}
@@ -94,6 +106,7 @@ const Configurations: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/email-configuration')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Mail className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
