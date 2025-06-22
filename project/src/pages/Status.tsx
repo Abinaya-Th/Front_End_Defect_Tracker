@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { ListChecks, GitBranch, ChevronLeft } from 'lucide-react';
+import { GitBranch, ChevronLeft, ListPlus } from 'lucide-react';
 
 const Status: React.FC = () => {
   const navigate = useNavigate();
@@ -26,9 +26,10 @@ const Status: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate('/configurations/status/type')}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
-            <ListChecks className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
+            <ListPlus className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Status Type</h2>
             <p className="text-gray-600 text-center">Manage status type configurations for defects and test cases.</p>
           </CardContent>

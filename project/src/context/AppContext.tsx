@@ -9,6 +9,7 @@ import {
   BenchAllocation,
   WorkflowStatus,
   StatusTransition,
+  StatusType,
 } from "../types";
 
 export interface Project {
@@ -53,6 +54,7 @@ interface AppContextType {
   benchAllocations: BenchAllocation[];
   workflowStatuses: WorkflowStatus[];
   transitions: StatusTransition[];
+  statusTypes: StatusType[];
   selectedProjectId: string | null;
   setSelectedProjectId: (id: string | null) => void;
   addEmployee: (
@@ -79,6 +81,9 @@ interface AppContextType {
   ) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
+  addStatusType: (statusType: Omit<StatusType, 'id'>) => void;
+  updateStatusType: (id: string, statusType: Partial<StatusType>) => void;
+  deleteStatusType: (id: string) => void;
   testCaseDefectMap: { [testCaseId: string]: string };
   setTestCaseDefectMap: React.Dispatch<
     React.SetStateAction<{ [testCaseId: string]: string }>
@@ -306,111 +311,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       teamMembers: [],
       createdAt: "2023-09-01T00:00:00Z",
     },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // },
-    // {
-    //   id: '3',
-    //   name: 'Inventory Management',
-    //   prefix: 'INVM',
-    //   description: 'Enterprise inventory tracking system',
-    //   status: 'completed',
-    //   startDate: '2023-09-01',
-    //   endDate: '2024-01-31',
-    //   manager: 'Mike Brown',
-    //   priority: 'medium',
-    //   projectType: 'desktop',
-    //   progress: 100,
-    //   teamMembers: [],
-    //   createdAt: '2023-09-01T00:00:00Z'
-    // }
   ]);
 
   const [defects, setDefects] = useState<Defect[]>([
@@ -800,6 +700,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
+  const [statusTypes, setStatusTypes] = useState<StatusType[]>([
+    { id: '1', name: 'NEW', color: '#FFFF00' },
+    { id: '2', name: 'OPEN', color: '#FFA500' },
+    { id: '3', name: 'REJECT', color: '#75816b' },
+    { id: '4', name: 'FIXED', color: '#00FF00' },
+    { id: '5', name: 'CLOSED', color: '#006400' },
+    { id: '6', name: 'REOPEN', color: '#FF0000' },
+    { id: '7', name: 'DUPLICATE', color: '#cccccc' },
+    { id: '8', name: 'HOLD', color: '#2dbed2' },
+  ]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
   );
@@ -907,6 +817,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransitions(newTransitions);
   };
 
+  const addStatusType = (statusTypeData: Omit<StatusType, 'id'>) => {
+    const newStatusType: StatusType = {
+      ...statusTypeData,
+      id: Date.now().toString(),
+    };
+    setStatusTypes((prev) => [...prev, newStatusType]);
+  };
+
+  const updateStatusType = (id: string, statusTypeData: Partial<StatusType>) => {
+    setStatusTypes((prev) =>
+      prev.map((status) =>
+        status.id === id ? { ...status, ...statusTypeData } : status
+      )
+    );
+  };
+
+  const deleteStatusType = (id: string) => {
+    setStatusTypes((prev) => prev.filter((status) => status.id !== id));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -919,6 +849,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         benchAllocations,
         workflowStatuses,
         transitions,
+        statusTypes,
         selectedProjectId,
         setSelectedProjectId,
         addEmployee,
@@ -941,6 +872,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         allocateEmployee,
         updateWorkflowStatuses,
         updateTransitions,
+        addStatusType,
+        updateStatusType,
+        deleteStatusType,
         testCaseDefectMap,
         setTestCaseDefectMap,
       }}

@@ -33,6 +33,7 @@ import {
   ArrowRight,
   ChevronLeft,
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 // Custom edge component
 const CustomEdge = ({
@@ -149,19 +150,8 @@ const initialEdges: Edge[] = [
   },
 ];
 
-// Available statuses for the sidebar
-const availableStatuses = [
-  { label: 'NEW', color: '#3B82F6' },
-  { label: 'OPEN', color: '#EF4444' },
-  { label: 'REJECT', color: '#F59E0B' },
-  { label: 'FIXED', color: '#10B981' },
-  { label: 'CLOSED', color: '#6B7280' },
-  { label: 'REOPEN', color: '#8B5CF6' },
-  { label: 'DUPLICATE', color: '#EC4899' },
-  { label: 'HOLD', color: '#F97316' },
-];
-
 const StatusWorkflow: React.FC = () => {
+  const { statusTypes } = useApp();
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -258,13 +248,13 @@ const StatusWorkflow: React.FC = () => {
         position,
         data: { 
           label: type,
-          color: availableStatuses.find(s => s.label === type)?.color || '#94a3b8'
+          color: statusTypes.find(s => s.name === type)?.color || '#94a3b8'
         },
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, statusTypes]
   );
 
   const onNodeClick = useCallback(
@@ -336,6 +326,25 @@ const StatusWorkflow: React.FC = () => {
     [setEdges]
   );
 
+  // This effect will update node colors whenever statusTypes change in the context
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const status = statusTypes.find((s) => s.name === node.data.label);
+        if (status) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              color: status.color,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [statusTypes, setNodes]);
+
   return (
     <div className="h-screen flex">
       {/* Sidebar */}
@@ -352,13 +361,13 @@ const StatusWorkflow: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            {availableStatuses.map((status) => (
+            {statusTypes.map((status) => (
               <div
-                key={status.label}
+                key={status.name}
                 className="p-2 border border-gray-200 rounded-md cursor-move hover:bg-gray-50"
                 draggable
                 onDragStart={(event) => {
-                  event.dataTransfer.setData('application/reactflow', status.label);
+                  event.dataTransfer.setData('application/reactflow', status.name);
                   event.dataTransfer.effectAllowed = 'move';
                 }}
               >
@@ -367,7 +376,7 @@ const StatusWorkflow: React.FC = () => {
                     className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: status.color }}
                   />
-                  <span className="text-sm font-medium">{status.label}</span>
+                  <span className="text-sm font-medium">{status.name}</span>
                 </div>
               </div>
             ))}
