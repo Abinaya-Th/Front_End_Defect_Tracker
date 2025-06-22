@@ -701,14 +701,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
   const [statusTypes, setStatusTypes] = useState<StatusType[]>([
-    { id: '1', name: 'NEW', color: '#FFFF00' },
-    { id: '2', name: 'OPEN', color: '#FFA500' },
-    { id: '3', name: 'REJECT', color: '#75816b' },
-    { id: '4', name: 'FIXED', color: '#00FF00' },
-    { id: '5', name: 'CLOSED', color: '#006400' },
-    { id: '6', name: 'REOPEN', color: '#FF0000' },
-    { id: '7', name: 'DUPLICATE', color: '#cccccc' },
-    { id: '8', name: 'HOLD', color: '#2dbed2' },
+    { id: '1', name: 'NEW', color: '#2a3eb1' },
+    { id: '2', name: 'OPEN', color: '#9c27b0' },
+    { id: '3', name: 'REJECT', color: '#10B981' },
+    { id: '4', name: 'FIXED', color: '	#F59E0B' },
+    { id: '5', name: 'CLOSED', color: '#EF4444' },
+    { id: '6', name: 'REOPEN', color: '#06B6D4' },
+    { id: '7', name: 'DUPLICATE', color: '#618833' },
+    { id: '8', name: 'HOLD', color: '#ffeb3b' },
   ]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
