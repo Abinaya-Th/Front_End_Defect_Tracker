@@ -158,38 +158,32 @@ export const TestCase: React.FC = () => {
   const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(
     null
   );
-  const [editingTestCase, setEditingTestCase] = useState<TestCaseType | null>(
-    null
-  );
-  const [formData, setFormData] = useState<Omit<TestCaseType, "id">>({
-    module: "",
-    subModule: "",
-    description: "",
-    steps: "",
-    type: "functional",
-    severity: "medium",
-    projectId: "",
-  });
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
-  const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
-  const [bulkRows, setBulkRows] = useState([
-    {
-      module: "",
-      subModule: "",
-      description: "",
-      steps: "",
-      type: "functional",
-      severity: "medium",
-    },
-  ]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [filterText, setFilterText] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterSeverity, setFilterSeverity] = useState("");
+
+  // --- Multi-modal state for bulk add like QuickAddTestCase ---
+  const [modals, setModals] = useState([
+    {
+      open: false,
+      formData: {
+        module: "",
+        subModule: "",
+        description: "",
+        steps: "",
+        type: "functional",
+        severity: "medium",
+        projectId: projectId,
+      },
+    },
+  ]);
+  const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -302,88 +296,108 @@ export const TestCase: React.FC = () => {
     }
   }, [selectedTestCaseIds, selectedModules, selectedSubmodules]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleInputChange = (idx: number, field: string, value: string) => {
+    setModals((prev) =>
+      prev.map((modal, i) =>
+        i === idx
+          ? { ...modal, formData: { ...modal.formData, [field]: value } }
+          : modal
+      )
+    );
+  };
 
-    // Generate module and submodule IDs
-    const moduleId = formData.module.substring(0, 3).toUpperCase();
-    const subModuleId = formData.subModule.substring(0, 3).toUpperCase();
-    const timestamp = Date.now().toString().slice(-4);
+  const handleAddAnother = () => {
+    setModals((prev) => [
+      ...prev,
+      {
+        open: true,
+        formData: {
+          module: "",
+          subModule: "",
+          description: "",
+          steps: "",
+          type: "functional",
+          severity: "medium",
+          projectId: projectId,
+        },
+      },
+    ]);
+    setCurrentModalIdx(modals.length); // go to the new modal
+  };
 
-    if (editingTestCase) {
-      updateTestCase({
-        ...formData,
-        id: editingTestCase.id,
-        steps: formData.steps,
-      });
+  const handleRemove = (idx: number) => {
+    if (modals.length === 1) {
+      setModals([{ ...modals[0], open: false }]);
+      setCurrentModalIdx(0);
     } else {
+      setModals((prev) => prev.filter((_, i) => i !== idx));
+      setCurrentModalIdx((prevIdx) => (prevIdx > 0 ? prevIdx - 1 : 0));
+    }
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      if (!data) return;
+      const workbook = XLSX.read(data, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
+      const rows = json
+        .slice(1)
+        .map((row: any[]) => ({
+          module: row[0] || "",
+          subModule: row[1] || "",
+          description: row[2] || "",
+          steps: row[3] || "",
+          type: row[4] || "functional",
+          severity: row[5] || "medium",
+          projectId: projectId,
+        }))
+        .filter(
+          (row) => row.module && row.subModule && row.description && row.steps
+        );
+      if (rows.length > 0) {
+        setModals(rows.map((row) => ({ open: true, formData: row })));
+        setCurrentModalIdx(0);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSubmitAll = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    modals.forEach(({ formData }) => {
       addTestCase({
         ...formData,
-        id: `TC-${moduleId}-${subModuleId}-${timestamp}`,
-        steps: formData.steps,
+        id: `TC-${formData.module.substring(0, 3).toUpperCase()}-${formData.subModule.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+        projectId: projectId,
       });
-    }
-    resetForm();
-  };
-
-  const handleEdit = (testCase: TestCaseType) => {
-    setEditingTestCase(testCase);
-    setFormData({
-      module: testCase.module,
-      subModule: testCase.subModule,
-      description: testCase.description,
-      steps: testCase.steps,
-      type: testCase.type,
-      severity: testCase.severity,
-      projectId: testCase.projectId,
     });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this test case?")) {
-      deleteTestCase(id);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      module: "",
-      subModule: "",
-      description: "",
-      steps: "",
-      type: "functional",
-      severity: "medium",
-      projectId: projectId,
-    });
-    setEditingTestCase(null);
-    setIsModalOpen(false);
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleStepChange = (index: number, value: string) => {
-    const newSteps = [...formData.steps.split("\n")];
-    newSteps[index] = value;
-    setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
-  };
-
-  const addStep = () => {
-    if (formData.steps.split("\n").length < 5) {
-      setFormData((prev) => ({
-        ...prev,
-        steps: [...prev.steps.split("\n"), ""].join("\n"),
-      }));
-    }
-  };
-
-  const removeStep = (index: number) => {
-    if (formData.steps.split("\n").length > 1) {
-      const newSteps = formData.steps.split("\n").filter((_, i) => i !== index);
-      setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
-    }
+    setSuccess(true);
+    setTimeout(() => {
+      setSuccess(false);
+      setModals([
+        {
+          open: false,
+          formData: {
+            module: "",
+            subModule: "",
+            description: "",
+            steps: "",
+            type: "functional",
+            severity: "medium",
+            projectId: projectId,
+          },
+        },
+      ]);
+      setCurrentModalIdx(0);
+      setIsModalOpen(false);
+    }, 1200);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -442,95 +456,6 @@ export const TestCase: React.FC = () => {
   const handleViewDescription = (description: string) => {
     setSelectedDescription(description);
     setIsDescriptionModalOpen(true);
-  };
-
-  const handleBulkRowChange = (idx: number, field: string, value: string) => {
-    setBulkRows((rows) =>
-      rows.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const handleAddBulkRow = () => {
-    setBulkRows((rows) => [
-      {
-        module: "",
-        subModule: "",
-        description: "",
-        steps: "",
-        type: "functional",
-        severity: "medium",
-      },
-      ...rows,
-    ]);
-  };
-
-  const handleRemoveBulkRow = (idx: number) => {
-    setBulkRows((rows) =>
-      rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
-    );
-  };
-
-  const handleBulkAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const validRows = bulkRows.filter(
-      (row) => row.module && row.subModule && row.description && row.steps
-    );
-    validRows.forEach((tc, idx) => {
-      const moduleId = tc.module.substring(0, 3).toUpperCase();
-      const subModuleId = tc.subModule.substring(0, 3).toUpperCase();
-      const timestamp = (Date.now() + idx).toString().slice(-4);
-      addTestCase({
-        id: `TC-${moduleId}-${subModuleId}-${timestamp}`,
-        module: tc.module,
-        subModule: tc.subModule,
-        description: tc.description,
-        steps: tc.steps,
-        type: tc.type as "functional" | "regression" | "smoke" | "integration",
-        severity: tc.severity as "low" | "medium" | "high" | "critical",
-        projectId: projectId,
-      });
-    });
-    setBulkRows([
-      {
-        module: "",
-        subModule: "",
-        description: "",
-        steps: "",
-        type: "functional",
-        severity: "medium",
-      },
-    ]);
-    setIsBulkAddModalOpen(false);
-  };
-
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      if (!data) return;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json
-        .slice(1)
-        .map((row: any[]) => ({
-          module: row[0] || "",
-          subModule: row[1] || "",
-          description: row[2] || "",
-          steps: row[3] || "",
-          type: row[4] || "functional",
-          severity: row[5] || "medium",
-        }))
-        .filter(
-          (row) => row.module && row.subModule && row.description && row.steps
-        );
-      if (rows.length > 0) setBulkRows(rows);
-    };
-    reader.readAsBinaryString(file);
   };
 
   return (
@@ -631,7 +556,7 @@ export const TestCase: React.FC = () => {
                   >
                     {projectModules.map((module) => {
                       const moduleTestCases = testCases.filter(
-                        (tc: TestCase) =>
+                        (tc: TestCaseType) =>
                           tc.projectId === projectId &&
                           tc.module === module.name
                       );
@@ -702,7 +627,7 @@ export const TestCase: React.FC = () => {
                       .find((m) => m.name === selectedModule)
                       ?.submodules.map((submodule) => {
                         const submoduleTestCases = testCases.filter(
-                          (tc: TestCase) =>
+                          (tc: TestCaseType) =>
                             tc.projectId === projectId &&
                             tc.module === selectedModule &&
                             tc.subModule === submodule
@@ -728,13 +653,22 @@ export const TestCase: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setFormData((prev) => ({
+                                  setModals((prev) => [
                                     ...prev,
-                                    module: selectedModule,
-                                    subModule: submodule,
-                                    projectId: projectId,
-                                  }));
-                                  setIsModalOpen(true);
+                                    {
+                                      open: true,
+                                      formData: {
+                                        module: selectedModule,
+                                        subModule: submodule,
+                                        description: "",
+                                        steps: "",
+                                        type: "functional",
+                                        severity: "medium",
+                                        projectId: projectId,
+                                      },
+                                    },
+                                  ]);
+                                  setCurrentModalIdx(modals.length);
                                 }}
                                 className="p-1 border-0 hover:bg-gray-50"
                               >
@@ -778,19 +712,6 @@ export const TestCase: React.FC = () => {
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete ({selectedTestCases.length})</span>
-              </Button>
-            </div>
-          )}
-
-          {/* Bulk Add Button above the table */}
-          {projectId && (
-            <div className="flex justify-end mb-4">
-              <Button
-                onClick={() => setIsBulkAddModalOpen(true)}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Bulk Add</span>
               </Button>
             </div>
           )}
@@ -919,9 +840,7 @@ export const TestCase: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                                testCase.severity
-                              )}`}
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || "")}`}
                             >
                               {testCase.severity}
                             </span>
@@ -936,14 +855,7 @@ export const TestCase: React.FC = () => {
                                 <Eye className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleEdit(testCase)}
-                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                                title="Edit"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(testCase.id)}
+                                onClick={() => deleteTestCase(testCase.id)}
                                 className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                                 title="Delete"
                               >
@@ -963,135 +875,209 @@ export const TestCase: React.FC = () => {
       </div>
 
       {/* Add/Edit Test Case Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={resetForm}
-        title={editingTestCase ? "Edit Test Case" : "Create New Test Case"}
-        size="xl"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Module Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Module
-              </label>
-              <select
-                value={formData.module}
-                onChange={(e) => {
-                  handleInputChange("module", e.target.value);
-                  handleInputChange("subModule", ""); // Reset submodule when module changes
+      {
+        modals[currentModalIdx]?.open && (
+          (() => {
+            const idx = currentModalIdx;
+            const modal = modals[idx];
+            return (
+              <Modal
+                isOpen={modal.open}
+                onClose={() => {
+                  if (modals.length === 1) {
+                    setModals([{ ...modals[0], open: false }]);
+                    setCurrentModalIdx(0);
+                    setIsModalOpen(false);
+                  } else {
+                    handleRemove(idx);
+                  }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
+                title={"Create New Test Case"}
+                size="xl"
               >
-                <option value="">Select Module</option>
-                {projectModules.map((module) => (
-                  <option key={module.id} value={module.name}>
-                    {module.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Submodule Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub Module
-              </label>
-              <select
-                value={formData.subModule}
-                onChange={(e) => handleInputChange("subModule", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!formData.module}
-              >
-                <option value="">Select Sub Module</option>
-                {(
-                  projectModules.find((m) => m.name === formData.module)
-                    ?.submodules || []
-                ).map((submodule) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={1}
-              required
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Test Steps
-              </label>
-            </div>
-            <div className="space-y-2">
-              <textarea
-                value={formData.steps}
-                onChange={(e) => handleInputChange("steps", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={6}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleInputChange("type", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="functional">Functional</option>
-                <option value="regression">Regression</option>
-                <option value="smoke">Smoke</option>
-                <option value="integration">Integration</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Severity
-              </label>
-              <select
-                value={formData.severity}
-                onChange={(e) => handleInputChange("severity", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button type="button" variant="secondary" onClick={resetForm}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingTestCase ? "Update Test Case" : "Create Test Case"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+                <form onSubmit={e => { e.preventDefault(); handleSubmitAll(); }} className="space-y-4">
+                  <div className="flex items-center mb-2">
+                    <button
+                      type="button"
+                      className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = ".xlsx,.csv";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              const data = evt.target?.result;
+                              if (data) {
+                                const workbook = XLSX.read(data, { type: "binary" });
+                                const sheetName = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[sheetName];
+                                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                                const rows = json
+                                  .slice(1)
+                                  .map((row: any[]) => ({
+                                    module: row[0] || "",
+                                    subModule: row[1] || "",
+                                    description: row[2] || "",
+                                    steps: row[3] || "",
+                                    type: row[4] || "functional",
+                                    severity: row[5] || "medium",
+                                    projectId: projectId,
+                                  }))
+                                  .filter(
+                                    (row) => row.module && row.subModule && row.description && row.steps
+                                  );
+                                if (rows.length > 0) {
+                                  setModals(rows.map((row) => ({ open: true, formData: row })));
+                                  setCurrentModalIdx(0);
+                                }
+                              }
+                            };
+                            reader.readAsBinaryString(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                      Import from Excel/CSV
+                    </button>
+                    <Button type="button" onClick={handleAddAnother} className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+                      + Add Another Test Case
+                    </Button>
+                  </div>
+                  <div className="border rounded-lg p-4 mb-2 relative">
+                    {modals.length > 1 && (
+                      <Button type="button" variant="secondary" onClick={() => handleRemove(idx)} className="absolute top-2 right-2 px-2 py-1">Remove</Button>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+                        <select
+                          value={modal.formData.module}
+                          onChange={e => handleInputChange(idx, 'module', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="">Select Module</option>
+                          {projectModules.map((module) => (
+                            <option key={module.id} value={module.name}>{module.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
+                        <select
+                          value={modal.formData.subModule}
+                          onChange={e => handleInputChange(idx, 'subModule', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                          disabled={!modal.formData.module}
+                        >
+                          <option value="">Select Sub Module</option>
+                          {(projectModules.find((m) => m.name === modal.formData.module)?.submodules || []).map((submodule) => (
+                            <option key={submodule} value={submodule}>{submodule}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select
+                          value={modal.formData.type}
+                          onChange={e => handleInputChange(idx, 'type', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="functional">Functional</option>
+                          <option value="regression">Regression</option>
+                          <option value="smoke">Smoke</option>
+                          <option value="integration">Integration</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                        <select
+                          value={modal.formData.severity}
+                          onChange={e => handleInputChange(idx, 'severity', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="critical">Critical</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={modal.formData.description}
+                        onChange={e => handleInputChange(idx, 'description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows={1}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Test Steps</label>
+                      <textarea
+                        value={modal.formData.steps}
+                        onChange={e => handleInputChange(idx, 'steps', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows={4}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-4">
+                    <div className="flex space-x-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setCurrentModalIdx(idx - 1)}
+                        disabled={idx === 0}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setCurrentModalIdx(idx + 1)}
+                        disabled={idx === modals.length - 1}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                    <div className="flex space-x-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          if (modals.length === 1) {
+                            setModals([{ ...modals[0], open: false }]);
+                            setCurrentModalIdx(0);
+                            setIsModalOpen(false);
+                          } else {
+                            handleRemove(idx);
+                          }
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={success}>
+                        {success ? "Added!" : "Create Test Case"}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </Modal>
+            );
+          })()
+        )
+      }
 
       {/* View Steps Modal */}
       <Modal
@@ -1159,9 +1145,7 @@ export const TestCase: React.FC = () => {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Severity</h3>
                 <span
-                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                    viewingTestCase.severity
-                  )}`}
+                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(viewingTestCase.severity || "")}`}
                 >
                   {viewingTestCase.severity}
                 </span>
@@ -1218,179 +1202,6 @@ export const TestCase: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Bulk Add Modal */}
-      <Modal
-        isOpen={isBulkAddModalOpen}
-        onClose={() => setIsBulkAddModalOpen(false)}
-        title="Bulk Add Test Cases"
-        size="2xl"
-      >
-        <form onSubmit={handleBulkAddSubmit} className="space-y-4 ">
-            <div className="flex items-center justify-between mb-2">
-            <div>
-              <button
-                type="button"
-                className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Import from Excel/CSV
-              </button>
-              <input
-                type="file"
-                accept=".xlsx,.csv"
-                onChange={handleImportExcel}
-                ref={fileInputRef}
-                className="hidden"
-              />
-            </div>
-            <Button
-              type="button"
-              onClick={handleAddBulkRow}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-            >
-              + Add Row
-            </Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">Module</th>
-                  <th className="px-2 py-1 border">Submodule</th>
-                  <th className="px-2 py-1 border">Description</th>
-                  <th className="px-2 py-1 border">Steps</th>
-                  <th className="px-2 py-1 border">Type</th>
-                  <th className="px-2 py-1 border">Severity</th>
-                  <th className="px-2 py-1 border">Remove</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bulkRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.module}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "module", e.target.value)
-                        }
-                        className="w-32 px-2 py-1 border rounded"
-                        required
-                      >
-                        <option value="">Select</option>
-                        {projectModules.map((module) => (
-                          <option key={module.id} value={module.name}>
-                            {module.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.subModule}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "subModule", e.target.value)
-                        }
-                        className="w-32 px-2 py-1 border rounded"
-                        required
-                        disabled={!row.module}
-                      >
-                        <option value="">Select</option>
-                        {(
-                          projectModules.find((m) => m.name === row.module)
-                            ?.submodules || []
-                        ).map((submodule) => (
-                          <option key={submodule} value={submodule}>
-                            {submodule}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <input
-                        type="text"
-                        value={row.description}
-                        onChange={(e) =>
-                          handleBulkRowChange(
-                            idx,
-                            "description",
-                            e.target.value
-                          )
-                        }
-                        className="w-48 px-2 py-1 border rounded"
-                        required
-                      />
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <input
-                        type="text"
-                        value={row.steps}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "steps", e.target.value)
-                        }
-                        className="w-48 px-2 py-1 border rounded"
-                        required
-                      />
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.type}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "type", e.target.value)
-                        }
-                        className="w-28 px-2 py-1 border rounded"
-                      >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.severity}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "severity", e.target.value)
-                        }
-                        className="w-28 px-2 py-1 border rounded"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border text-center">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => handleRemoveBulkRow(idx)}
-                        className="px-2 py-1"
-                        disabled={bulkRows.length === 1}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex justify-end items-center mt-2">
-            <div className="flex space-x-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsBulkAddModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Add Test Cases</Button>
-            </div>
-          </div>
-        </form>
-      </Modal>
-
       {/* Fixed Quick Add Button */}
       <div
         style={{
@@ -1406,6 +1217,6 @@ export const TestCase: React.FC = () => {
         <QuickAddTestCase />
         <QuickAddDefect />
       </div>
-    </div>
+    </div >
   );
 };
