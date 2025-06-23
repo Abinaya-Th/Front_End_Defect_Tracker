@@ -54,6 +54,7 @@ export interface Defect {
   attachments?: string[];
   createdAt: string;
   updatedAt: string;
+  rejectionComment?: string;
 }
 
 export interface TestCase {
@@ -68,6 +69,11 @@ export interface TestCase {
   estimatedTime?: number; // minutes
   createdAt: string;
   selected?: boolean;
+  releaseId?: string;
+  module?: string;
+  subModule?: string;
+  type?: 'functional' | 'regression' | 'smoke' | 'integration';
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface Release {
@@ -121,4 +127,19 @@ export interface StatusTransition {
   id: string;
   fromStatus: string;
   toStatus: string;
+}
+
+export interface EmailConfig {
+  id: string;
+  name: string;
+  smtpHost: string;
+  smtpPort: number;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

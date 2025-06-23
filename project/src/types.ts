@@ -75,6 +75,13 @@ export interface Defect {
   reportedBy: string;
   createdAt: string;
   updatedAt: string;
+  rejectionComment?: string;
+}
+
+export interface StatusType {
+  id: string;
+  name: string;
+  color: string;
 }
 
 // ... rest of the types ... 
