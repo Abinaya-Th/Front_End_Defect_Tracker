@@ -452,7 +452,6 @@ export const TestCase: React.FC = () => {
 
   const handleAddBulkRow = () => {
     setBulkRows((rows) => [
-      ...rows,
       {
         module: "",
         subModule: "",
@@ -461,6 +460,7 @@ export const TestCase: React.FC = () => {
         type: "functional",
         severity: "medium",
       },
+      ...rows,
     ]);
   };
 
@@ -1223,25 +1223,34 @@ export const TestCase: React.FC = () => {
         isOpen={isBulkAddModalOpen}
         onClose={() => setIsBulkAddModalOpen(false)}
         title="Bulk Add Test Cases"
-        size="xl"
+        size="2xl"
       >
-        <form onSubmit={handleBulkAddSubmit} className="space-y-4">
-          <div className="flex items-center mb-2">
-            <button
+        <form onSubmit={handleBulkAddSubmit} className="space-y-4 ">
+            <div className="flex items-center justify-between mb-2">
+            <div>
+              <button
+                type="button"
+                className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import from Excel/CSV
+              </button>
+              <input
+                type="file"
+                accept=".xlsx,.csv"
+                onChange={handleImportExcel}
+                ref={fileInputRef}
+                className="hidden"
+              />
+            </div>
+            <Button
               type="button"
-              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleAddBulkRow}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Import from Excel/CSV
-            </button>
-            <input
-              type="file"
-              accept=".xlsx,.csv"
-              onChange={handleImportExcel}
-              ref={fileInputRef}
-              className="hidden"
-            />
+              + Add Row
+            </Button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full border">
@@ -1367,14 +1376,7 @@ export const TestCase: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-between items-center mt-2">
-            <Button
-              type="button"
-              onClick={handleAddBulkRow}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-            >
-              + Add Row
-            </Button>
+          <div className="flex justify-end items-center mt-2">
             <div className="flex space-x-3">
               <Button
                 type="button"

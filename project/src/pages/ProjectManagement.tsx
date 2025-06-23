@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { Eye, ChevronLeft, Settings } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
 import { useApp } from '../context/AppContext';
+import QuickAddDefect from './QuickAddDefect';
+import QuickAddTestCase from './QuickAddTestCase';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -88,6 +90,21 @@ export const ProjectManagement: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      {/* Fixed Quick Add Button */}
+            <div
+              style={{
+                position: "fixed",
+                bottom: 32,
+                right: 32,
+                zIndex: 50,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <QuickAddTestCase />
+              <QuickAddDefect />
+            </div>
     </div>
   );
 };
