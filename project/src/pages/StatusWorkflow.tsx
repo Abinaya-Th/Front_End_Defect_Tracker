@@ -31,7 +31,9 @@ import {
   Trash2,
   Edit2,
   ArrowRight,
+  ChevronLeft,
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 // Custom edge component
 const CustomEdge = ({
@@ -148,19 +150,8 @@ const initialEdges: Edge[] = [
   },
 ];
 
-// Available statuses for the sidebar
-const availableStatuses = [
-  { label: 'NEW', color: '#3B82F6' },
-  { label: 'OPEN', color: '#EF4444' },
-  { label: 'REJECT', color: '#F59E0B' },
-  { label: 'FIXED', color: '#10B981' },
-  { label: 'CLOSED', color: '#6B7280' },
-  { label: 'REOPEN', color: '#8B5CF6' },
-  { label: 'DUPLICATE', color: '#EC4899' },
-  { label: 'HOLD', color: '#F97316' },
-];
-
-export const Workflow: React.FC = () => {
+const StatusWorkflow: React.FC = () => {
+  const { statusTypes } = useApp();
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -174,9 +165,9 @@ export const Workflow: React.FC = () => {
   useEffect(() => {
     const loadSavedWorkflow = () => {
       try {
-        const savedNodes = localStorage.getItem('workflowNodes');
-        const savedEdges = localStorage.getItem('workflowEdges');
-        const savedLayout = localStorage.getItem('workflowLayout');
+        const savedNodes = localStorage.getItem('statusWorkflowNodes');
+        const savedEdges = localStorage.getItem('statusWorkflowEdges');
+        const savedLayout = localStorage.getItem('statusWorkflowLayout');
         
         if (savedNodes) {
           const parsedNodes = JSON.parse(savedNodes);
@@ -212,9 +203,9 @@ export const Workflow: React.FC = () => {
     if (!isInitialized) return;
 
     try {
-      localStorage.setItem('workflowNodes', JSON.stringify(nodes));
-      localStorage.setItem('workflowEdges', JSON.stringify(edges));
-      localStorage.setItem('workflowLayout', JSON.stringify(isVertical));
+      localStorage.setItem('statusWorkflowNodes', JSON.stringify(nodes));
+      localStorage.setItem('statusWorkflowEdges', JSON.stringify(edges));
+      localStorage.setItem('statusWorkflowLayout', JSON.stringify(isVertical));
     } catch (error) {
       console.error('Error saving workflow:', error);
     }
@@ -223,9 +214,9 @@ export const Workflow: React.FC = () => {
   // Handle window unload to ensure state is saved
   useEffect(() => {
     const handleBeforeUnload = () => {
-      localStorage.setItem('workflowNodes', JSON.stringify(nodes));
-      localStorage.setItem('workflowEdges', JSON.stringify(edges));
-      localStorage.setItem('workflowLayout', JSON.stringify(isVertical));
+      localStorage.setItem('statusWorkflowNodes', JSON.stringify(nodes));
+      localStorage.setItem('statusWorkflowEdges', JSON.stringify(edges));
+      localStorage.setItem('statusWorkflowLayout', JSON.stringify(isVertical));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -257,13 +248,13 @@ export const Workflow: React.FC = () => {
         position,
         data: { 
           label: type,
-          color: availableStatuses.find(s => s.label === type)?.color || '#94a3b8'
+          color: statusTypes.find(s => s.name === type)?.color || '#94a3b8'
         },
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, statusTypes]
   );
 
   const onNodeClick = useCallback(
@@ -335,6 +326,25 @@ export const Workflow: React.FC = () => {
     [setEdges]
   );
 
+  // This effect will update node colors whenever statusTypes change in the context
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        const status = statusTypes.find((s) => s.name === node.data.label);
+        if (status) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              color: status.color,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [statusTypes, setNodes]);
+
   return (
     <div className="h-screen flex">
       {/* Sidebar */}
@@ -351,13 +361,13 @@ export const Workflow: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            {availableStatuses.map((status) => (
+            {statusTypes.map((status) => (
               <div
-                key={status.label}
+                key={status.name}
                 className="p-2 border border-gray-200 rounded-md cursor-move hover:bg-gray-50"
                 draggable
                 onDragStart={(event) => {
-                  event.dataTransfer.setData('application/reactflow', status.label);
+                  event.dataTransfer.setData('application/reactflow', status.name);
                   event.dataTransfer.effectAllowed = 'move';
                 }}
               >
@@ -366,7 +376,7 @@ export const Workflow: React.FC = () => {
                     className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: status.color }}
                   />
-                  <span className="text-sm font-medium">{status.label}</span>
+                  <span className="text-sm font-medium">{status.name}</span>
                 </div>
               </div>
             ))}
@@ -377,7 +387,7 @@ export const Workflow: React.FC = () => {
           <Button
             variant="secondary"
             className="w-full"
-            icon={ArrowLeft}
+            icon={ChevronLeft}
             onClick={() => window.history.back()}
           >
             Go Back
@@ -422,7 +432,6 @@ export const Workflow: React.FC = () => {
                 color: '#94a3b8',
               },
             }}
-            connectionMode="loose"
             connectionRadius={20}
             snapToGrid={true}
             snapGrid={[15, 15]}
@@ -483,3 +492,5 @@ export const Workflow: React.FC = () => {
     </div>
   );
 };
+
+export default StatusWorkflow; 

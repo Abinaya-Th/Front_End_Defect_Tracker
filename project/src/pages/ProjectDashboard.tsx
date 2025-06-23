@@ -4,6 +4,9 @@ import { useApp } from '../context/AppContext';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import QuickAddTestCase from './QuickAddTestCase';
+import QuickAddDefect from './QuickAddDefect';
+import { mockModules } from './TestCase';
 
 export const ProjectDashboard: React.FC = () => {
   const { projectId } = useParams();
@@ -23,17 +26,11 @@ export const ProjectDashboard: React.FC = () => {
   const project = projects.find((p) => p.id === projectId);
   const projectDefects = defects.filter((d) => d.projectId === projectId);
 
-  // Example: mock modules for the project (replace with real data if available)
-  const mockModules = [
-    'Authentication',
-    'User Management',
-    'Content Management',
-    'Payment Processing',
-    'Reporting',
-  ];
+  // Get modules for the selected project from mockModules
+  const projectModules = projectId && mockModules[projectId] ? mockModules[projectId].map((m: { name: string }) => m.name) : [];
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
+    <div className="max-w-6xl mx-auto py-8">
       {/* Project Selection Panel */}
       <Card>
         <CardContent className="p-4">
@@ -58,7 +55,7 @@ export const ProjectDashboard: React.FC = () => {
                   key={project.id}
                   variant={projectId === project.id ? 'primary' : 'secondary'}
                   onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap m-2"
                 >
                   {project.name}
                 </Button>
@@ -87,13 +84,18 @@ export const ProjectDashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-2 text-gray-800">Modules</h2>
           <ul className="list-disc pl-5 text-gray-700">
-            {mockModules.map((mod) => (
+            {projectModules.map((mod: string) => (
               <li key={mod}>{mod}</li>
             ))}
           </ul>
         </div>
       </div>
       {/* Add more project summary widgets here as needed */}
+      {/* Fixed Quick Add Button */}
+      <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 }; 
