@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { useApp } from '../context/AppContext';
+import * as XLSX from "xlsx";
 
 // Mock data for modules and submodules
 const mockModules: Record<string, { id: string; name: string; submodules: string[] }[]> = {
@@ -30,48 +31,127 @@ const mockModules: Record<string, { id: string; name: string; submodules: string
 };
 
 const QuickAddTestCase: React.FC = () => {
-  const { selectedProjectId, projects } = useApp();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    module: '',
-    subModule: '',
-    description: '',
-    steps: '',
-    type: 'functional',
-    severity: 'medium',
-  });
-  const [success, setSuccess] = useState(false);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Here you would call an API or context to add the test case
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setIsModalOpen(false);
-      setFormData({
+  const { selectedProjectId, projects, addTestCase } = useApp();
+  const [modals, setModals] = useState([
+    {
+      open: false,
+      formData: {
         module: '',
         subModule: '',
         description: '',
         steps: '',
         type: 'functional',
         severity: 'medium',
+      },
+    },
+  ]);
+  const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [success, setSuccess] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleInputChange = (idx: number, field: string, value: string) => {
+    setModals(prev => prev.map((modal, i) =>
+      i === idx ? { ...modal, formData: { ...modal.formData, [field]: value } } : modal
+    ));
+  };
+
+  const handleAddAnother = () => {
+    setModals(prev => [
+      ...prev,
+      {
+        open: true,
+        formData: {
+          module: '',
+          subModule: '',
+          description: '',
+          steps: '',
+          type: 'functional',
+          severity: 'medium',
+        },
+      },
+    ]);
+    setCurrentModalIdx(modals.length); // go to the new modal
+  };
+
+  const handleRemove = (idx: number) => {
+    if (modals.length === 1) {
+      setModals([{ ...modals[0], open: false }]);
+      setCurrentModalIdx(0);
+    } else {
+      setModals(prev => prev.filter((_, i) => i !== idx));
+      setCurrentModalIdx((prevIdx) => prevIdx > 0 ? prevIdx - 1 : 0);
+    }
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      if (!data) return;
+      const workbook = XLSX.read(data, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
+      const rows = json
+        .slice(1)
+        .map((row: any[]) => ({
+          module: row[0] || '',
+          subModule: row[1] || '',
+          description: row[2] || '',
+          steps: row[3] || '',
+          type: row[4] || 'functional',
+          severity: row[5] || 'medium',
+        }))
+        .filter(
+          (row) => row.module && row.subModule && row.description && row.steps
+        );
+      if (rows.length > 0) {
+        setModals(rows.map(row => ({ open: true, formData: row })));
+        setCurrentModalIdx(0);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSubmitAll = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    modals.forEach(({ formData }) => {
+      addTestCase({
+        ...formData,
+        id: `TC-${formData.module.substring(0, 3).toUpperCase()}-${formData.subModule.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+        projectId: selectedProjectId,
       });
+    });
+    setSuccess(true);
+    setTimeout(() => {
+      setSuccess(false);
+      setModals([
+        {
+          open: false,
+          formData: {
+            module: '',
+            subModule: '',
+            description: '',
+            steps: '',
+            type: 'functional',
+            severity: 'medium',
+          },
+        },
+      ]);
+      setCurrentModalIdx(0);
     }, 1200);
   };
 
   const projectModules: { id: string; name: string; submodules: string[] }[] = selectedProjectId ? mockModules[selectedProjectId] || [] : [];
-  const submodules: string[] = projectModules.find((m: { name: string }) => m.name === formData.module)?.submodules || [];
   const selectedProject = projects.find((p: { id: string }) => p.id === selectedProjectId);
 
   return (
     <div>
       <Button
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => { setModals([{ ...modals[0], open: true }]); setCurrentModalIdx(0); }}
         className="flex items-center justify-center p-0 rounded-full shadow-lg bg-white hover:bg-gray-100 text-blue-700 relative group border border-blue-200"
         disabled={!selectedProjectId}
         style={{ width: 40, height: 40, minWidth: 40, minHeight: 40, borderRadius: '50%' }}
@@ -91,102 +171,179 @@ const QuickAddTestCase: React.FC = () => {
           Add Test Case
         </span>
       </Button>
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={selectedProject ? `Quick Add Test Case (${selectedProject.name})` : 'Quick Add Test Case'}
-        size="xl"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
-              <select
-                value={formData.module}
-                onChange={e => {
-                  handleInputChange('module', e.target.value);
-                  handleInputChange('subModule', '');
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!selectedProjectId}
-              >
-                <option value="">Select Module</option>
-                {projectModules.map((module: { id: string; name: string }) => (
-                  <option key={module.id} value={module.name}>{module.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
-              <select
-                value={formData.subModule}
-                onChange={e => handleInputChange('subModule', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!formData.module}
-              >
-                <option value="">Select Sub Module</option>
-                {submodules.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>{submodule}</option>
-                ))}
-              </select>
-            </div>
-            <Input
-              label="Type"
-              value={formData.type}
-              onChange={e => handleInputChange('type', e.target.value)}
-              required
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
-              <select
-                value={formData.severity}
-                onChange={e => handleInputChange('severity', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={e => handleInputChange('description', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={1}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Test Steps</label>
-            <textarea
-              value={formData.steps}
-              onChange={e => handleInputChange('steps', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={4}
-              required
-            />
-          </div>
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsModalOpen(false)}
+      {modals[currentModalIdx]?.open && (
+        (() => {
+          const idx = currentModalIdx;
+          const modal = modals[idx];
+          const submodules: string[] = projectModules.find((m: { name: string }) => m.name === modal.formData.module)?.submodules || [];
+          return (
+            <Modal
+              key={idx}
+              isOpen={modal.open}
+              onClose={() => {
+                if (modals.length === 1) {
+                  setModals([{ ...modals[0], open: false }]);
+                  setCurrentModalIdx(0);
+                } else {
+                  handleRemove(idx);
+                }
+              }}
+              title={selectedProject ? `Quick Add Test Case (${selectedProject.name})` : 'Quick Add Test Case'}
+              size="xl"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={success}>
-              {success ? 'Added!' : 'Add Test Case'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+              <form onSubmit={e => { e.preventDefault(); handleSubmitAll(); }} className="space-y-4">
+                <div className="flex items-center mb-2">
+                  <button
+                    type="button"
+                    className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                    Import from Excel/CSV
+                  </button>
+                  <input
+                    type="file"
+                    accept=".xlsx,.csv"
+                    onChange={handleImportExcel}
+                    ref={fileInputRef}
+                    className="hidden"
+                  />
+                  <Button type="button" onClick={handleAddAnother} className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
+                    + Add Another Test Case
+                  </Button>
+                </div>
+                <div className="border rounded-lg p-4 mb-2 relative">
+                  {modals.length > 1 && (
+                    <Button type="button" variant="secondary" onClick={() => handleRemove(idx)} className="absolute top-2 right-2 px-2 py-1">Remove</Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+                      <select
+                        value={modal.formData.module}
+                        onChange={e => {
+                          handleInputChange(idx, 'module', e.target.value);
+                          handleInputChange(idx, 'subModule', '');
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={!selectedProjectId}
+                      >
+                        <option value="">Select Module</option>
+                        {projectModules.map((module: { id: string; name: string }) => (
+                          <option key={module.id} value={module.name}>{module.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
+                      <select
+                        value={modal.formData.subModule}
+                        onChange={e => handleInputChange(idx, 'subModule', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={!modal.formData.module}
+                      >
+                        <option value="">Select Sub Module</option>
+                        {submodules.map((submodule: string) => (
+                          <option key={submodule} value={submodule}>{submodule}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                      <select
+                        value={modal.formData.type}
+                        onChange={e => handleInputChange(idx, 'type', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="functional">Functional</option>
+                        <option value="regression">Regression</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="integration">Integration</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                      <select
+                        value={modal.formData.severity}
+                        onChange={e => handleInputChange(idx, 'severity', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={modal.formData.description}
+                      onChange={e => handleInputChange(idx, 'description', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={1}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Test Steps</label>
+                    <textarea
+                      value={modal.formData.steps}
+                      onChange={e => handleInputChange(idx, 'steps', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx - 1)}
+                      disabled={idx === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx + 1)}
+                      disabled={idx === modals.length - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                  <div className="flex space-x-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (modals.length === 1) {
+                          setModals([{ ...modals[0], open: false }]);
+                          setCurrentModalIdx(0);
+                        } else {
+                          handleRemove(idx);
+                        }
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={success}>
+                      {success ? 'Added!' : 'Add Test Case'}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Modal>
+          );
+        })()
+      )}
     </div>
   );
 };
