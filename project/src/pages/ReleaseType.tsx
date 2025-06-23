@@ -115,38 +115,39 @@ const ReleaseType: React.FC = () => {
         </Button>
       </div>
 
-      {/* Release Types Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {releaseTypes.map((releaseType) => (
-          <Card key={releaseType.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {releaseType.name}
-                  </h3>
-                </div>
-                <div className="flex space-x-2 ml-2">
+      {/* Release Types Table */}
+      <div className="overflow-x-auto rounded-lg shadow mb-8 max-w-2xl mx-auto">
+        <table className="min-w-full divide-y divide-gray-200 text-base">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Release Type</th>
+              <th className="px-5 py-3 text-center text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {releaseTypes.map((releaseType) => (
+              <tr key={releaseType.id}>
+                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{releaseType.name}</td>
+                <td className="px-5 py-3 whitespace-nowrap text-center">
                   <button
                     onClick={() => openEditModal(releaseType)}
-                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded mr-2"
                     title="Edit"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => openDeleteModal(releaseType)}
                     className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                     title="Delete"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
-                </div>
-              </div>
-              <p className="text-gray-600 mb-3">{releaseType.description}</p>
-            </CardContent>
-          </Card>
-        ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Create Modal */}
@@ -169,18 +170,6 @@ const ReleaseType: React.FC = () => {
               placeholder="Enter release type name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -193,7 +182,7 @@ const ReleaseType: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Create
             </Button>
@@ -222,18 +211,6 @@ const ReleaseType: React.FC = () => {
               placeholder="Enter release type name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -247,7 +224,7 @@ const ReleaseType: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Update
             </Button>

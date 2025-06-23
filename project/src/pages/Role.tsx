@@ -29,7 +29,7 @@ const Role: React.FC = () => {
     name: '',
     description: '',
     permissions: [] as string[],
-    level: 'basic' as const,
+    level: 'basic' as Role["level"],
     department: ''
   });
 
@@ -224,58 +224,39 @@ const Role: React.FC = () => {
         </Button>
       </div>
 
-      {/* Roles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {roles.map((role) => (
-          <Card key={role.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {role.name}
-                  </h3>
-                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(role.level)}`}>
-                    {getLevelLabel(role.level)}
-                  </span>
-                </div>
-                <div className="flex space-x-2">
+      {/* Roles Table */}
+      <div className="overflow-x-auto rounded-lg shadow mb-8 max-w-2xl mx-auto">
+        <table className="min-w-full divide-y divide-gray-200 text-base">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Role</th>
+              <th className="px-5 py-3 text-center text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {roles.map((role) => (
+              <tr key={role.id}>
+                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{role.name}</td>
+                <td className="px-5 py-3 whitespace-nowrap text-center">
                   <button
                     onClick={() => openEditModal(role)}
-                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded mr-2"
                     title="Edit"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => openDeleteModal(role)}
                     className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                     title="Delete"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
-                </div>
-              </div>
-              <p className="text-gray-600 mb-3">{role.description}</p>
-              <div className="text-sm text-gray-500 mb-3">
-                <p><strong>Department:</strong> {role.department}</p>
-                <p><strong>Permissions:</strong> {role.permissions.length}</p>
-                <p><strong>Created:</strong> {new Date(role.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {role.permissions.slice(0, 3).map((permission) => (
-                  <span key={permission} className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                    {permission}
-                  </span>
-                ))}
-                {role.permissions.length > 3 && (
-                  <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                    +{role.permissions.length - 3} more
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Create Modal */}
@@ -286,7 +267,7 @@ const Role: React.FC = () => {
           resetForm();
         }}
         title="Create New Role"
-        size="xl"
+        size="sm"
       >
         <div className="space-y-4">
           <div>
@@ -298,61 +279,6 @@ const Role: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter role name"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Level
-            </label>
-            <select
-              value={formData.level}
-              onChange={(e) => setFormData({ ...formData, level: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="basic">Basic</option>
-              <option value="standard">Standard</option>
-              <option value="advanced">Advanced</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department
-            </label>
-            <Input
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              placeholder="Enter department"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Permissions
-            </label>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
-              {availablePermissions.map((permission) => (
-                <label key={permission} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.permissions.includes(permission)}
-                    onChange={() => togglePermission(permission)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{permission}</span>
-                </label>
-              ))}
-            </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
@@ -366,7 +292,7 @@ const Role: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.description || !formData.department}
+              disabled={!formData.name}
             >
               Create
             </Button>
@@ -383,7 +309,7 @@ const Role: React.FC = () => {
           resetForm();
         }}
         title="Edit Role"
-        size="xl"
+        size="sm"
       >
         <div className="space-y-4">
           <div>
@@ -395,61 +321,6 @@ const Role: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter role name"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Level
-            </label>
-            <select
-              value={formData.level}
-              onChange={(e) => setFormData({ ...formData, level: e.target.value as any })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="basic">Basic</option>
-              <option value="standard">Standard</option>
-              <option value="advanced">Advanced</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department
-            </label>
-            <Input
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              placeholder="Enter department"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Permissions
-            </label>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
-              {availablePermissions.map((permission) => (
-                <label key={permission} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.permissions.includes(permission)}
-                    onChange={() => togglePermission(permission)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{permission}</span>
-                </label>
-              ))}
-            </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
@@ -464,7 +335,7 @@ const Role: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.description || !formData.department}
+              disabled={!formData.name}
             >
               Update
             </Button>

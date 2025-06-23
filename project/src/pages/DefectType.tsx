@@ -29,9 +29,9 @@ const DefectType: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: 'functional' as const,
-    severity: 'medium' as const,
-    priority: 'medium' as const,
+    category: 'functional' as DefectType["category"],
+    severity: 'medium' as DefectType["severity"],
+    priority: 'medium' as DefectType["priority"],
     isActive: true
   });
 
@@ -134,9 +134,9 @@ const DefectType: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      category: 'functional',
-      severity: 'medium',
-      priority: 'medium',
+      category: 'functional' as DefectType["category"],
+      severity: 'medium' as DefectType["severity"],
+      priority: 'medium' as DefectType["priority"],
       isActive: true
     });
   };
@@ -268,57 +268,39 @@ const DefectType: React.FC = () => {
         </Button>
       </div>
 
-      {/* Defect Types Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {defectTypes.map((defectType) => (
-          <Card key={defectType.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {defectType.name}
-                  </h3>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(defectType.category)}`}>
-                      {getCategoryLabel(defectType.category)}
-                    </span>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(defectType.severity)}`}>
-                      {defectType.severity}
-                    </span>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(defectType.priority)}`}>
-                      {defectType.priority}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex space-x-2 ml-2">
+      {/* Defect Types Table */}
+      <div className="overflow-x-auto rounded-lg shadow mb-8 max-w-2xl mx-auto">
+        <table className="min-w-full divide-y divide-gray-200 text-base">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Defect Type</th>
+              <th className="px-5 py-3 text-center text-sm font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {defectTypes.map((defectType) => (
+              <tr key={defectType.id}>
+                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{defectType.name}</td>
+                <td className="px-5 py-3 whitespace-nowrap text-center">
                   <button
                     onClick={() => openEditModal(defectType)}
-                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                    className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded mr-2"
                     title="Edit"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => openDeleteModal(defectType)}
                     className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                     title="Delete"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
-                </div>
-              </div>
-              <p className="text-gray-600 mb-3">{defectType.description}</p>
-              <div className="text-sm text-gray-500">
-                <p><strong>Status:</strong> 
-                  <span className={`ml-1 ${defectType.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                    {defectType.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </p>
-                <p><strong>Created:</strong> {new Date(defectType.createdAt).toLocaleDateString()}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Create Modal */}
@@ -341,82 +323,6 @@ const DefectType: React.FC = () => {
               placeholder="Enter defect type name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="functional">Functional</option>
-                <option value="performance">Performance</option>
-                <option value="security">Security</option>
-                <option value="usability">UI/UX</option>
-                <option value="compatibility">Compatibility</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Default Severity
-              </label>
-              <select
-                value={formData.severity}
-                onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Default Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.isActive ? 'active' : 'inactive'}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -429,7 +335,7 @@ const DefectType: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Create
             </Button>
@@ -458,82 +364,6 @@ const DefectType: React.FC = () => {
               placeholder="Enter defect type name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="functional">Functional</option>
-                <option value="performance">Performance</option>
-                <option value="security">Security</option>
-                <option value="usability">UI/UX</option>
-                <option value="compatibility">Compatibility</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Default Severity
-              </label>
-              <select
-                value={formData.severity}
-                onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Default Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.isActive ? 'active' : 'inactive'}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -547,7 +377,7 @@ const DefectType: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Update
             </Button>
