@@ -1,14 +1,11 @@
 export interface Project {
   id: string;
   name: string;
-  prefix: string;
-  projectType: string;
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
   role?: string;
   manager: string;
-  priority: 'low' | 'medium' | 'high';
   teamMembers: string[];
   progress?: number;
   description: string;
@@ -32,14 +29,11 @@ export interface Project {
 
 export interface ProjectFormData {
   name: string;
-  prefix: string;
-  projectType: string;
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
   role: string;
   manager: string;
-  priority: 'low' | 'medium' | 'high';
   clientName: string;
   clientCountry: string;
   clientState: string;
