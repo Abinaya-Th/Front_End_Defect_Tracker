@@ -259,35 +259,35 @@ export const Defects: React.FC = () => {
   // Use centralized mockModules for module and submodule selection
   const modulesList =
     projectId &&
-    (
-      mockModules as Record<
-        string,
-        { id: string; name: string; submodules: string[] }[]
-      >
-    )[projectId]
+      (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId]
       ? (
-          mockModules as Record<
-            string,
-            { id: string; name: string; submodules: string[] }[]
-          >
-        )[projectId].map((m: { name: string }) => m.name)
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId].map((m: { name: string }) => m.name)
       : [];
   const submodulesList =
     formData.module &&
-    projectId &&
-    (
-      mockModules as Record<
-        string,
-        { id: string; name: string; submodules: string[] }[]
-      >
-    )[projectId]
+      projectId &&
+      (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId]
       ? (
-          mockModules as Record<
-            string,
-            { id: string; name: string; submodules: string[] }[]
-          >
-        )[projectId].find((m: { name: string }) => m.name === formData.module)
-          ?.submodules || []
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId].find((m: { name: string }) => m.name === formData.module)
+        ?.submodules || []
       : [];
 
   // Unique values for dropdowns
@@ -296,13 +296,13 @@ export const Defects: React.FC = () => {
     formData.module && modulesList.includes(formData.module)
       ? submodulesList
       : Array.from(
-          new Set(
-            defects
-              .filter((d) => d.projectId === projectId)
-              .map((d) => d.subModule)
-              .filter(Boolean)
-          )
-        );
+        new Set(
+          defects
+            .filter((d) => d.projectId === projectId)
+            .map((d) => d.subModule)
+            .filter(Boolean)
+        )
+      );
   const uniqueTypes = Array.from(
     new Set(
       defects
@@ -593,11 +593,10 @@ export const Defects: React.FC = () => {
                           ? highlightedRowRef
                           : undefined
                       }
-                      className={`hover:bg-gray-50${
-                        highlightId === defect.id
-                          ? " bg-yellow-100 border-2 border-yellow-400"
-                          : ""
-                      }`}
+                      className={`hover:bg-gray-50${highlightId === defect.id
+                        ? " bg-yellow-100 border-2 border-yellow-400"
+                        : ""
+                        }`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {defect.id}
@@ -746,25 +745,39 @@ export const Defects: React.FC = () => {
               required
             />
           </div>
-          {/* Modules and Submodules */}
+          {/* Modules and Submodules as dropdowns */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <ModuleSelector
-                modules={(modulesByProject[projectId] || []).map(
-                  ({ id, name }) => ({ id, name })
-                )}
-                selectedModuleId={formData.module}
-                onSelect={(id) => handleInputChange("module", id)}
-                label="Modules"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+              <select
+                value={formData.module}
+                onChange={e => {
+                  handleInputChange("module", e.target.value);
+                  handleInputChange("subModule", ""); // Reset submodule when module changes
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select module</option>
+                {(modulesByProject[projectId] || []).map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <SubmoduleSelector
-                submodules={submodulesList}
-                selectedSubmodule={formData.subModule}
-                onSelect={(name) => handleInputChange("subModule", name)}
-                label="Submodules"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Submodule</label>
+              <select
+                value={formData.subModule}
+                onChange={e => handleInputChange("subModule", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled={!formData.module}
+              >
+                <option value="">Select submodule</option>
+                {((modulesByProject[projectId] || []).find((m) => m.id === formData.module)?.submodules || []).map((sm) => (
+                  <option key={sm.id} value={sm.id}>{sm.name}</option>
+                ))}
+              </select>
             </div>
           </div>
           {/* Severity, Priority, Type, Status */}
