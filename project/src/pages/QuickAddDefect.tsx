@@ -6,115 +6,9 @@ import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import { MdBugReport } from "react-icons/md";
 
-const mockModules: Record<
-  string,
-  { id: string; name: string; submodules: string[] }[]
-> = {
-  "2": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
-      ],
-    },
-    {
-      id: "acc",
-      name: "Account Management",
-      submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
-      ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-    },
-  ],
-  "3": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "reporting",
-      name: "Reporting",
-      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-    },
-    {
-      id: "data",
-      name: "Data Management",
-      submodules: ["Data Import", "Data Processing", "Data Export"],
-    },
-    {
-      id: "visualization",
-      name: "Visualization",
-      submodules: ["Charts", "Graphs", "Widgets"],
-    },
-  ],
-  "4": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "content",
-      name: "Content Management",
-      submodules: ["Articles", "Media", "Categories", "Templates"],
-    },
-    {
-      id: "user",
-      name: "User Management",
-      submodules: ["Profile", "Settings", "Permissions", "Roles"],
-    },
-    {
-      id: "workflow",
-      name: "Workflow",
-      submodules: ["Approval Process", "Review Process", "Publishing"],
-    },
-  ],
-};
-
 const QuickAddDefect: React.FC = () => {
-  const { selectedProjectId, projects, defects, addDefect } = useApp();
+  const { selectedProjectId, projects, defects, addDefect, modulesByProject } =
+    useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -130,13 +24,15 @@ const QuickAddDefect: React.FC = () => {
   });
   const [success, setSuccess] = useState(false);
 
-  // Get modules and submodules for the current project
+  // Use modulesByProject from context instead of mockModules
   const projectModules = selectedProjectId
-    ? mockModules[selectedProjectId] || []
+    ? modulesByProject[selectedProjectId] || []
     : [];
   const modulesList = projectModules.map((m) => m.name);
   const submodulesList = formData.module
-    ? projectModules.find((m) => m.name === formData.module)?.submodules || []
+    ? projectModules
+        .find((m) => m.name === formData.module)
+        ?.submodules.map((s: any) => s.name) || []
     : [];
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
@@ -291,10 +187,13 @@ const QuickAddDefect: React.FC = () => {
                 value={formData.subModule}
                 onChange={(e) => handleInputChange("subModule", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
                 disabled={!formData.module}
               >
-                <option value="">Select a submodule</option>
+                <option value="">
+                  {submodulesList.length === 0
+                    ? "No submodules"
+                    : "Select a submodule (optional)"}
+                </option>
                 {submodulesList.map((submodule: string) => (
                   <option key={submodule} value={submodule}>
                     {submodule}

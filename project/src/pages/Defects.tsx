@@ -17,6 +17,10 @@ import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { ModuleSelector } from "../components/ui/ModuleSelector";
+import { SubmoduleSelector } from "../components/ui/SubmoduleSelector";
+import { mockModules } from "../context/mockData";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,6 +34,7 @@ export const Defects: React.FC = () => {
     updateDefect,
     deleteDefect,
     setSelectedProjectId,
+    modulesByProject,
   } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -251,128 +256,37 @@ export const Defects: React.FC = () => {
     }
   };
 
-  // Use the same mockModules structure as in TestCase.tsx
-  interface Module {
-    id: string;
-    name: string;
-    submodules: string[];
-  }
-  // Project-specific modules and submodules
-  const mockModules: { [key: string]: Module[] } = {
-    "2": [
-      // Mobile Banking App
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: [
-          "Biometric Login",
-          "PIN Login",
-          "Password Reset",
-          "Session Management",
-        ],
-      },
-      {
-        id: "acc",
-        name: "Account Management",
-        submodules: [
-          "Account Overview",
-          "Transaction History",
-          "Account Statements",
-          "Account Settings",
-        ],
-      },
-      {
-        id: "tra",
-        name: "Money Transfer",
-        submodules: [
-          "Quick Transfer",
-          "Scheduled Transfer",
-          "International Transfer",
-          "Transfer Limits",
-        ],
-      },
-      {
-        id: "bil",
-        name: "Bill Payments",
-        submodules: [
-          "Bill List",
-          "Payment Scheduling",
-          "Payment History",
-          "Recurring Payments",
-        ],
-      },
-      {
-        id: "sec",
-        name: "Security Features",
-        submodules: [
-          "Two-Factor Auth",
-          "Device Management",
-          "Security Alerts",
-          "Fraud Protection",
-        ],
-      },
-      {
-        id: "sup",
-        name: "Customer Support",
-        submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-      },
-    ],
-    "3": [
-      // Analytics Dashboard
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "reporting",
-        name: "Reporting",
-        submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-      },
-      {
-        id: "data",
-        name: "Data Management",
-        submodules: ["Data Import", "Data Processing", "Data Export"],
-      },
-      {
-        id: "visualization",
-        name: "Visualization",
-        submodules: ["Charts", "Graphs", "Widgets"],
-      },
-    ],
-    "4": [
-      // Content Management
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "content",
-        name: "Content Management",
-        submodules: ["Articles", "Media", "Categories", "Templates"],
-      },
-      {
-        id: "user",
-        name: "User Management",
-        submodules: ["Profile", "Settings", "Permissions", "Roles"],
-      },
-      {
-        id: "workflow",
-        name: "Workflow",
-        submodules: ["Approval Process", "Review Process", "Publishing"],
-      },
-    ],
-  };
-
-  // Get modules and submodules for the current project
+  // Use centralized mockModules for module and submodule selection
   const modulesList =
-    projectId && mockModules[projectId]
-      ? mockModules[projectId].map((m) => m.name)
+    projectId &&
+    (
+      mockModules as Record<
+        string,
+        { id: string; name: string; submodules: string[] }[]
+      >
+    )[projectId]
+      ? (
+          mockModules as Record<
+            string,
+            { id: string; name: string; submodules: string[] }[]
+          >
+        )[projectId].map((m: { name: string }) => m.name)
       : [];
   const submodulesList =
-    formData.module && projectId && mockModules[projectId]
-      ? mockModules[projectId].find((m) => m.name === formData.module)
+    formData.module &&
+    projectId &&
+    (
+      mockModules as Record<
+        string,
+        { id: string; name: string; submodules: string[] }[]
+      >
+    )[projectId]
+      ? (
+          mockModules as Record<
+            string,
+            { id: string; name: string; submodules: string[] }[]
+          >
+        )[projectId].find((m: { name: string }) => m.name === formData.module)
           ?.submodules || []
       : [];
 
@@ -449,53 +363,11 @@ export const Defects: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Project Selection
-          </h2>
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft -= 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                maxWidth: "100%",
-              }}
-            >
-              {projects.map((project) => (
-                <Button
-                  key={project.id}
-                  variant={projectId === project.id ? "primary" : "secondary"}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap m-2"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft += 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={projectId || null}
+        onSelect={handleProjectSelect}
+      />
 
       {/* Add Defect Button */}
       <div className="flex justify-between items-center m-4">
@@ -877,41 +749,22 @@ export const Defects: React.FC = () => {
           {/* Modules and Submodules */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Modules
-              </label>
-              <select
-                value={formData.module}
-                onChange={(e) => handleInputChange("module", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select a module</option>
-                {modulesList.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module}
-                  </option>
-                ))}
-              </select>
+              <ModuleSelector
+                modules={(modulesByProject[projectId] || []).map(
+                  ({ id, name }) => ({ id, name })
+                )}
+                selectedModuleId={formData.module}
+                onSelect={(id) => handleInputChange("module", id)}
+                label="Modules"
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Submodules
-              </label>
-              <select
-                value={formData.subModule}
-                onChange={(e) => handleInputChange("subModule", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!formData.module}
-              >
-                <option value="">Select a submodule</option>
-                {submodulesList.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
-                  </option>
-                ))}
-              </select>
+              <SubmoduleSelector
+                submodules={submodulesList}
+                selectedSubmodule={formData.subModule}
+                onSelect={(name) => handleInputChange("subModule", name)}
+                label="Submodules"
+              />
             </div>
           </div>
           {/* Severity, Priority, Type, Status */}

@@ -44,6 +44,23 @@ export interface Project {
   createdAt: string;
 }
 
+interface Submodule {
+  id: string;
+  name: string;
+  assignedDevs: string[];
+}
+
+interface Module {
+  id: string;
+  name: string;
+  submodules: Submodule[];
+  assignedDevs: string[];
+}
+
+interface ModulesByProject {
+  [projectId: string]: Module[];
+}
+
 interface AppContextType {
   employees: Employee[];
   projects: Project[];
@@ -81,13 +98,38 @@ interface AppContextType {
   ) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
-  addStatusType: (statusType: Omit<StatusType, 'id'>) => void;
+  addStatusType: (statusType: Omit<StatusType, "id">) => void;
   updateStatusType: (id: string, statusType: Partial<StatusType>) => void;
   deleteStatusType: (id: string) => void;
   testCaseDefectMap: { [testCaseId: string]: string };
   setTestCaseDefectMap: React.Dispatch<
     React.SetStateAction<{ [testCaseId: string]: string }>
   >;
+  modulesByProject: ModulesByProject;
+  setModulesByProject: React.Dispatch<React.SetStateAction<ModulesByProject>>;
+  addModule: (projectId: string, module: Module) => void;
+  updateModule: (
+    projectId: string,
+    moduleId: string,
+    updated: Partial<Module>
+  ) => void;
+  deleteModule: (projectId: string, moduleId: string) => void;
+  addSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submodule: string
+  ) => void;
+  updateSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number,
+    newName: string
+  ) => void;
+  deleteSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -701,14 +743,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
   const [statusTypes, setStatusTypes] = useState<StatusType[]>([
-    { id: '1', name: 'NEW', color: '#2a3eb1' },
-    { id: '2', name: 'OPEN', color: '#9c27b0' },
-    { id: '3', name: 'REJECT', color: '#10B981' },
-    { id: '4', name: 'FIXED', color: '	#F59E0B' },
-    { id: '5', name: 'CLOSED', color: '#EF4444' },
-    { id: '6', name: 'REOPEN', color: '#06B6D4' },
-    { id: '7', name: 'DUPLICATE', color: '#618833' },
-    { id: '8', name: 'HOLD', color: '#ffeb3b' },
+    { id: "1", name: "NEW", color: "#2a3eb1" },
+    { id: "2", name: "OPEN", color: "#9c27b0" },
+    { id: "3", name: "REJECT", color: "#10B981" },
+    { id: "4", name: "FIXED", color: "	#F59E0B" },
+    { id: "5", name: "CLOSED", color: "#EF4444" },
+    { id: "6", name: "REOPEN", color: "#06B6D4" },
+    { id: "7", name: "DUPLICATE", color: "#618833" },
+    { id: "8", name: "HOLD", color: "#ffeb3b" },
   ]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
@@ -716,6 +758,259 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [testCaseDefectMap, setTestCaseDefectMap] = useState<{
     [testCaseId: string]: string;
   }>({});
+
+  // Initial modulesByProject (full object shape)
+  const [modulesByProject, setModulesByProject] = useState<ModulesByProject>({
+    "2": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-bio", name: "Biometric Login", assignedDevs: [] },
+          { id: "auth-pin", name: "PIN Login", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+          { id: "auth-session", name: "Session Management", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "acc",
+        name: "Account Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "acc-overview", name: "Account Overview", assignedDevs: [] },
+          { id: "acc-history", name: "Transaction History", assignedDevs: [] },
+          {
+            id: "acc-statements",
+            name: "Account Statements",
+            assignedDevs: [],
+          },
+          { id: "acc-settings", name: "Account Settings", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "tra",
+        name: "Money Transfer",
+        assignedDevs: [],
+        submodules: [
+          { id: "tra-quick", name: "Quick Transfer", assignedDevs: [] },
+          { id: "tra-sched", name: "Scheduled Transfer", assignedDevs: [] },
+          { id: "tra-intl", name: "International Transfer", assignedDevs: [] },
+          { id: "tra-limits", name: "Transfer Limits", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "bil",
+        name: "Bill Payments",
+        assignedDevs: [],
+        submodules: [
+          { id: "bil-list", name: "Bill List", assignedDevs: [] },
+          { id: "bil-sched", name: "Payment Scheduling", assignedDevs: [] },
+          { id: "bil-history", name: "Payment History", assignedDevs: [] },
+          { id: "bil-recurring", name: "Recurring Payments", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "sec",
+        name: "Security Features",
+        assignedDevs: [],
+        submodules: [
+          { id: "sec-2fa", name: "Two-Factor Auth", assignedDevs: [] },
+          { id: "sec-device", name: "Device Management", assignedDevs: [] },
+          { id: "sec-alerts", name: "Security Alerts", assignedDevs: [] },
+          { id: "sec-fraud", name: "Fraud Protection", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "sup",
+        name: "Customer Support",
+        assignedDevs: [],
+        submodules: [
+          { id: "sup-chat", name: "Chat Support", assignedDevs: [] },
+          { id: "sup-faqs", name: "FAQs", assignedDevs: [] },
+          { id: "sup-contact", name: "Contact Us", assignedDevs: [] },
+          { id: "sup-feedback", name: "Feedback", assignedDevs: [] },
+        ],
+      },
+    ],
+    "3": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-login", name: "Login", assignedDevs: [] },
+          { id: "auth-reg", name: "Registration", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "reporting",
+        name: "Reporting",
+        assignedDevs: [],
+        submodules: [
+          { id: "reporting-analytics", name: "Analytics", assignedDevs: [] },
+          { id: "reporting-exports", name: "Exports", assignedDevs: [] },
+          { id: "reporting-dash", name: "Dashboards", assignedDevs: [] },
+          { id: "reporting-custom", name: "Custom Reports", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "data",
+        name: "Data Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "data-import", name: "Data Import", assignedDevs: [] },
+          { id: "data-processing", name: "Data Processing", assignedDevs: [] },
+          { id: "data-export", name: "Data Export", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "visualization",
+        name: "Visualization",
+        assignedDevs: [],
+        submodules: [
+          { id: "viz-charts", name: "Charts", assignedDevs: [] },
+          { id: "viz-graphs", name: "Graphs", assignedDevs: [] },
+          { id: "viz-widgets", name: "Widgets", assignedDevs: [] },
+        ],
+      },
+    ],
+    "4": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-login", name: "Login", assignedDevs: [] },
+          { id: "auth-reg", name: "Registration", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "content",
+        name: "Content Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "content-articles", name: "Articles", assignedDevs: [] },
+          { id: "content-media", name: "Media", assignedDevs: [] },
+          { id: "content-categories", name: "Categories", assignedDevs: [] },
+          { id: "content-templates", name: "Templates", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "user",
+        name: "User Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "user-profile", name: "Profile", assignedDevs: [] },
+          { id: "user-settings", name: "Settings", assignedDevs: [] },
+          { id: "user-permissions", name: "Permissions", assignedDevs: [] },
+          { id: "user-roles", name: "Roles", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "workflow",
+        name: "Workflow",
+        assignedDevs: [],
+        submodules: [
+          {
+            id: "workflow-approval",
+            name: "Approval Process",
+            assignedDevs: [],
+          },
+          { id: "workflow-review", name: "Review Process", assignedDevs: [] },
+          { id: "workflow-publish", name: "Publishing", assignedDevs: [] },
+        ],
+      },
+    ],
+  });
+
+  // Module management functions (now use full object shape)
+  const addModule = (projectId: string, module: Module) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]: prev[projectId] ? [...prev[projectId], module] : [module],
+    }));
+  };
+
+  const updateModule = (
+    projectId: string,
+    moduleId: string,
+    updated: Partial<Module>
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId ? { ...m, ...updated } : m
+        ) || [],
+    }));
+  };
+
+  const deleteModule = (projectId: string, moduleId: string) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]: prev[projectId]?.filter((m) => m.id !== moduleId) || [],
+    }));
+  };
+
+  const addSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submodule: string
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? { ...m, submodules: [...m.submodules, submodule] }
+            : m
+        ) || [],
+    }));
+  };
+
+  const updateSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number,
+    newName: string
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? {
+                ...m,
+                submodules: m.submodules.map((s, i) =>
+                  i === submoduleIdx ? newName : s
+                ),
+              }
+            : m
+        ) || [],
+    }));
+  };
+
+  const deleteSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? {
+                ...m,
+                submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+              }
+            : m
+        ) || [],
+    }));
+  };
 
   const addEmployee = (
     employeeData: Omit<Employee, "id" | "createdAt" | "updatedAt">
@@ -744,7 +1039,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addProject = (project: Project) => {
-    setProjects((prev) => [...prev, project]);
+    setProjects((prev) => [project, ...prev]);
   };
 
   const updateProject = (project: Project) => {
@@ -783,6 +1078,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addRelease = (release: Release) => {
     // Implementation for adding release
+    setReleases((prev) => [...prev, release]);
   };
 
   const updateRelease = (release: Release) => {
@@ -817,7 +1113,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransitions(newTransitions);
   };
 
-  const addStatusType = (statusTypeData: Omit<StatusType, 'id'>) => {
+  const addStatusType = (statusTypeData: Omit<StatusType, "id">) => {
     const newStatusType: StatusType = {
       ...statusTypeData,
       id: Date.now().toString(),
@@ -825,7 +1121,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setStatusTypes((prev) => [...prev, newStatusType]);
   };
 
-  const updateStatusType = (id: string, statusTypeData: Partial<StatusType>) => {
+  const updateStatusType = (
+    id: string,
+    statusTypeData: Partial<StatusType>
+  ) => {
     setStatusTypes((prev) =>
       prev.map((status) =>
         status.id === id ? { ...status, ...statusTypeData } : status
@@ -877,6 +1176,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteStatusType,
         testCaseDefectMap,
         setTestCaseDefectMap,
+        modulesByProject,
+        setModulesByProject,
+        addModule,
+        updateModule,
+        deleteModule,
+        addSubmodule,
+        updateSubmodule,
+        deleteSubmodule,
       }}
     >
       {children}

@@ -4,15 +4,11 @@ import {
   Edit2,
   Trash2,
   Eye,
-  CheckSquare,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
-  Upload,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
@@ -21,121 +17,8 @@ import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
-
-// Define interfaces for our data types
-interface Module {
-  id: string;
-  name: string;
-  submodules: string[];
-}
-
-// Mock data for modules and submodules
-export const mockModules: { [key: string]: Module[] } = {
-  "2": [
-    // Mobile Banking App
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
-      ],
-    },
-    {
-      id: "acc",
-      name: "Account Management",
-      submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
-      ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-    },
-  ],
-  "3": [
-    // Analytics Dashboard
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "reporting",
-      name: "Reporting",
-      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-    },
-    {
-      id: "data",
-      name: "Data Management",
-      submodules: ["Data Import", "Data Processing", "Data Export"],
-    },
-    {
-      id: "visualization",
-      name: "Visualization",
-      submodules: ["Charts", "Graphs", "Widgets"],
-    },
-  ],
-  "4": [
-    // Content Management
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "content",
-      name: "Content Management",
-      submodules: ["Articles", "Media", "Categories", "Templates"],
-    },
-    {
-      id: "user",
-      name: "User Management",
-      submodules: ["Profile", "Settings", "Permissions", "Roles"],
-    },
-    {
-      id: "workflow",
-      name: "Workflow",
-      submodules: ["Approval Process", "Review Process", "Publishing"],
-    },
-  ],
-};
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import ModuleSelector from "../components/ui/ModuleSelector";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -146,8 +29,8 @@ export const TestCase: React.FC = () => {
     addTestCase,
     updateTestCase,
     deleteTestCase,
-    releases,
     setSelectedProjectId,
+    modulesByProject,
   } = useApp();
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
@@ -168,7 +51,20 @@ export const TestCase: React.FC = () => {
   const [filterSeverity, setFilterSeverity] = useState("");
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
-  const [modals, setModals] = useState([
+  interface ModalFormData {
+    module: string;
+    subModule: string;
+    description: string;
+    steps: string;
+    type: string;
+    severity: string;
+    projectId: string | undefined;
+    id?: string;
+  }
+  const [modals, setModals] = useState<{
+    open: boolean;
+    formData: ModalFormData;
+  }[]>([
     {
       open: false,
       formData: {
@@ -200,8 +96,8 @@ export const TestCase: React.FC = () => {
     );
   }
 
-  // Get modules for selected project
-  const projectModules = projectId ? mockModules[projectId] || [] : [];
+  // Get modules for selected project from context
+  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -271,9 +167,7 @@ export const TestCase: React.FC = () => {
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSelectedModule("");
-    setSelectedSubmodule("");
-    setSelectedTestCases([]);
+    navigate(`/projects/${projectId}/test-cases`);
   };
 
   // Handle module selection
@@ -372,11 +266,21 @@ export const TestCase: React.FC = () => {
   const handleSubmitAll = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module.substring(0, 3).toUpperCase()}-${formData.subModule.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: projectId,
-      });
+      if (formData.id) {
+        // Edit mode
+        updateTestCase({ ...formData });
+      } else {
+        // Add mode
+        addTestCase({
+          ...formData,
+          id: `TC-${formData.module
+            .substring(0, 3)
+            .toUpperCase()}-${formData.subModule
+            .substring(0, 3)
+            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+          projectId: projectId,
+        });
+      }
     });
     setSuccess(true);
     setTimeout(() => {
@@ -474,56 +378,11 @@ export const TestCase: React.FC = () => {
         </div>
 
         {/* Project Selection Panel */}
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
-              Project Selection
-            </h2>
-            <div className="relative flex items-center">
-              <button
-                onClick={() => {
-                  const container = document.getElementById("project-scroll");
-                  if (container) container.scrollLeft -= 200;
-                }}
-                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div
-                id="project-scroll"
-                className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                style={{
-                  scrollbarWidth: "none",
-                  msOverflowStyle: "none",
-                  maxWidth: "100%",
-                }}
-              >
-                {projects.map((project) => (
-                  <Button
-                    key={project.id}
-                    variant={projectId === project.id ? "primary" : "secondary"}
-                    onClick={() => {
-                      setSelectedProjectId(project.id);
-                      navigate(`/projects/${project.id}/test-cases`);
-                    }}
-                    className="whitespace-nowrap m-2"
-                  >
-                    {project.name}
-                  </Button>
-                ))}
-              </div>
-              <button
-                onClick={() => {
-                  const container = document.getElementById("project-scroll");
-                  if (container) container.scrollLeft += 200;
-                }}
-                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-              >
-                <ChevronRight className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <ProjectSelector
+          projects={projects}
+          selectedProjectId={projectId || null}
+          onSelect={handleProjectSelect}
+        />
       </div>
 
       {/* Content Area - Now scrollable at page level */}
@@ -531,67 +390,20 @@ export const TestCase: React.FC = () => {
         <div className="flex flex-col">
           {/* Module Selection Panel */}
           {projectId && (
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Module Selection
-                  </h2>
-                </div>
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("module-scroll");
-                      if (container) container.scrollLeft -= 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <div
-                    id="module-scroll"
-                    className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                  >
-                    {projectModules.map((module) => {
-                      const moduleTestCases = testCases.filter(
-                        (tc: TestCaseType) =>
-                          tc.projectId === projectId &&
-                          tc.module === module.name
-                      );
-                      return (
-                        <Button
-                          key={module.id}
-                          variant={
-                            selectedModule === module.name
-                              ? "primary"
-                              : "secondary"
-                          }
-                          onClick={() => handleModuleSelect(module.name)}
-                          className="whitespace-nowrap m-2"
-                        >
-                          {module.name}
-                          <Badge variant="info" className="ml-2">
-                            {moduleTestCases.length}
-                          </Badge>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("module-scroll");
-                      if (container) container.scrollLeft += 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+            <ModuleSelector
+              modules={projectModules}
+              selectedModuleId={
+                projectModules.find((m) => m.name === selectedModule)?.id ||
+                null
+              }
+              onSelect={(id) => {
+                const mod = projectModules.find((m) => m.id === id);
+                setSelectedModule(mod ? mod.name : "");
+                setSelectedSubmodule("");
+                setSelectedTestCases([]);
+              }}
+              className="mb-4"
+            />
           )}
 
           {/* Submodule Selection Panel */}
@@ -630,21 +442,21 @@ export const TestCase: React.FC = () => {
                           (tc: TestCaseType) =>
                             tc.projectId === projectId &&
                             tc.module === selectedModule &&
-                            tc.subModule === submodule
+                            tc.subModule === submodule.name
                         );
                         return (
-                          <div key={submodule} className="flex items-center">
+                          <div key={submodule.id} className="flex items-center">
                             <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
                               <Button
                                 variant={
-                                  selectedSubmodule === submodule
+                                  selectedSubmodule === submodule.name
                                     ? "primary"
                                     : "secondary"
                                 }
-                                onClick={() => handleSubmoduleSelect(submodule)}
+                                onClick={() => handleSubmoduleSelect(submodule.name)}
                                 className="whitespace-nowrap border-0 m-2"
                               >
-                                {submodule}
+                                {submodule.name}
                                 <Badge variant="info" className="ml-2">
                                   {submoduleTestCases.length}
                                 </Badge>
@@ -653,22 +465,25 @@ export const TestCase: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setModals((prev) => [
-                                    ...prev,
-                                    {
-                                      open: true,
-                                      formData: {
-                                        module: selectedModule,
-                                        subModule: submodule,
-                                        description: "",
-                                        steps: "",
-                                        type: "functional",
-                                        severity: "medium",
-                                        projectId: projectId,
+                                  setModals((prev) => {
+                                    const newModals = [
+                                      ...prev,
+                                      {
+                                        open: true,
+                                        formData: {
+                                          module: selectedModule,
+                                          subModule: submodule.name,
+                                          description: "",
+                                          steps: "",
+                                          type: "functional",
+                                          severity: "medium",
+                                          projectId: projectId,
+                                        },
                                       },
-                                    },
-                                  ]);
-                                  setCurrentModalIdx(modals.length);
+                                    ];
+                                    setCurrentModalIdx(newModals.length - 1);
+                                    return newModals;
+                                  });
                                 }}
                                 className="p-1 border-0 hover:bg-gray-50"
                               >
@@ -840,7 +655,9 @@ export const TestCase: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || "")}`}
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                                testCase.severity || ""
+                              )}`}
                             >
                               {testCase.severity}
                             </span>
@@ -853,6 +670,31 @@ export const TestCase: React.FC = () => {
                                 title="View"
                               >
                                 <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setModals([
+                                    {
+                                      open: true,
+                                      formData: {
+                                        module: testCase.module || "",
+                                        subModule: testCase.subModule || "",
+                                        description: testCase.description || "",
+                                        steps: testCase.steps || "",
+                                        type: testCase.type || "functional",
+                                        severity: testCase.severity || "medium",
+                                        projectId: testCase.projectId,
+                                        id: testCase.id,
+                                      },
+                                    },
+                                  ]);
+                                  setCurrentModalIdx(0);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => deleteTestCase(testCase.id)}
@@ -875,209 +717,289 @@ export const TestCase: React.FC = () => {
       </div>
 
       {/* Add/Edit Test Case Modal */}
-      {
-        modals[currentModalIdx]?.open && (
-          (() => {
-            const idx = currentModalIdx;
-            const modal = modals[idx];
-            return (
-              <Modal
-                isOpen={modal.open}
-                onClose={() => {
-                  if (modals.length === 1) {
-                    setModals([{ ...modals[0], open: false }]);
-                    setCurrentModalIdx(0);
-                    setIsModalOpen(false);
-                  } else {
-                    handleRemove(idx);
-                  }
+      {modals[currentModalIdx]?.open &&
+        (() => {
+          const idx = currentModalIdx;
+          const modal = modals[idx];
+          return (
+            <Modal
+              isOpen={modal.open}
+              onClose={() => {
+                if (modals.length === 1) {
+                  setModals([{ ...modals[0], open: false }]);
+                  setCurrentModalIdx(0);
+                  setIsModalOpen(false);
+                } else {
+                  handleRemove(idx);
+                }
+              }}
+              title={"Create New Test Case"}
+              size="xl"
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmitAll();
                 }}
-                title={"Create New Test Case"}
-                size="xl"
+                className="space-y-4"
               >
-                <form onSubmit={e => { e.preventDefault(); handleSubmitAll(); }} className="space-y-4">
-                  <div className="flex items-center mb-2">
-                    <button
-                      type="button"
-                      className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = ".xlsx,.csv";
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              const data = evt.target?.result;
-                              if (data) {
-                                const workbook = XLSX.read(data, { type: "binary" });
-                                const sheetName = workbook.SheetNames[0];
-                                const worksheet = workbook.Sheets[sheetName];
-                                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                                const rows = json
-                                  .slice(1)
-                                  .map((row: any[]) => ({
-                                    module: row[0] || "",
-                                    subModule: row[1] || "",
-                                    description: row[2] || "",
-                                    steps: row[3] || "",
-                                    type: row[4] || "functional",
-                                    severity: row[5] || "medium",
-                                    projectId: projectId,
+                <div className="flex items-center mb-2">
+                  <button
+                    type="button"
+                    className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                    onClick={() => {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = ".xlsx,.csv";
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            const data = evt.target?.result;
+                            if (data) {
+                              const workbook = XLSX.read(data, {
+                                type: "binary",
+                              });
+                              const sheetName = workbook.SheetNames[0];
+                              const worksheet = workbook.Sheets[sheetName];
+                              const json: any[] = XLSX.utils.sheet_to_json(
+                                worksheet,
+                                { header: 1 }
+                              );
+                              const rows = json
+                                .slice(1)
+                                .map((row: any[]) => ({
+                                  module: row[0] || "",
+                                  subModule: row[1] || "",
+                                  description: row[2] || "",
+                                  steps: row[3] || "",
+                                  type: row[4] || "functional",
+                                  severity: row[5] || "medium",
+                                  projectId: projectId,
+                                }))
+                                .filter(
+                                  (row) =>
+                                    row.module &&
+                                    row.subModule &&
+                                    row.description &&
+                                    row.steps
+                                );
+                              if (rows.length > 0) {
+                                setModals(
+                                  rows.map((row) => ({
+                                    open: true,
+                                    formData: row,
                                   }))
-                                  .filter(
-                                    (row) => row.module && row.subModule && row.description && row.steps
-                                  );
-                                if (rows.length > 0) {
-                                  setModals(rows.map((row) => ({ open: true, formData: row })));
-                                  setCurrentModalIdx(0);
-                                }
+                                );
+                                setCurrentModalIdx(0);
                               }
-                            };
-                            reader.readAsBinaryString(file);
-                          }
-                        };
-                        input.click();
-                      }}
+                            }
+                          };
+                          reader.readAsBinaryString(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
-                      Import from Excel/CSV
-                    </button>
-                    <Button type="button" onClick={handleAddAnother} className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">
-                      + Add Another Test Case
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                      />
+                    </svg>
+                    Import from Excel/CSV
+                  </button>
+                  <Button
+                    type="button"
+                    onClick={handleAddAnother}
+                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                  >
+                    + Add Another Test Case
+                  </Button>
+                </div>
+                <div className="border rounded-lg p-4 mb-2 relative">
+                  {modals.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleRemove(idx)}
+                      className="absolute top-2 right-2 px-2 py-1"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Module
+                      </label>
+                      <select
+                        value={modal.formData.module}
+                        onChange={(e) =>
+                          handleInputChange(idx, "module", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="">Select Module</option>
+                        {(modulesByProject[projectId] || []).map((module) => (
+                          <option key={module.id} value={module.name}>
+                            {module.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sub Module
+                      </label>
+                      <select
+                        value={modal.formData.subModule}
+                        onChange={(e) =>
+                          handleInputChange(idx, "subModule", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        // Remove required, allow empty
+                        disabled={!modal.formData.module}
+                      >
+                        <option value="">
+                          {(
+                            modulesByProject[projectId]?.find(
+                              (m) => m.name === modal.formData.module
+                            )?.submodules || []
+                          ).length === 0
+                            ? "No submodules"
+                            : "Select Sub Module (optional)"}
+                        </option>
+                        {(
+                          modulesByProject[projectId]?.find(
+                            (m) => m.name === modal.formData.module
+                          )?.submodules || []
+                        ).map((submodule) => (
+                          <option key={submodule.id} value={submodule.name}>
+                            {submodule.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Type
+                      </label>
+                      <select
+                        value={modal.formData.type}
+                        onChange={(e) =>
+                          handleInputChange(idx, "type", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="functional">Functional</option>
+                        <option value="regression">Regression</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="integration">Integration</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Severity
+                      </label>
+                      <select
+                        value={modal.formData.severity}
+                        onChange={(e) =>
+                          handleInputChange(idx, "severity", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={modal.formData.description}
+                      onChange={(e) =>
+                        handleInputChange(idx, "description", e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={1}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Test Steps
+                    </label>
+                    <textarea
+                      value={modal.formData.steps}
+                      onChange={(e) =>
+                        handleInputChange(idx, "steps", e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx - 1)}
+                      disabled={idx === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx + 1)}
+                      disabled={idx === modals.length - 1}
+                    >
+                      Next
                     </Button>
                   </div>
-                  <div className="border rounded-lg p-4 mb-2 relative">
-                    {modals.length > 1 && (
-                      <Button type="button" variant="secondary" onClick={() => handleRemove(idx)} className="absolute top-2 right-2 px-2 py-1">Remove</Button>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
-                        <select
-                          value={modal.formData.module}
-                          onChange={e => handleInputChange(idx, 'module', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          <option value="">Select Module</option>
-                          {projectModules.map((module) => (
-                            <option key={module.id} value={module.name}>{module.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
-                        <select
-                          value={modal.formData.subModule}
-                          onChange={e => handleInputChange(idx, 'subModule', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                          disabled={!modal.formData.module}
-                        >
-                          <option value="">Select Sub Module</option>
-                          {(projectModules.find((m) => m.name === modal.formData.module)?.submodules || []).map((submodule) => (
-                            <option key={submodule} value={submodule}>{submodule}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                        <select
-                          value={modal.formData.type}
-                          onChange={e => handleInputChange(idx, 'type', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          <option value="functional">Functional</option>
-                          <option value="regression">Regression</option>
-                          <option value="smoke">Smoke</option>
-                          <option value="integration">Integration</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
-                        <select
-                          value={modal.formData.severity}
-                          onChange={e => handleInputChange(idx, 'severity', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="critical">Critical</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={modal.formData.description}
-                        onChange={e => handleInputChange(idx, 'description', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows={1}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Test Steps</label>
-                      <textarea
-                        value={modal.formData.steps}
-                        onChange={e => handleInputChange(idx, 'steps', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        rows={4}
-                        required
-                      />
-                    </div>
+                  <div className="flex space-x-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (modals.length === 1) {
+                          setModals([{ ...modals[0], open: false }]);
+                          setCurrentModalIdx(0);
+                          setIsModalOpen(false);
+                        } else {
+                          handleRemove(idx);
+                        }
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={success}>
+                      {success ? "Added!" : "Create Test Case"}
+                    </Button>
                   </div>
-                  <div className="flex justify-between items-center pt-4">
-                    <div className="flex space-x-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCurrentModalIdx(idx - 1)}
-                        disabled={idx === 0}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCurrentModalIdx(idx + 1)}
-                        disabled={idx === modals.length - 1}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                    <div className="flex space-x-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          if (modals.length === 1) {
-                            setModals([{ ...modals[0], open: false }]);
-                            setCurrentModalIdx(0);
-                            setIsModalOpen(false);
-                          } else {
-                            handleRemove(idx);
-                          }
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={success}>
-                        {success ? "Added!" : "Create Test Case"}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </Modal>
-            );
-          })()
-        )
-      }
+                </div>
+              </form>
+            </Modal>
+          );
+        })()}
 
       {/* View Steps Modal */}
       <Modal
@@ -1145,7 +1067,9 @@ export const TestCase: React.FC = () => {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Severity</h3>
                 <span
-                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(viewingTestCase.severity || "")}`}
+                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                    viewingTestCase.severity || ""
+                  )}`}
                 >
                   {viewingTestCase.severity}
                 </span>
@@ -1217,6 +1141,6 @@ export const TestCase: React.FC = () => {
         <QuickAddTestCase />
         <QuickAddDefect />
       </div>
-    </div >
+    </div>
   );
 };

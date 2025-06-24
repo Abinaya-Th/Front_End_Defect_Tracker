@@ -15,6 +15,7 @@ import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
@@ -24,12 +25,18 @@ const TABS = [
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, releases, employees, testCases, setSelectedProjectId } =
-    useApp();
+  const {
+    projects,
+    releases,
+    employees,
+    testCases,
+    setSelectedProjectId,
+    modulesByProject,
+  } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState("");
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -44,69 +51,13 @@ export const Allocation: React.FC = () => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
 
-  // Mock modules and submodules (should be replaced with real data)
-  const mockModules = [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
-      ],
-    },
-    {
-      id: "acc",
-      name: "Account Management",
-      submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
-      ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-    },
-  ];
-
   // Filter releases for this project
   const projectReleases = releases.filter((r) => r.projectId === projectId);
   // Filter test cases for this project
   const projectTestCases = testCases.filter((tc) => tc.projectId === projectId);
+
+  // Get modules for selected project from context
+  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -123,8 +74,7 @@ export const Allocation: React.FC = () => {
             .filter((tc) => selectedModules.includes(tc.module))
             .map((tc) => tc.id),
         ];
-      }
-      else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+      } else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
         ids = [
           ...ids,
           ...projectTestCases
@@ -134,7 +84,12 @@ export const Allocation: React.FC = () => {
       }
       setSelectedTestCases(Array.from(new Set(ids)));
     }
-  }, [ bulkModuleSelect, bulkSubmoduleSelect, selectedModules, selectedSubmodules]);
+  }, [
+    bulkModuleSelect,
+    bulkSubmoduleSelect,
+    selectedModules,
+    selectedSubmodules,
+  ]);
 
   // --- Filtered test cases for table ---
   let filteredTestCases = projectTestCases;
@@ -163,62 +118,23 @@ export const Allocation: React.FC = () => {
     );
   }
 
+  // Project selection handler
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    setSelectedModule("");
+    setSelectedSubmodule("");
+    setSelectedTestCases([]);
+  };
+
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Project Selection
-        </h2>
-        <div className="relative flex items-center">
-          <button
-            onClick={() => {
-              const container = document.getElementById("project-scroll");
-              if (container) container.scrollLeft -= 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div
-            id="project-scroll"
-            className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              maxWidth: "100%",
-            }}
-          >
-            {projects.map((project) => (
-              <Button
-                key={project.id}
-                variant={projectId === project.id ? "primary" : "secondary"}
-                onClick={() => {
-                  setSelectedProjectId(project.id);
-                  setSelectedModule("");
-                  setSelectedSubmodule("");
-                  setSelectedTestCases([]);
-                }}
-                className="whitespace-nowrap m-2"
-              >
-                {project.name}
-              </Button>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              const container = document.getElementById("project-scroll");
-              if (container) container.scrollLeft += 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+    <ProjectSelector
+      projects={projects}
+      selectedProjectId={projectId || null}
+      onSelect={handleProjectSelect}
+      className="mb-4"
+    />
   );
-console.log("selectedTestCases", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
@@ -266,7 +182,9 @@ console.log("selectedTestCases", selectedTestCases);
           <Button
             variant="primary"
             disabled={selectedTestCases.length === 0}
-            onClick={() => {console.log('Allocate button clicked');}}
+            onClick={() => {
+              console.log("Allocate button clicked");
+            }}
           >
             Allocate
           </Button>
@@ -310,7 +228,7 @@ console.log("selectedTestCases", selectedTestCases);
             className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {mockModules.map((module) => {
+            {projectModules.map((module) => {
               const moduleTestCases = testCases.filter(
                 (tc: any) =>
                   tc.projectId === projectId && tc.module === module.name
@@ -340,9 +258,6 @@ console.log("selectedTestCases", selectedTestCases);
                   }`}
                 >
                   {module.name}
-                  <Badge variant="info" className="ml-2">
-                    {moduleTestCases.length}
-                  </Badge>
                 </Button>
               );
             })}
@@ -363,7 +278,10 @@ console.log("selectedTestCases", selectedTestCases);
 
   const SubmoduleSelectionPanel = () => {
     const submodules =
-      mockModules.find((m) => m.name === selectedModule)?.submodules || [];
+      projectId && selectedModule
+        ? projectModules.find((m) => m.name === selectedModule)?.submodules ||
+          []
+        : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
@@ -404,38 +322,30 @@ console.log("selectedTestCases", selectedTestCases);
               }}
             >
               {submodules.map((submodule) => {
-                const submoduleTestCases = testCases.filter(
-                  (tc: any) =>
-                    tc.projectId === projectId &&
-                    tc.module === selectedModule &&
-                    tc.subModule === submodule
-                );
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule)
-                  : selectedSubmodule === submodule;
+                  ? selectedSubmodules.includes(submodule.name)
+                  : selectedSubmodule === submodule.name;
                 return (
                   <Button
-                    key={submodule}
+                    key={submodule.id}
                     variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule)
-                            ? prev.filter((s) => s !== submodule)
-                            : [...prev, submodule]
+                          prev.includes(submodule.name)
+                            ? prev.filter((s) => s !== submodule.name)
+                            : [...prev, submodule.name]
                         );
                       } else {
-                        setSelectedSubmodule(submodule);
+                        setSelectedSubmodule(submodule.name);
+                        setSelectedTestCases([]);
                       }
                     }}
                     className={`whitespace-nowrap m-2 ${
                       isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
                     }`}
                   >
-                    {submodule}
-                    <Badge variant="info" className="ml-2">
-                      {submoduleTestCases.length}
-                    </Badge>
+                    {submodule.name}
                   </Button>
                 );
               })}
