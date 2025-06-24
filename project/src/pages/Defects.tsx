@@ -21,6 +21,25 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { ModuleSelector } from "../components/ui/ModuleSelector";
 import { SubmoduleSelector } from "../components/ui/SubmoduleSelector";
 import { mockModules } from "../context/mockData";
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:8080/api/v1";
+
+async function updateDefectAPI(defect: any) {
+  try {
+    const response = await axios.put(`${API_BASE_URL}/defects`, {
+      defectId: defect.id,
+      description: defect.description,
+      steps: defect.description, // Map steps to description for now
+      reOpenCount: defect.reOpenCount || 0,
+      attachment: defect.attachment || null,
+      // Add other fields as needed
+    });
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || error.message;
+  }
+}
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -139,16 +158,27 @@ export const Defects: React.FC = () => {
   };
 
   // CRUD handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      updateDefect({
-        ...formData,
-        projectId: projectId || "",
-        id: editingDefect.id,
-        createdAt: editingDefect.createdAt,
-        updatedAt: new Date().toISOString(),
-      });
+      try {
+        await updateDefectAPI({
+          ...formData,
+          id: editingDefect.id,
+          createdAt: editingDefect.createdAt,
+          updatedAt: new Date().toISOString(),
+        });
+        updateDefect({
+          ...formData,
+          projectId: projectId || "",
+          id: editingDefect.id,
+          createdAt: editingDefect.createdAt,
+          updatedAt: new Date().toISOString(),
+        });
+        resetForm();
+      } catch (err: any) {
+        alert("Failed to update defect: " + err);
+      }
     } else {
       const newDefect = {
         ...formData,
@@ -158,8 +188,8 @@ export const Defects: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
       addDefect(newDefect);
+      resetForm();
     }
-    resetForm();
   };
   const handleEdit = (defect: any) => {
     setEditingDefect(defect);
