@@ -19,7 +19,6 @@ import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
-import { ProjectSelector } from "../components/ui/ProjectSelector";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -34,17 +33,125 @@ interface TestCase {
   releaseId?: string;
 }
 
+interface Module {
+  id: string;
+  name: string;
+  submodules: string[];
+}
+
+// Mock data for modules and submodules
+const mockModules: { [key: string]: Module[] } = {
+  "2": [
+    // Mobile Banking App
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: [
+        "Biometric Login",
+        "PIN Login",
+        "Password Reset",
+        "Session Management",
+      ],
+    },
+    {
+      id: "acc",
+      name: "Account Management",
+      submodules: [
+        "Account Overview",
+        "Transaction History",
+        "Account Statements",
+        "Account Settings",
+      ],
+    },
+    {
+      id: "tra",
+      name: "Money Transfer",
+      submodules: [
+        "Quick Transfer",
+        "Scheduled Transfer",
+        "International Transfer",
+        "Transfer Limits",
+      ],
+    },
+    {
+      id: "bil",
+      name: "Bill Payments",
+      submodules: [
+        "Bill List",
+        "Payment Scheduling",
+        "Payment History",
+        "Recurring Payments",
+      ],
+    },
+    {
+      id: "sec",
+      name: "Security Features",
+      submodules: [
+        "Two-Factor Auth",
+        "Device Management",
+        "Security Alerts",
+        "Fraud Protection",
+      ],
+    },
+    {
+      id: "sup",
+      name: "Customer Support",
+      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
+    },
+  ],
+  "3": [
+    // Analytics Dashboard
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "reporting",
+      name: "Reporting",
+      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
+    },
+    {
+      id: "data",
+      name: "Data Management",
+      submodules: ["Data Import", "Data Processing", "Data Export"],
+    },
+    {
+      id: "visualization",
+      name: "Visualization",
+      submodules: ["Charts", "Graphs", "Widgets"],
+    },
+  ],
+  "4": [
+    // Content Management
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "content",
+      name: "Content Management",
+      submodules: ["Articles", "Media", "Categories", "Templates"],
+    },
+    {
+      id: "user",
+      name: "User Management",
+      submodules: ["Profile", "Settings", "Permissions", "Roles"],
+    },
+    {
+      id: "workflow",
+      name: "Workflow",
+      submodules: ["Approval Process", "Review Process", "Publishing"],
+    },
+  ],
+};
+
 export const ReleaseView: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const {
-    projects,
-    releases,
-    testCases,
-    setSelectedProjectId,
-    addRelease,
-    modulesByProject,
-  } = useApp();
+  const { projects, releases, testCases, setSelectedProjectId, addRelease } =
+    useApp();
   const [selectedProject, setSelectedProject] = useState<string | null>(
     projectId || null
   );
@@ -63,7 +170,6 @@ export const ReleaseView: React.FC = () => {
     releaseDate: "",
     releaseType: "",
   });
-  const [releaseSearch, setReleaseSearch] = useState("");
 
   useEffect(() => {
     if (selectedProject) {
@@ -71,15 +177,14 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
-  // Filter releases for selected project and search
+  // Filter releases for selected project
   const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject &&
-      (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
+    (r) => r.projectId === selectedProject
   );
 
-  // Get modules for selected project from context
+  // Get modules for selected project
   const projectModules = selectedProject
-    ? modulesByProject[selectedProject] || []
+    ? mockModules[selectedProject] || []
     : [];
 
   // Filter test cases for selected release
@@ -177,7 +282,6 @@ export const ReleaseView: React.FC = () => {
       releaseType: releaseFormData.releaseType,
       createdAt: new Date().toISOString(),
     };
-console.log(newRelease);
 
     addRelease(newRelease);
     setReleaseFormData({
@@ -305,62 +409,32 @@ console.log(newRelease);
                     maxWidth: "100%",
                   }}
                 >
-                  {(() => {
-                    const submodules =
-                      projectModules.find((m) => m.name === selectedModule)
-                        ?.submodules || [];
-                    if (submodules.length === 0) {
-                      return (
-                        <span className="italic text-gray-400">
-                          No submodules for this module
-                        </span>
-                      );
-                    }
-                    return submodules.map((submodule, idx) => {
-                      // Strictly check for valid id and name
-                      const isValidId =
-                        typeof submodule.id === "string" ||
-                        typeof submodule.id === "number";
-                      const isValidName =
-                        typeof submodule.name === "string" &&
-                        submodule.name.length > 0;
-                      if (!isValidId || !isValidName) {
-                        // Optionally log a warning for debugging
-                        if (process.env.NODE_ENV === "development") {
-                          // eslint-disable-next-line no-console
-                          console.warn(
-                            "Skipping invalid submodule object:",
-                            submodule
-                          );
-                        }
-                        return null;
-                      }
-                      const submoduleId = submodule.id;
-                      const submoduleName = submodule.name;
+                  {projectModules
+                    .find((m) => m.name === selectedModule)
+                    ?.submodules.map((submodule) => {
                       const submoduleTestCases = filteredTestCases.filter(
                         (tc) =>
                           tc.module === selectedModule &&
-                          tc.subModule === submoduleName
+                          tc.subModule === submodule
                       );
                       return (
                         <Button
-                          key={String(submoduleId)}
+                          key={submodule}
                           variant={
-                            selectedSubmodule === submoduleName
+                            selectedSubmodule === submodule
                               ? "primary"
                               : "secondary"
                           }
-                          onClick={() => handleSubmoduleSelect(submoduleName)}
+                          onClick={() => handleSubmoduleSelect(submodule)}
                           className="whitespace-nowrap m-2"
                         >
-                          {submoduleName}
+                          {submodule}
                           <Badge variant="info" className="ml-2">
                             {submoduleTestCases.length}
                           </Badge>
                         </Button>
                       );
-                    });
-                  })()}
+                    })}
                 </div>
                 <button
                   onClick={() => {
@@ -565,31 +639,60 @@ console.log(newRelease);
           onClick={() => navigate(`/projects/${projectId}/project-management`)}
           className="flex items-center"
         >
-          <ChevronLeft className="w-5 h-4 mr-2" /> Back
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
         </Button>
       </div>
 
       {/* Project Selection Panel */}
-      <ProjectSelector
-        projects={projects}
-        selectedProjectId={selectedProject}
-        onSelect={handleProjectSelect}
-        className="mb-6"
-      />
-
-      {/* Release Search Bar */}
-      {selectedProject && (
-        <div className="mb-4 flex items-center justify-between">
-          <input
-            type="text"
-            placeholder="Search releases by name..."
-            value={releaseSearch}
-            onChange={e => setReleaseSearch(e.target.value)}
-            className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            style={{ minWidth: 220 }}
-          />
-        </div>
-      )}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Project Selection
+          </h2>
+          <div className="relative flex items-center">
+            <button
+              onClick={() => {
+                const container = document.getElementById("project-scroll");
+                if (container) container.scrollLeft -= 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div
+              id="project-scroll"
+              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                maxWidth: "100%",
+              }}
+            >
+              {projects.map((project) => (
+                <Button
+                  key={project.id}
+                  variant={
+                    selectedProject === project.id ? "primary" : "secondary"
+                  }
+                  onClick={() => handleProjectSelect(project.id)}
+                  className="whitespace-nowrap"
+                >
+                  {project.name}
+                </Button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                const container = document.getElementById("project-scroll");
+                if (container) container.scrollLeft += 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Release Cards Panel */}
       {selectedProject && (
@@ -641,7 +744,7 @@ console.log(newRelease);
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {release.description}
                     </p>
-
+                  
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2">
@@ -726,19 +829,19 @@ console.log(newRelease);
         size="xl"
       >
         <form onSubmit={handleCreateRelease} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Input
               label="Release Name"
               value={releaseFormData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               required
             />
-            <Input
+            {/*<Input
               label="Version"
               value={releaseFormData.version}
               onChange={(e) => handleInputChange("version", e.target.value)}
               required
-            />
+            />*/}
           </div>
 
           <div>
@@ -760,7 +863,7 @@ console.log(newRelease);
             </select>
           </div>
 
-          <div>
+          {/*<div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
@@ -771,7 +874,7 @@ console.log(newRelease);
               rows={3}
               required
             />
-          </div>
+          </div>*/}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

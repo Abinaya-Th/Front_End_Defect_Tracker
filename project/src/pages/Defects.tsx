@@ -1,13 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
-  Edit2,
-  Trash2,
   CheckCircle,
-  Eye,
-  MessageSquareWarning,
-  ChevronLeft,
-  ChevronRight,
+  Eye
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -18,14 +13,16 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
-import { ModuleSelector } from "../components/ui/ModuleSelector";
-import { SubmoduleSelector } from "../components/ui/SubmoduleSelector";
+
 import { mockModules } from "../context/mockData";
+import { defectFilterService, Defect } from "../service/defectFilterService";
+import { useAuth } from "../context/AuthContext";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  
   const {
     defects,
     projects,
@@ -69,57 +66,34 @@ export const Defects: React.FC = () => {
     string | null
   >(null);
 
-  // Filter state
+  // Filter state (only API filters)
   const [filters, setFilters] = useState({
-    id: "",
-    module: "",
-    subModule: "",
+    status: "",
+    priority: "",
     type: "",
     severity: "",
-    priority: "",
-    status: "",
-    assignedTo: "",
-    search: "",
   });
 
-  // Filtered defects based on filters
-  const filteredDefects = defects.filter(
-    (d) =>
-      d.projectId === projectId &&
-      (filters.id === "" ||
-        d.id.toLowerCase().includes(filters.id.toLowerCase())) &&
-      (filters.module === "" || d.module === filters.module) &&
-      (filters.subModule === "" || d.subModule === filters.subModule) &&
-      (filters.type === "" || d.type === filters.type) &&
-      (filters.severity === "" || d.severity === filters.severity) &&
-      (filters.priority === "" || d.priority === filters.priority) &&
-      (filters.status === "" || d.status === filters.status) &&
-      (filters.assignedTo === "" ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.assignedTo.toLowerCase())) &&
-      (filters.search === "" ||
-        d.id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.title || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.description || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.module || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.subModule || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.type || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.severity || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.priority || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.status || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()))
-  );
+  // State for API defects, loading, and error
+  const [apiDefects, setApiDefects] = useState<Defect[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    setIsLoading(true);
+    setError(null);
+    defectFilterService({
+      projectId,
+      statusId: filters.status,
+      priorityId: filters.priority,
+      typeId: filters.type,
+      severityId: filters.severity,
+    })
+      .then(setApiDefects)
+      .catch((err) => setError(err.message))
+      .finally(() => setIsLoading(false));
+  }, [projectId, filters]);
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -377,345 +351,214 @@ export const Defects: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filter Row - move above the defect table card */}
+      {/* Filter Row - only Status, Priority, Type, Severity */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-4 mb-6">
-        <div className="grid grid-cols-8 gap-4 items-end">
+        <div className="grid grid-cols-4 gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              ID
-            </label>
-            <Input
-              placeholder="Defect ID"
-              value={filters.id}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, id: e.target.value }))
-              }
-              className="w-full"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Module
-            </label>
-            <select
-              value={filters.module}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  module: e.target.value,
-                  subModule: "",
-                }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Submodule
-            </label>
-            <select
-              value={filters.subModule}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, subModule: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-              disabled={!filters.module}
-            >
-              <option value="">All</option>
-              {uniqueSubmodules.map((sm) => (
-                <option key={sm} value={sm}>
-                  {sm}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Type
-            </label>
-            <select
-              value={filters.type}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, type: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Severity
-            </label>
-            <select
-              value={filters.severity}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, severity: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueSeverities.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Priority
-            </label>
-            <select
-              value={filters.priority}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, priority: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniquePriorities.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Status
-            </label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
             <select
               value={filters.status}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, status: e.target.value }))
-              }
+              onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
               className="w-full px-2 py-1 border border-gray-300 rounded"
             >
               <option value="">All</option>
               {uniqueStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Assigned To
-            </label>
-            <Input
-              placeholder="Name"
-              value={filters.assignedTo}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, assignedTo: e.target.value }))
-              }
-              className="w-full"
-            />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+            <select
+              value={filters.priority}
+              onChange={e => setFilters(f => ({ ...f, priority: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniquePriorities.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <select
+              value={filters.type}
+              onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Severity</label>
+            <select
+              value={filters.severity}
+              onChange={e => setFilters(f => ({ ...f, severity: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueSeverities.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Defect Table in a single frame with search/filter in one line */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
-            {/* Search Field (right) */}
-            <div className="flex items-center ml-auto">
-              <Input
-                placeholder="Search..."
-                value={filters.search || ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, search: e.target.value }))
-                }
-                className="w-40"
-              />
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Defect ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Brief Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Steps
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Module
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Submodule
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Severity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDefects.length > 0 ? (
-                  filteredDefects.map((defect) => (
-                    <tr
-                      key={defect.id}
-                      ref={
-                        highlightId === defect.id
-                          ? highlightedRowRef
-                          : undefined
-                      }
-                      className={`hover:bg-gray-50${highlightId === defect.id
-                        ? " bg-yellow-100 border-2 border-yellow-400"
-                        : ""
-                        }`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.title}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
-                        <button
-                          type="button"
-                          className="flex items-center space-x-1 hover:underline"
-                          onClick={() => {
-                            setViewingSteps(defect.description);
-                            setIsViewStepsModalOpen(true);
-                          }}
-                          title="View Steps"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          <span>View</span>
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.module}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.subModule}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                            defect.severity
-                          )}`}
-                        >
-                          {defect.severity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                            defect.priority
-                          )}`}
-                        >
-                          {defect.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap w-32">
-                        <div className="flex items-center justify-between">
+      {/* Loading and error states */}
+      {isLoading && (
+        <div className="text-center text-blue-600 py-8">Loading defects...</div>
+      )}
+      {error && (
+        <div className="text-center text-red-600 py-8">{error}</div>
+      )}
+
+      {/* Defect Table */}
+      {!isLoading && !error && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Defect ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Brief Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Steps
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Module
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submodule
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Severity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Priority
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned To
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {apiDefects.length > 0 ? (
+                    apiDefects.map((defect) => (
+                      <tr
+                        key={defect.defectId}
+                        ref={highlightId === String(defect.defectId) ? highlightedRowRef : undefined}
+                        className={`hover:bg-gray-50${highlightId === String(defect.defectId)
+                          ? " bg-yellow-100 border-2 border-yellow-400"
+                          : ""
+                          }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.defectId}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {defect.defectTitle}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
+                          <button
+                            type="button"
+                            className="flex items-center space-x-1 hover:underline"
+                            onClick={() => {
+                              setViewingSteps(defect.descriptions);
+                              setIsViewStepsModalOpen(true);
+                            }}
+                            title="View Steps"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            <span>View</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {/* Module info not available in backend response */}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {/* Submodule info not available in backend response */}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              defect.status
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                              defect.severity
                             )}`}
                           >
-                            {defect.status}
+                            {defect.severity}
                           </span>
-                          {defect.status === "rejected" &&
-                            defect.rejectionComment && (
-                              <button
-                                type="button"
-                                className="ml-1 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                                title="View rejection comment"
-                                onClick={() => {
-                                  setViewingRejectionComment(
-                                    defect.rejectionComment || ""
-                                  );
-                                  setIsRejectionCommentModalOpen(true);
-                                }}
-                              >
-                                <MessageSquareWarning className="w-4 h-4 text-red-700" />
-                              </button>
-                            )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.assignedTo}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(defect)}
-                            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                            title="Edit Defect"
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                              defect.priority
+                            )}`}
                           >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(defect.id)}
-                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                            title="Delete Defect"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            {defect.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap w-32">
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                defect.status
+                              )}`}
+                            >
+                              {defect.status}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.assignTo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {/* No edit/delete for API defects */}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={10} className="p-12 text-center text-gray-500">
+                        <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <div className="text-lg font-medium text-gray-900 mb-2">
+                          No defects found
                         </div>
+                        <div className="text-gray-500 mb-4">
+                          No defects have been reported for this project
+                        </div>
+                        <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
+                          Add Defect
+                        </Button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="p-12 text-center text-gray-500">
-                      <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <div className="text-lg font-medium text-gray-900 mb-2">
-                        No defects found
-                      </div>
-                      <div className="text-gray-500 mb-4">
-                        No defects have been reported for this project
-                      </div>
-                      <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-                        Add Defect
-                      </Button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal for Add/Edit Defect */}
       <Modal
