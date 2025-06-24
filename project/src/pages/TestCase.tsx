@@ -185,6 +185,9 @@ export const TestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTestCase, setEditingTestCase] = useState<TestCaseType | null>(null);
+
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
@@ -456,6 +459,25 @@ export const TestCase: React.FC = () => {
   const handleViewDescription = (description: string) => {
     setSelectedDescription(description);
     setIsDescriptionModalOpen(true);
+  };
+
+  const handleEditTestCase = (testCase: TestCaseType) => {
+    setEditingTestCase(testCase);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditInputChange = (field: string, value: string) => {
+    if (!editingTestCase) return;
+    setEditingTestCase({ ...editingTestCase, [field]: value });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingTestCase) {
+      updateTestCase(editingTestCase);
+      setIsEditModalOpen(false);
+      setEditingTestCase(null);
+    }
   };
 
   return (
@@ -855,6 +877,13 @@ export const TestCase: React.FC = () => {
                                 <Eye className="w-4 h-4" />
                               </button>
                               <button
+                                onClick={() => handleEditTestCase(testCase)}
+                                className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => deleteTestCase(testCase.id)}
                                 className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                                 title="Delete"
@@ -1201,6 +1230,114 @@ export const TestCase: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Edit Test Case Modal */}
+      {isEditModalOpen && editingTestCase && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingTestCase(null);
+          }}
+          title={"Update Test Case"}
+          size="xl"
+        >
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
+                <select
+                  value={editingTestCase.module || ""}
+                  onChange={e => handleEditInputChange('module', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select Module</option>
+                  {projectModules.map((module) => (
+                    <option key={module.id} value={module.name}>{module.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Module</label>
+                <select
+                  value={editingTestCase.subModule || ""}
+                  onChange={e => handleEditInputChange('subModule', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                  disabled={!editingTestCase.module}
+                >
+                  <option value="">Select Sub Module</option>
+                  {(projectModules.find((m) => m.name === editingTestCase.module)?.submodules || []).map((submodule) => (
+                    <option key={submodule} value={submodule}>{submodule}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={editingTestCase.type || "functional"}
+                  onChange={e => handleEditInputChange('type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="functional">Functional</option>
+                  <option value="regression">Regression</option>
+                  <option value="smoke">Smoke</option>
+                  <option value="integration">Integration</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                <select
+                  value={editingTestCase.severity || "medium"}
+                  onChange={e => handleEditInputChange('severity', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={editingTestCase.description}
+                onChange={e => handleEditInputChange('description', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={1}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Test Steps</label>
+              <textarea
+                value={editingTestCase.steps}
+                onChange={e => handleEditInputChange('steps', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={4}
+                required
+              />
+            </div>
+            <div className="flex justify-end pt-4 space-x-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingTestCase(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Update Test Case</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Fixed Quick Add Button */}
       <div
