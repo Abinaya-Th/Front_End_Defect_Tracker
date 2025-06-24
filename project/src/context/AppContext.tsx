@@ -1078,6 +1078,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addRelease = (release: Release) => {
     // Implementation for adding release
+    setReleases((prev) => [...prev, release]);
   };
 
   const updateRelease = (release: Release) => {

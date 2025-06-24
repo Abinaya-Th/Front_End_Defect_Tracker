@@ -63,6 +63,7 @@ export const ReleaseView: React.FC = () => {
     releaseDate: "",
     releaseType: "",
   });
+  const [releaseSearch, setReleaseSearch] = useState("");
 
   useEffect(() => {
     if (selectedProject) {
@@ -70,9 +71,10 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
-  // Filter releases for selected project
+  // Filter releases for selected project and search
   const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject
+    (r) => r.projectId === selectedProject &&
+      (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
   );
 
   // Get modules for selected project from context
@@ -175,6 +177,7 @@ export const ReleaseView: React.FC = () => {
       releaseType: releaseFormData.releaseType,
       createdAt: new Date().toISOString(),
     };
+console.log(newRelease);
 
     addRelease(newRelease);
     setReleaseFormData({
@@ -562,7 +565,7 @@ export const ReleaseView: React.FC = () => {
           onClick={() => navigate(`/projects/${projectId}/project-management`)}
           className="flex items-center"
         >
-          <ChevronLeft className="w-5 h-5 mr-2" /> Back
+          <ChevronLeft className="w-5 h-4 mr-2" /> Back
         </Button>
       </div>
 
@@ -573,6 +576,20 @@ export const ReleaseView: React.FC = () => {
         onSelect={handleProjectSelect}
         className="mb-6"
       />
+
+      {/* Release Search Bar */}
+      {selectedProject && (
+        <div className="mb-4 flex items-center justify-between">
+          <input
+            type="text"
+            placeholder="Search releases by name..."
+            value={releaseSearch}
+            onChange={e => setReleaseSearch(e.target.value)}
+            className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            style={{ minWidth: 220 }}
+          />
+        </div>
+      )}
 
       {/* Release Cards Panel */}
       {selectedProject && (

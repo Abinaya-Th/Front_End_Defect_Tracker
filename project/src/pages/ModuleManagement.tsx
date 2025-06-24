@@ -81,6 +81,10 @@ export const ModuleManagement: React.FC = () => {
   );
 
   const handleAddModule = () => {
+    console.log("------------------------");
+    
+    console.log("Adding module with form data:", moduleForm);
+    
     if (moduleForm.name.trim() && selectedProjectId) {
       const newModule = {
         id: `mod-${Date.now()}`,

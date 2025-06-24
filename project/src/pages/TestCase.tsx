@@ -4,15 +4,11 @@ import {
   Edit2,
   Trash2,
   Eye,
-  CheckSquare,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
-  Upload,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
@@ -23,7 +19,6 @@ import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
-import SubmoduleSelector from "../components/ui/SubmoduleSelector";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -34,7 +29,6 @@ export const TestCase: React.FC = () => {
     addTestCase,
     updateTestCase,
     deleteTestCase,
-    releases,
     setSelectedProjectId,
     modulesByProject,
   } = useApp();
@@ -57,7 +51,20 @@ export const TestCase: React.FC = () => {
   const [filterSeverity, setFilterSeverity] = useState("");
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
-  const [modals, setModals] = useState([
+  interface ModalFormData {
+    module: string;
+    subModule: string;
+    description: string;
+    steps: string;
+    type: string;
+    severity: string;
+    projectId: string | undefined;
+    id?: string;
+  }
+  const [modals, setModals] = useState<{
+    open: boolean;
+    formData: ModalFormData;
+  }[]>([
     {
       open: false,
       formData: {
@@ -259,15 +266,21 @@ export const TestCase: React.FC = () => {
   const handleSubmitAll = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module
-          .substring(0, 3)
-          .toUpperCase()}-${formData.subModule
-          .substring(0, 3)
-          .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: projectId,
-      });
+      if (formData.id) {
+        // Edit mode
+        updateTestCase({ ...formData });
+      } else {
+        // Add mode
+        addTestCase({
+          ...formData,
+          id: `TC-${formData.module
+            .substring(0, 3)
+            .toUpperCase()}-${formData.subModule
+            .substring(0, 3)
+            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+          projectId: projectId,
+        });
+      }
     });
     setSuccess(true);
     setTimeout(() => {
@@ -395,26 +408,105 @@ export const TestCase: React.FC = () => {
 
           {/* Submodule Selection Panel */}
           {projectId && selectedModule && (
-            <SubmoduleSelector
-              submodules={
-                projectModules.find((m) => m.name === selectedModule)
-                  ?.submodules || []
-              }
-              selectedSubmoduleId={
-                projectModules
-                  .find((m) => m.name === selectedModule)
-                  ?.submodules.find((s) => s.name === selectedSubmodule)?.id ||
-                null
-              }
-              onSelect={(id) => {
-                const sub = projectModules
-                  .find((m) => m.name === selectedModule)
-                  ?.submodules.find((s) => s.id === id);
-                setSelectedSubmodule(sub ? sub.name : "");
-                setSelectedTestCases([]);
-              }}
-              className="mb-4"
-            />
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Submodule Selection
+                  </h2>
+                </div>
+                <div className="relative flex items-center">
+                  <button
+                    onClick={() => {
+                      const container =
+                        document.getElementById("submodule-scroll");
+                      if (container) container.scrollLeft -= 200;
+                    }}
+                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div
+                    id="submodule-scroll"
+                    className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                    style={{
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    {projectModules
+                      .find((m) => m.name === selectedModule)
+                      ?.submodules.map((submodule) => {
+                        const submoduleTestCases = testCases.filter(
+                          (tc: TestCaseType) =>
+                            tc.projectId === projectId &&
+                            tc.module === selectedModule &&
+                            tc.subModule === submodule.name
+                        );
+                        return (
+                          <div key={submodule.id} className="flex items-center">
+                            <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
+                              <Button
+                                variant={
+                                  selectedSubmodule === submodule.name
+                                    ? "primary"
+                                    : "secondary"
+                                }
+                                onClick={() => handleSubmoduleSelect(submodule.name)}
+                                className="whitespace-nowrap border-0 m-2"
+                              >
+                                {submodule.name}
+                                <Badge variant="info" className="ml-2">
+                                  {submoduleTestCases.length}
+                                </Badge>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setModals((prev) => {
+                                    const newModals = [
+                                      ...prev,
+                                      {
+                                        open: true,
+                                        formData: {
+                                          module: selectedModule,
+                                          subModule: submodule.name,
+                                          description: "",
+                                          steps: "",
+                                          type: "functional",
+                                          severity: "medium",
+                                          projectId: projectId,
+                                        },
+                                      },
+                                    ];
+                                    setCurrentModalIdx(newModals.length - 1);
+                                    return newModals;
+                                  });
+                                }}
+                                className="p-1 border-0 hover:bg-gray-50"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const container =
+                        document.getElementById("submodule-scroll");
+                      if (container) container.scrollLeft += 200;
+                    }}
+                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Bulk Operations Panel */}
@@ -578,6 +670,31 @@ export const TestCase: React.FC = () => {
                                 title="View"
                               >
                                 <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setModals([
+                                    {
+                                      open: true,
+                                      formData: {
+                                        module: testCase.module || "",
+                                        subModule: testCase.subModule || "",
+                                        description: testCase.description || "",
+                                        steps: testCase.steps || "",
+                                        type: testCase.type || "functional",
+                                        severity: testCase.severity || "medium",
+                                        projectId: testCase.projectId,
+                                        id: testCase.id,
+                                      },
+                                    },
+                                  ]);
+                                  setCurrentModalIdx(0);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => deleteTestCase(testCase.id)}
