@@ -20,6 +20,7 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import axios from "axios"; 
 
 // Define interfaces for our data types
 interface TestCase {
@@ -158,36 +159,55 @@ export const ReleaseView: React.FC = () => {
   };
 
   // Handle create release
-  const handleCreateRelease = (e: React.FormEvent) => {
+  const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedProject) return;
 
-    const newRelease = {
-      id: `R${Date.now()}`,
-      name: releaseFormData.name,
-      version: releaseFormData.version,
-      description: releaseFormData.description,
-      projectId: selectedProject,
-      status: "planned" as const,
-      releaseDate: releaseFormData.releaseDate || undefined,
-      Testcase: [],
-      features: [],
-      bugFixes: [],
-      releaseType: releaseFormData.releaseType,
-      createdAt: new Date().toISOString(),
+    // Prepare payload as per backend API requirements
+    const payload = {
+      releaseName: releaseFormData.name, // Varchar(255), Mandatory
+      releaseDate: releaseFormData.releaseDate, // YYYY-MM-DD, Mandatory
+      releaseType: releaseFormData.releaseType, // Varchar(25), Mandatory
+      projectId: selectedProject, // Varchar(6), Mandatory
     };
-console.log(newRelease);
 
-    addRelease(newRelease);
-    setReleaseFormData({
-      name: "",
-      version: "",
-      description: "",
-      releaseDate: "",
-      releaseType: "",
-    });
-    setIsCreateReleaseModalOpen(false);
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/api/v1/releases",
+        payload
+      );
+
+      console.log("Release created successfully:", response.data);
+
+      const newRelease = {
+        id: response.data.releaseId || `R${Date.now()}`,
+        name: releaseFormData.name,
+        version: releaseFormData.version,
+        description: releaseFormData.description,
+        projectId: selectedProject,
+        status: "planned" as const,
+        releaseDate: releaseFormData.releaseDate || undefined,
+        Testcase: [],
+        features: [],
+        bugFixes: [],
+        releaseType: releaseFormData.releaseType,
+        createdAt: new Date().toISOString(),
+      };
+
+      addRelease(newRelease);
+      setReleaseFormData({
+        name: "",
+        //version: "",
+        //description: "",
+        releaseDate: "",
+        releaseType: "",
+      });
+      setIsCreateReleaseModalOpen(false);
+    } catch (error) {
+      console.error("Failed to create release:", error);
+      alert("Failed to create release. Please check the API or network.");
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -632,15 +652,15 @@ console.log(newRelease);
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         {release.name}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      {/*<p className="text-sm text-gray-500">
                         v{release.version}
-                      </p>
+                      </p>*/}
                     </div>
 
                     {/* Description */}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {/*<p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {release.description}
-                    </p>
+                    </p>*/}
 
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
@@ -726,19 +746,19 @@ console.log(newRelease);
         size="xl"
       >
         <form onSubmit={handleCreateRelease} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols gap-4">
             <Input
               label="Release Name"
               value={releaseFormData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               required
             />
-            <Input
+            {/*<Input
               label="Version"
               value={releaseFormData.version}
               onChange={(e) => handleInputChange("version", e.target.value)}
               required
-            />
+            />*/}
           </div>
 
           <div>
@@ -760,7 +780,7 @@ console.log(newRelease);
             </select>
           </div>
 
-          <div>
+          {/*<div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
@@ -771,7 +791,7 @@ console.log(newRelease);
               rows={3}
               required
             />
-          </div>
+          </div>*/}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
