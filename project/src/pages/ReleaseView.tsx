@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Card, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { Input } from '../components/ui/Input';
-import { ChevronLeft, ChevronRight, Calendar, FileText, Users, Eye, Edit2, Trash2, Plus } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Modal } from '../components/ui/Modal';
-import QuickAddTestCase from './QuickAddTestCase';
-import QuickAddDefect from './QuickAddDefect';
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Card, CardContent } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
+import { Input } from "../components/ui/Input";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  FileText,
+  Users,
+  Eye,
+  Edit2,
+  Trash2,
+  Plus,
+} from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { Modal } from "../components/ui/Modal";
+import QuickAddTestCase from "./QuickAddTestCase";
+import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -17,60 +28,40 @@ interface TestCase {
   subModule: string;
   description: string;
   steps: string;
-  type: 'functional' | 'regression' | 'smoke' | 'integration';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "functional" | "regression" | "smoke" | "integration";
+  severity: "low" | "medium" | "high" | "critical";
   projectId: string;
   releaseId?: string;
 }
 
-interface Module {
-  id: string;
-  name: string;
-  submodules: string[];
-}
-
-// Mock data for modules and submodules
-const mockModules: { [key: string]: Module[] } = {
-  '2': [ // Mobile Banking App
-    { id: 'auth', name: 'Authentication', submodules: ['Biometric Login', 'PIN Login', 'Password Reset', 'Session Management'] },
-    { id: 'acc', name: 'Account Management', submodules: ['Account Overview', 'Transaction History', 'Account Statements', 'Account Settings'] },
-    { id: 'tra', name: 'Money Transfer', submodules: ['Quick Transfer', 'Scheduled Transfer', 'International Transfer', 'Transfer Limits'] },
-    { id: 'bil', name: 'Bill Payments', submodules: ['Bill List', 'Payment Scheduling', 'Payment History', 'Recurring Payments'] },
-    { id: 'sec', name: 'Security Features', submodules: ['Two-Factor Auth', 'Device Management', 'Security Alerts', 'Fraud Protection'] },
-    { id: 'sup', name: 'Customer Support', submodules: ['Chat Support', 'FAQs', 'Contact Us', 'Feedback'] }
-  ],
-  '3': [ // Analytics Dashboard
-    { id: 'auth', name: 'Authentication', submodules: ['Login', 'Registration', 'Password Reset'] },
-    { id: 'reporting', name: 'Reporting', submodules: ['Analytics', 'Exports', 'Dashboards', 'Custom Reports'] },
-    { id: 'data', name: 'Data Management', submodules: ['Data Import', 'Data Processing', 'Data Export'] },
-    { id: 'visualization', name: 'Visualization', submodules: ['Charts', 'Graphs', 'Widgets'] }
-  ],
-  '4': [ // Content Management
-    { id: 'auth', name: 'Authentication', submodules: ['Login', 'Registration', 'Password Reset'] },
-    { id: 'content', name: 'Content Management', submodules: ['Articles', 'Media', 'Categories', 'Templates'] },
-    { id: 'user', name: 'User Management', submodules: ['Profile', 'Settings', 'Permissions', 'Roles'] },
-    { id: 'workflow', name: 'Workflow', submodules: ['Approval Process', 'Review Process', 'Publishing'] }
-  ]
-};
-
 export const ReleaseView: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, releases, testCases, setSelectedProjectId, addRelease } = useApp();
-  const [selectedProject, setSelectedProject] = useState<string | null>(projectId || null);
+  const {
+    projects,
+    releases,
+    testCases,
+    setSelectedProjectId,
+    addRelease,
+    modulesByProject,
+  } = useApp();
+  const [selectedProject, setSelectedProject] = useState<string | null>(
+    projectId || null
+  );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState('');
-  const [selectedSubmodule, setSelectedSubmodule] = useState('');
+  const [selectedModule, setSelectedModule] = useState("");
+  const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
-  const [isCreateReleaseModalOpen, setIsCreateReleaseModalOpen] = useState(false);
+  const [isCreateReleaseModalOpen, setIsCreateReleaseModalOpen] =
+    useState(false);
   const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
   const [releaseFormData, setReleaseFormData] = useState({
-    name: '',
-    version: '',
-    description: '',
-    releaseDate: '',
-    releaseType: ''
+    name: "",
+    version: "",
+    description: "",
+    releaseDate: "",
+    releaseType: "",
   });
 
   useEffect(() => {
@@ -80,14 +71,18 @@ export const ReleaseView: React.FC = () => {
   }, [selectedProject, setSelectedProjectId]);
 
   // Filter releases for selected project
-  const projectReleases = releases.filter(r => r.projectId === selectedProject);
+  const projectReleases = releases.filter(
+    (r) => r.projectId === selectedProject
+  );
 
-  // Get modules for selected project
-  const projectModules = selectedProject ? mockModules[selectedProject] || [] : [];
+  // Get modules for selected project from context
+  const projectModules = selectedProject
+    ? modulesByProject[selectedProject] || []
+    : [];
 
   // Filter test cases for selected release
-  const releaseTestCases = testCases.filter(tc =>
-    tc.projectId === selectedProject && tc.releaseId === selectedRelease
+  const releaseTestCases = testCases.filter(
+    (tc) => tc.projectId === selectedProject && tc.releaseId === selectedRelease
   );
 
   // Filter test cases based on module/submodule selection
@@ -97,11 +92,11 @@ export const ReleaseView: React.FC = () => {
     let filtered = releaseTestCases;
 
     if (selectedModule) {
-      filtered = filtered.filter(tc => tc.module === selectedModule);
+      filtered = filtered.filter((tc) => tc.module === selectedModule);
     }
 
     if (selectedSubmodule) {
-      filtered = filtered.filter(tc => tc.subModule === selectedSubmodule);
+      filtered = filtered.filter((tc) => tc.subModule === selectedSubmodule);
     }
 
     return filtered;
@@ -112,21 +107,21 @@ export const ReleaseView: React.FC = () => {
     setSelectedProject(projectId);
     setSelectedProjectId(projectId);
     setSelectedRelease(null);
-    setSelectedModule('');
-    setSelectedSubmodule('');
+    setSelectedModule("");
+    setSelectedSubmodule("");
   };
 
   // Handle release selection
   const handleReleaseSelect = (releaseId: string) => {
     setSelectedRelease(releaseId);
-    setSelectedModule('');
-    setSelectedSubmodule('');
+    setSelectedModule("");
+    setSelectedSubmodule("");
   };
 
   // Handle module selection
   const handleModuleSelect = (moduleName: string) => {
     setSelectedModule(moduleName);
-    setSelectedSubmodule('');
+    setSelectedSubmodule("");
   };
 
   // Handle submodule selection
@@ -137,16 +132,16 @@ export const ReleaseView: React.FC = () => {
   // Get severity color
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "high":
+        return "bg-orange-100 text-orange-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -172,7 +167,7 @@ export const ReleaseView: React.FC = () => {
       version: releaseFormData.version,
       description: releaseFormData.description,
       projectId: selectedProject,
-      status: 'planned' as const,
+      status: "planned" as const,
       releaseDate: releaseFormData.releaseDate || undefined,
       Testcase: [],
       features: [],
@@ -183,23 +178,23 @@ export const ReleaseView: React.FC = () => {
 
     addRelease(newRelease);
     setReleaseFormData({
-      name: '',
-      version: '',
-      description: '',
-      releaseDate: '',
-      releaseType: ''
+      name: "",
+      version: "",
+      description: "",
+      releaseDate: "",
+      releaseType: "",
     });
     setIsCreateReleaseModalOpen(false);
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setReleaseFormData(prev => ({ ...prev, [field]: value }));
+    setReleaseFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
-    const currentRelease = releases.find(r => r.id === selectedRelease);
-    const currentProject = projects.find(p => p.id === selectedProject);
+    const currentRelease = releases.find((r) => r.id === selectedRelease);
+    const currentProject = projects.find((p) => p.id === selectedProject);
 
     return (
       <div className="max-w-6xl mx-auto">
@@ -207,7 +202,9 @@ export const ReleaseView: React.FC = () => {
         <div className="flex-none p-6 pb-4">
           <div className="flex justify-between items-center mb-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-gray-900">Release Details</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Release Details
+              </h1>
               <p className="text-sm text-gray-500">
                 {currentProject?.name} - {currentRelease?.name}
               </p>
@@ -225,11 +222,13 @@ export const ReleaseView: React.FC = () => {
           {/* Module Selection Panel */}
           <Card className="mb-4">
             <CardContent className="p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Module Selection</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                Module Selection
+              </h2>
               <div className="relative flex items-center">
                 <button
                   onClick={() => {
-                    const container = document.getElementById('module-scroll');
+                    const container = document.getElementById("module-scroll");
                     if (container) container.scrollLeft -= 200;
                   }}
                   className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -239,16 +238,20 @@ export const ReleaseView: React.FC = () => {
                 <div
                   id="module-scroll"
                   className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
-                  {projectModules.map(module => {
+                  {projectModules.map((module) => {
                     const moduleTestCases = filteredTestCases.filter(
-                      tc => tc.module === module.name
+                      (tc) => tc.module === module.name
                     );
                     return (
                       <Button
                         key={module.id}
-                        variant={selectedModule === module.name ? 'primary' : 'secondary'}
+                        variant={
+                          selectedModule === module.name
+                            ? "primary"
+                            : "secondary"
+                        }
                         onClick={() => handleModuleSelect(module.name)}
                         className="whitespace-nowrap m-2"
                       >
@@ -262,7 +265,7 @@ export const ReleaseView: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
-                    const container = document.getElementById('module-scroll');
+                    const container = document.getElementById("module-scroll");
                     if (container) container.scrollLeft += 200;
                   }}
                   className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -276,11 +279,14 @@ export const ReleaseView: React.FC = () => {
           {/* Submodule Selection Panel */}
           <Card className="mb-4">
             <CardContent className="p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Submodule Selection</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                Submodule Selection
+              </h2>
               <div className="relative flex items-center min-h-[44px]">
                 <button
                   onClick={() => {
-                    const container = document.getElementById('submodule-scroll');
+                    const container =
+                      document.getElementById("submodule-scroll");
                     if (container) container.scrollLeft -= 200;
                   }}
                   className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
@@ -290,32 +296,73 @@ export const ReleaseView: React.FC = () => {
                 <div
                   id="submodule-scroll"
                   className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
+                  style={{
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                    maxWidth: "100%",
+                  }}
                 >
-                  {projectModules
-                    .find(m => m.name === selectedModule)
-                    ?.submodules.map(submodule => {
+                  {(() => {
+                    const submodules =
+                      projectModules.find((m) => m.name === selectedModule)
+                        ?.submodules || [];
+                    if (submodules.length === 0) {
+                      return (
+                        <span className="italic text-gray-400">
+                          No submodules for this module
+                        </span>
+                      );
+                    }
+                    return submodules.map((submodule, idx) => {
+                      // Strictly check for valid id and name
+                      const isValidId =
+                        typeof submodule.id === "string" ||
+                        typeof submodule.id === "number";
+                      const isValidName =
+                        typeof submodule.name === "string" &&
+                        submodule.name.length > 0;
+                      if (!isValidId || !isValidName) {
+                        // Optionally log a warning for debugging
+                        if (process.env.NODE_ENV === "development") {
+                          // eslint-disable-next-line no-console
+                          console.warn(
+                            "Skipping invalid submodule object:",
+                            submodule
+                          );
+                        }
+                        return null;
+                      }
+                      const submoduleId = submodule.id;
+                      const submoduleName = submodule.name;
                       const submoduleTestCases = filteredTestCases.filter(
-                        tc => tc.module === selectedModule && tc.subModule === submodule
+                        (tc) =>
+                          tc.module === selectedModule &&
+                          tc.subModule === submoduleName
                       );
                       return (
                         <Button
-                          key={submodule}
-                          variant={selectedSubmodule === submodule ? 'primary' : 'secondary'}
-                          onClick={() => handleSubmoduleSelect(submodule)}
+                          key={String(submoduleId)}
+                          variant={
+                            selectedSubmodule === submoduleName
+                              ? "primary"
+                              : "secondary"
+                          }
+                          onClick={() => handleSubmoduleSelect(submoduleName)}
                           className="whitespace-nowrap m-2"
                         >
-                          {submodule}
+                          {submoduleName}
                           <Badge variant="info" className="ml-2">
                             {submoduleTestCases.length}
                           </Badge>
                         </Button>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
                 <button
                   onClick={() => {
-                    const container = document.getElementById('submodule-scroll');
+                    const container =
+                      document.getElementById("submodule-scroll");
                     if (container) container.scrollLeft += 200;
                   }}
                   className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
@@ -377,7 +424,11 @@ export const ReleaseView: React.FC = () => {
                         {testCase.type}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                            testCase.severity
+                          )}`}
+                        >
                           {testCase.severity}
                         </span>
                       </td>
@@ -444,26 +495,42 @@ export const ReleaseView: React.FC = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                  <p className="mt-1 text-sm text-gray-900">{viewingTestCase.description}</p>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Description
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {viewingTestCase.description}
+                  </p>
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Test Steps</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">
+                  Test Steps
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 whitespace-pre-line">{viewingTestCase.steps}</p>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {viewingTestCase.steps}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Severity</h3>
-                  <span className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(viewingTestCase.severity)}`}>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Severity
+                  </h3>
+                  <span
+                    className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                      viewingTestCase.severity
+                    )}`}
+                  >
                     {viewingTestCase.severity}
                   </span>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Module</h3>
-                  <p className="mt-1 text-sm text-gray-900">{viewingTestCase.module} / {viewingTestCase.subModule}</p>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {viewingTestCase.module} / {viewingTestCase.subModule}
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end pt-4">
@@ -500,53 +567,20 @@ export const ReleaseView: React.FC = () => {
       </div>
 
       {/* Project Selection Panel */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                const container = document.getElementById('project-scroll');
-                if (container) container.scrollLeft -= 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
-            >
-              {projects.map(project => (
-                <Button
-                  key={project.id}
-                  variant={selectedProject === project.id ? 'primary' : 'secondary'}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const container = document.getElementById('project-scroll');
-                if (container) container.scrollLeft += 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={selectedProject}
+        onSelect={handleProjectSelect}
+        className="mb-6"
+      />
 
       {/* Release Cards Panel */}
       {selectedProject && (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Release Overview</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Release Overview
+            </h2>
             <Button
               onClick={() => setIsCreateReleaseModalOpen(true)}
               className="flex items-center space-x-2"
@@ -557,12 +591,16 @@ export const ReleaseView: React.FC = () => {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projectReleases.map(release => {
-              const releaseTestCases = testCases.filter(tc =>
-                tc.projectId === selectedProject && tc.releaseId === release.id
+            {projectReleases.map((release) => {
+              const releaseTestCases = testCases.filter(
+                (tc) =>
+                  tc.projectId === selectedProject &&
+                  tc.releaseId === release.id
               );
               const totalTestCases = releaseTestCases.length;
-              const currentProject = projects.find(p => p.id === selectedProject);
+              const currentProject = projects.find(
+                (p) => p.id === selectedProject
+              );
 
               return (
                 <Card
@@ -574,8 +612,12 @@ export const ReleaseView: React.FC = () => {
                   <CardContent className="p-6">
                     {/* Header */}
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{release.name}</h3>
-                      <p className="text-sm text-gray-500">v{release.version}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {release.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        v{release.version}
+                      </p>
                     </div>
 
                     {/* Description */}
@@ -589,7 +631,9 @@ export const ReleaseView: React.FC = () => {
                         <FileText className="w-4 h-4 text-gray-400" />
                         <div>
                           <p className="text-xs text-gray-500">Test Cases</p>
-                          <p className="text-sm font-medium text-gray-900">{totalTestCases}</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {totalTestCases}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -597,7 +641,11 @@ export const ReleaseView: React.FC = () => {
                         <div>
                           <p className="text-xs text-gray-500">Release Date</p>
                           <p className="text-sm font-medium text-gray-900">
-                            {release.releaseDate ? new Date(release.releaseDate).toLocaleDateString() : 'TBD'}
+                            {release.releaseDate
+                              ? new Date(
+                                  release.releaseDate
+                                ).toLocaleDateString()
+                              : "TBD"}
                           </p>
                         </div>
                       </div>
@@ -626,7 +674,10 @@ export const ReleaseView: React.FC = () => {
       {selectedProject && projectReleases.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-gray-500">No releases found for the selected project. Please create releases first.</p>
+            <p className="text-gray-500">
+              No releases found for the selected project. Please create releases
+              first.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -634,7 +685,9 @@ export const ReleaseView: React.FC = () => {
       {!selectedProject && (
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-gray-500">Please select a project to view available releases.</p>
+            <p className="text-gray-500">
+              Please select a project to view available releases.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -645,11 +698,11 @@ export const ReleaseView: React.FC = () => {
         onClose={() => {
           setIsCreateReleaseModalOpen(false);
           setReleaseFormData({
-            name: '',
-            version: '',
-            description: '',
-            releaseDate: '',
-            releaseType: ''
+            name: "",
+            version: "",
+            description: "",
+            releaseDate: "",
+            releaseType: "",
           });
         }}
         title="Create New Release"
@@ -660,13 +713,13 @@ export const ReleaseView: React.FC = () => {
             <Input
               label="Release Name"
               value={releaseFormData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              onChange={(e) => handleInputChange("name", e.target.value)}
               required
             />
             <Input
               label="Version"
               value={releaseFormData.version}
-              onChange={(e) => handleInputChange('version', e.target.value)}
+              onChange={(e) => handleInputChange("version", e.target.value)}
               required
             />
           </div>
@@ -677,7 +730,7 @@ export const ReleaseView: React.FC = () => {
             </label>
             <select
               value={releaseFormData.releaseType}
-              onChange={(e) => handleInputChange('releaseType', e.target.value)}
+              onChange={(e) => handleInputChange("releaseType", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             >
@@ -696,7 +749,7 @@ export const ReleaseView: React.FC = () => {
             </label>
             <textarea
               value={releaseFormData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => handleInputChange("description", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
               required
@@ -710,7 +763,7 @@ export const ReleaseView: React.FC = () => {
             <input
               type="date"
               value={releaseFormData.releaseDate}
-              onChange={(e) => handleInputChange('releaseDate', e.target.value)}
+              onChange={(e) => handleInputChange("releaseDate", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -722,19 +775,17 @@ export const ReleaseView: React.FC = () => {
               onClick={() => {
                 setIsCreateReleaseModalOpen(false);
                 setReleaseFormData({
-                  name: '',
-                  version: '',
-                  description: '',
-                  releaseDate: '',
-                  releaseType: ''
+                  name: "",
+                  version: "",
+                  description: "",
+                  releaseDate: "",
+                  releaseType: "",
                 });
               }}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              Create Release
-            </Button>
+            <Button type="submit">Create Release</Button>
           </div>
         </form>
       </Modal>
@@ -755,4 +806,4 @@ export const ReleaseView: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

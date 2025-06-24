@@ -1,6 +1,8 @@
 export interface Project {
   id: string;
   name: string;
+  prefix: string; // Added
+  projectType: string; // Added
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
@@ -78,4 +80,4 @@ export interface StatusType {
   color: string;
 }
 
-// ... rest of the types ... 
+// ... rest of the types ...

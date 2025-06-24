@@ -7,6 +7,7 @@ import { ModuleManagement } from './ModuleManagement';
 import { useApp } from '../context/AppContext';
 import QuickAddDefect from './QuickAddDefect';
 import QuickAddTestCase from './QuickAddTestCase';
+import { ProjectSelector } from '../components/ui/ProjectSelector';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -39,29 +40,11 @@ export const ProjectManagement: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
-          <div className="relative flex items-center">
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
-            >
-              {projects.map(project => (
-                <Button
-                  key={project.id}
-                  variant={projectId === project.id ? 'primary' : 'secondary'}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap m-2"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={projectId || null}
+        onSelect={handleProjectSelect}
+      />
       {/* End Project Selection Panel */}
       <h1 className="text-2xl font-bold text-gray-900 mb-8 mt-2">Project Management</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -91,20 +74,20 @@ export const ProjectManagement: React.FC = () => {
         </Card>
       </div>
       {/* Fixed Quick Add Button */}
-            <div
-              style={{
-                position: "fixed",
-                bottom: 32,
-                right: 32,
-                zIndex: 50,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <QuickAddTestCase />
-              <QuickAddDefect />
-            </div>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };
