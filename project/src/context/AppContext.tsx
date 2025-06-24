@@ -81,7 +81,7 @@ interface AppContextType {
   ) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
-  addStatusType: (statusType: Omit<StatusType, 'id'>) => void;
+  addStatusType: (statusType: Omit<StatusType, "id">) => void;
   updateStatusType: (id: string, statusType: Partial<StatusType>) => void;
   deleteStatusType: (id: string) => void;
   testCaseDefectMap: { [testCaseId: string]: string };
@@ -701,14 +701,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
   const [statusTypes, setStatusTypes] = useState<StatusType[]>([
-    { id: '1', name: 'NEW', color: '#2a3eb1' },
-    { id: '2', name: 'OPEN', color: '#9c27b0' },
-    { id: '3', name: 'REJECT', color: '#10B981' },
-    { id: '4', name: 'FIXED', color: '	#F59E0B' },
-    { id: '5', name: 'CLOSED', color: '#EF4444' },
-    { id: '6', name: 'REOPEN', color: '#06B6D4' },
-    { id: '7', name: 'DUPLICATE', color: '#618833' },
-    { id: '8', name: 'HOLD', color: '#ffeb3b' },
+    { id: "1", name: "NEW", color: "#2a3eb1" },
+    { id: "2", name: "OPEN", color: "#9c27b0" },
+    { id: "3", name: "REJECT", color: "#10B981" },
+    { id: "4", name: "FIXED", color: "	#F59E0B" },
+    { id: "5", name: "CLOSED", color: "#EF4444" },
+    { id: "6", name: "REOPEN", color: "#06B6D4" },
+    { id: "7", name: "DUPLICATE", color: "#618833" },
+    { id: "8", name: "HOLD", color: "#ffeb3b" },
   ]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
@@ -782,7 +782,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addRelease = (release: Release) => {
-    // Implementation for adding release
+    setReleases((prev) => [...prev, release]);
   };
 
   const updateRelease = (release: Release) => {
@@ -817,7 +817,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransitions(newTransitions);
   };
 
-  const addStatusType = (statusTypeData: Omit<StatusType, 'id'>) => {
+  const addStatusType = (statusTypeData: Omit<StatusType, "id">) => {
     const newStatusType: StatusType = {
       ...statusTypeData,
       id: Date.now().toString(),
@@ -825,7 +825,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setStatusTypes((prev) => [...prev, newStatusType]);
   };
 
-  const updateStatusType = (id: string, statusTypeData: Partial<StatusType>) => {
+  const updateStatusType = (
+    id: string,
+    statusTypeData: Partial<StatusType>
+  ) => {
     setStatusTypes((prev) =>
       prev.map((status) =>
         status.id === id ? { ...status, ...statusTypeData } : status

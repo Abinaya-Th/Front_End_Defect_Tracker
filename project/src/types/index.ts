@@ -37,6 +37,25 @@ export interface Project {
   priority: 'low' | 'medium' | 'high' | 'critical';
   budget?: number;
   createdAt: string;
+  prefix?: string; // Added for compatibility with AppContext
+  projectType?: string; // Added for compatibility with AppContext
+  progress?: number; // Added for compatibility with AppContext
+  clientName?: string;
+  clientCountry?: string;
+  clientState?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  address?: string;
+  privileges?: {
+    read: boolean;
+    write: boolean;
+    delete: boolean;
+    admin: boolean;
+    exportImport: boolean;
+    manageUsers: boolean;
+    viewReports: boolean;
+  };
+  role?: string;
 }
 
 export interface Defect {
