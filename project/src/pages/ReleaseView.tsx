@@ -20,6 +20,7 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -64,12 +65,29 @@ export const ReleaseView: React.FC = () => {
     releaseType: "",
   });
   const [releaseSearch, setReleaseSearch] = useState("");
+  const[releaseCardView, setReleaseCardView] = useState<any>(null);
 
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
     }
   }, [selectedProject, setSelectedProjectId]);
+
+  const getReleaseCardView =  async() =>{
+
+      try {
+          const response = await projectReleaseCardView(selectedProject);
+          setReleaseCardView(response.data)
+      } catch (error) {
+          console.error("Error fetching release card view:", error);
+      }
+  }
+  useEffect(() => {
+      getReleaseCardView();
+  }, [selectedProject]);
+
+  console.log(releaseCardView);
+  
 
   // Filter releases for selected project and search
   const projectReleases = releases.filter(
