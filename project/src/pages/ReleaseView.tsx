@@ -11,8 +11,6 @@ import {
   FileText,
   Users,
   Eye,
-  Edit2,
-  Trash2,
   Plus,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -20,18 +18,47 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import axios, { AxiosError } from "axios";
 
-// Define interfaces for our data types
 interface TestCase {
-  id: string;
-  module: string;
-  subModule: string;
+  testcaseId: string;
+  testcase: string;
   description: string;
   steps: string;
-  type: "functional" | "regression" | "smoke" | "integration";
-  severity: "low" | "medium" | "high" | "critical";
+  typeId: string;
+  type: string;
+  severityId: string;
+  severity: string;
+  releaseId: string;
+  releasedTestcaseId: string;
+  testDate: string;
+  testTime: string;
+  owner: string;
+  testcaseStatus: number;
+  projectId?: string;
+  module?: string;
+  subModule?: string;
+}
+
+interface Release {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
   projectId: string;
-  releaseId?: string;
+  status: string;
+  releaseDate?: string;
+  Testcase: any[];
+  features: any[];
+  bugFixes: any[];
+  releaseType: string;
+  createdAt: string;
+}
+
+interface ApiErrorResponse {
+  status: string;
+  statusCode: string;
+  message: string;
 }
 
 export const ReleaseView: React.FC = () => {
@@ -40,7 +67,6 @@ export const ReleaseView: React.FC = () => {
   const {
     projects,
     releases,
-    testCases,
     setSelectedProjectId,
     addRelease,
     modulesByProject,
@@ -64,6 +90,11 @@ export const ReleaseView: React.FC = () => {
     releaseType: "",
   });
   const [releaseSearch, setReleaseSearch] = useState("");
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // const API_BASE_URL = "http://192.168.1.46:8088/api/v1";
+  const API_BASE_URL = "http://localhost:8081/api/v1";
 
   useEffect(() => {
     if (selectedProject) {
@@ -71,27 +102,57 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
-  // Filter releases for selected project and search
+  useEffect(() => {
+    if (selectedRelease) {
+      fetchTestCases(selectedRelease);
+    } else {
+      setTestCases([]);
+      setErrorMessage(null);
+    }
+  }, [selectedRelease]);
+
+  const fetchTestCases = async (releaseId: string) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/releaseTestcase/release/${releaseId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.status === "success") {
+        setTestCases(response.data.result.testcases);
+        setErrorMessage(null);
+      } else {
+        setErrorMessage(response.data.message || "Failed to retrieve test cases");
+        setTestCases([]);
+      }
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiErrorResponse>;
+      const errorMessage =
+        axiosError.response?.data.message || "An error occurred while fetching test cases";
+      setErrorMessage(errorMessage);
+      setTestCases([]);
+    }
+  };
+
   const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject &&
-      (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
+    (r: Release) =>
+      r.projectId === selectedProject &&
+      (!releaseSearch ||
+        r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
   );
 
-  // Get modules for selected project from context
   const projectModules = selectedProject
     ? modulesByProject[selectedProject] || []
     : [];
 
-  // Filter test cases for selected release
-  const releaseTestCases = testCases.filter(
-    (tc) => tc.projectId === selectedProject && tc.releaseId === selectedRelease
-  );
-
-  // Filter test cases based on module/submodule selection
   const filteredTestCases = React.useMemo(() => {
     if (!selectedRelease) return [];
 
-    let filtered = releaseTestCases;
+    let filtered = testCases;
 
     if (selectedModule) {
       filtered = filtered.filter((tc) => tc.module === selectedModule);
@@ -102,9 +163,8 @@ export const ReleaseView: React.FC = () => {
     }
 
     return filtered;
-  }, [releaseTestCases, selectedModule, selectedSubmodule, selectedRelease]);
+  }, [testCases, selectedModule, selectedSubmodule, selectedRelease]);
 
-  // Handle project selection
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
     setSelectedProjectId(projectId);
@@ -113,27 +173,23 @@ export const ReleaseView: React.FC = () => {
     setSelectedSubmodule("");
   };
 
-  // Handle release selection
   const handleReleaseSelect = (releaseId: string) => {
     setSelectedRelease(releaseId);
     setSelectedModule("");
     setSelectedSubmodule("");
   };
 
-  // Handle module selection
   const handleModuleSelect = (moduleName: string) => {
     setSelectedModule(moduleName);
     setSelectedSubmodule("");
   };
 
-  // Handle submodule selection
   const handleSubmoduleSelect = (submoduleName: string) => {
     setSelectedSubmodule(submoduleName);
   };
 
-  // Get severity color
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
+    switch (severity.toLowerCase()) {
       case "critical":
         return "bg-red-100 text-red-800";
       case "high":
@@ -157,7 +213,6 @@ export const ReleaseView: React.FC = () => {
     setIsViewTestCaseModalOpen(true);
   };
 
-  // Handle create release
   const handleCreateRelease = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -177,7 +232,6 @@ export const ReleaseView: React.FC = () => {
       releaseType: releaseFormData.releaseType,
       createdAt: new Date().toISOString(),
     };
-console.log(newRelease);
 
     addRelease(newRelease);
     setReleaseFormData({
@@ -194,14 +248,14 @@ console.log(newRelease);
     setReleaseFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // If we're in detailed release view (release selected)
   if (selectedRelease) {
-    const currentRelease = releases.find((r) => r.id === selectedRelease);
+    const currentRelease = releases.find(
+      (r: Release) => r.id === selectedRelease
+    );
     const currentProject = projects.find((p) => p.id === selectedProject);
 
     return (
       <div className="max-w-6xl mx-auto">
-        {/* Fixed Header Section */}
         <div className="flex-none p-6 pb-4">
           <div className="flex justify-between items-center mb-4">
             <div className="space-y-1">
@@ -222,12 +276,17 @@ console.log(newRelease);
             </Button>
           </div>
 
-          {/* Module Selection Panel */}
+          {errorMessage && (
+            <Card className="mb-4 bg-red-50 border-red-200">
+              <CardContent className="p-4 text-red-700">
+                {errorMessage}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="mb-4">
             <CardContent className="p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Module Selection
-              </h2>
+              <h2 className="text-lg font-semibold mb-3">Module Selection</h2>
               <div className="relative flex items-center">
                 <button
                   onClick={() => {
@@ -243,9 +302,9 @@ console.log(newRelease);
                   className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
                   style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
-                  {projectModules.map((module) => {
+                  {projectModules.map((module: any) => {
                     const moduleTestCases = filteredTestCases.filter(
-                      (tc) => tc.module === module.name
+                      (tc: TestCase) => tc.module === module.name
                     );
                     return (
                       <Button
@@ -279,10 +338,9 @@ console.log(newRelease);
             </CardContent>
           </Card>
 
-          {/* Submodule Selection Panel */}
           <Card className="mb-4">
             <CardContent className="p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <h2 className="text-lg font-semibold mb-3">
                 Submodule Selection
               </h2>
               <div className="relative flex items-center min-h-[44px]">
@@ -307,7 +365,7 @@ console.log(newRelease);
                 >
                   {(() => {
                     const submodules =
-                      projectModules.find((m) => m.name === selectedModule)
+                      projectModules.find((m: any) => m.name === selectedModule)
                         ?.submodules || [];
                     if (submodules.length === 0) {
                       return (
@@ -316,8 +374,7 @@ console.log(newRelease);
                         </span>
                       );
                     }
-                    return submodules.map((submodule, idx) => {
-                      // Strictly check for valid id and name
+                    return submodules.map((submodule: any, idx: number) => {
                       const isValidId =
                         typeof submodule.id === "string" ||
                         typeof submodule.id === "number";
@@ -325,9 +382,7 @@ console.log(newRelease);
                         typeof submodule.name === "string" &&
                         submodule.name.length > 0;
                       if (!isValidId || !isValidName) {
-                        // Optionally log a warning for debugging
                         if (process.env.NODE_ENV === "development") {
-                          // eslint-disable-next-line no-console
                           console.warn(
                             "Skipping invalid submodule object:",
                             submodule
@@ -338,7 +393,7 @@ console.log(newRelease);
                       const submoduleId = submodule.id;
                       const submoduleName = submodule.name;
                       const submoduleTestCases = filteredTestCases.filter(
-                        (tc) =>
+                        (tc: TestCase) =>
                           tc.module === selectedModule &&
                           tc.subModule === submoduleName
                       );
@@ -377,7 +432,6 @@ console.log(newRelease);
           </Card>
         </div>
 
-        {/* Content Area - Test Cases Table */}
         <div className="flex-1 px-6 pb-6">
           <Card>
             <CardContent className="p-0">
@@ -406,9 +460,9 @@ console.log(newRelease);
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredTestCases.map((testCase: TestCase) => (
-                    <tr key={testCase.id} className="hover:bg-gray-50">
+                    <tr key={testCase.testcaseId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {testCase.id}
+                        {testCase.testcaseId}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {testCase.description}
@@ -454,14 +508,13 @@ console.log(newRelease);
           </Card>
         </div>
 
-        {/* View Steps Modal */}
         <Modal
           isOpen={isViewStepsModalOpen}
           onClose={() => {
             setIsViewStepsModalOpen(false);
             setViewingTestCase(null);
           }}
-          title={`Test Steps - ${viewingTestCase?.id}`}
+          title={`Test Steps - ${viewingTestCase?.testcaseId}`}
         >
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-4">
@@ -484,14 +537,13 @@ console.log(newRelease);
           </div>
         </Modal>
 
-        {/* View Test Case Modal */}
         <Modal
           isOpen={isViewTestCaseModalOpen}
           onClose={() => {
             setIsViewTestCaseModalOpen(false);
             setViewingTestCase(null);
           }}
-          title={`Test Case Details - ${viewingTestCase?.id}`}
+          title={`Test Case Details - ${viewingTestCase?.testcaseId}`}
           size="xl"
         >
           {viewingTestCase && (
@@ -503,6 +555,12 @@ console.log(newRelease);
                   </h3>
                   <p className="mt-1 text-sm text-gray-900">
                     {viewingTestCase.description}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Owner</h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {viewingTestCase.owner}
                   </p>
                 </div>
               </div>
@@ -530,9 +588,17 @@ console.log(newRelease);
                   </span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Module</h3>
+                  <h3 className="text-sm font-medium text-gray-500">Type</h3>
                   <p className="mt-1 text-sm text-gray-900">
-                    {viewingTestCase.module} / {viewingTestCase.subModule}
+                    {viewingTestCase.type}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Test Date
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {viewingTestCase.testDate} {viewingTestCase.testTime}
                   </p>
                 </div>
               </div>
@@ -555,10 +621,8 @@ console.log(newRelease);
     );
   }
 
-  // Main Release View page (project selection and release cards)
   return (
     <div className="max-w-6xl mx-auto py-8">
-      {/* Back Button at the top right */}
       <div className="mb-4 flex justify-end">
         <Button
           variant="secondary"
@@ -569,7 +633,6 @@ console.log(newRelease);
         </Button>
       </div>
 
-      {/* Project Selection Panel */}
       <ProjectSelector
         projects={projects}
         selectedProjectId={selectedProject}
@@ -577,21 +640,19 @@ console.log(newRelease);
         className="mb-6"
       />
 
-      {/* Release Search Bar */}
       {selectedProject && (
         <div className="mb-4 flex items-center justify-between">
           <input
             type="text"
             placeholder="Search releases by name..."
             value={releaseSearch}
-            onChange={e => setReleaseSearch(e.target.value)}
+            onChange={(e) => setReleaseSearch(e.target.value)}
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
           />
         </div>
       )}
 
-      {/* Release Cards Panel */}
       {selectedProject && (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -608,13 +669,12 @@ console.log(newRelease);
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projectReleases.map((release) => {
-              const releaseTestCases = testCases.filter(
-                (tc) =>
+            {projectReleases.map((release: Release) => {
+              const totalTestCases = testCases.filter(
+                (tc: TestCase) =>
                   tc.projectId === selectedProject &&
                   tc.releaseId === release.id
-              );
-              const totalTestCases = releaseTestCases.length;
+              ).length;
               const currentProject = projects.find(
                 (p) => p.id === selectedProject
               );
@@ -622,12 +682,10 @@ console.log(newRelease);
               return (
                 <Card
                   key={release.id}
-                  hover
                   className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                   onClick={() => handleReleaseSelect(release.id)}
                 >
                   <CardContent className="p-6">
-                    {/* Header */}
                     <div className="mb-4">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         {release.name}
@@ -637,12 +695,10 @@ console.log(newRelease);
                       </p>
                     </div>
 
-                    {/* Description */}
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {release.description}
                     </p>
 
-                    {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-gray-400" />
@@ -668,7 +724,6 @@ console.log(newRelease);
                       </div>
                     </div>
 
-                    {/* Project Info */}
                     {currentProject && (
                       <div className="pt-4 border-t border-gray-200">
                         <div className="flex items-center space-x-2">
@@ -687,7 +742,6 @@ console.log(newRelease);
         </div>
       )}
 
-      {/* Instructions */}
       {selectedProject && projectReleases.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center">
@@ -709,7 +763,6 @@ console.log(newRelease);
         </Card>
       )}
 
-      {/* Create Release Modal */}
       <Modal
         isOpen={isCreateReleaseModalOpen}
         onClose={() => {
@@ -725,7 +778,7 @@ console.log(newRelease);
         title="Create New Release"
         size="xl"
       >
-        <form onSubmit={handleCreateRelease} className="space-y-4">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Release Name"
@@ -802,11 +855,12 @@ console.log(newRelease);
             >
               Cancel
             </Button>
-            <Button type="submit">Create Release</Button>
+            <Button type="submit" onClick={handleCreateRelease}>
+              Create Release
+            </Button>
           </div>
-        </form>
+        </div>
       </Modal>
-      {/* Fixed Quick Add Button */}
       <div
         style={{
           position: "fixed",
