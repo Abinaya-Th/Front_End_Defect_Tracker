@@ -4,6 +4,7 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Input } from "../components/ui/Input";
+import axios from "axios";
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,6 +39,15 @@ interface TestCase {
 }
 
 export const ReleaseView: React.FC = () => {
+  const ReleaseView = () => {
+    // Add these lines here:
+    const { releaseId } = useParams();
+    const [release, setRelease] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+  
+    // ...then add the useEffect for fetching the release, and your render logic
+  };
   const { projectId } = useParams();
   const navigate = useNavigate();
   const {
@@ -71,6 +81,24 @@ export const ReleaseView: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searchError, setSearchError] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
+
+  const [apiRelease, setApiRelease] = useState<any>(null);
+  const [loadingRelease, setLoadingRelease] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedRelease) {
+      setLoadingRelease(true);
+      setReleaseError(null);
+      axios
+        .get(`http://192.168.1.99:8083/api/v1/releases/releaseId/${selectedRelease}`)
+        .then((res) => setApiRelease(res.data))
+        .catch((err) => setReleaseError(err.message))
+        .finally(() => setLoadingRelease(false));
+    } else {
+      setApiRelease(null);
+    }
+  }, [selectedRelease]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -260,7 +288,13 @@ export const ReleaseView: React.FC = () => {
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
-    const currentRelease = releases.find((r) => r.id === selectedRelease);
+    if (loadingRelease) {
+      return <div className="p-8 text-center">Loading release details...</div>;
+    }
+    if (releaseError) {
+      return <div className="p-8 text-center text-red-500">{releaseError}</div>;
+    }
+    const currentRelease = apiRelease;
     const currentProject = projects.find((p) => p.id === selectedProject);
 
     return (
