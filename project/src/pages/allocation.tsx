@@ -17,6 +17,7 @@ import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from "axios";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
@@ -50,10 +51,26 @@ export const Allocation: React.FC = () => {
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
-
+  const [projectRelease, setProjectRelease] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
+const getReleaseCardView =  async() =>{
+
+      try {
+          const response = await projectReleaseCardView(selectedProject);
+          setProjectRelease(response.data || []);
+      } catch (error) {
+          console.error("Error fetching release card view:", error);
+      }
+  }
+  useEffect(() => {
+      getReleaseCardView();
+  }, [selectedProject]);
+
+  console.log("Project Release Data:", projectRelease);
+  
 
   // Filter releases for this project
   const projectReleases = releases.filter((r) => r.projectId === projectId);
@@ -125,6 +142,7 @@ export const Allocation: React.FC = () => {
   // Project selection handler
   const handleProjectSelect = (id: string) => {
     setSelectedProjectId(id);
+    setSelectedProject(id);
     setSelectedModule("");
     setSelectedSubmodule("");
     setSelectedTestCases([]);
@@ -140,14 +158,15 @@ export const Allocation: React.FC = () => {
     />
   );
 
+
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
       <div className="flex space-x-2 overflow-x-auto">
-        {projectReleases.map((release) => {
-          const isSelected = selectedReleaseIds.includes(release.id);
+        {projectRelease.map((release) => {
+          const isSelected = selectedReleaseIds.includes(release.releaseId);
           return (
             <div
-              key={release.id}
+              key={release.releaseId}
               className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                 ${
                   isSelected
@@ -158,10 +177,10 @@ export const Allocation: React.FC = () => {
                 boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
               }}
             >
-              <div className="truncate font-semibold mb-1">{release.name}</div>
-              <div className="text-xs text-gray-500 truncate mb-2">
+              <div className="truncate font-semibold mb-1">{release.releaseName}</div>
+              {/* <div className="text-xs text-gray-500 truncate mb-2">
                 v{release.version}
-              </div>
+              </div> */}
               <Button
                 size="sm"
                 variant={isSelected ? "primary" : "secondary"}
@@ -169,8 +188,8 @@ export const Allocation: React.FC = () => {
                 onClick={() => {
                   setSelectedReleaseIds((prev) =>
                     isSelected
-                      ? prev.filter((id) => id !== release.id)
-                      : [...prev, release.id]
+                      ? prev.filter((id) => id !== release.releaseId)
+                      : [...prev, release.releaseId]
                   );
                 }}
               >
