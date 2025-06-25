@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
+import { exportTestCases } from "../api/Export/testcase_export";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -49,6 +50,7 @@ export const TestCase: React.FC = () => {
   const [filterText, setFilterText] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterSeverity, setFilterSeverity] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
   interface ModalFormData {
@@ -276,8 +278,8 @@ export const TestCase: React.FC = () => {
           id: `TC-${formData.module
             .substring(0, 3)
             .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+              .substring(0, 3)
+              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
           projectId: projectId,
         });
       }
@@ -531,51 +533,280 @@ export const TestCase: React.FC = () => {
             </div>
           )}
 
-          {/* Filter Options Above Table */}
+          {/* Export Test Cases Button */}
           {projectId && selectedModule && (
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Search by description..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{ minWidth: 220 }}
-              />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Types</option>
-                <option value="functional">Functional</option>
-                <option value="regression">Regression</option>
-                <option value="smoke">Smoke</option>
-                <option value="integration">Integration</option>
-              </select>
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Severities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-              {(filterText || filterType || filterSeverity) && (
-                <button
-                  onClick={() => {
-                    setFilterText("");
-                    setFilterType("");
-                    setFilterSeverity("");
-                  }}
-                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+            <div className="flex flex-wrap items-center gap-4 mb-4 justify-between">
+              <div className="flex flex-wrap items-center gap-4">
+                <input
+                  type="text"
+                  placeholder="Search by description..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ minWidth: 220 }}
+                />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  Clear
-                </button>
-              )}
+                  <option value="">All Types</option>
+                  <option value="functional">Functional</option>
+                  <option value="regression">Regression</option>
+                  <option value="smoke">Smoke</option>
+                  <option value="integration">Integration</option>
+                </select>
+                <select
+                  value={filterSeverity}
+                  onChange={(e) => setFilterSeverity(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Severities</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                {(filterText || filterType || filterSeverity) && (
+                  <button
+                    onClick={() => {
+                      setFilterText("");
+                      setFilterType("");
+                      setFilterSeverity("");
+                    }}
+                    className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {/* <Button
+                variant="primary"
+                size="md"
+                disabled={isExporting}
+                onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    const exportParams: Record<string, string> = {
+                      projectId: projectId || '',
+                      module: selectedModule || '',
+                      subModule: selectedSubmodule || '',
+                      description: filterText || '',
+                      type: filterType || '',
+                      severity: filterSeverity || '',
+                    };
+                    Object.keys(exportParams).forEach(
+                      (key) => (exportParams[key as keyof typeof exportParams] === '' || exportParams[key as keyof typeof exportParams] === undefined) && delete exportParams[key as keyof typeof exportParams]
+                    );
+                    // const blob = await exportTestCases(exportParams);
+                    // const url = window.URL.createObjectURL(new Blob([blob]));
+                    // const link = document.createElement("a");
+                    // link.href = url;
+                    // link.setAttribute("download", "TestCases.xlsx");
+                    // document.body.appendChild(link);
+                    // link.click();
+                    // if (link.parentNode) link.parentNode.removeChild(link);
+                    const blob = await exportTestCases(exportParams);
+                    const url = window.URL.createObjectURL(
+                      new Blob([blob], {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      })
+                    );
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'TestCases.xlsx');
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                  } catch (error) {
+                    alert("Failed to export test cases.");
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                className="mb-2"
+              >
+                {isExporting ? "Exporting..." : "Export Test Cases"}
+              </Button> */}
+              {/* <Button
+                variant="primary"
+                size="md"
+                onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    const params = {
+                      projectId,
+                      module: selectedModule,
+                      subModule: selectedSubmodule,
+                      description: filterText,
+                      type: filterType,
+                      severity: filterSeverity,
+                    };
+
+                    // Clean up empty params
+                    Object.keys(params).forEach(
+                      (key) =>
+                        (params[key as keyof typeof params] === "" ||
+                          params[key as keyof typeof params] === undefined) &&
+                        delete params[key as keyof typeof params]
+                    );
+
+                    // Get the blob from API
+                    const response = await exportTestCases(params);
+
+                    // Verify we received data
+                    if (!response) {
+                      throw new Error("No data received from server");
+                    }
+
+                    // Check if response is an error (might be JSON)
+                    if (response.type && response.type.includes("application/json")) {
+                      const errorData = await response.text();
+                      throw new Error(JSON.parse(errorData).message || "Export failed");
+                    }
+
+                    // Create blob with explicit Excel MIME type
+                    const blob = new Blob([response], {
+                      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    });
+
+                    // Verify blob is valid
+                    if (blob.size === 0) {
+                      throw new Error("Received empty file");
+                    }
+
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+
+                    // Generate filename with timestamp
+                    const filename = `TestCases_${new Date().toISOString().split('T')[0]}.csv`;
+                    link.setAttribute("download", filename);
+
+                    // Trigger download
+                    document.body.appendChild(link);
+                    link.click();
+
+                    // Cleanup
+                    setTimeout(() => {
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    }, 100);
+
+                  } catch (error) {
+                    console.error("Export failed:", error);
+                    alert(`Export failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                disabled={isExporting}
+                className="mb-2"
+              >
+                {isExporting ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Exporting...
+                  </div>
+                ) : (
+                  "Export Test Cases"
+                )}
+              </Button> */}
+              <Button
+                variant="primary"
+                size="md"
+                onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    const params = {
+                      projectId,
+                      module: selectedModule,
+                      subModule: selectedSubmodule,
+                      description: filterText,
+                      type: filterType,
+                      severity: filterSeverity,
+                    };
+
+                    // Remove empty params
+                    Object.keys(params).forEach(
+                      (key) =>
+                        (params[key as keyof typeof params] === "" ||
+                          params[key as keyof typeof params] === undefined) &&
+                        delete params[key as keyof typeof params]
+                    );
+
+                    // Get blob (CSV from backend)
+                    const response = await exportTestCases(params);
+
+                    if (!response) throw new Error("No data received from server");
+
+                    // Create a CSV blob
+                    const blob = new Blob([response], {
+                      type: "text/csv;charset=utf-8", // ✅ CSV MIME type
+                    });
+
+                    if (blob.size === 0) {
+                      throw new Error("Received empty file");
+                    }
+
+                    // Create URL and link
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    const filename = `TestCases_${new Date().toISOString().split("T")[0]}.csv`;
+                    link.href = url;
+                    link.setAttribute("download", filename);
+                    document.body.appendChild(link);
+                    link.click();
+
+                    // Cleanup
+                    setTimeout(() => {
+                      link.remove();
+                      window.URL.revokeObjectURL(url);
+                    }, 100);
+                  } catch (error) {
+                    console.error("Export failed:", error);
+                    alert(`Export failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                disabled={isExporting}
+                className="mb-2"
+              >
+                {isExporting ? (
+                  <div className="flex items-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Exporting...
+                  </div>
+                ) : (
+                  "Export Test Cases"
+                )}
+              </Button>
+
+
             </div>
           )}
 
