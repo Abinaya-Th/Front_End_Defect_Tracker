@@ -358,7 +358,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [defects, setDefects] = useState<Defect[]>([
     // Mobile Banking App Defects
     {
-      id: "D004",
+      id: "DEF0001",
       title: "Data not encrypted in transit",
       description:
         "Sensitive data visible in network traffic during transmission",
