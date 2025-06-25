@@ -16,7 +16,7 @@ export interface CreateReleaseResponse {
 
 export const createRelease = (payload: CreateReleaseRequest): Promise<CreateReleaseResponse> => {
   return axios.post<CreateReleaseResponse>(
-    "http://192.168.1.112:8086/api/v1/releases",
+    "http://192.168.1.112:8087/api/v1/releases",
     payload,
    
   ).then(({ data }) => data);
