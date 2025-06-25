@@ -547,7 +547,7 @@ export const Allocation: React.FC = () => {
       setReleaseError(null);
       axios
         .get(
-          `http://192.168.1.99:8083/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
+          `http://192.168.1.99:8085/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
         )
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
