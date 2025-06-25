@@ -18,6 +18,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 
 import { mockModules } from "../context/mockData";
 import { defectFilterService, Defect } from "../service/defectFilterService";
+import axios from "axios";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -148,17 +149,53 @@ export const Defects: React.FC = () => {
     return `DEF-${nextNum.toString().padStart(4, "0")}`;
   };
 
+  // Update defect API function
+  async function updateDefectAPI(defect: any) {
+    try {
+      const response = await axios.put(
+        `http://192.168.1.99:8085/api/v1/defect/defectId=${defect.defectId || defect.id}`,
+        defect,
+        { headers: { "Content-Type": "application/json" } }
+      );
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message;
+    }
+  }
+
   // CRUD handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      updateDefect({
-        ...formData,
-        projectId: projectId || "",
-        id: editingDefect.id,
-        createdAt: editingDefect.createdAt,
-        updatedAt: new Date().toISOString(),
-      });
+      try {
+        // Prepare defect object for API
+        const updatedDefect = {
+          ...editingDefect,
+          ...formData,
+          defectId: editingDefect.defectId || editingDefect.id,
+          defectTitle: formData.title,
+          descriptions: formData.description,
+          steps: formData.description, // or formData.steps if available
+          module: formData.module,
+          subModule: formData.subModule,
+          type: formData.type,
+          priority: formData.priority,
+          severity: formData.severity,
+          status: formData.status,
+          assignTo: formData.assignedTo,
+        };
+        await updateDefectAPI(updatedDefect);
+        updateDefect({
+          ...formData,
+          projectId: projectId || "",
+          id: editingDefect.id,
+          createdAt: editingDefect.createdAt,
+          updatedAt: new Date().toISOString(),
+        });
+        resetForm();
+      } catch (err: any) {
+        alert("Failed to update defect: " + err);
+      }
     } else {
       const newDefect = {
         ...formData,
@@ -168,25 +205,36 @@ export const Defects: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
       addDefect(newDefect);
+      resetForm();
     }
-    resetForm();
   };
   const handleEdit = (defect: any) => {
+    // Use mockModules for module/submodule
+    let moduleId = defect.module || "";
+    let subModuleId = defect.subModule || "";
+    const projectModules = (mockModules as Record<string, { id: string; name: string; submodules: string[] }[]>)[projectId as string] || [];
+    if (!moduleId && projectModules.length > 0) {
+      moduleId = projectModules[0].id;
+    }
+    const selectedModule = projectModules.find((m) => m.id === moduleId);
+    if (!subModuleId && selectedModule && selectedModule.submodules.length > 0) {
+      subModuleId = selectedModule.submodules[0];
+    }
     setEditingDefect(defect);
     setFormData({
-      title: defect.title,
-      description: defect.description,
-      module: defect.module,
-      subModule: defect.subModule,
-      type: defect.type,
-      priority: defect.priority,
-      severity: defect.severity,
-      status: defect.status,
-      projectId: defect.projectId,
+      title: defect.defectTitle || defect.title || "",
+      description: defect.descriptions || defect.description || "",
+      module: moduleId,
+      subModule: subModuleId,
+      type: defect.type || "",
+      priority: defect.priority || "",
+      severity: defect.severity || "",
+      status: defect.status || "",
+      projectId: projectId || "",
       releaseId: defect.releaseId || "",
       testCaseId: defect.testCaseId || "",
-      assignedTo: defect.assignedTo || "",
-      reportedBy: defect.reportedBy,
+      assignedTo: defect.assignTo || defect.assignedTo || "",
+      reportedBy: defect.reportedBy || "",
       rejectionComment: defect.rejectionComment || "",
     });
     setIsModalOpen(true);
@@ -641,10 +689,7 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select module</option>
-                {(modulesByProject && modulesByProject[projectId as string]
-                  ? modulesByProject[projectId as string]
-                  : []
-                ).map((m: { id: string; name: string; submodules: { id: string; name: string }[] }) => (
+                {((mockModules as any)[projectId as string] || []).map((m: { id: string; name: string; submodules: string[] }) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -659,13 +704,8 @@ export const Defects: React.FC = () => {
                 disabled={!formData.module}
               >
                 <option value="">Select submodule</option>
-                {(
-                  (modulesByProject && modulesByProject[projectId as string]
-                    ? modulesByProject[projectId as string]
-                    : []
-                  ).find((m: { id: string }) => m.id === formData.module)?.submodules || []
-                ).map((sm: { id: string; name: string }) => (
-                  <option key={sm.id} value={sm.id}>{sm.name}</option>
+                {(((mockModules as any)[projectId as string] || []).find((m: { id: string }) => m.id === formData.module)?.submodules || []).map((sm: string) => (
+                  <option key={sm} value={sm}>{sm}</option>
                 ))}
               </select>
             </div>

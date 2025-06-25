@@ -52,6 +52,8 @@ const mockModulesByProject: Record<string, any[]> = {
     },
   ],
 };
+import { importTestCases } from "../api/importTestCase";
+import axios from "axios";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -117,7 +119,7 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     if (selectedSubmodule) {
       setLoading(true);
-      fetch(`http://localhost:8085/api/v1/testcase/submodule/${selectedSubmodule}`)
+      fetch(`http://192.168.1.112:8086/api/v1/testcase/submodule/${selectedSubmodule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -141,7 +143,7 @@ export const TestCase: React.FC = () => {
 
   // --- Add test case ---
   const addTestCase = async (formData: ModalFormData) => {
-    await fetch("http://localhost:8085/api/v1/testcase", {
+    await fetch("http://192.168.1.112:8086/api/v1/testcase", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -157,7 +159,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://localhost:8080/api/v1/testcase/module/${selectedModule}`)
+      fetch(`http://192.168.1.112:8086/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -177,7 +179,7 @@ export const TestCase: React.FC = () => {
 
   // --- Update test case ---
   const updateTestCase = async (formData: ModalFormData) => {
-    await fetch(`http://localhost:8080/api/v1/testcase/${formData.id}`, {
+    await fetch(`http://192.168.1.112:8086/api/v1/testcase/${formData.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -193,7 +195,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://localhost:8080/api/v1/testcase/module/${selectedModule}`)
+      fetch(`http://192.168.1.112:8086/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -213,12 +215,12 @@ export const TestCase: React.FC = () => {
 
   // --- Delete test case ---
   const deleteTestCase = async (testCaseId: string) => {
-    await fetch(`http://localhost:8080/api/v1/testcase/delete/${testCaseId}`, {
+    await fetch(`http://192.168.1.112:8086/api/v1/testcase/${testCaseId}`, {
       method: "DELETE",
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://localhost:8080/api/v1/testcase/module/${selectedModule}`)
+      fetch(`http://192.168.1.112:8086/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -295,7 +297,7 @@ export const TestCase: React.FC = () => {
     setSelectedModule(moduleId);
     setSelectedSubmodule("");
     setSelectedTestCases([]);
-    fetch(`http://localhost:8080/api/v1/testcase/module/${moduleId}`)
+    fetch(`http://192.168.1.112:8086/api/v1/testcase/module/${moduleId}`)
       .then((res) => res.json())
       .then((data) => {
         const mapped = (data.data || []).map((tc: any) => ({
@@ -364,38 +366,24 @@ export const TestCase: React.FC = () => {
     }
   };
 
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      if (!data) return;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json
-        .slice(1)
-        .map((row: any[]) => ({
-          module: row[0] || "",
-          subModule: row[1] || "",
-          description: row[2] || "",
-          steps: row[3] || "",
-          type: row[4] || "functional",
-          severity: row[5] || "medium",
-          projectId: selectedProjectId,
-        }))
-        .filter(
-          (row) => row.module && row.subModule && row.description && row.steps
-        );
-      if (rows.length > 0) {
-        setModals(rows.map((row) => ({ open: true, formData: row })));
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importTestCases(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
         setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
       }
-    };
-    reader.readAsBinaryString(file);
+    } catch (error: any) {
+      alert("Failed to import test cases: " + (error?.message || error));
+    }
   };
 
   const handleSubmitAll = (e?: React.FormEvent) => {

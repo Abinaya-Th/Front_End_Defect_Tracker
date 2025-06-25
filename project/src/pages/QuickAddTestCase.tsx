@@ -5,6 +5,7 @@ import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import * as XLSX from "xlsx";
+import { importTestCases } from "../api/importTestCase";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -172,37 +173,24 @@ const QuickAddTestCase: React.FC = () => {
     }
   };
 
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      if (!data) return;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json
-        .slice(1)
-        .map((row: any[]) => ({
-          module: row[0] || "",
-          subModule: row[1] || "",
-          description: row[2] || "",
-          steps: row[3] || "",
-          type: row[4] || "functional",
-          severity: row[5] || "medium",
-        }))
-        .filter(
-          (row) => row.module && row.subModule && row.description && row.steps
-        );
-      if (rows.length > 0) {
-        setModals(rows.map((row) => ({ open: true, formData: row })));
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importTestCases(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
         setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
       }
-    };
-    reader.readAsBinaryString(file);
+    } catch (error: any) {
+      alert("Failed to import test cases: " + (error?.message || error));
+    }
   };
 
   const handleSubmitAll = (e?: React.FormEvent) => {
