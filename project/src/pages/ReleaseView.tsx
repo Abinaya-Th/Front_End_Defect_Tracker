@@ -234,12 +234,12 @@ export const ReleaseView: React.FC = () => {
       return;
     }
     try {
-      const params: any = {};
-      if (searchValue) params.releaseName = searchValue;
-      if (selectedProject) params.projectId = 1;
-      const response = await searchRelease(params);
-      if (response.status === "success" && response.statusCode === 2000) {
-        setSearchResults(response.data);
+      
+      
+      const response = await searchRelease(searchValue );
+
+      if (response.status === "success" && response.statusCode === 200) {
+        setSearchResults(response?.data);
       } else {
         setSearchResults([]);
         setSearchError(response.message || "No results found");
@@ -255,6 +255,8 @@ export const ReleaseView: React.FC = () => {
       setIsSearching(false);
     }
   };
+  console.log({searchResults});
+  
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
