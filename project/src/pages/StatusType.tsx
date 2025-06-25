@@ -1,36 +1,50 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/Table';
 import { ChevronLeft, Plus, Edit2, Trash2, ListPlus } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { StatusType as StatusTypeInterface } from '../types';
+
+export interface StatusType {
+  defectStatusId: number;
+  defectStatus: string;
+}
+
+const API_BASE = 'http://localhost:8080/api/v1/defect/defectStatus';
 
 const StatusType: React.FC = () => {
   const navigate = useNavigate();
-  const { statusTypes, addStatusType, updateStatusType, deleteStatusType } = useApp();
-  const colorInputRef = useRef<HTMLInputElement>(null);
-  
+  const [statusTypes, setStatusTypes] = useState<StatusType[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<StatusTypeInterface | null>(null);
-  const [deletingStatus, setDeletingStatus] = useState<StatusTypeInterface | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    color: '#000000',
-  });
+  const [editingStatus, setEditingStatus] = useState<StatusType | null>(null);
+  const [deletingStatus, setDeletingStatus] = useState<StatusType | null>(null);
+  const [formData, setFormData] = useState({ defectStatus: '' });
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    fetchStatusTypes();
+  }, []);
+
+  const fetchStatusTypes = async () => {
+    try {
+      const res = await axios.get(API_BASE);
+      setStatusTypes(res.data.result.defectStatus);
+    } catch (err) {
+      setStatusTypes([]);
+    }
+  };
+
   const resetForm = () => {
-    setFormData({ name: '', color: '#000000' });
+    setFormData({ defectStatus: '' });
     setError('');
   };
 
   const validateForm = () => {
-    if (formData.name.trim() === '') {
+    if (formData.defectStatus.trim() === '') {
       setError('Status Name cannot be empty.');
       return false;
     }
@@ -38,37 +52,51 @@ const StatusType: React.FC = () => {
     return true;
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!validateForm()) return;
-    addStatusType(formData);
-    setIsCreateModalOpen(false);
-    resetForm();
+    try {
+      await axios.post(API_BASE, { defectStatus: formData.defectStatus });
+      fetchStatusTypes();
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (err) {
+      setError('Failed to create status.');
+    }
   };
 
-  const handleEdit = () => {
-    if (!validateForm()) return;
-    if (!editingStatus) return;
-    updateStatusType(editingStatus.id, formData);
-    setIsEditModalOpen(false);
-    setEditingStatus(null);
-    resetForm();
+  const handleEdit = async () => {
+    if (!validateForm() || !editingStatus) return;
+    try {
+      await axios.put(`${API_BASE}/${editingStatus.defectStatusId}`, { defectStatus: formData.defectStatus });
+      fetchStatusTypes();
+      setIsEditModalOpen(false);
+      setEditingStatus(null);
+      resetForm();
+    } catch (err) {
+      setError('Failed to update status.');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingStatus) return;
-    deleteStatusType(deletingStatus.id);
-    setIsDeleteModalOpen(false);
-    setDeletingStatus(null);
+    try {
+      await axios.delete(`${API_BASE}/${deletingStatus.defectStatusId}`);
+      fetchStatusTypes();
+      setIsDeleteModalOpen(false);
+      setDeletingStatus(null);
+    } catch (err) {
+      setError('Failed to delete status.');
+    }
   };
 
-  const openEditModal = (status: StatusTypeInterface) => {
+  const openEditModal = (status: StatusType) => {
     setEditingStatus(status);
-    setFormData({ name: status.name, color: status.color });
+    setFormData({ defectStatus: status.defectStatus });
     setError('');
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (status: StatusTypeInterface) => {
+  const openDeleteModal = (status: StatusType) => {
     setDeletingStatus(status);
     setIsDeleteModalOpen(true);
   };
@@ -106,24 +134,14 @@ const StatusType: React.FC = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableCell header className="w-[40%]">Name</TableCell>
-              <TableCell header className="w-[40%]">Colour</TableCell>
+              <TableCell header className="w-[70%]">Name</TableCell>
               <TableCell header className="text-right">Action</TableCell>
             </TableRow>
           </TableHeader>
           <TableBody>
             {statusTypes.map((status) => (
-              <TableRow key={status.id}>
-                <TableCell className="font-medium">{status.name}</TableCell>
-                <TableCell>
-                  <div className="flex items-center">
-                    <div
-                      className="w-6 h-6 rounded-full border border-gray-300 mr-3"
-                      style={{ backgroundColor: status.color }}
-                    />
-                    <span>{status.color}</span>
-                  </div>
-                </TableCell>
+              <TableRow key={status.defectStatusId}>
+                <TableCell className="font-medium">{status.defectStatus}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" onClick={() => openEditModal(status)} className="mr-2">
                     <Edit2 className="w-4 h-4 text-blue-500" />
@@ -143,33 +161,10 @@ const StatusType: React.FC = () => {
         <div className="space-y-4">
           <Input
             label="Status Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value.toUpperCase() })}
+            value={formData.defectStatus}
+            onChange={(e) => setFormData({ ...formData, defectStatus: e.target.value.toUpperCase() })}
             placeholder="e.g., IN PROGRESS"
           />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Colour</label>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
-                style={{ backgroundColor: formData.color }}
-                onClick={() => colorInputRef.current?.click()}
-              />
-              <Input
-                type="text"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="flex-grow"
-              />
-              <input
-                type="color"
-                ref={colorInputRef}
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="opacity-0 w-0 h-0 absolute"
-              />
-            </div>
-          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end space-x-2">
             <Button variant="secondary" onClick={() => { setIsCreateModalOpen(false); resetForm(); }}>Cancel</Button>
@@ -183,33 +178,10 @@ const StatusType: React.FC = () => {
         <div className="space-y-4">
           <Input
             label="Status Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value.toUpperCase() })}
+            value={formData.defectStatus}
+            onChange={(e) => setFormData({ ...formData, defectStatus: e.target.value.toUpperCase() })}
             placeholder="e.g., IN PROGRESS"
           />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Colour</label>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
-                style={{ backgroundColor: formData.color }}
-                onClick={() => colorInputRef.current?.click()}
-              />
-              <Input
-                type="text"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="flex-grow"
-              />
-              <input
-                type="color"
-                ref={colorInputRef}
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="opacity-0 w-0 h-0 absolute"
-              />
-            </div>
-          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end space-x-2">
             <Button variant="secondary" onClick={() => { setIsEditModalOpen(false); resetForm(); }}>Cancel</Button>
@@ -221,7 +193,7 @@ const StatusType: React.FC = () => {
       {/* Delete Modal */}
       <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Status Type">
         <div>
-          <p>Are you sure you want to delete the status "<strong>{deletingStatus?.name}</strong>"?</p>
+          <p>Are you sure you want to delete the status "<strong>{deletingStatus?.defectStatus}</strong>"?</p>
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
             <Button variant="danger" onClick={handleDelete}>Delete</Button>
