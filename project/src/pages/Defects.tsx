@@ -172,21 +172,32 @@ export const Defects: React.FC = () => {
     resetForm();
   };
   const handleEdit = (defect: any) => {
+    // Use mockModules for module/submodule
+    let moduleId = defect.module || "";
+    let subModuleId = defect.subModule || "";
+    const projectModules = (mockModules as Record<string, { id: string; name: string; submodules: string[] }[]>)[projectId as string] || [];
+    if (!moduleId && projectModules.length > 0) {
+      moduleId = projectModules[0].id;
+    }
+    const selectedModule = projectModules.find((m) => m.id === moduleId);
+    if (!subModuleId && selectedModule && selectedModule.submodules.length > 0) {
+      subModuleId = selectedModule.submodules[0];
+    }
     setEditingDefect(defect);
     setFormData({
-      title: defect.title,
-      description: defect.description,
-      module: defect.module,
-      subModule: defect.subModule,
-      type: defect.type,
-      priority: defect.priority,
-      severity: defect.severity,
-      status: defect.status,
-      projectId: defect.projectId,
+      title: defect.defectTitle || defect.title || "",
+      description: defect.descriptions || defect.description || "",
+      module: moduleId,
+      subModule: subModuleId,
+      type: defect.type || "",
+      priority: defect.priority || "",
+      severity: defect.severity || "",
+      status: defect.status || "",
+      projectId: projectId || "",
       releaseId: defect.releaseId || "",
       testCaseId: defect.testCaseId || "",
-      assignedTo: defect.assignedTo || "",
-      reportedBy: defect.reportedBy,
+      assignedTo: defect.assignTo || defect.assignedTo || "",
+      reportedBy: defect.reportedBy || "",
       rejectionComment: defect.rejectionComment || "",
     });
     setIsModalOpen(true);
@@ -506,7 +517,7 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="flex items-center space-x-1 hover:underline"
                             onClick={() => {
-                              setViewingSteps(defect.descriptions);
+                              setViewingSteps(defect.steps);
                               setIsViewStepsModalOpen(true);
                             }}
                             title="View Steps"
@@ -641,10 +652,7 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select module</option>
-                {(modulesByProject && modulesByProject[projectId as string]
-                  ? modulesByProject[projectId as string]
-                  : []
-                ).map((m: { id: string; name: string; submodules: { id: string; name: string }[] }) => (
+                {(mockModules[projectId as string] || []).map((m: { id: string; name: string; submodules: string[] }) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -659,13 +667,8 @@ export const Defects: React.FC = () => {
                 disabled={!formData.module}
               >
                 <option value="">Select submodule</option>
-                {(
-                  (modulesByProject && modulesByProject[projectId as string]
-                    ? modulesByProject[projectId as string]
-                    : []
-                  ).find((m: { id: string }) => m.id === formData.module)?.submodules || []
-                ).map((sm: { id: string; name: string }) => (
-                  <option key={sm.id} value={sm.id}>{sm.name}</option>
+                {((mockModules[projectId as string] || []).find((m: { id: string }) => m.id === formData.module)?.submodules || []).map((sm: string) => (
+                  <option key={sm} value={sm}>{sm}</option>
                 ))}
               </select>
             </div>
