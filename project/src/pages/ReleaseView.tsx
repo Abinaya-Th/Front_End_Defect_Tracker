@@ -99,19 +99,21 @@ export const ReleaseView: React.FC = () => {
       setApiRelease(null);
     }
   }, [selectedRelease]);
+  
+  
 
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
     }
   }, [selectedProject, setSelectedProjectId]);
+  console.log({releaseSearch});
+  
 
   const getReleaseCardView =  async() =>{
 
       try {
           const response = await projectReleaseCardView(selectedProject);
-          setReleaseCardView(response.data)
-          console.log("Release Card View Data:", response.data);
           setReleases(response.data || []);
       } catch (error) {
           console.error("Error fetching release card view:", error);
@@ -121,6 +123,44 @@ export const ReleaseView: React.FC = () => {
       getReleaseCardView();
   }, [selectedProject]);
 
+const handleReleaseSearch = async (searchValue: string) => {
+    
+    setIsSearching(true);
+    setSearchError("");
+    // if (!searchValue && !selectedProject) {
+    //   setSearchResults(null);
+    //   setIsSearching(false);
+    //   return;
+    // }
+    if(!searchValue){
+      setSearchResults([])
+      getReleaseCardView();
+      setIsSearching(false);
+    }else{
+    try {
+      
+      
+      const response = await searchRelease(searchValue );
+
+      if (response.status === "success" && response.statusCode === 200) {
+        setSearchResults(response?.data);
+      } else {
+        setSearchResults([]);
+        setSearchError(response.message || "No results found");
+      }
+    } catch (error: any) {
+      setSearchResults([]);
+      setSearchError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to search releases"
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  }
+  };
+  console.log({searchResults});
   console.log(releaseCardView);
   
 
@@ -224,7 +264,6 @@ export const ReleaseView: React.FC = () => {
     try {
       const response = await createRelease(payload);
       if (response.status === "success" && response.statusCode === 2000) {
-        // Optionally, you can refresh the release list or call getReleaseCardView();
         getReleaseCardView();
         setIsCreateReleaseModalOpen(false);
         setReleaseFormData({
@@ -252,38 +291,7 @@ export const ReleaseView: React.FC = () => {
   };
 
   // Handle release search
-  const handleReleaseSearch = async (searchValue: string) => {
-    setReleaseSearch(searchValue);
-    setIsSearching(true);
-    setSearchError("");
-    if (!searchValue && !selectedProject) {
-      setSearchResults(null);
-      setIsSearching(false);
-      return;
-    }
-    try {
-      
-      
-      const response = await searchRelease(searchValue );
-
-      if (response.status === "success" && response.statusCode === 200) {
-        setSearchResults(response?.data);
-      } else {
-        setSearchResults([]);
-        setSearchError(response.message || "No results found");
-      }
-    } catch (error: any) {
-      setSearchResults([]);
-      setSearchError(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Failed to search releases"
-      );
-    } finally {
-      setIsSearching(false);
-    }
-  };
-  console.log({searchResults});
+  
   
 
   // If we're in detailed release view (release selected)
@@ -677,15 +685,23 @@ export const ReleaseView: React.FC = () => {
 
       {/* Release Search Bar */}
       {selectedProject && (
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center ">
           <input
             type="text"
             placeholder="Search releases by name..."
+             onChange={(e:any) => setReleaseSearch(e.target.value)}
+
             value={releaseSearch}
-            onChange={e => handleReleaseSearch(e.target.value)}
+           
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
           />
+          <button 
+            onClick={() => handleReleaseSearch(releaseSearch)}
+            className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Search
+          </button>
         </div>
       )}
 
@@ -712,7 +728,7 @@ export const ReleaseView: React.FC = () => {
             <div className="text-center text-red-500 mb-4">{searchError}</div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(searchResults !== null ? searchResults : projectReleases).map((release) => {
+            {(releaseSearch === "" ? projectReleases : (searchResults ?? [])).map((release) => {
               const releaseTestCases = testCases.filter(
                 (tc) =>
                   tc.projectId === selectedProject &&
@@ -830,20 +846,20 @@ export const ReleaseView: React.FC = () => {
         size="xl"
       >
         <form onSubmit={handleCreateRelease} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          {/* <div className="grid grid-cols-2 gap-4"> */}
             <Input
               label="Release Name"
               value={releaseFormData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               required
             />
-            <Input
+            {/* <Input
               label="Version"
               value={releaseFormData.version}
               onChange={(e) => handleInputChange("version", e.target.value)}
               required
-            />
-          </div>
+            /> */}
+          {/* </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -864,7 +880,7 @@ export const ReleaseView: React.FC = () => {
             </select>
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
@@ -875,7 +891,7 @@ export const ReleaseView: React.FC = () => {
               rows={3}
               required
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
