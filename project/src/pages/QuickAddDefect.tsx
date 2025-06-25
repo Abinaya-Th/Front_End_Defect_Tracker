@@ -19,7 +19,7 @@ const QuickAddDefect: React.FC = () => {
     priority: "medium",
     severity: "medium",
     status: "open",
-    assignedTo: "",
+    assignedTo: "", 
     rejectionComment: "",
   });
   const [success, setSuccess] = useState(false);
