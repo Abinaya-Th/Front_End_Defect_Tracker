@@ -4,6 +4,7 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Input } from "../components/ui/Input";
+import axios from "axios";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,10 @@ import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { createRelease } from "../api/createRelease/CreateRelease";
+import { searchRelease } from "../api/searchRelease/SearchRelease";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -148,14 +153,29 @@ const mockModules: { [key: string]: Module[] } = {
 };
 
 export const ReleaseView: React.FC = () => {
+  const ReleaseView = () => {
+    // Add these lines here:
+    const { releaseId } = useParams();
+    const [release, setRelease] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+  
+    // ...then add the useEffect for fetching the release, and your render logic
+  };
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, releases, testCases, setSelectedProjectId, addRelease } =
-    useApp();
+  const {
+    projects,
+    testCases,
+    setSelectedProjectId,
+    addRelease,
+    modulesByProject,
+  } = useApp();
   const [selectedProject, setSelectedProject] = useState<string | null>(
     projectId || null
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
+  const[releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -170,17 +190,96 @@ export const ReleaseView: React.FC = () => {
     releaseDate: "",
     releaseType: "",
   });
+  const [releaseSearch, setReleaseSearch] = useState("");
+  const [releaseCardView, setReleaseCardView] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searchError, setSearchError] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [apiRelease, setApiRelease] = useState<any>(null);
+  const [loadingRelease, setLoadingRelease] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedRelease) {
+      setLoadingRelease(true);
+      setReleaseError(null);
+      axios
+        .get(`http://192.168.1.46:8088/api/v1/releases/releaseId/${selectedRelease}`)
+        .then((res) => setApiRelease(res.data))
+        .catch((err) => setReleaseError(err.message))
+        .finally(() => setLoadingRelease(false));
+    } else {
+      setApiRelease(null);
+    }
+  }, [selectedRelease]);
+  
+  
 
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
     }
   }, [selectedProject, setSelectedProjectId]);
+  console.log({releaseSearch});
+  
 
-  // Filter releases for selected project
-  const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject
-  );
+  const getReleaseCardView =  async() =>{
+
+      try {
+          const response = await projectReleaseCardView(selectedProject);
+          setReleases(response.data || []);
+      } catch (error) {
+          console.error("Error fetching release card view:", error);
+      }
+  }
+  useEffect(() => {
+      getReleaseCardView();
+  }, [selectedProject]);
+
+const handleReleaseSearch = async (searchValue: string) => {
+    
+    setIsSearching(true);
+    setSearchError("");
+    // if (!searchValue && !selectedProject) {
+    //   setSearchResults(null);
+    //   setIsSearching(false);
+    //   return;
+    // }
+    if(!searchValue){
+      setSearchResults([])
+      getReleaseCardView();
+      setIsSearching(false);
+    }else{
+    try {
+      
+      
+      const response = await searchRelease(searchValue );
+
+      if (response.status === "success" && response.statusCode === 200) {
+        setSearchResults(response?.data);
+      } else {
+        setSearchResults([]);
+        setSearchError(response.message || "No results found");
+      }
+    } catch (error: any) {
+      setSearchResults([]);
+      setSearchError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to search releases"
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  }
+  };
+  console.log({searchResults});
+  console.log(releaseCardView);
+  
+
+  // Filter releases for selected project and search
+  const projectReleases = releases
 
   // Get modules for selected project
   const projectModules = selectedProject
@@ -263,44 +362,61 @@ export const ReleaseView: React.FC = () => {
   };
 
   // Handle create release
-  const handleCreateRelease = (e: React.FormEvent) => {
+  const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedProject) return;
 
-    const newRelease = {
-      id: `R${Date.now()}`,
-      name: releaseFormData.name,
-      version: releaseFormData.version,
-      description: releaseFormData.description,
-      projectId: selectedProject,
-      status: "planned" as const,
-      releaseDate: releaseFormData.releaseDate || undefined,
-      Testcase: [],
-      features: [],
-      bugFixes: [],
+    // Prepare payload for API
+    const payload = {
+      releaseName: releaseFormData.name,
+      releaseDate: releaseFormData.releaseDate, // YYYY-MM-DD
       releaseType: releaseFormData.releaseType,
-      createdAt: new Date().toISOString(),
+      projectId: selectedProject,
     };
 
-    addRelease(newRelease);
-    setReleaseFormData({
-      name: "",
-      version: "",
-      description: "",
-      releaseDate: "",
-      releaseType: "",
-    });
-    setIsCreateReleaseModalOpen(false);
+    try {
+      const response = await createRelease(payload);
+      if (response.status === "success" && response.statusCode === 2000) {
+        getReleaseCardView();
+        setIsCreateReleaseModalOpen(false);
+        setReleaseFormData({
+          name: "",
+          version: "",
+          description: "",
+          releaseDate: "",
+          releaseType: "",
+        });
+        alert("Release created successfully");
+      } else {
+        alert(response.message || "Failed to create release");
+      }
+    } catch (error: any) {
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create release"
+      );
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
     setReleaseFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Handle release search
+  
+  
+
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
-    const currentRelease = releases.find((r) => r.id === selectedRelease);
+    if (loadingRelease) {
+      return <div className="p-8 text-center">Loading release details...</div>;
+    }
+    if (releaseError) {
+      return <div className="p-8 text-center text-red-500">{releaseError}</div>;
+    }
+    const currentRelease = apiRelease;
     const currentProject = projects.find((p) => p.id === selectedProject);
 
     return (
@@ -644,55 +760,34 @@ export const ReleaseView: React.FC = () => {
       </div>
 
       {/* Project Selection Panel */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Project Selection
-          </h2>
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft -= 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto p-2 scroll-smooth flex-1"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                maxWidth: "100%",
-              }}
-            >
-              {projects.map((project) => (
-                <Button
-                  key={project.id}
-                  variant={
-                    selectedProject === project.id ? "primary" : "secondary"
-                  }
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft += 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={selectedProject}
+        onSelect={handleProjectSelect}
+        className="mb-6"
+      />
+
+      {/* Release Search Bar */}
+      {selectedProject && (
+        <div className="mb-4 flex items-center ">
+          <input
+            type="text"
+            placeholder="Search releases by name..."
+             onChange={(e:any) => setReleaseSearch(e.target.value)}
+
+            value={releaseSearch}
+           
+            className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            style={{ minWidth: 220 }}
+          />
+          <button 
+            onClick={() => handleReleaseSearch(releaseSearch)}
+            className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Search
+          </button>
+        </div>
+      )}
 
       {/* Release Cards Panel */}
       {selectedProject && (
@@ -710,8 +805,14 @@ export const ReleaseView: React.FC = () => {
               <span>Create Release</span>
             </Button>
           </div>
+          {isSearching && (
+            <div className="text-center text-gray-500 mb-4">Searching...</div>
+          )}
+          {searchError && (
+            <div className="text-center text-red-500 mb-4">{searchError}</div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projectReleases.map((release) => {
+            {(releaseSearch === "" ? projectReleases : (searchResults ?? [])).map((release) => {
               const releaseTestCases = testCases.filter(
                 (tc) =>
                   tc.projectId === selectedProject &&
@@ -733,10 +834,10 @@ export const ReleaseView: React.FC = () => {
                     {/* Header */}
                     <div className="mb-4">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {release.name}
+                        {release.name || release.releaseName}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        v{release.version}
+                        v{release.version || release.releaseId}
                       </p>
                     </div>
 
@@ -829,20 +930,20 @@ export const ReleaseView: React.FC = () => {
         size="xl"
       >
         <form onSubmit={handleCreateRelease} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
+          {/* <div className="grid grid-cols-2 gap-4"> */}
             <Input
               label="Release Name"
               value={releaseFormData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               required
             />
-            {/*<Input
+            {/* <Input
               label="Version"
               value={releaseFormData.version}
               onChange={(e) => handleInputChange("version", e.target.value)}
               required
-            />*/}
-          </div>
+            /> */}
+          {/* </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -863,7 +964,7 @@ export const ReleaseView: React.FC = () => {
             </select>
           </div>
 
-          {/*<div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
@@ -874,7 +975,7 @@ export const ReleaseView: React.FC = () => {
               rows={3}
               required
             />
-          </div>*/}
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
