@@ -42,7 +42,6 @@ export const ReleaseView: React.FC = () => {
   const navigate = useNavigate();
   const {
     projects,
-    releases,
     testCases,
     setSelectedProjectId,
     addRelease,
@@ -52,6 +51,7 @@ export const ReleaseView: React.FC = () => {
     projectId || null
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
+  const[releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -83,6 +83,8 @@ export const ReleaseView: React.FC = () => {
       try {
           const response = await projectReleaseCardView(selectedProject);
           setReleaseCardView(response.data)
+          console.log("Release Card View Data:", response.data);
+          setReleases(response.data || []);
       } catch (error) {
           console.error("Error fetching release card view:", error);
       }
@@ -95,10 +97,7 @@ export const ReleaseView: React.FC = () => {
   
 
   // Filter releases for selected project and search
-  const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject &&
-      (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
-  );
+  const projectReleases = releases
 
   // Get modules for selected project from context
   const projectModules = selectedProject
@@ -237,7 +236,7 @@ export const ReleaseView: React.FC = () => {
     try {
       const params: any = {};
       if (searchValue) params.releaseName = searchValue;
-      if (selectedProject) params.projectId = selectedProject;
+      if (selectedProject) params.projectId = 1;
       const response = await searchRelease(params);
       if (response.status === "success" && response.statusCode === 2000) {
         setSearchResults(response.data);

@@ -32,7 +32,7 @@ export const searchRelease = (params: SearchReleaseParams): Promise<SearchReleas
   }
 
   return axios.get<SearchReleaseResponse>(
-    `http://192.168.1.46/api/v1/release/search?${query}`,
+    `http://192.168.1.99:8083/api/v1/releases/search?projectId=${params.projectId}&${query}`,
     {
       headers: {
         "Content-Type": "application/json",
