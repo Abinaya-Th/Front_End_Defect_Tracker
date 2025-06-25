@@ -20,6 +20,7 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { searchReleaseByName } from "../services/api";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -64,6 +65,9 @@ export const ReleaseView: React.FC = () => {
     releaseType: "",
   });
   const [releaseSearch, setReleaseSearch] = useState("");
+  const [apiSearchResults, setApiSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (selectedProject) {
@@ -71,11 +75,70 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  // Debounced search handler
+  const handleSearchChange = (searchTerm: string) => {
+    setReleaseSearch(searchTerm);
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for API call
+    if (searchTerm.trim().length >= 2) {
+      const timeout = setTimeout(async () => {
+        setIsSearching(true);
+        try {
+          const results = await searchReleaseByName(searchTerm);
+          // Map API fields to UI fields
+          const mappedResults = (results || []).map((release: any) => ({
+            id: release.releaseId,
+            name: release.releaseName,
+            version: '', // No version in API response
+            description: '', // No description in API response
+            projectId: release.projectId,
+            status: '', // No status in API response
+            releaseDate: release.releaseDate,
+            releaseType: release.releaseType,
+          }));
+          setApiSearchResults(mappedResults);
+        } catch (error) {
+          console.error('Error searching releases:', error);
+          setApiSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 500); // 500ms delay
+
+      setSearchTimeout(timeout);
+    } else {
+      setApiSearchResults([]);
+    }
+  };
+
   // Filter releases for selected project and search
   const projectReleases = releases.filter(
     (r) => r.projectId === selectedProject &&
       (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
   );
+
+  // Combine local and API results
+  const allReleases = React.useMemo(() => {
+    if (releaseSearch.trim().length >= 2 && apiSearchResults.length > 0) {
+      // Use API results when available
+      return apiSearchResults;
+    }
+    return projectReleases;
+  }, [projectReleases, apiSearchResults, releaseSearch]);
 
   // Get modules for selected project from context
   const projectModules = selectedProject
@@ -177,7 +240,7 @@ export const ReleaseView: React.FC = () => {
       releaseType: releaseFormData.releaseType,
       createdAt: new Date().toISOString(),
     };
-console.log(newRelease);
+    console.log(newRelease);
 
     addRelease(newRelease);
     setReleaseFormData({
@@ -580,14 +643,20 @@ console.log(newRelease);
       {/* Release Search Bar */}
       {selectedProject && (
         <div className="mb-4 flex items-center justify-between">
-          <input
-            type="text"
-            placeholder="Search releases by name..."
-            value={releaseSearch}
-            onChange={e => setReleaseSearch(e.target.value)}
-            className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            style={{ minWidth: 220 }}
-          />
+          <div className="relative w-full md:w-1/2" style={{ minWidth: 220 }}>
+            <input
+              type="text"
+              placeholder="Search releases by name..."
+              value={releaseSearch}
+              onChange={e => handleSearchChange(e.target.value)}
+              className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -608,7 +677,7 @@ console.log(newRelease);
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projectReleases.map((release) => {
+            {allReleases.map((release) => {
               const releaseTestCases = testCases.filter(
                 (tc) =>
                   tc.projectId === selectedProject &&
@@ -660,8 +729,8 @@ console.log(newRelease);
                           <p className="text-sm font-medium text-gray-900">
                             {release.releaseDate
                               ? new Date(
-                                  release.releaseDate
-                                ).toLocaleDateString()
+                                release.releaseDate
+                              ).toLocaleDateString()
                               : "TBD"}
                           </p>
                         </div>
@@ -688,7 +757,7 @@ console.log(newRelease);
       )}
 
       {/* Instructions */}
-      {selectedProject && projectReleases.length === 0 && (
+      {selectedProject && allReleases.length === 0 && (
         <Card>
           <CardContent className="p-6 text-center">
             <p className="text-gray-500">
