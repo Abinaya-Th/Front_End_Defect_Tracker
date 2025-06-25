@@ -16,6 +16,7 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import axios from "axios";
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
@@ -46,6 +47,9 @@ export const Allocation: React.FC = () => {
   const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
+  const [apiRelease, setApiRelease] = useState<any>(null);
+  const [loadingRelease, setLoadingRelease] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
@@ -537,6 +541,22 @@ export const Allocation: React.FC = () => {
     </Card>
   );
 
+  useEffect(() => {
+    if (activeTab === "release" && selectedReleaseIds.length === 1) {
+      setLoadingRelease(true);
+      setReleaseError(null);
+      axios
+        .get(
+          `http://192.168.1.99:8083/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
+        )
+        .then((res) => setApiRelease(res.data))
+        .catch((err) => setReleaseError(err.message))
+        .finally(() => setLoadingRelease(false));
+    } else {
+      setApiRelease(null);
+    }
+  }, [activeTab, selectedReleaseIds]);
+
   return (
     <div className="max-w-5xl mx-auto py-8">
       {/* Back Button at the top right */}
@@ -550,6 +570,36 @@ export const Allocation: React.FC = () => {
         </Button>
       </div>
       {ProjectSelectionPanel()}
+      {/* Show release details if a single release is selected */}
+      {activeTab === "release" && selectedReleaseIds.length === 1 && (
+        <div className="mb-4">
+          {loadingRelease && (
+            <div className="p-4 text-center text-blue-600">
+              Loading release details...
+            </div>
+          )}
+          {releaseError && (
+            <div className="p-4 text-center text-red-600">{releaseError}</div>
+          )}
+          {apiRelease && (
+            <Card className="mb-4">
+              <CardContent>
+                <div className="font-bold text-lg mb-1">{apiRelease.name}</div>
+                <div className="mb-1">Version: {apiRelease.version}</div>
+                <div className="mb-1">Description: {apiRelease.description}</div>
+                <div className="mb-1">
+                  Release Date:{" "}
+                  {apiRelease.releaseDate
+                    ? new Date(apiRelease.releaseDate).toLocaleDateString()
+                    : "TBD"}
+                </div>
+                <div className="mb-1">Type: {apiRelease.releaseType}</div>
+                {/* Add more fields as needed */}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
       {/* Tabs */}
       <div className="flex space-x-4 mb-6 border-b border-gray-200">
         {TABS.map((tab) => (
