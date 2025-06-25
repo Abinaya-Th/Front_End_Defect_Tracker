@@ -234,7 +234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2023-09-01T00:00:00Z",
     },
     {
-      id: "4",
+      id: "PR0003",
       name: "E-commerce Platform",
       prefix: "ECOM",
       description: "Online shopping platform for multiple vendors",
@@ -249,7 +249,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-03-01T00:00:00Z",
     },
     {
-      id: "5",
+      id: "PR0004",
       name: "Healthcare Portal",
       prefix: "HLTH",
       description: "Patient and doctor management system",
@@ -264,7 +264,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-01-15T00:00:00Z",
     },
     {
-      id: "6",
+      id: "PR0005",
       name: "Learning Management System",
       prefix: "LMS",
       description: "Platform for online courses and assessments",
@@ -279,7 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-04-01T00:00:00Z",
     },
     {
-      id: "7",
+      id: "PR0006",
       name: "CRM Solution",
       prefix: "CRM",
       description: "Customer relationship management tool",
@@ -294,7 +294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2023-11-01T00:00:00Z",
     },
     {
-      id: "8",
+      id: "PR0007",
       name: "IoT Device Dashboard",
       prefix: "IOTD",
       description: "Dashboard for monitoring IoT devices",
@@ -309,7 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-05-01T00:00:00Z",
     },
     {
-      id: "9",
+      id: "PR0008",
       name: "Travel Booking System",
       prefix: "TRVL",
       description: "System for booking flights and hotels",
@@ -324,7 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-02-15T00:00:00Z",
     },
     {
-      id: "10",
+      id: "PR0009",
       name: "Fitness Tracker App",
       prefix: "FIT",
       description: "Mobile app for tracking fitness activities",
@@ -339,7 +339,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-03-10T00:00:00Z",
     },
     {
-      id: "11",
+      id: "PR0010",
       name: "Event Management System",
       prefix: "EVNT",
       description: "Tool for managing events and registrations",
@@ -365,7 +365,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "critical",
       priority: "critical",
-      projectId: "2",
+      projectId: "PR0001",
       module: "Security",
       subModule: "Encryption",
       type: "bug",
@@ -381,7 +381,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "in-progress",
       severity: "medium",
       priority: "medium",
-      projectId: "2",
+      projectId: "PR0002",
       module: "UI",
       subModule: "Responsive Design",
       type: "bug",
@@ -397,7 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "high",
       priority: "high",
-      projectId: "2",
+      projectId: "PR0001",
       module: "Transaction",
       subModule: "Transfer",
       type: "bug",
@@ -415,7 +415,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "in-progress",
       severity: "high",
       priority: "high",
-      projectId: "3",
+      projectId: "PR0003",
       module: "Database",
       subModule: "CRUD Operations",
       type: "bug",
@@ -432,7 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "medium",
       priority: "medium",
-      projectId: "3",
+      projectId: "PR0003",
       module: "Reporting",
       subModule: "Analytics",
       type: "bug",
@@ -983,11 +983,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.map((s, i) =>
-                  i === submoduleIdx ? newName : s
-                ),
-              }
+              ...m,
+              submodules: m.submodules.map((s, i) =>
+                i === submoduleIdx ? newName : s
+              ),
+            }
             : m
         ) || [],
     }));
@@ -1004,9 +1004,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
-              }
+              ...m,
+              submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+            }
             : m
         ) || [],
     }));
