@@ -12,7 +12,7 @@ export interface SearchReleaseResponse {
 export const searchRelease = (releaseName:string): Promise<SearchReleaseResponse> => {
 
   return axios.get<SearchReleaseResponse>(
-    `http://192.168.1.99:8085/api/v1/releases/search?releaseName=${releaseName}`,
+    `http://192.168.1.46:8088/api/v1/releases/search?releaseName=${releaseName}`,
  
   ).then(({ data }) => data);
 };
