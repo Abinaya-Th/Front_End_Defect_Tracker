@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8080/api/v1/defect";
+const BASE_URL = "http://192.168.1.99:8085/api/v1/defect";
 
 export interface DefectFilterParams {
   projectId?: string;
@@ -39,24 +39,25 @@ export const defectFilterService = async (filters: DefectFilterParams): Promise<
   if (filters.typeId) params.typeId = filters.typeId;
 
   const response = await axios.get(`${BASE_URL}/filter`, { params, headers: { "Content-Type": "application/json" } });
-  const data = response.data.data;
-  // Handle both array and single object response
+  const data = response.data.data; // This is an array
+  console.log(response);
+
   const defectsArray = Array.isArray(data) ? data : data ? [data] : [];
   return defectsArray.map((d: any) => ({
     defectId: d.defectId,
-    defectTitle: d.defectTitle,
+    defectTitle: d.descriptions, // No title field, using descriptions
     descriptions: d.descriptions,
     testCaseId: d.testCaseId,
-    severity: d.severity,
-    priority: d.priority,
+    severity: d.severity?.toLowerCase() || "",
+    priority: d.priority?.toLowerCase() || "",
     type: d.type,
-    assignby: d.assignby,
+    assignby: d.assignBy,
     assignTo: d.assignTo,
     project: d.project,
-    status: d.status,
+    status: d.status?.toLowerCase() || "",
     reopenCount: d.reopenCount,
-    Attachment: d.Attachment,
+    Attachment: d.attachment,
     steps: d.steps,
-    Releasetestcase: d.Releasetestcase,
+    Releasetestcase: d.releaseTestCase,
   }));
 };

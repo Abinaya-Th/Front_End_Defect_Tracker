@@ -5,7 +5,7 @@ import { Project } from '../types';
 // Projects mock data (from AppContext)
 export const mockProjects: Project[] = [
   {
-    id: "2",
+    id: "PR0001",
     name: "Mobile Banking App",
     prefix: "MBAP",
     description: "Secure banking application for iOS and Android",
@@ -24,7 +24,7 @@ export const mockProjects: Project[] = [
 
 // Modules and submodules mock data (from TestCase, QuickAddDefect, etc.)
 export const mockModules = {
-  "2": [
+  "PR0001": [
     { id: "auth", name: "Authentication", submodules: ["Biometric Login", "PIN Login", "Password Reset", "Session Management"] },
     { id: "acc", name: "Account Management", submodules: ["Account Overview", "Transaction History", "Account Statements", "Account Settings"] },
     { id: "tra", name: "Money Transfer", submodules: ["Quick Transfer", "Scheduled Transfer", "International Transfer", "Transfer Limits"] },

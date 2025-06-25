@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   Plus,
   CheckCircle,
-  Eye
+  Eye,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -16,17 +18,15 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 
 import { mockModules } from "../context/mockData";
 import { defectFilterService, Defect } from "../service/defectFilterService";
-import { useAuth } from "../context/AuthContext";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const {
     defects,
     projects,
-    releases,
     addDefect,
     updateDefect,
     deleteDefect,
@@ -79,16 +79,52 @@ export const Defects: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Mapping for filter values to backend IDs
+  const statusMap: Record<string, string> = {
+    open: "1",
+    "in-progress": "2",
+    resolved: "3",
+    closed: "4",
+    rejected: "5",
+  };
+  const priorityMap: Record<string, string> = {
+    critical: "1",
+    high: "2",
+    medium: "3",
+    low: "4",
+  };
+  const typeMap: Record<string, string> = {
+    "ui-issue": "1",
+    "functional-bug": "2",
+    "performance-issue": "3",
+  };
+  const severityMap: Record<string, string> = {
+    critical: "1",
+    major: "2",
+    minor: "3",
+  };
+
   useEffect(() => {
     if (!projectId) return;
     setIsLoading(true);
     setError(null);
+    const statusId = filters.status ? statusMap[filters.status] : "";
+    const priorityId = filters.priority ? priorityMap[filters.priority] : "";
+    const typeId = filters.type ? typeMap[filters.type] : "";
+    const severityId = filters.severity ? severityMap[filters.severity] : "";
+    console.log("Calling defectFilterService with:", {
+      projectId,
+      statusId,
+      priorityId,
+      typeId,
+      severityId,
+    });
     defectFilterService({
       projectId,
-      statusId: filters.status,
-      priorityId: filters.priority,
-      typeId: filters.type,
-      severityId: filters.severity,
+      statusId,
+      priorityId,
+      typeId,
+      severityId,
     })
       .then(setApiDefects)
       .catch((err) => setError(err.message))
@@ -279,34 +315,22 @@ export const Defects: React.FC = () => {
       );
   const uniqueTypes = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.type)
-        .filter(Boolean)
+      apiDefects.map((d) => d.type).filter(Boolean)
     )
   );
   const uniqueSeverities = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.severity)
-        .filter(Boolean)
+      apiDefects.map((d) => d.severity).filter(Boolean)
     )
   );
   const uniquePriorities = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.priority)
-        .filter(Boolean)
+      apiDefects.map((d) => d.priority).filter(Boolean)
     )
   );
   const uniqueStatuses = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.status)
-        .filter(Boolean)
+      apiDefects.map((d) => d.status).filter(Boolean)
     )
   );
   const uniqueAssignedTo = Array.from(
@@ -533,7 +557,22 @@ export const Defects: React.FC = () => {
                           {defect.assignTo}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {/* No edit/delete for API defects */}
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(defect)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="Edit Defect"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(String(defect.defectId))}
+                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                              title="Delete Defect"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -602,7 +641,10 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select module</option>
-                {(modulesByProject[projectId] || []).map((m) => (
+                {(modulesByProject && modulesByProject[projectId as string]
+                  ? modulesByProject[projectId as string]
+                  : []
+                ).map((m: { id: string; name: string; submodules: { id: string; name: string }[] }) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -617,7 +659,12 @@ export const Defects: React.FC = () => {
                 disabled={!formData.module}
               >
                 <option value="">Select submodule</option>
-                {((modulesByProject[projectId] || []).find((m) => m.id === formData.module)?.submodules || []).map((sm) => (
+                {(
+                  (modulesByProject && modulesByProject[projectId as string]
+                    ? modulesByProject[projectId as string]
+                    : []
+                  ).find((m: { id: string }) => m.id === formData.module)?.submodules || []
+                ).map((sm: { id: string; name: string }) => (
                   <option key={sm.id} value={sm.id}>{sm.name}</option>
                 ))}
               </select>
