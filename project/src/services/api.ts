@@ -7,4 +7,12 @@ export const searchReleaseByName = async (releaseName: string) => {
         params: { releaseName }
     });
     return response.data.data;
+};
+
+export const exportTestCases = async (params = {}) => {
+    const response = await axios.get(`${API_BASE}/testcase/export`, {
+        params,
+        responseType: 'blob',
+    });
+    return response.data;
 }; 

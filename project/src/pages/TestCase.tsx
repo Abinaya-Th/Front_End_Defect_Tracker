@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
+import { exportTestCases } from "../services/api";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -276,8 +277,8 @@ export const TestCase: React.FC = () => {
           id: `TC-${formData.module
             .substring(0, 3)
             .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+              .substring(0, 3)
+              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
           projectId: projectId,
         });
       }
@@ -533,49 +534,85 @@ export const TestCase: React.FC = () => {
 
           {/* Filter Options Above Table */}
           {projectId && selectedModule && (
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Search by description..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{ minWidth: 220 }}
-              />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Types</option>
-                <option value="functional">Functional</option>
-                <option value="regression">Regression</option>
-                <option value="smoke">Smoke</option>
-                <option value="integration">Integration</option>
-              </select>
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Severities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-              {(filterText || filterType || filterSeverity) && (
-                <button
-                  onClick={() => {
-                    setFilterText("");
-                    setFilterType("");
-                    setFilterSeverity("");
-                  }}
-                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+            <div className="flex flex-wrap items-center gap-4 mb-4 justify-between">
+              <div className="flex flex-wrap items-center gap-4">
+                <input
+                  type="text"
+                  placeholder="Search by description..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ minWidth: 220 }}
+                />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  Clear
-                </button>
-              )}
+                  <option value="">All Types</option>
+                  <option value="functional">Functional</option>
+                  <option value="regression">Regression</option>
+                  <option value="smoke">Smoke</option>
+                  <option value="integration">Integration</option>
+                </select>
+                <select
+                  value={filterSeverity}
+                  onChange={(e) => setFilterSeverity(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Severities</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                {(filterText || filterType || filterSeverity) && (
+                  <button
+                    onClick={() => {
+                      setFilterText("");
+                      setFilterType("");
+                      setFilterSeverity("");
+                    }}
+                    className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={async () => {
+                  // Call backend export API with current filters
+                  try {
+                    const params = {
+                      projectId,
+                      module: selectedModule,
+                      subModule: selectedSubmodule,
+                      description: filterText,
+                      type: filterType,
+                      severity: filterSeverity,
+                    };
+                    // Remove empty params
+                    Object.keys(params).forEach(
+                      (key) => (params[key] === "" || params[key] === undefined) && delete params[key]
+                    );
+                    const blob = await exportTestCases(params);
+                    const url = window.URL.createObjectURL(new Blob([blob]));
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.setAttribute("download", "TestCases.xlsx");
+                    document.body.appendChild(link);
+                    link.click();
+                    link.parentNode.removeChild(link);
+                  } catch (error) {
+                    alert("Failed to export test cases.");
+                  }
+                }}
+                className="mb-2"
+              >
+                Export Test Cases
+              </Button>
             </div>
           )}
 
