@@ -506,7 +506,7 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="flex items-center space-x-1 hover:underline"
                             onClick={() => {
-                              setViewingSteps(defect.descriptions);
+                              setViewingSteps(defect.steps);
                               setIsViewStepsModalOpen(true);
                             }}
                             title="View Steps"
