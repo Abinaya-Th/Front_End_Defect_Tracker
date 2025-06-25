@@ -13,6 +13,7 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { ModuleSelector } from "../components/ui/ModuleSelector";
 import { SubmoduleSelector } from "../components/ui/SubmoduleSelector";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -80,12 +81,42 @@ export const TestExecution: React.FC = () => {
     reportedBy: "",
     rejectionComment: "",
   });
+  const [releaseCards, setReleaseCards] = useState<any[]>([]);
+  const [releaseLoading, setReleaseLoading] = useState(false);
+  const [releaseError, setReleaseError] = useState("");
 
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
     }
   }, [selectedProject, setSelectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProject) {
+      setReleaseLoading(true);
+      setReleaseError("");
+      projectReleaseCardView(selectedProject)
+        .then((res) => {
+          if (res.status === "success" || res.statusCode === "2000") {
+            setReleaseCards(res.data || []);
+          } else {
+            setReleaseCards([]);
+            setReleaseError(res.message || "No releases found");
+          }
+        })
+        .catch((err) => {
+          setReleaseCards([]);
+          setReleaseError(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Failed to fetch releases"
+          );
+        })
+        .finally(() => setReleaseLoading(false));
+    } else {
+      setReleaseCards([]);
+    }
+  }, [selectedProject]);
 
   // Filter releases for selected project
   const projectReleases = releases.filter(
@@ -783,18 +814,8 @@ export const TestExecution: React.FC = () => {
 
   // Main Test Execution page (project selection and release cards)
   return (
-    <div className="max-w-5xl mx-auto py-8">
-      {/* Back Button at the top right */}
-      <div className="mb-4 flex justify-end">
-        <Button
-          variant="secondary"
-          onClick={() => navigate(`/projects/${projectId}/releases`)}
-          className="flex items-center"
-        >
-          <ChevronLeft className="w-5 h-5 mr-2" /> Back
-        </Button>
-      </div>
-
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">Test Execution</h1>
       {/* Project Selection Panel */}
       <ProjectSelector
         projects={projects}
@@ -802,158 +823,65 @@ export const TestExecution: React.FC = () => {
         onSelect={handleProjectSelect}
         className="mb-6"
       />
-
       {/* Release Cards Panel */}
-      {selectedProject && (
+      {releaseLoading && (
+        <div className="text-center text-gray-500 mb-4">Loading releases...</div>
+      )}
+      {releaseError && (
+        <div className="text-center text-red-500 mb-4">{releaseError}</div>
+      )}
+      {selectedProject && !releaseLoading && !releaseError && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Release Selection
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projectReleases.map((release) => {
-              const releaseTestCases = testCases.filter(
-                (tc) =>
-                  tc.projectId === selectedProject &&
-                  tc.releaseId === release.id
-              );
-              const passedTests = releaseTestCases.filter(
-                (tc) => executionStatuses[tc.id] === "passed"
-              ).length;
-              const totalTests = releaseTestCases.length;
-              const progress =
-                totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
-              const isActive = activeReleaseId === release.id;
-
-              return (
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Releases for Project
+            </h2>
+          </div>
+          {releaseCards.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-gray-500">
+                  No releases found for the selected project.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {releaseCards.map((release) => (
                 <Card
-                  key={release.id}
+                  key={release.id || release.releaseId}
                   hover
-                  className={`group transition-all duration-300 relative ${
-                    isActive
-                      ? "cursor-pointer hover:shadow-lg hover:scale-[1.02]"
-                      : "cursor-not-allowed opacity-80"
-                  }`}
-                  onClick={
-                    isActive ? () => handleReleaseSelect(release.id) : undefined
-                  }
+                  className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === (release.id || release.releaseId) ? "border-2 border-blue-500" : ""}`}
+                  onClick={() => handleReleaseSelect(release.id || release.releaseId)}
                 >
-                  <CardContent className="p-6 pb-10">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {release.name}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          v{release.version}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={
-                          release.status === "completed"
-                            ? "success"
-                            : release.status === "in-progress"
-                            ? "warning"
-                            : "info"
-                        }
-                      >
-                        {release.status}
-                      </Badge>
+                  <CardContent className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {release.name || release.releaseName}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {release.releaseType}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {release.description}
-                    </p>
-                    {/* Progress Bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Test Progress</span>
-                        <span>
-                          {passedTests}/{totalTests} passed
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="info">{release.releaseType}</Badge>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">Release Date:</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {release.releaseDate
+                            ? new Date(release.releaseDate).toLocaleDateString()
+                            : "TBD"}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                      <span>Release Date: {release.releaseDate}</span>
-                      <span>{totalTests} test cases</span>
-                    </div>
-                    {/* Mini Active/Hold Tabs - bottom right */}
-                    <div className="absolute bottom-3 right-4 flex shadow rounded-full overflow-hidden border border-gray-200 bg-white">
-                      <button
-                        type="button"
-                        className={`px-2 py-0.5 text-xs font-semibold focus:outline-none transition-colors duration-200
-                          ${
-                            isActive
-                              ? "bg-green-500 text-white"
-                              : "bg-white text-gray-700 hover:bg-green-100"
-                          }`}
-                        style={{
-                          borderTopLeftRadius: 9999,
-                          borderBottomLeftRadius: 9999,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveReleaseId(release.id);
-                        }}
-                        aria-pressed={isActive}
-                      >
-                        Active
-                      </button>
-                      <button
-                        type="button"
-                        className={`px-2 py-0.5 text-xs font-semibold focus:outline-none transition-colors duration-200
-                          ${
-                            !isActive
-                              ? "bg-red-500 text-white"
-                              : "bg-white text-gray-700 hover:bg-red-100"
-                          }`}
-                        style={{
-                          borderTopRightRadius: 9999,
-                          borderBottomRightRadius: 9999,
-                          borderLeft: "1px solid #e5e7eb",
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveReleaseId(null);
-                        }}
-                        aria-pressed={!isActive}
-                      >
-                        Hold
-                      </button>
                     </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Instructions */}
-      {selectedProject && projectReleases.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-500">
-              No releases found for the selected project. Please create releases
-              first.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {!selectedProject && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-500">
-              Please select a project to view available releases for test
-              execution.
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       {/* Fixed Quick Add Button */}

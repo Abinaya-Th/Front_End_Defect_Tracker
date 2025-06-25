@@ -21,6 +21,9 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { createRelease } from "../api/createRelease/CreateRelease";
+import { searchRelease } from "../api/searchRelease/SearchRelease";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -49,7 +52,6 @@ export const ReleaseView: React.FC = () => {
   const navigate = useNavigate();
   const {
     projects,
-    releases,
     testCases,
     setSelectedProjectId,
     addRelease,
@@ -59,6 +61,7 @@ export const ReleaseView: React.FC = () => {
     projectId || null
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
+  const[releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -74,6 +77,10 @@ export const ReleaseView: React.FC = () => {
     releaseType: "",
   });
   const [releaseSearch, setReleaseSearch] = useState("");
+  const [releaseCardView, setReleaseCardView] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searchError, setSearchError] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
 
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
@@ -99,11 +106,26 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
+  const getReleaseCardView =  async() =>{
+
+      try {
+          const response = await projectReleaseCardView(selectedProject);
+          setReleaseCardView(response.data)
+          console.log("Release Card View Data:", response.data);
+          setReleases(response.data || []);
+      } catch (error) {
+          console.error("Error fetching release card view:", error);
+      }
+  }
+  useEffect(() => {
+      getReleaseCardView();
+  }, [selectedProject]);
+
+  console.log(releaseCardView);
+  
+
   // Filter releases for selected project and search
-  const projectReleases = releases.filter(
-    (r) => r.projectId === selectedProject &&
-      (!releaseSearch || r.name.toLowerCase().includes(releaseSearch.toLowerCase()))
-  );
+  const projectReleases = releases
 
   // Get modules for selected project from context
   const projectModules = selectedProject
@@ -186,41 +208,83 @@ export const ReleaseView: React.FC = () => {
   };
 
   // Handle create release
-  const handleCreateRelease = (e: React.FormEvent) => {
+  const handleCreateRelease = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedProject) return;
 
-    const newRelease = {
-      id: `R${Date.now()}`,
-      name: releaseFormData.name,
-      version: releaseFormData.version,
-      description: releaseFormData.description,
-      projectId: selectedProject,
-      status: "planned" as const,
-      releaseDate: releaseFormData.releaseDate || undefined,
-      Testcase: [],
-      features: [],
-      bugFixes: [],
+    // Prepare payload for API
+    const payload = {
+      releaseName: releaseFormData.name,
+      releaseDate: releaseFormData.releaseDate, // YYYY-MM-DD
       releaseType: releaseFormData.releaseType,
-      createdAt: new Date().toISOString(),
+      projectId: selectedProject,
     };
-console.log(newRelease);
 
-    addRelease(newRelease);
-    setReleaseFormData({
-      name: "",
-      version: "",
-      description: "",
-      releaseDate: "",
-      releaseType: "",
-    });
-    setIsCreateReleaseModalOpen(false);
+    try {
+      const response = await createRelease(payload);
+      if (response.status === "success" && response.statusCode === 2000) {
+        // Optionally, you can refresh the release list or call getReleaseCardView();
+        getReleaseCardView();
+        setIsCreateReleaseModalOpen(false);
+        setReleaseFormData({
+          name: "",
+          version: "",
+          description: "",
+          releaseDate: "",
+          releaseType: "",
+        });
+        alert("Release created successfully");
+      } else {
+        alert(response.message || "Failed to create release");
+      }
+    } catch (error: any) {
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create release"
+      );
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
     setReleaseFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  // Handle release search
+  const handleReleaseSearch = async (searchValue: string) => {
+    setReleaseSearch(searchValue);
+    setIsSearching(true);
+    setSearchError("");
+    if (!searchValue && !selectedProject) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+    try {
+      
+      
+      const response = await searchRelease(searchValue );
+
+      if (response.status === "success" && response.statusCode === 200) {
+        setSearchResults(response?.data);
+      } else {
+        setSearchResults([]);
+        setSearchError(response.message || "No results found");
+      }
+    } catch (error: any) {
+      setSearchResults([]);
+      setSearchError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to search releases"
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  console.log({searchResults});
+  
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
@@ -618,7 +682,7 @@ console.log(newRelease);
             type="text"
             placeholder="Search releases by name..."
             value={releaseSearch}
-            onChange={e => setReleaseSearch(e.target.value)}
+            onChange={e => handleReleaseSearch(e.target.value)}
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
           />
@@ -641,8 +705,14 @@ console.log(newRelease);
               <span>Create Release</span>
             </Button>
           </div>
+          {isSearching && (
+            <div className="text-center text-gray-500 mb-4">Searching...</div>
+          )}
+          {searchError && (
+            <div className="text-center text-red-500 mb-4">{searchError}</div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projectReleases.map((release) => {
+            {(searchResults !== null ? searchResults : projectReleases).map((release) => {
               const releaseTestCases = testCases.filter(
                 (tc) =>
                   tc.projectId === selectedProject &&
@@ -664,10 +734,10 @@ console.log(newRelease);
                     {/* Header */}
                     <div className="mb-4">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {release.name}
+                        {release.name || release.releaseName}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        v{release.version}
+                        v{release.version || release.releaseId}
                       </p>
                     </div>
 
