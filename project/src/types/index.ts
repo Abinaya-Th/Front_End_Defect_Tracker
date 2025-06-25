@@ -37,6 +37,9 @@ export interface Project {
   priority: 'low' | 'medium' | 'high' | 'critical';
   budget?: number;
   createdAt: string;
+  prefix?: string; // Added to match mock data
+  projectType?: string; // Added to match mock data
+  progress?: number; // Added to match mock data
 }
 
 export interface Defect {

@@ -15,6 +15,9 @@ import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import axios from "axios";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
@@ -24,12 +27,18 @@ const TABS = [
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, releases, employees, testCases, setSelectedProjectId } =
-    useApp();
+  const {
+    projects,
+    releases,
+    employees,
+    testCases,
+    setSelectedProjectId,
+    modulesByProject,
+  } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState("");
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -39,74 +48,37 @@ export const Allocation: React.FC = () => {
   const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
-
+  const [apiRelease, setApiRelease] = useState<any>(null);
+  const [loadingRelease, setLoadingRelease] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
+  const [projectRelease, setProjectRelease] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
+const getReleaseCardView =  async() =>{
 
-  // Mock modules and submodules (should be replaced with real data)
-  const mockModules = [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
-      ],
-    },
-    {
-      id: "acc",
-      name: "Account Management",
-      submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
-      ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-    },
-  ];
+      try {
+          const response = await projectReleaseCardView(selectedProject);
+          setProjectRelease(response.data || []);
+      } catch (error) {
+          console.error("Error fetching release card view:", error);
+      }
+  }
+  useEffect(() => {
+      getReleaseCardView();
+  }, [selectedProject]);
+
+  console.log("Project Release Data:", projectRelease);
+  
 
   // Filter releases for this project
   const projectReleases = releases.filter((r) => r.projectId === projectId);
   // Filter test cases for this project
   const projectTestCases = testCases.filter((tc) => tc.projectId === projectId);
+
+  // Get modules for selected project from context
+  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -123,8 +95,7 @@ export const Allocation: React.FC = () => {
             .filter((tc) => selectedModules.includes(tc.module))
             .map((tc) => tc.id),
         ];
-      }
-      else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+      } else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
         ids = [
           ...ids,
           ...projectTestCases
@@ -134,7 +105,12 @@ export const Allocation: React.FC = () => {
       }
       setSelectedTestCases(Array.from(new Set(ids)));
     }
-  }, [ bulkModuleSelect, bulkSubmoduleSelect, selectedModules, selectedSubmodules]);
+  }, [
+    bulkModuleSelect,
+    bulkSubmoduleSelect,
+    selectedModules,
+    selectedSubmodules,
+  ]);
 
   // --- Filtered test cases for table ---
   let filteredTestCases = projectTestCases;
@@ -163,71 +139,34 @@ export const Allocation: React.FC = () => {
     );
   }
 
+  // Project selection handler
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    setSelectedProject(id);
+    setSelectedModule("");
+    setSelectedSubmodule("");
+    setSelectedTestCases([]);
+  };
+
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Project Selection
-        </h2>
-        <div className="relative flex items-center">
-          <button
-            onClick={() => {
-              const container = document.getElementById("project-scroll");
-              if (container) container.scrollLeft -= 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div
-            id="project-scroll"
-            className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              maxWidth: "100%",
-            }}
-          >
-            {projects.map((project) => (
-              <Button
-                key={project.id}
-                variant={projectId === project.id ? "primary" : "secondary"}
-                onClick={() => {
-                  setSelectedProjectId(project.id);
-                  setSelectedModule("");
-                  setSelectedSubmodule("");
-                  setSelectedTestCases([]);
-                }}
-                className="whitespace-nowrap m-2"
-              >
-                {project.name}
-              </Button>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              const container = document.getElementById("project-scroll");
-              if (container) container.scrollLeft += 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+    <ProjectSelector
+      projects={projects}
+      selectedProjectId={projectId || null}
+      onSelect={handleProjectSelect}
+      className="mb-4"
+    />
   );
-console.log("selectedTestCases", selectedTestCases);
+
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
       <div className="flex space-x-2 overflow-x-auto">
-        {projectReleases.map((release) => {
-          const isSelected = selectedReleaseIds.includes(release.id);
+        {projectRelease.map((release) => {
+          const isSelected = selectedReleaseIds.includes(release.releaseId);
           return (
             <div
-              key={release.id}
+              key={release.releaseId}
               className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                 ${
                   isSelected
@@ -238,10 +177,10 @@ console.log("selectedTestCases", selectedTestCases);
                 boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
               }}
             >
-              <div className="truncate font-semibold mb-1">{release.name}</div>
-              <div className="text-xs text-gray-500 truncate mb-2">
+              <div className="truncate font-semibold mb-1">{release.releaseName}</div>
+              {/* <div className="text-xs text-gray-500 truncate mb-2">
                 v{release.version}
-              </div>
+              </div> */}
               <Button
                 size="sm"
                 variant={isSelected ? "primary" : "secondary"}
@@ -249,8 +188,8 @@ console.log("selectedTestCases", selectedTestCases);
                 onClick={() => {
                   setSelectedReleaseIds((prev) =>
                     isSelected
-                      ? prev.filter((id) => id !== release.id)
-                      : [...prev, release.id]
+                      ? prev.filter((id) => id !== release.releaseId)
+                      : [...prev, release.releaseId]
                   );
                 }}
               >
@@ -266,7 +205,9 @@ console.log("selectedTestCases", selectedTestCases);
           <Button
             variant="primary"
             disabled={selectedTestCases.length === 0}
-            onClick={() => {console.log('Allocate button clicked');}}
+            onClick={() => {
+              console.log("Allocate button clicked");
+            }}
           >
             Allocate
           </Button>
@@ -310,7 +251,7 @@ console.log("selectedTestCases", selectedTestCases);
             className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {mockModules.map((module) => {
+            {projectModules.map((module) => {
               const moduleTestCases = testCases.filter(
                 (tc: any) =>
                   tc.projectId === projectId && tc.module === module.name
@@ -340,9 +281,6 @@ console.log("selectedTestCases", selectedTestCases);
                   }`}
                 >
                   {module.name}
-                  <Badge variant="info" className="ml-2">
-                    {moduleTestCases.length}
-                  </Badge>
                 </Button>
               );
             })}
@@ -363,7 +301,10 @@ console.log("selectedTestCases", selectedTestCases);
 
   const SubmoduleSelectionPanel = () => {
     const submodules =
-      mockModules.find((m) => m.name === selectedModule)?.submodules || [];
+      projectId && selectedModule
+        ? projectModules.find((m) => m.name === selectedModule)?.submodules ||
+          []
+        : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
@@ -404,38 +345,30 @@ console.log("selectedTestCases", selectedTestCases);
               }}
             >
               {submodules.map((submodule) => {
-                const submoduleTestCases = testCases.filter(
-                  (tc: any) =>
-                    tc.projectId === projectId &&
-                    tc.module === selectedModule &&
-                    tc.subModule === submodule
-                );
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule)
-                  : selectedSubmodule === submodule;
+                  ? selectedSubmodules.includes(submodule.name)
+                  : selectedSubmodule === submodule.name;
                 return (
                   <Button
-                    key={submodule}
+                    key={submodule.id}
                     variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule)
-                            ? prev.filter((s) => s !== submodule)
-                            : [...prev, submodule]
+                          prev.includes(submodule.name)
+                            ? prev.filter((s) => s !== submodule.name)
+                            : [...prev, submodule.name]
                         );
                       } else {
-                        setSelectedSubmodule(submodule);
+                        setSelectedSubmodule(submodule.name);
+                        setSelectedTestCases([]);
                       }
                     }}
                     className={`whitespace-nowrap m-2 ${
                       isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
                     }`}
                   >
-                    {submodule}
-                    <Badge variant="info" className="ml-2">
-                      {submoduleTestCases.length}
-                    </Badge>
+                    {submodule.name}
                   </Button>
                 );
               })}
@@ -627,6 +560,22 @@ console.log("selectedTestCases", selectedTestCases);
     </Card>
   );
 
+  useEffect(() => {
+    if (activeTab === "release" && selectedReleaseIds.length === 1) {
+      setLoadingRelease(true);
+      setReleaseError(null);
+      axios
+        .get(
+          `http://192.168.1.99:8083/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
+        )
+        .then((res) => setApiRelease(res.data))
+        .catch((err) => setReleaseError(err.message))
+        .finally(() => setLoadingRelease(false));
+    } else {
+      setApiRelease(null);
+    }
+  }, [activeTab, selectedReleaseIds]);
+
   return (
     <div className="max-w-5xl mx-auto py-8">
       {/* Back Button at the top right */}
@@ -640,6 +589,36 @@ console.log("selectedTestCases", selectedTestCases);
         </Button>
       </div>
       {ProjectSelectionPanel()}
+      {/* Show release details if a single release is selected */}
+      {activeTab === "release" && selectedReleaseIds.length === 1 && (
+        <div className="mb-4">
+          {loadingRelease && (
+            <div className="p-4 text-center text-blue-600">
+              Loading release details...
+            </div>
+          )}
+          {releaseError && (
+            <div className="p-4 text-center text-red-600">{releaseError}</div>
+          )}
+          {apiRelease && (
+            <Card className="mb-4">
+              <CardContent>
+                <div className="font-bold text-lg mb-1">{apiRelease.name}</div>
+                <div className="mb-1">Version: {apiRelease.version}</div>
+                <div className="mb-1">Description: {apiRelease.description}</div>
+                <div className="mb-1">
+                  Release Date:{" "}
+                  {apiRelease.releaseDate
+                    ? new Date(apiRelease.releaseDate).toLocaleDateString()
+                    : "TBD"}
+                </div>
+                <div className="mb-1">Type: {apiRelease.releaseType}</div>
+                {/* Add more fields as needed */}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
       {/* Tabs */}
       <div className="flex space-x-4 mb-6 border-b border-gray-200">
         {TABS.map((tab) => (

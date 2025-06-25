@@ -1,13 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
-  Edit2,
-  Trash2,
   CheckCircle,
   Eye,
-  MessageSquareWarning,
-  ChevronLeft,
-  ChevronRight,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -17,19 +14,25 @@ import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+
+import { mockModules } from "../context/mockData";
+import { defectFilterService, Defect } from "../service/defectFilterService";
+import axios from "axios";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+
   const {
     defects,
     projects,
-    releases,
     addDefect,
     updateDefect,
     deleteDefect,
     setSelectedProjectId,
+    modulesByProject,
   } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,57 +67,70 @@ export const Defects: React.FC = () => {
     string | null
   >(null);
 
-  // Filter state
+  // Filter state (only API filters)
   const [filters, setFilters] = useState({
-    id: "",
-    module: "",
-    subModule: "",
+    status: "",
+    priority: "",
     type: "",
     severity: "",
-    priority: "",
-    status: "",
-    assignedTo: "",
-    search: "",
   });
 
-  // Filtered defects based on filters
-  const filteredDefects = defects.filter(
-    (d) =>
-      d.projectId === projectId &&
-      (filters.id === "" ||
-        d.id.toLowerCase().includes(filters.id.toLowerCase())) &&
-      (filters.module === "" || d.module === filters.module) &&
-      (filters.subModule === "" || d.subModule === filters.subModule) &&
-      (filters.type === "" || d.type === filters.type) &&
-      (filters.severity === "" || d.severity === filters.severity) &&
-      (filters.priority === "" || d.priority === filters.priority) &&
-      (filters.status === "" || d.status === filters.status) &&
-      (filters.assignedTo === "" ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.assignedTo.toLowerCase())) &&
-      (filters.search === "" ||
-        d.id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.title || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.description || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.module || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.subModule || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.type || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.severity || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.priority || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.status || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()))
-  );
+  // State for API defects, loading, and error
+  const [apiDefects, setApiDefects] = useState<Defect[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Mapping for filter values to backend IDs
+  const statusMap: Record<string, string> = {
+    open: "1",
+    "in-progress": "2",
+    resolved: "3",
+    closed: "4",
+    rejected: "5",
+  };
+  const priorityMap: Record<string, string> = {
+    critical: "1",
+    high: "2",
+    medium: "3",
+    low: "4",
+  };
+  const typeMap: Record<string, string> = {
+    "ui-issue": "1",
+    "functional-bug": "2",
+    "performance-issue": "3",
+  };
+  const severityMap: Record<string, string> = {
+    critical: "1",
+    major: "2",
+    minor: "3",
+  };
+
+  useEffect(() => {
+    if (!projectId) return;
+    setIsLoading(true);
+    setError(null);
+    const statusId = filters.status ? statusMap[filters.status] : "";
+    const priorityId = filters.priority ? priorityMap[filters.priority] : "";
+    const typeId = filters.type ? typeMap[filters.type] : "";
+    const severityId = filters.severity ? severityMap[filters.severity] : "";
+    console.log("Calling defectFilterService with:", {
+      projectId,
+      statusId,
+      priorityId,
+      typeId,
+      severityId,
+    });
+    defectFilterService({
+      projectId,
+      statusId,
+      priorityId,
+      typeId,
+      severityId,
+    })
+      .then(setApiDefects)
+      .catch((err) => setError(err.message))
+      .finally(() => setIsLoading(false));
+  }, [projectId, filters]);
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -133,17 +149,53 @@ export const Defects: React.FC = () => {
     return `DEF-${nextNum.toString().padStart(4, "0")}`;
   };
 
+  // Update defect API function
+  async function updateDefectAPI(defect: any) {
+    try {
+      const response = await axios.put(
+        `http://192.168.1.99:8085/api/v1/defect/defectId=${defect.defectId || defect.id}`,
+        defect,
+        { headers: { "Content-Type": "application/json" } }
+      );
+      return response.data;
+    } catch (error: any) {
+      throw error.response?.data?.message || error.message;
+    }
+  }
+
   // CRUD handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      updateDefect({
-        ...formData,
-        projectId: projectId || "",
-        id: editingDefect.id,
-        createdAt: editingDefect.createdAt,
-        updatedAt: new Date().toISOString(),
-      });
+      try {
+        // Prepare defect object for API
+        const updatedDefect = {
+          ...editingDefect,
+          ...formData,
+          defectId: editingDefect.defectId || editingDefect.id,
+          defectTitle: formData.title,
+          descriptions: formData.description,
+          steps: formData.description, // or formData.steps if available
+          module: formData.module,
+          subModule: formData.subModule,
+          type: formData.type,
+          priority: formData.priority,
+          severity: formData.severity,
+          status: formData.status,
+          assignTo: formData.assignedTo,
+        };
+        await updateDefectAPI(updatedDefect);
+        updateDefect({
+          ...formData,
+          projectId: projectId || "",
+          id: editingDefect.id,
+          createdAt: editingDefect.createdAt,
+          updatedAt: new Date().toISOString(),
+        });
+        resetForm();
+      } catch (err: any) {
+        alert("Failed to update defect: " + err);
+      }
     } else {
       const newDefect = {
         ...formData,
@@ -153,25 +205,36 @@ export const Defects: React.FC = () => {
         updatedAt: new Date().toISOString(),
       };
       addDefect(newDefect);
+      resetForm();
     }
-    resetForm();
   };
   const handleEdit = (defect: any) => {
+    // Use mockModules for module/submodule
+    let moduleId = defect.module || "";
+    let subModuleId = defect.subModule || "";
+    const projectModules = (mockModules as Record<string, { id: string; name: string; submodules: string[] }[]>)[projectId as string] || [];
+    if (!moduleId && projectModules.length > 0) {
+      moduleId = projectModules[0].id;
+    }
+    const selectedModule = projectModules.find((m) => m.id === moduleId);
+    if (!subModuleId && selectedModule && selectedModule.submodules.length > 0) {
+      subModuleId = selectedModule.submodules[0];
+    }
     setEditingDefect(defect);
     setFormData({
-      title: defect.title,
-      description: defect.description,
-      module: defect.module,
-      subModule: defect.subModule,
-      type: defect.type,
-      priority: defect.priority,
-      severity: defect.severity,
-      status: defect.status,
-      projectId: defect.projectId,
+      title: defect.defectTitle || defect.title || "",
+      description: defect.descriptions || defect.description || "",
+      module: moduleId,
+      subModule: subModuleId,
+      type: defect.type || "",
+      priority: defect.priority || "",
+      severity: defect.severity || "",
+      status: defect.status || "",
+      projectId: projectId || "",
       releaseId: defect.releaseId || "",
       testCaseId: defect.testCaseId || "",
-      assignedTo: defect.assignedTo || "",
-      reportedBy: defect.reportedBy,
+      assignedTo: defect.assignTo || defect.assignedTo || "",
+      reportedBy: defect.reportedBy || "",
       rejectionComment: defect.rejectionComment || "",
     });
     setIsModalOpen(true);
@@ -251,129 +314,38 @@ export const Defects: React.FC = () => {
     }
   };
 
-  // Use the same mockModules structure as in TestCase.tsx
-  interface Module {
-    id: string;
-    name: string;
-    submodules: string[];
-  }
-  // Project-specific modules and submodules
-  const mockModules: { [key: string]: Module[] } = {
-    "2": [
-      // Mobile Banking App
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: [
-          "Biometric Login",
-          "PIN Login",
-          "Password Reset",
-          "Session Management",
-        ],
-      },
-      {
-        id: "acc",
-        name: "Account Management",
-        submodules: [
-          "Account Overview",
-          "Transaction History",
-          "Account Statements",
-          "Account Settings",
-        ],
-      },
-      {
-        id: "tra",
-        name: "Money Transfer",
-        submodules: [
-          "Quick Transfer",
-          "Scheduled Transfer",
-          "International Transfer",
-          "Transfer Limits",
-        ],
-      },
-      {
-        id: "bil",
-        name: "Bill Payments",
-        submodules: [
-          "Bill List",
-          "Payment Scheduling",
-          "Payment History",
-          "Recurring Payments",
-        ],
-      },
-      {
-        id: "sec",
-        name: "Security Features",
-        submodules: [
-          "Two-Factor Auth",
-          "Device Management",
-          "Security Alerts",
-          "Fraud Protection",
-        ],
-      },
-      {
-        id: "sup",
-        name: "Customer Support",
-        submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-      },
-    ],
-    "3": [
-      // Analytics Dashboard
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "reporting",
-        name: "Reporting",
-        submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-      },
-      {
-        id: "data",
-        name: "Data Management",
-        submodules: ["Data Import", "Data Processing", "Data Export"],
-      },
-      {
-        id: "visualization",
-        name: "Visualization",
-        submodules: ["Charts", "Graphs", "Widgets"],
-      },
-    ],
-    "4": [
-      // Content Management
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "content",
-        name: "Content Management",
-        submodules: ["Articles", "Media", "Categories", "Templates"],
-      },
-      {
-        id: "user",
-        name: "User Management",
-        submodules: ["Profile", "Settings", "Permissions", "Roles"],
-      },
-      {
-        id: "workflow",
-        name: "Workflow",
-        submodules: ["Approval Process", "Review Process", "Publishing"],
-      },
-    ],
-  };
-
-  // Get modules and submodules for the current project
+  // Use centralized mockModules for module and submodule selection
   const modulesList =
-    projectId && mockModules[projectId]
-      ? mockModules[projectId].map((m) => m.name)
+    projectId &&
+      (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId]
+      ? (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId].map((m: { name: string }) => m.name)
       : [];
   const submodulesList =
-    formData.module && projectId && mockModules[projectId]
-      ? mockModules[projectId].find((m) => m.name === formData.module)
-          ?.submodules || []
+    formData.module &&
+      projectId &&
+      (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId]
+      ? (
+        mockModules as Record<
+          string,
+          { id: string; name: string; submodules: string[] }[]
+        >
+      )[projectId].find((m: { name: string }) => m.name === formData.module)
+        ?.submodules || []
       : [];
 
   // Unique values for dropdowns
@@ -382,43 +354,31 @@ export const Defects: React.FC = () => {
     formData.module && modulesList.includes(formData.module)
       ? submodulesList
       : Array.from(
-          new Set(
-            defects
-              .filter((d) => d.projectId === projectId)
-              .map((d) => d.subModule)
-              .filter(Boolean)
-          )
-        );
+        new Set(
+          defects
+            .filter((d) => d.projectId === projectId)
+            .map((d) => d.subModule)
+            .filter(Boolean)
+        )
+      );
   const uniqueTypes = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.type)
-        .filter(Boolean)
+      apiDefects.map((d) => d.type).filter(Boolean)
     )
   );
   const uniqueSeverities = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.severity)
-        .filter(Boolean)
+      apiDefects.map((d) => d.severity).filter(Boolean)
     )
   );
   const uniquePriorities = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.priority)
-        .filter(Boolean)
+      apiDefects.map((d) => d.priority).filter(Boolean)
     )
   );
   const uniqueStatuses = Array.from(
     new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.status)
-        .filter(Boolean)
+      apiDefects.map((d) => d.status).filter(Boolean)
     )
   );
   const uniqueAssignedTo = Array.from(
@@ -449,53 +409,11 @@ export const Defects: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Project Selection
-          </h2>
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft -= 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                maxWidth: "100%",
-              }}
-            >
-              {projects.map((project) => (
-                <Button
-                  key={project.id}
-                  variant={projectId === project.id ? "primary" : "secondary"}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap m-2"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft += 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={projectId || null}
+        onSelect={handleProjectSelect}
+      />
 
       {/* Add Defect Button */}
       <div className="flex justify-between items-center m-4">
@@ -505,346 +423,229 @@ export const Defects: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filter Row - move above the defect table card */}
+      {/* Filter Row - only Status, Priority, Type, Severity */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-4 mb-6">
-        <div className="grid grid-cols-8 gap-4 items-end">
+        <div className="grid grid-cols-4 gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              ID
-            </label>
-            <Input
-              placeholder="Defect ID"
-              value={filters.id}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, id: e.target.value }))
-              }
-              className="w-full"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Module
-            </label>
-            <select
-              value={filters.module}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  module: e.target.value,
-                  subModule: "",
-                }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Submodule
-            </label>
-            <select
-              value={filters.subModule}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, subModule: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-              disabled={!filters.module}
-            >
-              <option value="">All</option>
-              {uniqueSubmodules.map((sm) => (
-                <option key={sm} value={sm}>
-                  {sm}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Type
-            </label>
-            <select
-              value={filters.type}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, type: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Severity
-            </label>
-            <select
-              value={filters.severity}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, severity: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniqueSeverities.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Priority
-            </label>
-            <select
-              value={filters.priority}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, priority: e.target.value }))
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded"
-            >
-              <option value="">All</option>
-              {uniquePriorities.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Status
-            </label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
             <select
               value={filters.status}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, status: e.target.value }))
-              }
+              onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
               className="w-full px-2 py-1 border border-gray-300 rounded"
             >
               <option value="">All</option>
               {uniqueStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Assigned To
-            </label>
-            <Input
-              placeholder="Name"
-              value={filters.assignedTo}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, assignedTo: e.target.value }))
-              }
-              className="w-full"
-            />
+            <label className="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+            <select
+              value={filters.priority}
+              onChange={e => setFilters(f => ({ ...f, priority: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniquePriorities.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <select
+              value={filters.type}
+              onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Severity</label>
+            <select
+              value={filters.severity}
+              onChange={e => setFilters(f => ({ ...f, severity: e.target.value }))}
+              className="w-full px-2 py-1 border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueSeverities.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Defect Table in a single frame with search/filter in one line */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
-            {/* Search Field (right) */}
-            <div className="flex items-center ml-auto">
-              <Input
-                placeholder="Search..."
-                value={filters.search || ""}
-                onChange={(e) =>
-                  setFilters((f) => ({ ...f, search: e.target.value }))
-                }
-                className="w-40"
-              />
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Defect ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Brief Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Steps
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Module
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Submodule
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Severity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDefects.length > 0 ? (
-                  filteredDefects.map((defect) => (
-                    <tr
-                      key={defect.id}
-                      ref={
-                        highlightId === defect.id
-                          ? highlightedRowRef
-                          : undefined
-                      }
-                      className={`hover:bg-gray-50${
-                        highlightId === defect.id
+      {/* Loading and error states */}
+      {isLoading && (
+        <div className="text-center text-blue-600 py-8">Loading defects...</div>
+      )}
+      {error && (
+        <div className="text-center text-red-600 py-8">{error}</div>
+      )}
+
+      {/* Defect Table */}
+      {!isLoading && !error && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Defect ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Brief Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Steps
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Module
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submodule
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Severity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Priority
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned To
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {apiDefects.length > 0 ? (
+                    apiDefects.map((defect) => (
+                      <tr
+                        key={defect.defectId}
+                        ref={highlightId === String(defect.defectId) ? highlightedRowRef : undefined}
+                        className={`hover:bg-gray-50${highlightId === String(defect.defectId)
                           ? " bg-yellow-100 border-2 border-yellow-400"
                           : ""
-                      }`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.title}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
-                        <button
-                          type="button"
-                          className="flex items-center space-x-1 hover:underline"
-                          onClick={() => {
-                            setViewingSteps(defect.description);
-                            setIsViewStepsModalOpen(true);
-                          }}
-                          title="View Steps"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          <span>View</span>
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.module}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.subModule}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                            defect.severity
-                          )}`}
-                        >
-                          {defect.severity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                            defect.priority
-                          )}`}
-                        >
-                          {defect.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap w-32">
-                        <div className="flex items-center justify-between">
+                          }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.defectId}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {defect.defectTitle}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
+                          <button
+                            type="button"
+                            className="flex items-center space-x-1 hover:underline"
+                            onClick={() => {
+                              setViewingSteps(defect.steps);
+                              setIsViewStepsModalOpen(true);
+                            }}
+                            title="View Steps"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            <span>View</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {/* Module info not available in backend response */}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {/* Submodule info not available in backend response */}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              defect.status
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                              defect.severity
                             )}`}
                           >
-                            {defect.status}
+                            {defect.severity}
                           </span>
-                          {defect.status === "rejected" &&
-                            defect.rejectionComment && (
-                              <button
-                                type="button"
-                                className="ml-1 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                                title="View rejection comment"
-                                onClick={() => {
-                                  setViewingRejectionComment(
-                                    defect.rejectionComment || ""
-                                  );
-                                  setIsRejectionCommentModalOpen(true);
-                                }}
-                              >
-                                <MessageSquareWarning className="w-4 h-4 text-red-700" />
-                              </button>
-                            )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.assignedTo}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(defect)}
-                            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                            title="Edit Defect"
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+                              defect.priority
+                            )}`}
                           >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(defect.id)}
-                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                            title="Delete Defect"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            {defect.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap w-32">
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                defect.status
+                              )}`}
+                            >
+                              {defect.status}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {defect.assignTo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(defect)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="Edit Defect"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(String(defect.defectId))}
+                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                              title="Delete Defect"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={10} className="p-12 text-center text-gray-500">
+                        <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <div className="text-lg font-medium text-gray-900 mb-2">
+                          No defects found
                         </div>
+                        <div className="text-gray-500 mb-4">
+                          No defects have been reported for this project
+                        </div>
+                        <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
+                          Add Defect
+                        </Button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="p-12 text-center text-gray-500">
-                      <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <div className="text-lg font-medium text-gray-900 mb-2">
-                        No defects found
-                      </div>
-                      <div className="text-gray-500 mb-4">
-                        No defects have been reported for this project
-                      </div>
-                      <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-                        Add Defect
-                      </Button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal for Add/Edit Defect */}
       <Modal
@@ -874,42 +675,37 @@ export const Defects: React.FC = () => {
               required
             />
           </div>
-          {/* Modules and Submodules */}
+          {/* Modules and Submodules as dropdowns */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Modules
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
               <select
                 value={formData.module}
-                onChange={(e) => handleInputChange("module", e.target.value)}
+                onChange={e => {
+                  handleInputChange("module", e.target.value);
+                  handleInputChange("subModule", ""); // Reset submodule when module changes
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="">Select a module</option>
-                {modulesList.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module}
-                  </option>
+                <option value="">Select module</option>
+                {((mockModules as any)[projectId as string] || []).map((m: { id: string; name: string; submodules: string[] }) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Submodules
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Submodule</label>
               <select
                 value={formData.subModule}
-                onChange={(e) => handleInputChange("subModule", e.target.value)}
+                onChange={e => handleInputChange("subModule", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 disabled={!formData.module}
               >
-                <option value="">Select a submodule</option>
-                {submodulesList.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
-                  </option>
+                <option value="">Select submodule</option>
+                {(((mockModules as any)[projectId as string] || []).find((m: { id: string }) => m.id === formData.module)?.submodules || []).map((sm: string) => (
+                  <option key={sm} value={sm}>{sm}</option>
                 ))}
               </select>
             </div>

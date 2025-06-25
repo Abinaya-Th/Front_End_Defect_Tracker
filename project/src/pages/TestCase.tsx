@@ -4,201 +4,242 @@ import {
   Edit2,
   Trash2,
   Eye,
-  CheckSquare,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
-  Upload,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
-import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import ModuleSelector from "../components/ui/ModuleSelector";
 
-// Define interfaces for our data types
-interface Module {
-  id: string;
-  name: string;
-  submodules: string[];
-}
-
-// Mock data for modules and submodules
-export const mockModules: { [key: string]: Module[] } = {
-  "2": [
-    // Mobile Banking App
+// --- MOCK DATA for projects/modules/submodules ---
+const mockProjects = [
+  { id: "PROJ001", name: "Project Alpha" },
+  { id: "PROJ002", name: "Project Beta" },
+];
+const mockModulesByProject: Record<string, any[]> = {
+  PROJ001: [
     {
-      id: "auth",
-      name: "Authentication",
+      id: "MOD001",
+      name: "Module 1",
       submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
+        { id: 1, code: "SUB001", name: "Submodule 1" },
+        { id: 2, code: "SUB002", name: "Submodule 2" },
       ],
     },
     {
-      id: "acc",
-      name: "Account Management",
+      id: "MOD002",
+      name: "Module 2",
       submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
+        { id: "SUB003", name: "Submodule 3" },
       ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
     },
   ],
-  "3": [
-    // Analytics Dashboard
+  PROJ002: [
     {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "reporting",
-      name: "Reporting",
-      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-    },
-    {
-      id: "data",
-      name: "Data Management",
-      submodules: ["Data Import", "Data Processing", "Data Export"],
-    },
-    {
-      id: "visualization",
-      name: "Visualization",
-      submodules: ["Charts", "Graphs", "Widgets"],
-    },
-  ],
-  "4": [
-    // Content Management
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "content",
-      name: "Content Management",
-      submodules: ["Articles", "Media", "Categories", "Templates"],
-    },
-    {
-      id: "user",
-      name: "User Management",
-      submodules: ["Profile", "Settings", "Permissions", "Roles"],
-    },
-    {
-      id: "workflow",
-      name: "Workflow",
-      submodules: ["Approval Process", "Review Process", "Publishing"],
+      id: "MOD003",
+      name: "Module 3",
+      submodules: [
+        { id: "SUB004", name: "Submodule 4" },
+      ],
     },
   ],
 };
+import { importTestCases } from "../api/importTestCase";
+import axios from "axios";
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const {
-    projects,
-    testCases = [],
-    addTestCase,
-    updateTestCase,
-    deleteTestCase,
-    releases,
-    setSelectedProjectId,
-  } = useApp();
+  // --- State for projects/modules/submodules (mock) ---
+  const [projects] = useState(mockProjects);
+  const [modulesByProject] = useState(mockModulesByProject);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
+
+  // --- Test case state (from backend) ---
+  const [testCases, setTestCases] = useState<TestCaseType[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // ... keep other UI state as before ...
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
-  const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(
-    null
-  );
-  const [editingTestCase, setEditingTestCase] = useState<TestCaseType | null>(
-    null
-  );
-  const [formData, setFormData] = useState<Omit<TestCaseType, "id">>({
-    module: "",
-    subModule: "",
-    description: "",
-    steps: "",
-    type: "functional",
-    severity: "medium",
-    projectId: "",
-  });
+  const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
-  const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
-  const [bulkRows, setBulkRows] = useState([
-    {
-      module: "",
-      subModule: "",
-      description: "",
-      steps: "",
-      type: "functional",
-      severity: "medium",
-    },
-  ]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [filterText, setFilterText] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterSeverity, setFilterSeverity] = useState("");
 
-  useEffect(() => {
-    if (projectId) {
-      setSelectedProjectId(projectId);
-    }
-  }, [projectId, setSelectedProjectId]);
+  // --- Multi-modal state for bulk add like QuickAddTestCase ---
+  interface ModalFormData {
+    module: string;
+    subModule: string;
+    description: string;
+    steps: string;
+    type: string;
+    severity: string;
+    projectId: string | undefined;
+    id?: string;
+  }
+  const [modals, setModals] = useState<{
+    open: boolean;
+    formData: ModalFormData;
+  }[]>([
+    {
+      open: false,
+      formData: {
+        module: "",
+        subModule: "",
+        description: "",
+        steps: "",
+        type: "functional",
+        severity: "medium",
+        projectId: projectId,
+      },
+    },
+  ]);
+  const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [success, setSuccess] = useState(false);
 
-  // If no projectId, show a message or redirect
-  if (!projectId) {
+  // --- Fetch test cases when submodule is selected ---
+  useEffect(() => {
+    if (selectedSubmodule) {
+      setLoading(true);
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/submodule/${selectedSubmodule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } else {
+      setTestCases([]);
+    }
+  }, [selectedSubmodule]);
+
+  // --- Add test case ---
+  const addTestCase = async (formData: ModalFormData) => {
+    await fetch("http://192.168.1.112:8087/api/v1/testcase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        testCaseId: formData.id,
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: formData.subModule,
+        moduleId: formData.module,
+        projectId: formData.projectId,
+        severityId: formData.severity,
+        typeId: formData.type,
+      }),
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // --- Update test case ---
+  const updateTestCase = async (formData: ModalFormData) => {
+    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${formData.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        testCaseId: formData.id,
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: formData.subModule,
+        moduleId: formData.module,
+        projectId: formData.projectId,
+        severityId: formData.severity,
+        typeId: formData.type,
+      }),
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // --- Delete test case ---
+  const deleteTestCase = async (testCaseId: string) => {
+    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${testCaseId}`, {
+      method: "DELETE",
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // If no selectedProjectId, show a message or redirect
+  if (!selectedProjectId) {
     return (
       <div className="p-8 text-center text-gray-500">
         Please select a project to view its test cases.
@@ -206,11 +247,10 @@ export const TestCase: React.FC = () => {
     );
   }
 
-  // Get modules for selected project
-  const projectModules = projectId ? mockModules[projectId] || [] : [];
+  // Get modules for selected project from context
+  const projectModules = selectedProjectId ? modulesByProject[String(selectedProjectId)] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const selectedTestCaseIds = useMemo(() => {
     let ids: string[] = [];
     if (selectedModules.length > 0) {
@@ -219,7 +259,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === projectId &&
+                tc.projectId === String(selectedProjectId) &&
                 selectedModules.includes(tc.module)
             )
             .map((tc) => tc.id)
@@ -233,7 +273,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === projectId &&
+                tc.projectId === String(selectedProjectId) &&
                 selectedSubmodules.includes(tc.subModule)
             )
             .map((tc) => tc.id)
@@ -241,57 +281,42 @@ export const TestCase: React.FC = () => {
       ];
     }
     return Array.from(new Set(ids));
-  }, [selectedModules, selectedSubmodules, testCases, projectId]);
+  }, [selectedModules, selectedSubmodules, testCases, selectedProjectId]);
 
-  // Compute filtered test cases for the table (union of all selected modules/submodules)
-  const filteredTestCases = React.useMemo(() => {
-    let cases = testCases.filter((tc) => {
-      if (!projectId) return false;
-      if (tc.projectId !== projectId) return false;
-      if (selectedModule && tc.module !== selectedModule) return false;
-      if (selectedSubmodule && tc.subModule !== selectedSubmodule) return false;
-      return true;
-    });
-    if (filterText) {
-      cases = cases.filter((tc) =>
-        tc.description.toLowerCase().includes(filterText.toLowerCase())
-      );
-    }
-    if (filterType) {
-      cases = cases.filter((tc) => tc.type === filterType);
-    }
-    if (filterSeverity) {
-      cases = cases.filter((tc) => tc.severity === filterSeverity);
-    }
-    return cases;
-  }, [
-    testCases,
-    projectId,
-    selectedModule,
-    selectedSubmodule,
-    filterText,
-    filterType,
-    filterSeverity,
-  ]);
+  // Compute filtered test cases for the table (show all for module)
+  const filteredTestCases = testCases;
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSelectedModule("");
-    setSelectedSubmodule("");
-    setSelectedTestCases([]);
+    navigate(`/projects/${projectId}/test-cases`);
   };
 
   // Handle module selection
-  const handleModuleSelect = (moduleName: string) => {
-    setSelectedModule(moduleName);
+  const handleModuleSelect = (moduleId: string) => {
+    setSelectedModule(moduleId);
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${moduleId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const mapped = (data.data || []).map((tc: any) => ({
+          id: tc.testCaseId || tc.id,
+          description: tc.description,
+          steps: tc.steps,
+          subModule: tc.subModuleId || tc.subModule,
+          module: tc.moduleId || tc.module,
+          projectId: tc.projectId,
+          severity: tc.severityName || tc.severityId || tc.severity,
+          type: tc.typeId || tc.type,
+        }));
+        setTestCases(mapped);
+      });
   };
 
-  // Handle submodule selection
-  const handleSubmoduleSelect = (submoduleName: string) => {
-    setSelectedSubmodule(submoduleName);
+  // Handle submodule selection (just highlight, no fetch)
+  const handleSubmoduleSelect = (submoduleId: string | number) => {
+    setSelectedSubmodule(String(submoduleId));
     setSelectedTestCases([]);
   };
 
@@ -302,88 +327,104 @@ export const TestCase: React.FC = () => {
     }
   }, [selectedTestCaseIds, selectedModules, selectedSubmodules]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleInputChange = (idx: number, field: string, value: string) => {
+    setModals((prev) =>
+      prev.map((modal, i) =>
+        i === idx
+          ? { ...modal, formData: { ...modal.formData, [field]: value } }
+          : modal
+      )
+    );
+  };
 
-    // Generate module and submodule IDs
-    const moduleId = formData.module.substring(0, 3).toUpperCase();
-    const subModuleId = formData.subModule.substring(0, 3).toUpperCase();
-    const timestamp = Date.now().toString().slice(-4);
+  const handleAddAnother = () => {
+    setModals((prev) => [
+      ...prev,
+      {
+        open: true,
+        formData: {
+          module: "",
+          subModule: "",
+          description: "",
+          steps: "",
+          type: "functional",
+          severity: "medium",
+          projectId: selectedProjectId,
+        },
+      },
+    ]);
+    setCurrentModalIdx(modals.length); // go to the new modal
+  };
 
-    if (editingTestCase) {
-      updateTestCase({
-        ...formData,
-        id: editingTestCase.id,
-        steps: formData.steps,
-      });
+  const handleRemove = (idx: number) => {
+    if (modals.length === 1) {
+      setModals([{ ...modals[0], open: false }]);
+      setCurrentModalIdx(0);
     } else {
-      addTestCase({
-        ...formData,
-        id: `TC-${moduleId}-${subModuleId}-${timestamp}`,
-        steps: formData.steps,
-      });
+      setModals((prev) => prev.filter((_, i) => i !== idx));
+      setCurrentModalIdx((prevIdx) => (prevIdx > 0 ? prevIdx - 1 : 0));
     }
-    resetForm();
   };
 
-  const handleEdit = (testCase: TestCaseType) => {
-    setEditingTestCase(testCase);
-    setFormData({
-      module: testCase.module,
-      subModule: testCase.subModule,
-      description: testCase.description,
-      steps: testCase.steps,
-      type: testCase.type,
-      severity: testCase.severity,
-      projectId: testCase.projectId,
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importTestCases(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
+        setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
+      }
+    } catch (error: any) {
+      alert("Failed to import test cases: " + (error?.message || error));
+    }
+  };
+
+  const handleSubmitAll = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    modals.forEach(({ formData }) => {
+      if (formData.id) {
+        // Edit mode
+        updateTestCase({ ...formData });
+      } else {
+        // Add mode
+        addTestCase({
+          ...formData,
+          id: `TC-${formData.module
+            .substring(0, 3)
+            .toUpperCase()}-${formData.subModule
+            .substring(0, 3)
+            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+          projectId: selectedProjectId,
+        });
+      }
     });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this test case?")) {
-      deleteTestCase(id);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      module: "",
-      subModule: "",
-      description: "",
-      steps: "",
-      type: "functional",
-      severity: "medium",
-      projectId: projectId,
-    });
-    setEditingTestCase(null);
-    setIsModalOpen(false);
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleStepChange = (index: number, value: string) => {
-    const newSteps = [...formData.steps.split("\n")];
-    newSteps[index] = value;
-    setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
-  };
-
-  const addStep = () => {
-    if (formData.steps.split("\n").length < 5) {
-      setFormData((prev) => ({
-        ...prev,
-        steps: [...prev.steps.split("\n"), ""].join("\n"),
-      }));
-    }
-  };
-
-  const removeStep = (index: number) => {
-    if (formData.steps.split("\n").length > 1) {
-      const newSteps = formData.steps.split("\n").filter((_, i) => i !== index);
-      setFormData((prev) => ({ ...prev, steps: newSteps.join("\n") }));
-    }
+    setSuccess(true);
+    setTimeout(() => {
+      setSuccess(false);
+      setModals([
+        {
+          open: false,
+          formData: {
+            module: "",
+            subModule: "",
+            description: "",
+            steps: "",
+            type: "functional",
+            severity: "medium",
+            projectId: selectedProjectId,
+          },
+        },
+      ]);
+      setCurrentModalIdx(0);
+      setIsModalOpen(false);
+    }, 1200);
   };
 
   const getSeverityColor = (severity: string) => {
@@ -444,95 +485,6 @@ export const TestCase: React.FC = () => {
     setIsDescriptionModalOpen(true);
   };
 
-  const handleBulkRowChange = (idx: number, field: string, value: string) => {
-    setBulkRows((rows) =>
-      rows.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const handleAddBulkRow = () => {
-    setBulkRows((rows) => [
-      ...rows,
-      {
-        module: "",
-        subModule: "",
-        description: "",
-        steps: "",
-        type: "functional",
-        severity: "medium",
-      },
-    ]);
-  };
-
-  const handleRemoveBulkRow = (idx: number) => {
-    setBulkRows((rows) =>
-      rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
-    );
-  };
-
-  const handleBulkAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const validRows = bulkRows.filter(
-      (row) => row.module && row.subModule && row.description && row.steps
-    );
-    validRows.forEach((tc, idx) => {
-      const moduleId = tc.module.substring(0, 3).toUpperCase();
-      const subModuleId = tc.subModule.substring(0, 3).toUpperCase();
-      const timestamp = (Date.now() + idx).toString().slice(-4);
-      addTestCase({
-        id: `TC-${moduleId}-${subModuleId}-${timestamp}`,
-        module: tc.module,
-        subModule: tc.subModule,
-        description: tc.description,
-        steps: tc.steps,
-        type: tc.type as "functional" | "regression" | "smoke" | "integration",
-        severity: tc.severity as "low" | "medium" | "high" | "critical",
-        projectId: projectId,
-      });
-    });
-    setBulkRows([
-      {
-        module: "",
-        subModule: "",
-        description: "",
-        steps: "",
-        type: "functional",
-        severity: "medium",
-      },
-    ]);
-    setIsBulkAddModalOpen(false);
-  };
-
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      if (!data) return;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json
-        .slice(1)
-        .map((row: any[]) => ({
-          module: row[0] || "",
-          subModule: row[1] || "",
-          description: row[2] || "",
-          steps: row[3] || "",
-          type: row[4] || "functional",
-          severity: row[5] || "medium",
-        }))
-        .filter(
-          (row) => row.module && row.subModule && row.description && row.steps
-        );
-      if (rows.length > 0) setBulkRows(rows);
-    };
-    reader.readAsBinaryString(file);
-  };
-
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -541,136 +493,47 @@ export const TestCase: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
-              {projectId
-                ? `Project: ${projects.find((p) => p.id === projectId)?.name}`
+              {selectedProjectId
+                ? `Project: ${projects.find((p) => p.id === selectedProjectId)?.name}`
                 : "Select a project to begin"}
             </p>
           </div>
         </div>
 
         {/* Project Selection Panel */}
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
-              Project Selection
-            </h2>
-            <div className="relative flex items-center">
-              <button
-                onClick={() => {
-                  const container = document.getElementById("project-scroll");
-                  if (container) container.scrollLeft -= 200;
-                }}
-                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div
-                id="project-scroll"
-                className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                style={{
-                  scrollbarWidth: "none",
-                  msOverflowStyle: "none",
-                  maxWidth: "100%",
-                }}
-              >
-                {projects.map((project) => (
-                  <Button
-                    key={project.id}
-                    variant={projectId === project.id ? "primary" : "secondary"}
-                    onClick={() => {
-                      setSelectedProjectId(project.id);
-                      navigate(`/projects/${project.id}/test-cases`);
-                    }}
-                    className="whitespace-nowrap m-2"
-                  >
-                    {project.name}
-                  </Button>
-                ))}
-              </div>
-              <button
-                onClick={() => {
-                  const container = document.getElementById("project-scroll");
-                  if (container) container.scrollLeft += 200;
-                }}
-                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-              >
-                <ChevronRight className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <ProjectSelector
+          projects={projects}
+          selectedProjectId={selectedProjectId || ''}
+          onSelect={(id: string) => {
+            setSelectedProjectId(id);
+            navigate(`/projects/${id}/test-cases`);
+          }}
+        />
       </div>
 
       {/* Content Area - Now scrollable at page level */}
       <div className="flex-1 px-6 pb-6">
         <div className="flex flex-col">
           {/* Module Selection Panel */}
-          {projectId && (
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Module Selection
-                  </h2>
-                </div>
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("module-scroll");
-                      if (container) container.scrollLeft -= 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <div
-                    id="module-scroll"
-                    className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                  >
-                    {projectModules.map((module) => {
-                      const moduleTestCases = testCases.filter(
-                        (tc: TestCase) =>
-                          tc.projectId === projectId &&
-                          tc.module === module.name
-                      );
-                      return (
-                        <Button
-                          key={module.id}
-                          variant={
-                            selectedModule === module.name
-                              ? "primary"
-                              : "secondary"
-                          }
-                          onClick={() => handleModuleSelect(module.name)}
-                          className="whitespace-nowrap m-2"
-                        >
-                          {module.name}
-                          <Badge variant="info" className="ml-2">
-                            {moduleTestCases.length}
-                          </Badge>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("module-scroll");
-                      if (container) container.scrollLeft += 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+          {selectedProjectId && (
+            <ModuleSelector
+              modules={projectModules}
+              selectedModuleId={
+                projectModules.find((m: any) => m.name === selectedModule)?.id ||
+                null
+              }
+              onSelect={(id) => {
+                const mod = projectModules.find((m: any) => m.id === id);
+                setSelectedModule(mod ? mod.name : "");
+                setSelectedSubmodule("");
+                setSelectedTestCases([]);
+              }}
+              className="mb-4"
+            />
           )}
 
           {/* Submodule Selection Panel */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
@@ -699,27 +562,27 @@ export const TestCase: React.FC = () => {
                     }}
                   >
                     {projectModules
-                      .find((m) => m.name === selectedModule)
-                      ?.submodules.map((submodule) => {
+                      .find((m: any) => m.name === selectedModule)
+                      ?.submodules.map((submodule: any) => {
                         const submoduleTestCases = testCases.filter(
-                          (tc: TestCase) =>
-                            tc.projectId === projectId &&
+                          (tc: TestCaseType) =>
+                            tc.projectId === selectedProjectId &&
                             tc.module === selectedModule &&
-                            tc.subModule === submodule
+                            tc.subModule === submodule.name
                         );
                         return (
-                          <div key={submodule} className="flex items-center">
+                          <div key={submodule.id} className="flex items-center">
                             <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
                               <Button
                                 variant={
-                                  selectedSubmodule === submodule
+                                  selectedSubmodule === submodule.name
                                     ? "primary"
                                     : "secondary"
                                 }
-                                onClick={() => handleSubmoduleSelect(submodule)}
+                                onClick={() => handleSubmoduleSelect(String(submodule.id))}
                                 className="whitespace-nowrap border-0 m-2"
                               >
-                                {submodule}
+                                {submodule.name}
                                 <Badge variant="info" className="ml-2">
                                   {submoduleTestCases.length}
                                 </Badge>
@@ -728,13 +591,25 @@ export const TestCase: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    module: selectedModule,
-                                    subModule: submodule,
-                                    projectId: projectId,
-                                  }));
-                                  setIsModalOpen(true);
+                                  setModals((prev) => {
+                                    const newModals = [
+                                      ...prev,
+                                      {
+                                        open: true,
+                                        formData: {
+                                          module: selectedModule,
+                                          subModule: submodule.name,
+                                          description: "",
+                                          steps: "",
+                                          type: "functional",
+                                          severity: "medium",
+                                          projectId: selectedProjectId,
+                                        },
+                                      },
+                                    ];
+                                    setCurrentModalIdx(newModals.length - 1);
+                                    return newModals;
+                                  });
                                 }}
                                 className="p-1 border-0 hover:bg-gray-50"
                               >
@@ -761,7 +636,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Bulk Operations Panel */}
-          {projectId && selectedModule && selectedTestCases.length > 0 && (
+          {selectedProjectId && selectedModule && selectedTestCases.length > 0 && (
             <div className="flex justify-end space-x-3 mb-4">
               <Button
                 onClick={() => {
@@ -782,21 +657,8 @@ export const TestCase: React.FC = () => {
             </div>
           )}
 
-          {/* Bulk Add Button above the table */}
-          {projectId && (
-            <div className="flex justify-end mb-4">
-              <Button
-                onClick={() => setIsBulkAddModalOpen(true)}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Bulk Add</span>
-              </Button>
-            </div>
-          )}
-
           {/* Filter Options Above Table */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <input
                 type="text"
@@ -844,7 +706,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Test Cases Table - Now with dynamic height */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <Card>
               <CardContent className="p-0">
                 <table className="w-full">
@@ -862,29 +724,28 @@ export const TestCase: React.FC = () => {
                         />
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Test Case ID
+                        TEST CASE ID
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        DESCRIPTION
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Steps
+                        STEPS
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
+                        TYPE
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Severity
+                        SEVERITY
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        ACTIONS
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTestCases.map((testCase: TestCaseType) => (
-                      <React.Fragment key={testCase.id}>
-                        <tr className="hover:bg-gray-50">
+                      <tr key={testCase.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <input
                               type="checkbox"
@@ -920,7 +781,7 @@ export const TestCase: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                                testCase.severity
+                                testCase.severity || ""
                               )}`}
                             >
                               {testCase.severity}
@@ -936,14 +797,32 @@ export const TestCase: React.FC = () => {
                                 <Eye className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleEdit(testCase)}
-                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                                onClick={() => {
+                                  setModals([
+                                    {
+                                      open: true,
+                                      formData: {
+                                        module: testCase.module || "",
+                                        subModule: testCase.subModule || "",
+                                        description: testCase.description || "",
+                                        steps: testCase.steps || "",
+                                        type: testCase.type || "functional",
+                                        severity: testCase.severity || "medium",
+                                        projectId: testCase.projectId,
+                                        id: testCase.id,
+                                      },
+                                    },
+                                  ]);
+                                  setCurrentModalIdx(0);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
                                 title="Edit"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDelete(testCase.id)}
+                                onClick={() => deleteTestCase(testCase.id)}
                                 className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                                 title="Delete"
                               >
@@ -952,7 +831,6 @@ export const TestCase: React.FC = () => {
                             </div>
                           </td>
                         </tr>
-                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -963,135 +841,289 @@ export const TestCase: React.FC = () => {
       </div>
 
       {/* Add/Edit Test Case Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={resetForm}
-        title={editingTestCase ? "Edit Test Case" : "Create New Test Case"}
-        size="xl"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Module Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Module
-              </label>
-              <select
-                value={formData.module}
-                onChange={(e) => {
-                  handleInputChange("module", e.target.value);
-                  handleInputChange("subModule", ""); // Reset submodule when module changes
+      {modals[currentModalIdx]?.open &&
+        (() => {
+          const idx = currentModalIdx;
+          const modal = modals[idx];
+          return (
+            <Modal
+              isOpen={modal.open}
+              onClose={() => {
+                if (modals.length === 1) {
+                  setModals([{ ...modals[0], open: false }]);
+                  setCurrentModalIdx(0);
+                  setIsModalOpen(false);
+                } else {
+                  handleRemove(idx);
+                }
+              }}
+              title={"Create New Test Case"}
+              size="xl"
+            >
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmitAll();
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
+                className="space-y-4"
               >
-                <option value="">Select Module</option>
-                {projectModules.map((module) => (
-                  <option key={module.id} value={module.name}>
-                    {module.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Submodule Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub Module
-              </label>
-              <select
-                value={formData.subModule}
-                onChange={(e) => handleInputChange("subModule", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!formData.module}
-              >
-                <option value="">Select Sub Module</option>
-                {(
-                  projectModules.find((m) => m.name === formData.module)
-                    ?.submodules || []
-                ).map((submodule) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={1}
-              required
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Test Steps
-              </label>
-            </div>
-            <div className="space-y-2">
-              <textarea
-                value={formData.steps}
-                onChange={(e) => handleInputChange("steps", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={6}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleInputChange("type", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="functional">Functional</option>
-                <option value="regression">Regression</option>
-                <option value="smoke">Smoke</option>
-                <option value="integration">Integration</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Severity
-              </label>
-              <select
-                value={formData.severity}
-                onChange={(e) => handleInputChange("severity", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button type="button" variant="secondary" onClick={resetForm}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingTestCase ? "Update Test Case" : "Create Test Case"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+                <div className="flex items-center mb-2">
+                  <button
+                    type="button"
+                    className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                    onClick={() => {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = ".xlsx,.csv";
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            const data = evt.target?.result;
+                            if (data) {
+                              const workbook = XLSX.read(data, {
+                                type: "binary",
+                              });
+                              const sheetName = workbook.SheetNames[0];
+                              const worksheet = workbook.Sheets[sheetName];
+                              const json: any[] = XLSX.utils.sheet_to_json(
+                                worksheet,
+                                { header: 1 }
+                              );
+                              const rows = json
+                                .slice(1)
+                                .map((row: any[]) => ({
+                                  module: row[0] || "",
+                                  subModule: row[1] || "",
+                                  description: row[2] || "",
+                                  steps: row[3] || "",
+                                  type: row[4] || "functional",
+                                  severity: row[5] || "medium",
+                                  projectId: selectedProjectId,
+                                }))
+                                .filter(
+                                  (row) =>
+                                    row.module &&
+                                    row.subModule &&
+                                    row.description &&
+                                    row.steps
+                                );
+                              if (rows.length > 0) {
+                                setModals(
+                                  rows.map((row) => ({
+                                    open: true,
+                                    formData: row,
+                                  }))
+                                );
+                                setCurrentModalIdx(0);
+                              }
+                            }
+                          };
+                          reader.readAsBinaryString(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                      />
+                    </svg>
+                    Import from Excel/CSV
+                  </button>
+                  <Button
+                    type="button"
+                    onClick={handleAddAnother}
+                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                  >
+                    + Add Another Test Case
+                  </Button>
+                </div>
+                <div className="border rounded-lg p-4 mb-2 relative">
+                  {modals.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleRemove(idx)}
+                      className="absolute top-2 right-2 px-2 py-1"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Module
+                      </label>
+                      <select
+                        value={modal.formData.module}
+                        onChange={(e) =>
+                          handleInputChange(idx, "module", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="">Select Module</option>
+                        {(modulesByProject[String(selectedProjectId)] || []).map((module: any) => (
+                          <option key={module.id} value={module.name}>
+                            {module.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sub Module
+                      </label>
+                      <select
+                        value={modal.formData.subModule}
+                        onChange={(e) =>
+                          handleInputChange(idx, "subModule", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        // Remove required, allow empty
+                        disabled={!modal.formData.module}
+                      >
+                        <option value="">
+                          {(
+                            modulesByProject[String(selectedProjectId)]?.find(
+                              (m: any) => m.name === modal.formData.module
+                            )?.submodules || []
+                          ).length === 0
+                            ? "No submodules"
+                            : "Select Sub Module (optional)"}
+                        </option>
+                        {(
+                          modulesByProject[String(selectedProjectId)]?.find(
+                            (m: any) => m.name === modal.formData.module
+                          )?.submodules || []
+                        ).map((submodule: any) => (
+                          <option key={submodule.id} value={submodule.name}>
+                            {submodule.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Type
+                      </label>
+                      <select
+                        value={modal.formData.type}
+                        onChange={(e) =>
+                          handleInputChange(idx, "type", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="functional">Functional</option>
+                        <option value="regression">Regression</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="integration">Integration</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Severity
+                      </label>
+                      <select
+                        value={modal.formData.severity}
+                        onChange={(e) =>
+                          handleInputChange(idx, "severity", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={modal.formData.description}
+                      onChange={(e) =>
+                        handleInputChange(idx, "description", e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={1}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Test Steps
+                    </label>
+                    <textarea
+                      value={modal.formData.steps}
+                      onChange={(e) =>
+                        handleInputChange(idx, "steps", e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx - 1)}
+                      disabled={idx === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx + 1)}
+                      disabled={idx === modals.length - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                  <div className="flex space-x-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (modals.length === 1) {
+                          setModals([{ ...modals[0], open: false }]);
+                          setCurrentModalIdx(0);
+                          setIsModalOpen(false);
+                        } else {
+                          handleRemove(idx);
+                        }
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={success}>
+                      {success ? "Added!" : "Create Test Case"}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Modal>
+          );
+        })()}
 
       {/* View Steps Modal */}
       <Modal
@@ -1160,7 +1192,7 @@ export const TestCase: React.FC = () => {
                 <h3 className="text-sm font-medium text-gray-500">Severity</h3>
                 <span
                   className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                    viewingTestCase.severity
+                    viewingTestCase.severity || ""
                   )}`}
                 >
                   {viewingTestCase.severity}
@@ -1218,177 +1250,6 @@ export const TestCase: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Bulk Add Modal */}
-      <Modal
-        isOpen={isBulkAddModalOpen}
-        onClose={() => setIsBulkAddModalOpen(false)}
-        title="Bulk Add Test Cases"
-        size="xl"
-      >
-        <form onSubmit={handleBulkAddSubmit} className="space-y-4">
-          <div className="flex items-center mb-2">
-            <button
-              type="button"
-              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import from Excel/CSV
-            </button>
-            <input
-              type="file"
-              accept=".xlsx,.csv"
-              onChange={handleImportExcel}
-              ref={fileInputRef}
-              className="hidden"
-            />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">Module</th>
-                  <th className="px-2 py-1 border">Submodule</th>
-                  <th className="px-2 py-1 border">Description</th>
-                  <th className="px-2 py-1 border">Steps</th>
-                  <th className="px-2 py-1 border">Type</th>
-                  <th className="px-2 py-1 border">Severity</th>
-                  <th className="px-2 py-1 border">Remove</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bulkRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.module}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "module", e.target.value)
-                        }
-                        className="w-32 px-2 py-1 border rounded"
-                        required
-                      >
-                        <option value="">Select</option>
-                        {projectModules.map((module) => (
-                          <option key={module.id} value={module.name}>
-                            {module.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.subModule}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "subModule", e.target.value)
-                        }
-                        className="w-32 px-2 py-1 border rounded"
-                        required
-                        disabled={!row.module}
-                      >
-                        <option value="">Select</option>
-                        {(
-                          projectModules.find((m) => m.name === row.module)
-                            ?.submodules || []
-                        ).map((submodule) => (
-                          <option key={submodule} value={submodule}>
-                            {submodule}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <input
-                        type="text"
-                        value={row.description}
-                        onChange={(e) =>
-                          handleBulkRowChange(
-                            idx,
-                            "description",
-                            e.target.value
-                          )
-                        }
-                        className="w-48 px-2 py-1 border rounded"
-                        required
-                      />
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <input
-                        type="text"
-                        value={row.steps}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "steps", e.target.value)
-                        }
-                        className="w-48 px-2 py-1 border rounded"
-                        required
-                      />
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.type}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "type", e.target.value)
-                        }
-                        className="w-28 px-2 py-1 border rounded"
-                      >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border">
-                      <select
-                        value={row.severity}
-                        onChange={(e) =>
-                          handleBulkRowChange(idx, "severity", e.target.value)
-                        }
-                        className="w-28 px-2 py-1 border rounded"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
-                      </select>
-                    </td>
-                    <td className="px-2 py-1 border text-center">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => handleRemoveBulkRow(idx)}
-                        className="px-2 py-1"
-                        disabled={bulkRows.length === 1}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex justify-between items-center mt-2">
-            <Button
-              type="button"
-              onClick={handleAddBulkRow}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-            >
-              + Add Row
-            </Button>
-            <div className="flex space-x-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsBulkAddModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Add Test Cases</Button>
-            </div>
-          </div>
-        </form>
-      </Modal>
-
       {/* Fixed Quick Add Button */}
       <div
         style={{
@@ -1407,3 +1268,4 @@ export const TestCase: React.FC = () => {
     </div>
   );
 };
+

@@ -44,6 +44,23 @@ export interface Project {
   createdAt: string;
 }
 
+interface Submodule {
+  id: string;
+  name: string;
+  assignedDevs: string[];
+}
+
+interface Module {
+  id: string;
+  name: string;
+  submodules: Submodule[];
+  assignedDevs: string[];
+}
+
+interface ModulesByProject {
+  [projectId: string]: Module[];
+}
+
 interface AppContextType {
   employees: Employee[];
   projects: Project[];
@@ -81,13 +98,38 @@ interface AppContextType {
   ) => void;
   updateWorkflowStatuses: (statuses: WorkflowStatus[]) => void;
   updateTransitions: (transitions: StatusTransition[]) => void;
-  addStatusType: (statusType: Omit<StatusType, 'id'>) => void;
+  addStatusType: (statusType: Omit<StatusType, "id">) => void;
   updateStatusType: (id: string, statusType: Partial<StatusType>) => void;
   deleteStatusType: (id: string) => void;
   testCaseDefectMap: { [testCaseId: string]: string };
   setTestCaseDefectMap: React.Dispatch<
     React.SetStateAction<{ [testCaseId: string]: string }>
   >;
+  modulesByProject: ModulesByProject;
+  setModulesByProject: React.Dispatch<React.SetStateAction<ModulesByProject>>;
+  addModule: (projectId: string, module: Module) => void;
+  updateModule: (
+    projectId: string,
+    moduleId: string,
+    updated: Partial<Module>
+  ) => void;
+  deleteModule: (projectId: string, moduleId: string) => void;
+  addSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submodule: string
+  ) => void;
+  updateSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number,
+    newName: string
+  ) => void;
+  deleteSubmodule: (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -162,9 +204,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [projects, setProjects] = useState<Project[]>([
     {
-      id: "2",
+      id: "PR0001",
       name: "Mobile Banking App",
-      prefix: "MBAP",
+      prefix: "PR0001",
       description: "Secure banking application for iOS and Android",
       status: "active",
       startDate: "2024-02-01",
@@ -177,7 +219,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-02-01T00:00:00Z",
     },
     {
-      id: "3",
+      id: "PR0002",
       name: "Inventory Management",
       prefix: "INVM",
       description: "Enterprise inventory tracking system",
@@ -192,7 +234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2023-09-01T00:00:00Z",
     },
     {
-      id: "4",
+      id: "PR0003",
       name: "E-commerce Platform",
       prefix: "ECOM",
       description: "Online shopping platform for multiple vendors",
@@ -207,7 +249,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-03-01T00:00:00Z",
     },
     {
-      id: "5",
+      id: "PR0004",
       name: "Healthcare Portal",
       prefix: "HLTH",
       description: "Patient and doctor management system",
@@ -222,7 +264,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-01-15T00:00:00Z",
     },
     {
-      id: "6",
+      id: "PR0005",
       name: "Learning Management System",
       prefix: "LMS",
       description: "Platform for online courses and assessments",
@@ -237,7 +279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-04-01T00:00:00Z",
     },
     {
-      id: "7",
+      id: "PR0006",
       name: "CRM Solution",
       prefix: "CRM",
       description: "Customer relationship management tool",
@@ -252,7 +294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2023-11-01T00:00:00Z",
     },
     {
-      id: "8",
+      id: "PR0007",
       name: "IoT Device Dashboard",
       prefix: "IOTD",
       description: "Dashboard for monitoring IoT devices",
@@ -267,7 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-05-01T00:00:00Z",
     },
     {
-      id: "9",
+      id: "PR0008",
       name: "Travel Booking System",
       prefix: "TRVL",
       description: "System for booking flights and hotels",
@@ -282,7 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-02-15T00:00:00Z",
     },
     {
-      id: "10",
+      id: "PR0009",
       name: "Fitness Tracker App",
       prefix: "FIT",
       description: "Mobile app for tracking fitness activities",
@@ -297,7 +339,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt: "2024-03-10T00:00:00Z",
     },
     {
-      id: "11",
+      id: "PR0010",
       name: "Event Management System",
       prefix: "EVNT",
       description: "Tool for managing events and registrations",
@@ -323,7 +365,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "critical",
       priority: "critical",
-      projectId: "2",
+      projectId: "PR0001",
       module: "Security",
       subModule: "Encryption",
       type: "bug",
@@ -339,7 +381,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "in-progress",
       severity: "medium",
       priority: "medium",
-      projectId: "2",
+      projectId: "PR0002",
       module: "UI",
       subModule: "Responsive Design",
       type: "bug",
@@ -355,7 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "high",
       priority: "high",
-      projectId: "2",
+      projectId: "PR0001",
       module: "Transaction",
       subModule: "Transfer",
       type: "bug",
@@ -373,7 +415,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "in-progress",
       severity: "high",
       priority: "high",
-      projectId: "3",
+      projectId: "PR0003",
       module: "Database",
       subModule: "CRUD Operations",
       type: "bug",
@@ -390,7 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "open",
       severity: "medium",
       priority: "medium",
-      projectId: "3",
+      projectId: "PR0003",
       module: "Reporting",
       subModule: "Analytics",
       type: "bug",
@@ -636,60 +678,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   ]);
 
   const [releases, setReleases] = useState<Release[]>([
-    {
-      id: "R002",
-      name: "Mobile Banking v2.1",
-      version: "2.1.0",
-      description: "Security enhancements and UI updates for mobile banking",
-      projectId: "2",
-      status: "planned",
-      releaseDate: "2024-04-01",
-      Testcase: ["TC005", "TC006", "TC007"],
-      features: ["Biometric login", "Quick transfer"],
-      bugFixes: ["Fixed session timeout"],
-      createdAt: "2024-03-10T09:00:00Z",
-    },
-    {
-      id: "R003",
-      name: "Inventory v1.2",
-      version: "1.2.0",
-      description:
-        "Performance improvements and bug fixes for inventory system",
-      projectId: "3",
-      status: "completed",
-      releaseDate: "2024-02-15",
-      Testcase: ["TC008", "TC009"],
-      features: ["Faster report generation"],
-      bugFixes: ["Fixed database timeout"],
-      createdAt: "2024-02-01T08:00:00Z",
-    },
-    // Additional mock releases (not related to E-commerce Platform)
-    {
-      id: "R005",
-      name: "Mobile Banking v2.2",
-      version: "2.2.0",
-      description: "Introduced bill payments and improved security",
-      projectId: "2",
-      status: "in-progress",
-      releaseDate: "2024-06-01",
-      Testcase: ["TC012", "TC013"],
-      features: ["Bill payments", "Enhanced 2FA"],
-      bugFixes: ["Fixed PIN reset issue"],
-      createdAt: "2024-05-01T11:00:00Z",
-    },
-    {
-      id: "R006",
-      name: "Inventory v1.3",
-      version: "1.3.0",
-      description: "New analytics dashboard and bug fixes",
-      projectId: "3",
-      status: "testing",
-      releaseDate: "2024-07-01",
-      Testcase: ["TC014", "TC015"],
-      features: ["Analytics dashboard"],
-      bugFixes: ["Fixed export bug"],
-      createdAt: "2024-06-01T10:00:00Z",
-    },
+    // {
+    //   id: "R002",
+    //   name: "Mobile Banking v2.1",
+    //   version: "2.1.0",
+    //   description: "Security enhancements and UI updates for mobile banking",
+    //   projectId: "2",
+    //   status: "planned",
+    //   releaseDate: "2024-04-01",
+    //   Testcase: ["TC005", "TC006", "TC007"],
+    //   features: ["Biometric login", "Quick transfer"],
+    //   bugFixes: ["Fixed session timeout"],
+    //   createdAt: "2024-03-10T09:00:00Z",
+    // },
+    // {
+    //   id: "R003",
+    //   name: "Inventory v1.2",
+    //   version: "1.2.0",
+    //   description:
+    //     "Performance improvements and bug fixes for inventory system",
+    //   projectId: "3",
+    //   status: "completed",
+    //   releaseDate: "2024-02-15",
+    //   Testcase: ["TC008", "TC009"],
+    //   features: ["Faster report generation"],
+    //   bugFixes: ["Fixed database timeout"],
+    //   createdAt: "2024-02-01T08:00:00Z",
+    // },
+    // // Additional mock releases (not related to E-commerce Platform)
+    // {
+    //   id: "R005",
+    //   name: "Mobile Banking v2.2",
+    //   version: "2.2.0",
+    //   description: "Introduced bill payments and improved security",
+    //   projectId: "2",
+    //   status: "in-progress",
+    //   releaseDate: "2024-06-01",
+    //   Testcase: ["TC012", "TC013"],
+    //   features: ["Bill payments", "Enhanced 2FA"],
+    //   bugFixes: ["Fixed PIN reset issue"],
+    //   createdAt: "2024-05-01T11:00:00Z",
+    // },
+    // {
+    //   id: "R006",
+    //   name: "Inventory v1.3",
+    //   version: "1.3.0",
+    //   description: "New analytics dashboard and bug fixes",
+    //   projectId: "3",
+    //   status: "testing",
+    //   releaseDate: "2024-07-01",
+    //   Testcase: ["TC014", "TC015"],
+    //   features: ["Analytics dashboard"],
+    //   bugFixes: ["Fixed export bug"],
+    //   createdAt: "2024-06-01T10:00:00Z",
+    // },
   ]);
 
   const [workflowItems, setWorkflowItems] = useState<WorkflowItem[]>([]);
@@ -701,14 +743,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [transitions, setTransitions] = useState<StatusTransition[]>([]);
   const [statusTypes, setStatusTypes] = useState<StatusType[]>([
-    { id: '1', name: 'NEW', color: '#2a3eb1' },
-    { id: '2', name: 'OPEN', color: '#9c27b0' },
-    { id: '3', name: 'REJECT', color: '#10B981' },
-    { id: '4', name: 'FIXED', color: '	#F59E0B' },
-    { id: '5', name: 'CLOSED', color: '#EF4444' },
-    { id: '6', name: 'REOPEN', color: '#06B6D4' },
-    { id: '7', name: 'DUPLICATE', color: '#618833' },
-    { id: '8', name: 'HOLD', color: '#ffeb3b' },
+    { id: "1", name: "NEW", color: "#2a3eb1" },
+    { id: "2", name: "OPEN", color: "#9c27b0" },
+    { id: "3", name: "REJECT", color: "#10B981" },
+    { id: "4", name: "FIXED", color: "	#F59E0B" },
+    { id: "5", name: "CLOSED", color: "#EF4444" },
+    { id: "6", name: "REOPEN", color: "#06B6D4" },
+    { id: "7", name: "DUPLICATE", color: "#618833" },
+    { id: "8", name: "HOLD", color: "#ffeb3b" },
   ]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null
@@ -716,6 +758,259 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [testCaseDefectMap, setTestCaseDefectMap] = useState<{
     [testCaseId: string]: string;
   }>({});
+
+  // Initial modulesByProject (full object shape)
+  const [modulesByProject, setModulesByProject] = useState<ModulesByProject>({
+    "2": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-bio", name: "Biometric Login", assignedDevs: [] },
+          { id: "auth-pin", name: "PIN Login", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+          { id: "auth-session", name: "Session Management", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "acc",
+        name: "Account Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "acc-overview", name: "Account Overview", assignedDevs: [] },
+          { id: "acc-history", name: "Transaction History", assignedDevs: [] },
+          {
+            id: "acc-statements",
+            name: "Account Statements",
+            assignedDevs: [],
+          },
+          { id: "acc-settings", name: "Account Settings", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "tra",
+        name: "Money Transfer",
+        assignedDevs: [],
+        submodules: [
+          { id: "tra-quick", name: "Quick Transfer", assignedDevs: [] },
+          { id: "tra-sched", name: "Scheduled Transfer", assignedDevs: [] },
+          { id: "tra-intl", name: "International Transfer", assignedDevs: [] },
+          { id: "tra-limits", name: "Transfer Limits", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "bil",
+        name: "Bill Payments",
+        assignedDevs: [],
+        submodules: [
+          { id: "bil-list", name: "Bill List", assignedDevs: [] },
+          { id: "bil-sched", name: "Payment Scheduling", assignedDevs: [] },
+          { id: "bil-history", name: "Payment History", assignedDevs: [] },
+          { id: "bil-recurring", name: "Recurring Payments", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "sec",
+        name: "Security Features",
+        assignedDevs: [],
+        submodules: [
+          { id: "sec-2fa", name: "Two-Factor Auth", assignedDevs: [] },
+          { id: "sec-device", name: "Device Management", assignedDevs: [] },
+          { id: "sec-alerts", name: "Security Alerts", assignedDevs: [] },
+          { id: "sec-fraud", name: "Fraud Protection", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "sup",
+        name: "Customer Support",
+        assignedDevs: [],
+        submodules: [
+          { id: "sup-chat", name: "Chat Support", assignedDevs: [] },
+          { id: "sup-faqs", name: "FAQs", assignedDevs: [] },
+          { id: "sup-contact", name: "Contact Us", assignedDevs: [] },
+          { id: "sup-feedback", name: "Feedback", assignedDevs: [] },
+        ],
+      },
+    ],
+    "3": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-login", name: "Login", assignedDevs: [] },
+          { id: "auth-reg", name: "Registration", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "reporting",
+        name: "Reporting",
+        assignedDevs: [],
+        submodules: [
+          { id: "reporting-analytics", name: "Analytics", assignedDevs: [] },
+          { id: "reporting-exports", name: "Exports", assignedDevs: [] },
+          { id: "reporting-dash", name: "Dashboards", assignedDevs: [] },
+          { id: "reporting-custom", name: "Custom Reports", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "data",
+        name: "Data Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "data-import", name: "Data Import", assignedDevs: [] },
+          { id: "data-processing", name: "Data Processing", assignedDevs: [] },
+          { id: "data-export", name: "Data Export", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "visualization",
+        name: "Visualization",
+        assignedDevs: [],
+        submodules: [
+          { id: "viz-charts", name: "Charts", assignedDevs: [] },
+          { id: "viz-graphs", name: "Graphs", assignedDevs: [] },
+          { id: "viz-widgets", name: "Widgets", assignedDevs: [] },
+        ],
+      },
+    ],
+    "4": [
+      {
+        id: "auth",
+        name: "Authentication",
+        assignedDevs: [],
+        submodules: [
+          { id: "auth-login", name: "Login", assignedDevs: [] },
+          { id: "auth-reg", name: "Registration", assignedDevs: [] },
+          { id: "auth-pass", name: "Password Reset", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "content",
+        name: "Content Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "content-articles", name: "Articles", assignedDevs: [] },
+          { id: "content-media", name: "Media", assignedDevs: [] },
+          { id: "content-categories", name: "Categories", assignedDevs: [] },
+          { id: "content-templates", name: "Templates", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "user",
+        name: "User Management",
+        assignedDevs: [],
+        submodules: [
+          { id: "user-profile", name: "Profile", assignedDevs: [] },
+          { id: "user-settings", name: "Settings", assignedDevs: [] },
+          { id: "user-permissions", name: "Permissions", assignedDevs: [] },
+          { id: "user-roles", name: "Roles", assignedDevs: [] },
+        ],
+      },
+      {
+        id: "workflow",
+        name: "Workflow",
+        assignedDevs: [],
+        submodules: [
+          {
+            id: "workflow-approval",
+            name: "Approval Process",
+            assignedDevs: [],
+          },
+          { id: "workflow-review", name: "Review Process", assignedDevs: [] },
+          { id: "workflow-publish", name: "Publishing", assignedDevs: [] },
+        ],
+      },
+    ],
+  });
+
+  // Module management functions (now use full object shape)
+  const addModule = (projectId: string, module: Module) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]: prev[projectId] ? [...prev[projectId], module] : [module],
+    }));
+  };
+
+  const updateModule = (
+    projectId: string,
+    moduleId: string,
+    updated: Partial<Module>
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId ? { ...m, ...updated } : m
+        ) || [],
+    }));
+  };
+
+  const deleteModule = (projectId: string, moduleId: string) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]: prev[projectId]?.filter((m) => m.id !== moduleId) || [],
+    }));
+  };
+
+  const addSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submodule: string
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? { ...m, submodules: [...m.submodules, submodule] }
+            : m
+        ) || [],
+    }));
+  };
+
+  const updateSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number,
+    newName: string
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? {
+              ...m,
+              submodules: m.submodules.map((s, i) =>
+                i === submoduleIdx ? newName : s
+              ),
+            }
+            : m
+        ) || [],
+    }));
+  };
+
+  const deleteSubmodule = (
+    projectId: string,
+    moduleId: string,
+    submoduleIdx: number
+  ) => {
+    setModulesByProject((prev) => ({
+      ...prev,
+      [projectId]:
+        prev[projectId]?.map((m) =>
+          m.id === moduleId
+            ? {
+              ...m,
+              submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+            }
+            : m
+        ) || [],
+    }));
+  };
 
   const addEmployee = (
     employeeData: Omit<Employee, "id" | "createdAt" | "updatedAt">
@@ -744,7 +1039,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addProject = (project: Project) => {
-    setProjects((prev) => [...prev, project]);
+    setProjects((prev) => [project, ...prev]);
   };
 
   const updateProject = (project: Project) => {
@@ -783,6 +1078,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addRelease = (release: Release) => {
     // Implementation for adding release
+    setReleases((prev) => [...prev, release]);
   };
 
   const updateRelease = (release: Release) => {
@@ -817,7 +1113,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransitions(newTransitions);
   };
 
-  const addStatusType = (statusTypeData: Omit<StatusType, 'id'>) => {
+  const addStatusType = (statusTypeData: Omit<StatusType, "id">) => {
     const newStatusType: StatusType = {
       ...statusTypeData,
       id: Date.now().toString(),
@@ -825,7 +1121,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setStatusTypes((prev) => [...prev, newStatusType]);
   };
 
-  const updateStatusType = (id: string, statusTypeData: Partial<StatusType>) => {
+  const updateStatusType = (
+    id: string,
+    statusTypeData: Partial<StatusType>
+  ) => {
     setStatusTypes((prev) =>
       prev.map((status) =>
         status.id === id ? { ...status, ...statusTypeData } : status
@@ -877,6 +1176,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteStatusType,
         testCaseDefectMap,
         setTestCaseDefectMap,
+        modulesByProject,
+        setModulesByProject,
+        addModule,
+        updateModule,
+        deleteModule,
+        addSubmodule,
+        updateSubmodule,
+        deleteSubmodule,
       }}
     >
       {children}
