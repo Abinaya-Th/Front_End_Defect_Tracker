@@ -205,7 +205,7 @@ export const ReleaseView: React.FC = () => {
       setLoadingRelease(true);
       setReleaseError(null);
       axios
-        .get(`http://192.168.1.46:8088/api/v1/releases/releaseId/${selectedRelease}`)
+        .get(`http://localhost:8083/api/v1/releases/releaseId/${selectedRelease}`)
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));

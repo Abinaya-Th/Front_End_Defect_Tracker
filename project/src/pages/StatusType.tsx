@@ -13,7 +13,7 @@ export interface StatusType {
 }
 
 
-const API_BASE = 'http://192.168.1.46:8088/api/v1/defect-status';
+const API_BASE = 'http://localhost:8083/api/v1/defect-status';
 
 const StatusType: React.FC = () => {
   const navigate = useNavigate();
