@@ -655,7 +655,7 @@ export const TestExecution: React.FC = () => {
         <Modal
           isOpen={!!defectModalOpen}
           onClose={() => setDefectModalOpen(null)}
-          title="Report New Defect"
+          title="Add New Defect"
           size="lg"
         >
           <form onSubmit={handleDefectFormSubmit} className="space-y-4">
@@ -804,7 +804,7 @@ export const TestExecution: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit">Report Defect</Button>
+              <Button type="submit">Save Defect</Button>
             </div>
           </form>
         </Modal>

@@ -338,8 +338,8 @@ const QuickAddTestCase: React.FC = () => {
               }}
               title={
                 selectedProject
-                  ? `Quick Add Test Case (${selectedProject.name})`
-                  : "Quick Add Test Case"
+                  ? `Add New Test Case (${selectedProject.name})`
+                  : "Add New Test Case"
               }
               size="xl"
             >
@@ -548,7 +548,7 @@ const QuickAddTestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {success ? "Added!" : "Add Test Case"}
+                      {success ? "Added!" : "Save Test Case"}
                     </Button>
                   </div>
                 </div>
