@@ -13,7 +13,7 @@ export interface StatusType {
 }
 
 
-const API_BASE = 'http://localhost:8083/api/v1/defect-status';
+const API_BASE = '/api/v1/defect-status';
 
 const StatusType: React.FC = () => {
   const navigate = useNavigate();
@@ -35,14 +35,14 @@ const StatusType: React.FC = () => {
       const res = await axios.get(API_BASE);
       console.log("Fetched data:", res.data); // 🧪 log response to verify structure
       setStatusTypes(res.data.data); // ✅ this will work correctly now
-// ✅ assuming result is an array of objects
+      // ✅ assuming result is an array of objects
     } catch (err) {
       console.error("Error fetching status types:", err);
       setStatusTypes([]);
     }
   };
-  
-  
+
+
 
   const resetForm = () => {
     setFormData({ defectStatusName: '' });
@@ -58,23 +58,23 @@ const StatusType: React.FC = () => {
     setError('');
     return true;
   };
-  
+
 
   const handleCreate = async () => {
     const trimmedStatus = formData.defectStatusName?.trim();
-  
+
     console.log("Sending to backend:", { defectStatusName: trimmedStatus });
-  
+
     if (!trimmedStatus) {
       setError("Status Name cannot be empty.");
       return;
     }
-  
+
     try {
       const response = await axios.post(API_BASE, {
         defectStatusName: trimmedStatus
       });
-  
+
       console.log("Created successfully:", response.data);
       fetchStatusTypes();
       setIsCreateModalOpen(false);
@@ -84,9 +84,9 @@ const StatusType: React.FC = () => {
       setError(err.response?.data?.message || "Failed to create status.");
     }
   };
-  
-  
-  
+
+
+
 
   const handleEdit = async () => {
     if (!validateForm() || !editingStatus) return;

@@ -119,7 +119,7 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     if (selectedSubmodule) {
       setLoading(true);
-      fetch(`http://192.168.1.112:8087/api/v1/testcase/submodule/${selectedSubmodule}`)
+      fetch(`/api/v1/testcase/submodule/${selectedSubmodule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -143,7 +143,7 @@ export const TestCase: React.FC = () => {
 
   // --- Add test case ---
   const addTestCase = async (formData: ModalFormData) => {
-    await fetch("http://192.168.1.112:8087/api/v1/testcase", {
+    await fetch("/api/v1/testcase", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -159,7 +159,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+      fetch(`/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -179,7 +179,7 @@ export const TestCase: React.FC = () => {
 
   // --- Update test case ---
   const updateTestCase = async (formData: ModalFormData) => {
-    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${formData.id}`, {
+    await fetch(`/api/v1/testcase/${formData.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -195,7 +195,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+      fetch(`/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -215,12 +215,12 @@ export const TestCase: React.FC = () => {
 
   // --- Delete test case ---
   const deleteTestCase = async (testCaseId: string) => {
-    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${testCaseId}`, {
+    await fetch(`/api/v1/testcase/${testCaseId}`, {
       method: "DELETE",
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+      fetch(`/api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -297,7 +297,7 @@ export const TestCase: React.FC = () => {
     setSelectedModule(moduleId);
     setSelectedSubmodule("");
     setSelectedTestCases([]);
-    fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${moduleId}`)
+    fetch(`/api/v1/testcase/module/${moduleId}`)
       .then((res) => res.json())
       .then((data) => {
         const mapped = (data.data || []).map((tc: any) => ({
@@ -399,8 +399,8 @@ export const TestCase: React.FC = () => {
           id: `TC-${formData.module
             .substring(0, 3)
             .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+              .substring(0, 3)
+              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
           projectId: selectedProjectId,
         });
       }
@@ -746,91 +746,91 @@ export const TestCase: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTestCases.map((testCase: TestCaseType) => (
                       <tr key={testCase.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              checked={selectedTestCases.includes(testCase.id)}
-                              onChange={(e) =>
-                                handleSelectTestCase(
-                                  testCase.id,
-                                  e.target.checked
-                                )
-                              }
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {testCase.id}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {testCase.description}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={selectedTestCases.includes(testCase.id)}
+                            onChange={(e) =>
+                              handleSelectTestCase(
+                                testCase.id,
+                                e.target.checked
+                              )
+                            }
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {testCase.id}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {testCase.description}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <button
+                            onClick={() => handleViewSteps(testCase)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            title="View Steps"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {testCase.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                              testCase.severity || ""
+                            )}`}
+                          >
+                            {testCase.severity}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex space-x-2">
                             <button
-                              onClick={() => handleViewSteps(testCase)}
-                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                              title="View Steps"
+                              onClick={() => handleViewTestCase(testCase)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              title="View"
                             >
                               <Eye className="w-4 h-4" />
-                              <span>View</span>
                             </button>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {testCase.type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                                testCase.severity || ""
-                              )}`}
-                            >
-                              {testCase.severity}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleViewTestCase(testCase)}
-                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                                title="View"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setModals([
-                                    {
-                                      open: true,
-                                      formData: {
-                                        module: testCase.module || "",
-                                        subModule: testCase.subModule || "",
-                                        description: testCase.description || "",
-                                        steps: testCase.steps || "",
-                                        type: testCase.type || "functional",
-                                        severity: testCase.severity || "medium",
-                                        projectId: testCase.projectId,
-                                        id: testCase.id,
-                                      },
+                            <button
+                              onClick={() => {
+                                setModals([
+                                  {
+                                    open: true,
+                                    formData: {
+                                      module: testCase.module || "",
+                                      subModule: testCase.subModule || "",
+                                      description: testCase.description || "",
+                                      steps: testCase.steps || "",
+                                      type: testCase.type || "functional",
+                                      severity: testCase.severity || "medium",
+                                      projectId: testCase.projectId,
+                                      id: testCase.id,
                                     },
-                                  ]);
-                                  setCurrentModalIdx(0);
-                                  setIsModalOpen(true);
-                                }}
-                                className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
-                                title="Edit"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => deleteTestCase(testCase.id)}
-                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                                  },
+                                ]);
+                                setCurrentModalIdx(0);
+                                setIsModalOpen(true);
+                              }}
+                              className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteTestCase(testCase.id)}
+                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>

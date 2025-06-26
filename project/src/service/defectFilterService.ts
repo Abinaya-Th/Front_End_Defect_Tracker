@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8083/api/v1/defect";
+const BASE_URL = "/api/v1/defect";
 
 export interface DefectFilterParams {
   projectId?: string;

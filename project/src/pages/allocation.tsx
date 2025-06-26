@@ -56,21 +56,21 @@ export const Allocation: React.FC = () => {
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
-const getReleaseCardView =  async() =>{
+  const getReleaseCardView = async () => {
 
-      try {
-          const response = await projectReleaseCardView(selectedProject);
-          setProjectRelease(response.data || []);
-      } catch (error) {
-          console.error("Error fetching release card view:", error);
-      }
+    try {
+      const response = await projectReleaseCardView(selectedProject);
+      setProjectRelease(response.data || []);
+    } catch (error) {
+      console.error("Error fetching release card view:", error);
+    }
   }
   useEffect(() => {
-      getReleaseCardView();
+    getReleaseCardView();
   }, [selectedProject]);
 
   console.log("Project Release Data:", projectRelease);
-  
+
 
   // Filter releases for this project
   const projectReleases = releases.filter((r) => r.projectId === projectId);
@@ -168,10 +168,9 @@ const getReleaseCardView =  async() =>{
             <div
               key={release.releaseId}
               className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
-                ${
-                  isSelected
-                    ? "border-blue-500 ring-2 ring-blue-300"
-                    : "border-gray-200 hover:bg-gray-50"
+                ${isSelected
+                  ? "border-blue-500 ring-2 ring-blue-300"
+                  : "border-gray-200 hover:bg-gray-50"
                 }`}
               style={{
                 boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
@@ -276,9 +275,8 @@ const getReleaseCardView =  async() =>{
                       setSelectedTestCases([]);
                     }
                   }}
-                  className={`whitespace-nowrap m-2 ${
-                    isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                  }`}
+                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
+                    }`}
                 >
                   {module.name}
                 </Button>
@@ -303,7 +301,7 @@ const getReleaseCardView =  async() =>{
     const submodules =
       projectId && selectedModule
         ? projectModules.find((m) => m.name === selectedModule)?.submodules ||
-          []
+        []
         : [];
     return (
       <Card className="mb-4">
@@ -364,9 +362,8 @@ const getReleaseCardView =  async() =>{
                         setSelectedTestCases([]);
                       }
                     }}
-                    className={`whitespace-nowrap m-2 ${
-                      isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                    }`}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
+                      }`}
                   >
                     {submodule.name}
                   </Button>
@@ -566,7 +563,7 @@ const getReleaseCardView =  async() =>{
       setReleaseError(null);
       axios
         .get(
-          `http://localhost:8083/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
+          `/api/v1/releases/releaseId/${selectedReleaseIds[0]}`
         )
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
@@ -624,11 +621,10 @@ const getReleaseCardView =  async() =>{
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors duration-200 ${
-              activeTab === tab.key
+            className={`px-4 py-2 font-medium border-b-2 transition-colors duration-200 ${activeTab === tab.key
                 ? "border-blue-500 text-blue-700"
                 : "border-transparent text-gray-500 hover:text-blue-700"
-            }`}
+              }`}
             onClick={() => setActiveTab(tab.key as "release" | "qa")}
           >
             {tab.label}

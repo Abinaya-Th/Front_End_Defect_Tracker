@@ -1,14 +1,14 @@
 import axios from "axios";
 
-export interface ProjectReleaseProps{
+export interface ProjectReleaseProps {
     message: string;
-    data:any;
+    data: any;
     status: string;
-    statusCode:string;
+    statusCode: string;
 }
 
-export const projectReleaseCardView = (projectId:string | null):Promise<ProjectReleaseProps> => {
+export const projectReleaseCardView = (projectId: string | null): Promise<ProjectReleaseProps> => {
     return axios
-    .get<ProjectReleaseProps>(`http://localhost:8083/api/v1/releases/projectId/${projectId}`)
-        .then(({data}) => data);
+        .get<ProjectReleaseProps>(`/api/v1/releases/projectId/${projectId}`)
+        .then(({ data }) => data);
 };

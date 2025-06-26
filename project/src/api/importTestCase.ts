@@ -9,7 +9,7 @@ export interface ImportTestCaseResponse {
 
 export const importTestCases = (formData: FormData): Promise<ImportTestCaseResponse> => {
   return axios.post<ImportTestCaseResponse>(
-    "http://192.168.1.46:8088/api/v1/testcase/import",
+    "/api/v1/testcase/import",
     formData,
     {
       headers: {

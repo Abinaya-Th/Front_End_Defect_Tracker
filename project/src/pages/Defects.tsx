@@ -153,7 +153,7 @@ export const Defects: React.FC = () => {
   async function updateDefectAPI(defect: any) {
     try {
       const response = await axios.put(
-        `http://192.168.1.99:8085/api/v1/defect/defectId=${defect.defectId || defect.id}`,
+        `/api/v1/defect/defectId=${defect.defectId || defect.id}`,
         defect,
         { headers: { "Content-Type": "application/json" } }
       );
