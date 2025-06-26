@@ -38,6 +38,120 @@ interface TestCase {
   releaseId?: string;
 }
 
+interface Module {
+  id: string;
+  name: string;
+  submodules: string[];
+}
+
+// Mock data for modules and submodules
+const mockModules: { [key: string]: Module[] } = {
+  "2": [
+    // Mobile Banking App
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: [
+        "Biometric Login",
+        "PIN Login",
+        "Password Reset",
+        "Session Management",
+      ],
+    },
+    {
+      id: "acc",
+      name: "Account Management",
+      submodules: [
+        "Account Overview",
+        "Transaction History",
+        "Account Statements",
+        "Account Settings",
+      ],
+    },
+    {
+      id: "tra",
+      name: "Money Transfer",
+      submodules: [
+        "Quick Transfer",
+        "Scheduled Transfer",
+        "International Transfer",
+        "Transfer Limits",
+      ],
+    },
+    {
+      id: "bil",
+      name: "Bill Payments",
+      submodules: [
+        "Bill List",
+        "Payment Scheduling",
+        "Payment History",
+        "Recurring Payments",
+      ],
+    },
+    {
+      id: "sec",
+      name: "Security Features",
+      submodules: [
+        "Two-Factor Auth",
+        "Device Management",
+        "Security Alerts",
+        "Fraud Protection",
+      ],
+    },
+    {
+      id: "sup",
+      name: "Customer Support",
+      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
+    },
+  ],
+  "3": [
+    // Analytics Dashboard
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "reporting",
+      name: "Reporting",
+      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
+    },
+    {
+      id: "data",
+      name: "Data Management",
+      submodules: ["Data Import", "Data Processing", "Data Export"],
+    },
+    {
+      id: "visualization",
+      name: "Visualization",
+      submodules: ["Charts", "Graphs", "Widgets"],
+    },
+  ],
+  "4": [
+    // Content Management
+    {
+      id: "auth",
+      name: "Authentication",
+      submodules: ["Login", "Registration", "Password Reset"],
+    },
+    {
+      id: "content",
+      name: "Content Management",
+      submodules: ["Articles", "Media", "Categories", "Templates"],
+    },
+    {
+      id: "user",
+      name: "User Management",
+      submodules: ["Profile", "Settings", "Permissions", "Roles"],
+    },
+    {
+      id: "workflow",
+      name: "Workflow",
+      submodules: ["Approval Process", "Review Process", "Publishing"],
+    },
+  ],
+};
+
 export const ReleaseView: React.FC = () => {
   const ReleaseView = () => {
     // Add these lines here:
@@ -91,7 +205,7 @@ export const ReleaseView: React.FC = () => {
       setLoadingRelease(true);
       setReleaseError(null);
       axios
-        .get(`http://192.168.1.99:8085/api/v1/releases/releaseId/${selectedRelease}`)
+        .get(`http://192.168.1.46:8088/api/v1/releases/releaseId/${selectedRelease}`)
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));
@@ -167,9 +281,9 @@ const handleReleaseSearch = async (searchValue: string) => {
   // Filter releases for selected project and search
   const projectReleases = releases
 
-  // Get modules for selected project from context
+  // Get modules for selected project
   const projectModules = selectedProject
-    ? modulesByProject[selectedProject] || []
+    ? mockModules[selectedProject] || []
     : [];
 
   // Filter test cases for selected release
@@ -411,62 +525,32 @@ const handleReleaseSearch = async (searchValue: string) => {
                     maxWidth: "100%",
                   }}
                 >
-                  {(() => {
-                    const submodules =
-                      projectModules.find((m) => m.name === selectedModule)
-                        ?.submodules || [];
-                    if (submodules.length === 0) {
-                      return (
-                        <span className="italic text-gray-400">
-                          No submodules for this module
-                        </span>
-                      );
-                    }
-                    return submodules.map((submodule, idx) => {
-                      // Strictly check for valid id and name
-                      const isValidId =
-                        typeof submodule.id === "string" ||
-                        typeof submodule.id === "number";
-                      const isValidName =
-                        typeof submodule.name === "string" &&
-                        submodule.name.length > 0;
-                      if (!isValidId || !isValidName) {
-                        // Optionally log a warning for debugging
-                        if (process.env.NODE_ENV === "development") {
-                          // eslint-disable-next-line no-console
-                          console.warn(
-                            "Skipping invalid submodule object:",
-                            submodule
-                          );
-                        }
-                        return null;
-                      }
-                      const submoduleId = submodule.id;
-                      const submoduleName = submodule.name;
+                  {projectModules
+                    .find((m) => m.name === selectedModule)
+                    ?.submodules.map((submodule) => {
                       const submoduleTestCases = filteredTestCases.filter(
                         (tc) =>
                           tc.module === selectedModule &&
-                          tc.subModule === submoduleName
+                          tc.subModule === submodule
                       );
                       return (
                         <Button
-                          key={String(submoduleId)}
+                          key={submodule}
                           variant={
-                            selectedSubmodule === submoduleName
+                            selectedSubmodule === submodule
                               ? "primary"
                               : "secondary"
                           }
-                          onClick={() => handleSubmoduleSelect(submoduleName)}
+                          onClick={() => handleSubmoduleSelect(submodule)}
                           className="whitespace-nowrap m-2"
                         >
-                          {submoduleName}
+                          {submodule}
                           <Badge variant="info" className="ml-2">
                             {submoduleTestCases.length}
                           </Badge>
                         </Button>
                       );
-                    });
-                  })()}
+                    })}
                 </div>
                 <button
                   onClick={() => {
@@ -671,7 +755,7 @@ const handleReleaseSearch = async (searchValue: string) => {
           onClick={() => navigate(`/projects/${projectId}/project-management`)}
           className="flex items-center"
         >
-          <ChevronLeft className="w-5 h-4 mr-2" /> Back
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
         </Button>
       </div>
 
@@ -761,7 +845,7 @@ const handleReleaseSearch = async (searchValue: string) => {
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {release.description}
                     </p>
-
+                  
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2">

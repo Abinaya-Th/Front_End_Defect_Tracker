@@ -10,7 +10,6 @@ import {
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
-import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
@@ -20,27 +19,62 @@ import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 
+// --- MOCK DATA for projects/modules/submodules ---
+const mockProjects = [
+  { id: "PROJ001", name: "Project Alpha" },
+  { id: "PROJ002", name: "Project Beta" },
+];
+const mockModulesByProject: Record<string, any[]> = {
+  PROJ001: [
+    {
+      id: "MOD001",
+      name: "Module 1",
+      submodules: [
+        { id: 1, code: "SUB001", name: "Submodule 1" },
+        { id: 2, code: "SUB002", name: "Submodule 2" },
+      ],
+    },
+    {
+      id: "MOD002",
+      name: "Module 2",
+      submodules: [
+        { id: "SUB003", name: "Submodule 3" },
+      ],
+    },
+  ],
+  PROJ002: [
+    {
+      id: "MOD003",
+      name: "Module 3",
+      submodules: [
+        { id: "SUB004", name: "Submodule 4" },
+      ],
+    },
+  ],
+};
+import { importTestCases } from "../api/importTestCase";
+import axios from "axios";
+
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const {
-    projects,
-    testCases = [],
-    addTestCase,
-    updateTestCase,
-    deleteTestCase,
-    setSelectedProjectId,
-    modulesByProject,
-  } = useApp();
+  // --- State for projects/modules/submodules (mock) ---
+  const [projects] = useState(mockProjects);
+  const [modulesByProject] = useState(mockModulesByProject);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
+
+  // --- Test case state (from backend) ---
+  const [testCases, setTestCases] = useState<TestCaseType[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // ... keep other UI state as before ...
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
-  const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(
-    null
-  );
+  const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
@@ -81,14 +115,131 @@ export const TestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
 
+  // --- Fetch test cases when submodule is selected ---
   useEffect(() => {
-    if (projectId) {
-      setSelectedProjectId(projectId);
+    if (selectedSubmodule) {
+      setLoading(true);
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/submodule/${selectedSubmodule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } else {
+      setTestCases([]);
     }
-  }, [projectId, setSelectedProjectId]);
+  }, [selectedSubmodule]);
 
-  // If no projectId, show a message or redirect
-  if (!projectId) {
+  // --- Add test case ---
+  const addTestCase = async (formData: ModalFormData) => {
+    await fetch("http://192.168.1.112:8087/api/v1/testcase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        testCaseId: formData.id,
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: formData.subModule,
+        moduleId: formData.module,
+        projectId: formData.projectId,
+        severityId: formData.severity,
+        typeId: formData.type,
+      }),
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // --- Update test case ---
+  const updateTestCase = async (formData: ModalFormData) => {
+    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${formData.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        testCaseId: formData.id,
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: formData.subModule,
+        moduleId: formData.module,
+        projectId: formData.projectId,
+        severityId: formData.severity,
+        typeId: formData.type,
+      }),
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // --- Delete test case ---
+  const deleteTestCase = async (testCaseId: string) => {
+    await fetch(`http://192.168.1.112:8087/api/v1/testcase/${testCaseId}`, {
+      method: "DELETE",
+    });
+    // Refresh test cases
+    if (selectedModule) {
+      fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${selectedModule}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const mapped = (data.data || []).map((tc: any) => ({
+            id: tc.testCaseId || tc.id,
+            description: tc.description,
+            steps: tc.steps,
+            subModule: tc.subModuleId || tc.subModule,
+            module: tc.moduleId || tc.module,
+            projectId: tc.projectId,
+            severity: tc.severityName || tc.severityId || tc.severity,
+            type: tc.typeId || tc.type,
+          }));
+          setTestCases(mapped);
+        });
+    }
+  };
+
+  // If no selectedProjectId, show a message or redirect
+  if (!selectedProjectId) {
     return (
       <div className="p-8 text-center text-gray-500">
         Please select a project to view its test cases.
@@ -97,10 +248,9 @@ export const TestCase: React.FC = () => {
   }
 
   // Get modules for selected project from context
-  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
+  const projectModules = selectedProjectId ? modulesByProject[String(selectedProjectId)] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const selectedTestCaseIds = useMemo(() => {
     let ids: string[] = [];
     if (selectedModules.length > 0) {
@@ -109,7 +259,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === projectId &&
+                tc.projectId === String(selectedProjectId) &&
                 selectedModules.includes(tc.module)
             )
             .map((tc) => tc.id)
@@ -123,7 +273,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === projectId &&
+                tc.projectId === String(selectedProjectId) &&
                 selectedSubmodules.includes(tc.subModule)
             )
             .map((tc) => tc.id)
@@ -131,38 +281,10 @@ export const TestCase: React.FC = () => {
       ];
     }
     return Array.from(new Set(ids));
-  }, [selectedModules, selectedSubmodules, testCases, projectId]);
+  }, [selectedModules, selectedSubmodules, testCases, selectedProjectId]);
 
-  // Compute filtered test cases for the table (union of all selected modules/submodules)
-  const filteredTestCases = React.useMemo(() => {
-    let cases = testCases.filter((tc) => {
-      if (!projectId) return false;
-      if (tc.projectId !== projectId) return false;
-      if (selectedModule && tc.module !== selectedModule) return false;
-      if (selectedSubmodule && tc.subModule !== selectedSubmodule) return false;
-      return true;
-    });
-    if (filterText) {
-      cases = cases.filter((tc) =>
-        tc.description.toLowerCase().includes(filterText.toLowerCase())
-      );
-    }
-    if (filterType) {
-      cases = cases.filter((tc) => tc.type === filterType);
-    }
-    if (filterSeverity) {
-      cases = cases.filter((tc) => tc.severity === filterSeverity);
-    }
-    return cases;
-  }, [
-    testCases,
-    projectId,
-    selectedModule,
-    selectedSubmodule,
-    filterText,
-    filterType,
-    filterSeverity,
-  ]);
+  // Compute filtered test cases for the table (show all for module)
+  const filteredTestCases = testCases;
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -171,15 +293,30 @@ export const TestCase: React.FC = () => {
   };
 
   // Handle module selection
-  const handleModuleSelect = (moduleName: string) => {
-    setSelectedModule(moduleName);
+  const handleModuleSelect = (moduleId: string) => {
+    setSelectedModule(moduleId);
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    fetch(`http://192.168.1.112:8087/api/v1/testcase/module/${moduleId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const mapped = (data.data || []).map((tc: any) => ({
+          id: tc.testCaseId || tc.id,
+          description: tc.description,
+          steps: tc.steps,
+          subModule: tc.subModuleId || tc.subModule,
+          module: tc.moduleId || tc.module,
+          projectId: tc.projectId,
+          severity: tc.severityName || tc.severityId || tc.severity,
+          type: tc.typeId || tc.type,
+        }));
+        setTestCases(mapped);
+      });
   };
 
-  // Handle submodule selection
-  const handleSubmoduleSelect = (submoduleName: string) => {
-    setSelectedSubmodule(submoduleName);
+  // Handle submodule selection (just highlight, no fetch)
+  const handleSubmoduleSelect = (submoduleId: string | number) => {
+    setSelectedSubmodule(String(submoduleId));
     setSelectedTestCases([]);
   };
 
@@ -212,7 +349,7 @@ export const TestCase: React.FC = () => {
           steps: "",
           type: "functional",
           severity: "medium",
-          projectId: projectId,
+          projectId: selectedProjectId,
         },
       },
     ]);
@@ -229,38 +366,24 @@ export const TestCase: React.FC = () => {
     }
   };
 
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const data = evt.target?.result;
-      if (!data) return;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      // Expect header row: Module, Submodule, Description, Steps, Type, Severity
-      const rows = json
-        .slice(1)
-        .map((row: any[]) => ({
-          module: row[0] || "",
-          subModule: row[1] || "",
-          description: row[2] || "",
-          steps: row[3] || "",
-          type: row[4] || "functional",
-          severity: row[5] || "medium",
-          projectId: projectId,
-        }))
-        .filter(
-          (row) => row.module && row.subModule && row.description && row.steps
-        );
-      if (rows.length > 0) {
-        setModals(rows.map((row) => ({ open: true, formData: row })));
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importTestCases(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
         setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
       }
-    };
-    reader.readAsBinaryString(file);
+    } catch (error: any) {
+      alert("Failed to import test cases: " + (error?.message || error));
+    }
   };
 
   const handleSubmitAll = (e?: React.FormEvent) => {
@@ -278,7 +401,7 @@ export const TestCase: React.FC = () => {
             .toUpperCase()}-${formData.subModule
             .substring(0, 3)
             .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-          projectId: projectId,
+          projectId: selectedProjectId,
         });
       }
     });
@@ -295,7 +418,7 @@ export const TestCase: React.FC = () => {
             steps: "",
             type: "functional",
             severity: "medium",
-            projectId: projectId,
+            projectId: selectedProjectId,
           },
         },
       ]);
@@ -370,8 +493,8 @@ export const TestCase: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
-              {projectId
-                ? `Project: ${projects.find((p) => p.id === projectId)?.name}`
+              {selectedProjectId
+                ? `Project: ${projects.find((p) => p.id === selectedProjectId)?.name}`
                 : "Select a project to begin"}
             </p>
           </div>
@@ -380,8 +503,11 @@ export const TestCase: React.FC = () => {
         {/* Project Selection Panel */}
         <ProjectSelector
           projects={projects}
-          selectedProjectId={projectId || null}
-          onSelect={handleProjectSelect}
+          selectedProjectId={selectedProjectId || ''}
+          onSelect={(id: string) => {
+            setSelectedProjectId(id);
+            navigate(`/projects/${id}/test-cases`);
+          }}
         />
       </div>
 
@@ -389,15 +515,15 @@ export const TestCase: React.FC = () => {
       <div className="flex-1 px-6 pb-6">
         <div className="flex flex-col">
           {/* Module Selection Panel */}
-          {projectId && (
+          {selectedProjectId && (
             <ModuleSelector
               modules={projectModules}
               selectedModuleId={
-                projectModules.find((m) => m.name === selectedModule)?.id ||
+                projectModules.find((m: any) => m.name === selectedModule)?.id ||
                 null
               }
               onSelect={(id) => {
-                const mod = projectModules.find((m) => m.id === id);
+                const mod = projectModules.find((m: any) => m.id === id);
                 setSelectedModule(mod ? mod.name : "");
                 setSelectedSubmodule("");
                 setSelectedTestCases([]);
@@ -407,7 +533,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Submodule Selection Panel */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
@@ -436,11 +562,11 @@ export const TestCase: React.FC = () => {
                     }}
                   >
                     {projectModules
-                      .find((m) => m.name === selectedModule)
-                      ?.submodules.map((submodule) => {
+                      .find((m: any) => m.name === selectedModule)
+                      ?.submodules.map((submodule: any) => {
                         const submoduleTestCases = testCases.filter(
                           (tc: TestCaseType) =>
-                            tc.projectId === projectId &&
+                            tc.projectId === selectedProjectId &&
                             tc.module === selectedModule &&
                             tc.subModule === submodule.name
                         );
@@ -453,7 +579,7 @@ export const TestCase: React.FC = () => {
                                     ? "primary"
                                     : "secondary"
                                 }
-                                onClick={() => handleSubmoduleSelect(submodule.name)}
+                                onClick={() => handleSubmoduleSelect(String(submodule.id))}
                                 className="whitespace-nowrap border-0 m-2"
                               >
                                 {submodule.name}
@@ -477,7 +603,7 @@ export const TestCase: React.FC = () => {
                                           steps: "",
                                           type: "functional",
                                           severity: "medium",
-                                          projectId: projectId,
+                                          projectId: selectedProjectId,
                                         },
                                       },
                                     ];
@@ -510,7 +636,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Bulk Operations Panel */}
-          {projectId && selectedModule && selectedTestCases.length > 0 && (
+          {selectedProjectId && selectedModule && selectedTestCases.length > 0 && (
             <div className="flex justify-end space-x-3 mb-4">
               <Button
                 onClick={() => {
@@ -532,7 +658,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Filter Options Above Table */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <input
                 type="text"
@@ -580,7 +706,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Test Cases Table - Now with dynamic height */}
-          {projectId && selectedModule && (
+          {selectedProjectId && selectedModule && (
             <Card>
               <CardContent className="p-0">
                 <table className="w-full">
@@ -598,29 +724,28 @@ export const TestCase: React.FC = () => {
                         />
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Test Case ID
+                        TEST CASE ID
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        DESCRIPTION
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Steps
+                        STEPS
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
+                        TYPE
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Severity
+                        SEVERITY
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        ACTIONS
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTestCases.map((testCase: TestCaseType) => (
-                      <React.Fragment key={testCase.id}>
-                        <tr className="hover:bg-gray-50">
+                      <tr key={testCase.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <input
                               type="checkbox"
@@ -706,7 +831,6 @@ export const TestCase: React.FC = () => {
                             </div>
                           </td>
                         </tr>
-                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -776,7 +900,7 @@ export const TestCase: React.FC = () => {
                                   steps: row[3] || "",
                                   type: row[4] || "functional",
                                   severity: row[5] || "medium",
-                                  projectId: projectId,
+                                  projectId: selectedProjectId,
                                 }))
                                 .filter(
                                   (row) =>
@@ -850,7 +974,7 @@ export const TestCase: React.FC = () => {
                         required
                       >
                         <option value="">Select Module</option>
-                        {(modulesByProject[projectId] || []).map((module) => (
+                        {(modulesByProject[String(selectedProjectId)] || []).map((module: any) => (
                           <option key={module.id} value={module.name}>
                             {module.name}
                           </option>
@@ -872,18 +996,18 @@ export const TestCase: React.FC = () => {
                       >
                         <option value="">
                           {(
-                            modulesByProject[projectId]?.find(
-                              (m) => m.name === modal.formData.module
+                            modulesByProject[String(selectedProjectId)]?.find(
+                              (m: any) => m.name === modal.formData.module
                             )?.submodules || []
                           ).length === 0
                             ? "No submodules"
                             : "Select Sub Module (optional)"}
                         </option>
                         {(
-                          modulesByProject[projectId]?.find(
-                            (m) => m.name === modal.formData.module
+                          modulesByProject[String(selectedProjectId)]?.find(
+                            (m: any) => m.name === modal.formData.module
                           )?.submodules || []
-                        ).map((submodule) => (
+                        ).map((submodule: any) => (
                           <option key={submodule.id} value={submodule.name}>
                             {submodule.name}
                           </option>
@@ -1144,3 +1268,4 @@ export const TestCase: React.FC = () => {
     </div>
   );
 };
+

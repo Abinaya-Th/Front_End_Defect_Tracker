@@ -9,6 +9,6 @@ export interface ProjectReleaseProps{
 
 export const projectReleaseCardView = (projectId:string | null):Promise<ProjectReleaseProps> => {
     return axios
-    .get<ProjectReleaseProps>(`http://192.168.1.99:8085/api/v1/releases/projectId/${projectId}`)
+    .get<ProjectReleaseProps>(`http://192.168.1.112:8087/api/v1/releases/projectId/${projectId}`)
         .then(({data}) => data);
 };
