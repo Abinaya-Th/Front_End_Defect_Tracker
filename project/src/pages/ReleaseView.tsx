@@ -24,6 +24,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
+import { getQAAllocationsByRelease } from "../api/qaAllocation/saveQAAllocation";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -152,16 +153,262 @@ const mockModules: { [key: string]: Module[] } = {
   ],
 };
 
+// Add mock releases from allocation.tsx
+const allocationMockReleases = [
+  {
+    id: "R002",
+    name: "Mobile Banking v2.1",
+    version: "2.1.0",
+    description: "Security enhancements and UI updates for mobile banking",
+    projectId: "PR0001",
+    status: "planned",
+    releaseDate: "2024-04-01",
+    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
+    features: ["Biometric login", "Quick transfer"],
+    bugFixes: ["Fixed session timeout"],
+    createdAt: "2024-03-10T09:00:00Z",
+  },
+  {
+    id: "R003",
+    name: "Inventory v1.2",
+    version: "1.2.0",
+    description: "Performance improvements and bug fixes for inventory system",
+    projectId: "PR0003",
+    status: "completed",
+    releaseDate: "2024-02-15",
+    testCases: [],
+    features: ["Faster report generation"],
+    bugFixes: ["Fixed database timeout"],
+    createdAt: "2024-02-01T08:00:00Z",
+  },
+  {
+    id: "R004",
+    name: "E-commerce Platform v3.0",
+    version: "3.0.0",
+    description: "Major update with new payment gateway integration and improved user experience",
+    projectId: "PR0001",
+    status: "in-progress",
+    releaseDate: "2024-05-15",
+    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
+    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
+    bugFixes: ["Fixed checkout flow", "Improved search"],
+    createdAt: "2024-04-01T10:00:00Z",
+  },
+  {
+    id: "R005",
+    name: "Analytics Dashboard v2.5",
+    version: "2.5.0",
+    description: "Advanced analytics with real-time data visualization and custom reports",
+    projectId: "PR0002",
+    status: "planned",
+    releaseDate: "2024-06-01",
+    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002", "TC-VISUAL-003"],
+    features: ["Real-time analytics", "Custom reports", "Data export"],
+    bugFixes: ["Fixed chart rendering", "Improved performance"],
+    createdAt: "2024-04-15T14:00:00Z",
+  },
+];
+
+// Merge allocationMockReleases into mockReleases
+const mockReleases = [
+  // ...existing mockReleases...
+  {
+    id: "R001",
+    name: "Mobile Banking v2.0",
+    version: "2.0.0",
+    description: "Major update with new features and improved security",
+    projectId: "2",
+    status: "completed",
+    releaseDate: "2024-03-01",
+    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
+    features: ["Biometric login", "Quick transfer"],
+    bugFixes: ["Fixed session timeout"],
+    createdAt: "2024-02-15T09:00:00Z",
+  },
+  {
+    id: "R002",
+    name: "Analytics Dashboard v1.5",
+    version: "1.5.0",
+    description: "Enhanced analytics with new visualization options",
+    projectId: "3",
+    status: "in-progress",
+    releaseDate: "2024-04-15",
+    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002"],
+    features: ["New charts", "Export functionality"],
+    bugFixes: ["Fixed data loading"],
+    createdAt: "2024-03-20T10:00:00Z",
+  },
+  {
+    id: "R003",
+    name: "Content Management v2.1",
+    version: "2.1.0",
+    description: "Content management system with workflow improvements",
+    projectId: "4",
+    status: "planned",
+    releaseDate: "2024-05-01",
+    testCases: ["TC-CONTENT-001", "TC-WORKFLOW-002"],
+    features: ["Workflow automation", "Content approval"],
+    bugFixes: ["Fixed publishing issues"],
+    createdAt: "2024-04-01T11:00:00Z",
+  },
+  {
+    id: "R004",
+    name: "E-commerce Platform v3.0",
+    version: "3.0.0",
+    description: "Major update with new payment gateway integration and improved user experience",
+    projectId: "2",
+    status: "in-progress",
+    releaseDate: "2024-05-15",
+    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
+    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
+    bugFixes: ["Fixed checkout flow", "Improved search"],
+    createdAt: "2024-04-01T10:00:00Z",
+  },
+  {
+    id: "R005",
+    name: "Analytics Dashboard v2.5",
+    version: "2.5.0",
+    description: "Advanced analytics with real-time data visualization and custom reports",
+    projectId: "3",
+    status: "planned",
+    releaseDate: "2024-06-01",
+    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002", "TC-VISUAL-003"],
+    features: ["Real-time analytics", "Custom reports", "Data export"],
+    bugFixes: ["Fixed chart rendering", "Improved performance"],
+    createdAt: "2024-04-15T14:00:00Z",
+  },
+  // Add allocationMockReleases (filter out duplicates by id)
+  ...allocationMockReleases.filter(
+    allocRelease => ![
+      "R001","R002","R003","R004","R005"
+    ].includes(allocRelease.id)
+  )
+];
+
+// Sample releases for PR0001
+const sampleReleases = [
+  {
+    id: "R002",
+    name: "Mobile Banking v2.1",
+    version: "2.1.0",
+    description: "Security enhancements and UI updates for mobile banking",
+    projectId: "PR0001",
+    status: "planned",
+    releaseDate: "2024-04-01",
+    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
+    features: ["Biometric login", "Quick transfer"],
+    bugFixes: ["Fixed session timeout"],
+    createdAt: "2024-03-10T09:00:00Z",
+  },
+  {
+    id: "R004",
+    name: "E-commerce Platform v3.0",
+    version: "3.0.0",
+    description: "Major update with new payment gateway integration and improved user experience",
+    projectId: "PR0001",
+    status: "in-progress",
+    releaseDate: "2024-05-15",
+    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
+    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
+    bugFixes: ["Fixed checkout flow", "Improved search"],
+    createdAt: "2024-04-01T10:00:00Z",
+  },
+];
+
+// Merge sample releases into mockReleases (avoid duplicates)
+const mockReleasesWithSamples = [
+  ...mockReleases,
+  ...sampleReleases.filter(
+    sample => !mockReleases.some(r => r.id === sample.id)
+  )
+];
+
+// Mock QA (engineers/teams)
+const mockQA: any[] = [
+  {
+    id: "QA001",
+    name: "Sarah Wilson",
+    role: "QA Engineer",
+    email: "sarah.wilson@company.com",
+    skills: ["Manual Testing", "Automation", "Selenium", "Jest"],
+    experience: 3,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA002",
+    name: "QA Team Alpha",
+    role: "QA Team",
+    email: "qa.alpha@company.com",
+    skills: ["Regression Testing", "Performance Testing"],
+    experience: 5,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA003",
+    name: "Michael Chen",
+    role: "Senior QA Engineer",
+    email: "michael.chen@company.com",
+    skills: ["API Testing", "Mobile Testing", "Cypress", "Appium"],
+    experience: 7,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA004",
+    name: "Emily Rodriguez",
+    role: "QA Lead",
+    email: "emily.rodriguez@company.com",
+    skills: ["Test Strategy", "Team Management", "JIRA", "TestRail"],
+    experience: 8,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA005",
+    name: "David Thompson",
+    role: "Automation Engineer",
+    email: "david.thompson@company.com",
+    skills: ["Playwright", "Python", "CI/CD", "Performance Testing"],
+    experience: 4,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA006",
+    name: "Priya Patel",
+    role: "QA Analyst",
+    email: "priya.patel@company.com",
+    skills: ["Exploratory Testing", "Bug Reporting"],
+    experience: 2,
+    department: "Quality Assurance",
+    status: "active",
+  },
+  {
+    id: "QA007",
+    name: "QA Team Beta",
+    role: "QA Team",
+    email: "qa.beta@company.com",
+    skills: ["Load Testing", "Security Testing"],
+    experience: 6,
+    department: "Quality Assurance",
+    status: "active",
+  },
+];
+
+// Add mockTestCases and mockQA if not already present
+const mockTestCases: TestCase[] = [];
+
+// Helper: Use mock data if API/server is not working
+function useMockOrApiData(apiData: any, mockData: any): any {
+  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
+    return mockData;
+  }
+  return apiData;
+}
+
 export const ReleaseView: React.FC = () => {
-  const ReleaseView = () => {
-    // Add these lines here:
-    const { releaseId } = useParams();
-    const [release, setRelease] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-  
-    // ...then add the useEffect for fetching the release, and your render logic
-  };
   const { projectId } = useParams();
   const navigate = useNavigate();
   const {
@@ -199,6 +446,23 @@ export const ReleaseView: React.FC = () => {
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
+  const [qaAllocations, setQaAllocations] = useState<{[releaseId: string]: {[qaId: string]: string[]}}>({});
+  const [loadingQAAllocations, setLoadingQAAllocations] = useState<{[releaseId: string]: boolean}>({});
+
+  // Read allocated test cases and QA allocations from localStorage
+  const [allocatedTestCases, setAllocatedTestCases] = useState<{[releaseId: string]: string[]}>({});
+  useEffect(() => {
+    const stored = localStorage.getItem('qaAllocatedTestCases');
+    if (stored) setAllocatedTestCases(JSON.parse(stored));
+    const qaAlloc = localStorage.getItem('qaAllocations');
+    if (qaAlloc) setQaAllocations(JSON.parse(qaAlloc));
+  }, []);
+
+  // Filter test cases for selected release using allocation mapping
+  const allocatedIds = allocatedTestCases[selectedRelease || ''] || [];
+  const releaseTestCases = testCases.filter(
+    (tc) => allocatedIds.includes(tc.id)
+  );
 
   useEffect(() => {
     if (selectedRelease) {
@@ -236,6 +500,33 @@ export const ReleaseView: React.FC = () => {
   useEffect(() => {
       getReleaseCardView();
   }, [selectedProject]);
+
+  const fetchQAAllocations = async (releaseId: string) => {
+    if (qaAllocations[releaseId]) return; // Already loaded
+    
+    setLoadingQAAllocations(prev => ({ ...prev, [releaseId]: true }));
+    try {
+      const response = await getQAAllocationsByRelease(releaseId);
+      setQaAllocations(prev => ({ 
+        ...prev, 
+        [releaseId]: response.data || {} 
+      }));
+    } catch (error) {
+      console.error("Error fetching QA allocations:", error);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingQAAllocations(prev => ({ ...prev, [releaseId]: false }));
+    }
+  };
+
+  // Fetch QA allocations for all releases when they are loaded
+  useEffect(() => {
+    if (releases.length > 0) {
+      releases.forEach(release => {
+        fetchQAAllocations(release.id || release.releaseId);
+      });
+    }
+  }, [releases]);
 
 const handleReleaseSearch = async (searchValue: string) => {
     
@@ -278,18 +569,10 @@ const handleReleaseSearch = async (searchValue: string) => {
   console.log(releaseCardView);
   
 
-  // Filter releases for selected project and search
-  const projectReleases = releases
-
   // Get modules for selected project
   const projectModules = selectedProject
     ? mockModules[selectedProject] || []
     : [];
-
-  // Filter test cases for selected release
-  const releaseTestCases = testCases.filter(
-    (tc) => tc.projectId === selectedProject && tc.releaseId === selectedRelease
-  );
 
   // Filter test cases based on module/submodule selection
   const filteredTestCases = React.useMemo(() => {
@@ -319,6 +602,7 @@ const handleReleaseSearch = async (searchValue: string) => {
 
   // Handle release selection
   const handleReleaseSelect = (releaseId: string) => {
+    console.log('Release card clicked:', releaseId);
     setSelectedRelease(releaseId);
     setSelectedModule("");
     setSelectedSubmodule("");
@@ -350,6 +634,31 @@ const handleReleaseSearch = async (searchValue: string) => {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Read mockTestCases and mockQA from localStorage if available
+  let storedMockTestCases = null;
+  let storedMockQA = null;
+  try {
+    const stored = localStorage.getItem('mockTestCases');
+    if (stored) storedMockTestCases = JSON.parse(stored);
+    const storedQA = localStorage.getItem('mockQA');
+    if (storedQA) storedMockQA = JSON.parse(storedQA);
+  } catch (e) {}
+
+  const effectiveTestCases = useMockOrApiData(testCases, storedMockTestCases || mockTestCases);
+  const effectiveQA = storedMockQA || mockQA;
+
+  // Update getAssignedQA to use effectiveQA
+  function getAssignedQA(testCaseId: string) {
+    const allocations = qaAllocations[selectedRelease || ''] || {};
+    for (const [qaId, testCaseIds] of Object.entries(allocations)) {
+      if ((testCaseIds as string[]).includes(testCaseId)) {
+        const qa = effectiveQA.find((q: any) => q.id === qaId);
+        return qa ? qa.name : qaId;
+      }
+    }
+    return null;
+  }
 
   const handleViewSteps = (testCase: TestCase) => {
     setViewingTestCase(testCase);
@@ -404,9 +713,11 @@ const handleReleaseSearch = async (searchValue: string) => {
     setReleaseFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Handle release search
-  
-  
+  // Use mock data if API/server is not working (moved inside component)
+  const effectiveReleases = useMockOrApiData(
+    releases,
+    mockReleasesWithSamples.filter((r: any) => !selectedProject || r.projectId === selectedProject)
+  );
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
@@ -432,15 +743,72 @@ const handleReleaseSearch = async (searchValue: string) => {
                 {currentProject?.name} - {currentRelease?.name}
               </p>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => setSelectedRelease(null)}
-              className="flex items-center space-x-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>Back</span>
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="primary"
+                onClick={() => navigate(`/projects/${projectId}/releases/allocation`)}
+                className="flex items-center space-x-2"
+              >
+                <Users className="w-4 h-4" />
+                <span>Allocate QA</span>
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setSelectedRelease(null)}
+                className="flex items-center space-x-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Back</span>
+              </Button>
+            </div>
           </div>
+
+          {/* QA Allocation Summary */}
+          {(() => {
+            const releaseId = selectedRelease;
+            const releaseAllocations = qaAllocations[releaseId] || {};
+            const totalAllocated = Object.values(releaseAllocations).reduce((sum, testCaseIds) => 
+              sum + testCaseIds.length, 0
+            );
+            const totalTestCases = filteredTestCases.length;
+            
+            if (Object.keys(releaseAllocations).length > 0) {
+              return (
+                <Card className="mb-4">
+                  <CardContent className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">QA Allocation Summary</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{totalAllocated}</div>
+                        <div className="text-sm text-gray-500">Test Cases Allocated</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{totalTestCases - totalAllocated}</div>
+                        <div className="text-sm text-gray-500">Test Cases Unassigned</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{Object.keys(releaseAllocations).length}</div>
+                        <div className="text-sm text-gray-500">QA Engineers Assigned</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(releaseAllocations).map(([qaId, testCaseIds]) => (
+                          <div key={qaId} className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full">
+                            <span className="text-sm font-medium text-blue-800">{qaId}</span>
+                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                              {testCaseIds.length} test cases
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return null;
+          })()}
 
           {/* Module Selection Panel */}
           <Card className="mb-4">
@@ -590,6 +958,9 @@ const handleReleaseSearch = async (searchValue: string) => {
                       Severity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned QA
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -626,6 +997,18 @@ const handleReleaseSearch = async (searchValue: string) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(() => {
+                          const assignedQA = getAssignedQA(testCase.id);
+                          return assignedQA ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {assignedQA}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">Not assigned</span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleViewTestCase(testCase)}
@@ -638,7 +1021,7 @@ const handleReleaseSearch = async (searchValue: string) => {
                       </td>
                     </tr>
                   ))}
-                </tbody>
+                </tbody >
               </table>
             </CardContent>
           </Card>
@@ -811,106 +1194,132 @@ const handleReleaseSearch = async (searchValue: string) => {
           {searchError && (
             <div className="text-center text-red-500 mb-4">{searchError}</div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(releaseSearch === "" ? projectReleases : (searchResults ?? [])).map((release) => {
-              const releaseTestCases = testCases.filter(
-                (tc) =>
-                  tc.projectId === selectedProject &&
-                  tc.releaseId === release.id
-              );
-              const totalTestCases = releaseTestCases.length;
-              const currentProject = projects.find(
-                (p) => p.id === selectedProject
-              );
+          {effectiveReleases.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-gray-500">
+                  No releases found for the selected project. Please create releases first.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {effectiveReleases.map((release: any) => {
+                const releaseTestCases = testCases.filter(
+                  (tc) =>
+                    tc.projectId === selectedProject &&
+                    tc.releaseId === release.id
+                );
+                const totalTestCases = releaseTestCases.length;
+                const currentProject = projects.find(
+                  (p) => p.id === selectedProject
+                );
+                const releaseId = release.id || release.releaseId;
+                const releaseQAAllocations = qaAllocations[releaseId] || {};
+                const isLoadingQA = loadingQAAllocations[releaseId];
 
-              return (
-                <Card
-                  key={release.id}
-                  hover
-                  className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
-                  onClick={() => handleReleaseSelect(release.id)}
-                >
-                  <CardContent className="p-6">
-                    {/* Header */}
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {release.name || release.releaseName}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        v{release.version || release.releaseId}
+                return (
+                  <Card
+                    key={release.id}
+                    hover
+                    className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                    onClick={() => handleReleaseSelect(release.id)}
+                  >
+                    <CardContent className="p-6">
+                      {/* Header */}
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          {release.name || release.releaseName}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          v{release.version || release.releaseId}
+                        </p>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {release.description}
                       </p>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {release.description}
-                    </p>
-                  
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">Test Cases</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {totalTestCases}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">Release Date</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {release.releaseDate
-                              ? new Date(
-                                  release.releaseDate
-                                ).toLocaleDateString()
-                              : "TBD"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Project Info */}
-                    {currentProject && (
-                      <div className="pt-4 border-t border-gray-200">
+                    
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="flex items-center space-x-2">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">
-                            Project: {currentProject.name}
-                          </span>
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Test Cases</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {totalTestCases}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Release Date</p>
+                            <p className="text-sm font-medium text-gray-900">
+                              {release.releaseDate
+                                ? new Date(
+                                    release.releaseDate
+                                  ).toLocaleDateString()
+                                : "TBD"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+
+                      {/* QA Allocation Info */}
+                      <div className="mb-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">QA Allocations</span>
+                        </div>
+                        {isLoadingQA ? (
+                          <div className="text-xs text-gray-400">Loading QA info...</div>
+                        ) : Object.keys(releaseQAAllocations).length > 0 ? (
+                          <div className="space-y-1">
+                            {Object.entries(releaseQAAllocations).map(([qaId, testCaseIds]) => (
+                              <div key={qaId} className="flex items-center justify-between text-xs bg-blue-50 p-1 rounded">
+                                <span className="text-blue-700 font-medium">{qaId}</span>
+                                <span className="text-blue-600">{testCaseIds.length} test cases</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400">No QA allocations</div>
+                        )}
+                      </div>
+
+                      {/* Project Info */}
+                      {currentProject && (
+                        <div className="pt-4 border-t border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Users className="w-4 h-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">
+                                Project: {currentProject.name}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/projects/${projectId}/releases/allocation`);
+                              }}
+                              className="text-xs"
+                            >
+                              Allocate QA
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Instructions */}
-      {selectedProject && projectReleases.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-500">
-              No releases found for the selected project. Please create releases
-              first.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {!selectedProject && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-gray-500">
-              Please select a project to view available releases.
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       {/* Create Release Modal */}
@@ -1024,6 +1433,35 @@ const handleReleaseSearch = async (searchValue: string) => {
       >
         <QuickAddTestCase />
         <QuickAddDefect />
+      </div>
+
+      {/* Always show sample release cards for Mobile Banking v2.1 and E-commerce Platform v3.0 */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Sample Releases (Mock)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sampleReleases.map((release: any) => (
+            <Card
+              key={release.id}
+              hover
+              className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+              onClick={() => handleReleaseSelect(release.id)}
+            >
+              <CardContent className="p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{release.name}</h3>
+                  <p className="text-sm text-gray-500">Version: {release.version}</p>
+                </div>
+                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{release.description}</p>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Release Date:</span>
+                    <span className="text-sm font-medium text-gray-900">{release.releaseDate ? new Date(release.releaseDate).toLocaleDateString() : "TBD"}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

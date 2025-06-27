@@ -35,6 +35,195 @@ interface TestCase {
   assignee?: string;
 }
 
+// Add mockQA if not already present
+const mockQA: any[] = [
+  // ... (copy from allocation.tsx, or keep minimal for fallback)
+];
+
+// --- MOCK DATA SECTION (copied from allocation.tsx) ---
+const mockModules = [
+  {
+    id: "auth",
+    name: "Authentication",
+    submodules: [
+      { id: "auth-bio", name: "Biometric Login" },
+      { id: "auth-pin", name: "PIN Login" },
+      { id: "auth-pass", name: "Password Reset" },
+      { id: "auth-session", name: "Session Management" },
+    ],
+  },
+  {
+    id: "acc",
+    name: "Account Management",
+    submodules: [
+      { id: "acc-overview", name: "Account Overview" },
+      { id: "acc-history", name: "Transaction History" },
+      { id: "acc-statements", name: "Account Statements" },
+      { id: "acc-settings", name: "Account Settings" },
+    ],
+  },
+  {
+    id: "payment",
+    name: "Payment",
+    submodules: [
+      { id: "pay-gateway", name: "Gateway Integration" },
+      { id: "pay-methods", name: "Payment Methods" },
+      { id: "pay-security", name: "Payment Security" },
+      { id: "pay-processing", name: "Payment Processing" },
+    ],
+  },
+  {
+    id: "cart",
+    name: "Shopping Cart",
+    submodules: [
+      { id: "cart-management", name: "Cart Management" },
+      { id: "cart-checkout", name: "Checkout Process" },
+      { id: "cart-discounts", name: "Discounts & Coupons" },
+      { id: "cart-inventory", name: "Inventory Check" },
+    ],
+  },
+  {
+    id: "user",
+    name: "User Management",
+    submodules: [
+      { id: "user-dashboard", name: "Dashboard" },
+      { id: "user-profile", name: "Profile Management" },
+      { id: "user-preferences", name: "User Preferences" },
+      { id: "user-security", name: "Security Settings" },
+    ],
+  },
+  {
+    id: "analytics",
+    name: "Analytics",
+    submodules: [
+      { id: "analytics-realtime", name: "Real-time Data" },
+      { id: "analytics-trends", name: "Trend Analysis" },
+      { id: "analytics-metrics", name: "Key Metrics" },
+      { id: "analytics-insights", name: "Data Insights" },
+    ],
+  },
+  {
+    id: "reporting",
+    name: "Reporting",
+    submodules: [
+      { id: "reports-custom", name: "Custom Reports" },
+      { id: "reports-scheduled", name: "Scheduled Reports" },
+      { id: "reports-export", name: "Data Export" },
+      { id: "reports-sharing", name: "Report Sharing" },
+    ],
+  },
+  {
+    id: "visualization",
+    name: "Visualization",
+    submodules: [
+      { id: "visual-charts", name: "Charts" },
+      { id: "visual-graphs", name: "Graphs" },
+      { id: "visual-dashboards", name: "Dashboards" },
+      { id: "visual-widgets", name: "Widgets" },
+    ],
+  },
+];
+
+// --- MOCK TEST CASES SECTION (copied from allocation.tsx) ---
+const mockTestCases = [
+  {
+    id: "TC-AUT-BIO-0001",
+    module: "Authentication",
+    subModule: "Biometric Login",
+    description: "Verify that users can log in using biometric authentication",
+    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
+    type: "functional",
+    severity: "high",
+    status: "active",
+    projectId: "PR0001",
+  },
+  {
+    id: "TC-AUT-PIN-0001",
+    module: "Authentication",
+    subModule: "PIN Login",
+    description: "Test PIN login security features",
+    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
+    type: "functional",
+    severity: "critical",
+    status: "active",
+    projectId: "PR0001",
+  },
+  {
+    id: "TC-PAY-001",
+    module: "Payment",
+    subModule: "Gateway Integration",
+    description: "Test new payment gateway integration",
+    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
+    type: "integration",
+    severity: "high",
+    status: "active",
+    projectId: "PR0001",
+  },
+  {
+    id: "TC-CART-002",
+    module: "Shopping Cart",
+    subModule: "Cart Management",
+    description: "Test enhanced cart functionality",
+    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
+    type: "functional",
+    severity: "medium",
+    status: "active",
+    projectId: "PR0001",
+  },
+  {
+    id: "TC-USER-003",
+    module: "User Management",
+    subModule: "Dashboard",
+    description: "Test new user dashboard features",
+    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
+    type: "functional",
+    severity: "medium",
+    status: "active",
+    projectId: "PR0001",
+  },
+  {
+    id: "TC-ANALYTICS-001",
+    module: "Analytics",
+    subModule: "Real-time Data",
+    description: "Test real-time analytics data display",
+    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
+    type: "functional",
+    severity: "high",
+    status: "active",
+    projectId: "PR0002",
+  },
+  {
+    id: "TC-REPORTS-002",
+    module: "Reporting",
+    subModule: "Custom Reports",
+    description: "Test custom report generation",
+    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
+    type: "functional",
+    severity: "medium",
+    status: "active",
+    projectId: "PR0002",
+  },
+  {
+    id: "TC-VISUAL-003",
+    module: "Visualization",
+    subModule: "Charts",
+    description: "Test data visualization components",
+    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
+    type: "functional",
+    severity: "low",
+    status: "active",
+    projectId: "PR0002",
+  },
+];
+
+// Helper: Use mock data if API/server is not working
+function useMockOrApiData(apiData: any, mockData: any): any {
+  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
+    return mockData;
+  }
+  return apiData;
+}
+
 export const TestExecution: React.FC = () => {
   const { projectId, releaseId } = useParams();
   const navigate = useNavigate();
@@ -85,6 +274,66 @@ export const TestExecution: React.FC = () => {
   const [releaseLoading, setReleaseLoading] = useState(false);
   const [releaseError, setReleaseError] = useState("");
 
+  // Read QA allocations from localStorage
+  const qaAllocationsRaw = localStorage.getItem("qaAllocations");
+  const qaAllocations = qaAllocationsRaw ? JSON.parse(qaAllocationsRaw) : null;
+
+  // Get allocated test case IDs (if any)
+  const allocatedTestCaseIds = qaAllocations && Array.isArray(qaAllocations.allocations)
+    ? qaAllocations.allocations.flatMap((alloc: any) => alloc.testCaseIds)
+    : [];
+
+  // Use mock data if modulesByProject or testCases are empty
+  const safeProjectId = selectedProject || projectId || "";
+
+  // Try to get mockModules from localStorage if present (set by allocation.tsx)
+  let storedMockModules = null;
+  try {
+    const stored = localStorage.getItem("mockModules");
+    if (stored) storedMockModules = JSON.parse(stored);
+  } catch (e) {}
+
+  const projectModules = useMockOrApiData(
+    modulesByProject[safeProjectId],
+    storedMockModules || mockModules
+  );
+
+  // Get submodules for selected module
+  const selectedModuleObj = projectModules.find((m: any) => m.name === selectedModule);
+  const submodules = selectedModuleObj ? selectedModuleObj.submodules || [] : [];
+
+  // Read mockTestCases and mockQA from localStorage if available
+  let storedMockTestCases = null;
+  let storedMockQA = null;
+  try {
+    const stored = localStorage.getItem('mockTestCases');
+    if (stored) storedMockTestCases = JSON.parse(stored);
+    const storedQA = localStorage.getItem('mockQA');
+    if (storedQA) storedMockQA = JSON.parse(storedQA);
+  } catch (e) {}
+
+  const effectiveTestCases = useMockOrApiData(testCases, storedMockTestCases || mockTestCases);
+  const effectiveQA = storedMockQA || mockQA;
+
+  // Update testCaseIdToQA to use effectiveQA for QA name mapping
+  const testCaseIdToQA: Record<string, string> = {};
+  if (qaAllocations && Array.isArray(qaAllocations.allocations)) {
+    qaAllocations.allocations.forEach((alloc: any) => {
+      alloc.testCaseIds.forEach((tcId: string) => {
+        const qa = effectiveQA.find((q: any) => q.id === alloc.qaId || q.name === alloc.qaName);
+        testCaseIdToQA[tcId] = qa ? qa.name : (alloc.qaName || alloc.qaId);
+      });
+    });
+  }
+
+  const filteredTestCases = effectiveTestCases.filter((tc: any) => {
+    if (tc.projectId !== safeProjectId) return false;
+    if (allocatedTestCaseIds.length > 0 && !allocatedTestCaseIds.includes(tc.id)) return false;
+    if (selectedModule && tc.module !== selectedModule) return false;
+    if (selectedSubmodule && tc.subModule !== selectedSubmodule) return false;
+    return true;
+  });
+
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
@@ -122,16 +371,6 @@ export const TestExecution: React.FC = () => {
   const projectReleases = releases.filter(
     (r) => r.projectId === selectedProject
   );
-
-  // Filter test cases for selected project and release
-  const filteredTestCases = testCases.filter((tc) => {
-    if (tc.projectId !== selectedProject) return false;
-    if (selectedRelease && !tc.releaseId) return false;
-    if (selectedRelease && tc.releaseId !== selectedRelease) return false;
-    if (selectedModule && tc.module !== selectedModule) return false;
-    if (selectedSubmodule && tc.subModule !== selectedSubmodule) return false;
-    return true;
-  });
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -329,24 +568,19 @@ export const TestExecution: React.FC = () => {
 
           {/* Module Selection Panel */}
           <ModuleSelector
-            modules={(modulesByProject[selectedProject] || []).map(
-              ({ id, name }) => ({ id, name })
-            )}
+            modules={projectModules.map(({ id, name }: { id: string; name: string }) => ({ id, name }))}
             selectedModuleId={selectedModule}
-            onSelect={handleModuleSelect}
+            onSelect={(id: string | number) => {
+              setSelectedModule(String(id));
+              setSelectedSubmodule(""); // Reset submodule on module change
+            }}
             label="Module Selection"
           />
           {/* Submodule Selection Panel */}
           <SubmoduleSelector
-            submodules={
-              selectedModule
-                ? (modulesByProject[selectedProject] || []).find(
-                    (m: any) => m.name === selectedModule
-                  )?.submodules || []
-                : []
-            }
-            selectedSubmodule={selectedSubmodule}
-            onSelect={handleSubmoduleSelect}
+            submodules={submodules}
+            selectedSubmoduleId={selectedSubmodule}
+            onSelect={(id: string | number) => setSelectedSubmodule(String(id))}
             label="Submodule Selection"
           />
         </div>
@@ -381,6 +615,9 @@ export const TestExecution: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Defect ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      QA
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -508,6 +745,10 @@ export const TestExecution: React.FC = () => {
                           ) : (
                             ""
                           )}
+                        </td>
+                        {/* QA column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {testCaseIdToQA[testCase.id] || "Unassigned"}
                         </td>
                         {/* Actions: Only View button */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
