@@ -35,6 +35,8 @@ import ResetPassword from "./pages/ResetPassword";
 import Status from "./pages/Status";
 import StatusWorkflow from "./pages/StatusWorkflow";
 import StatusType from "./pages/StatusType";
+import BenchAllocate from './pages/BenchAllocate';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -261,6 +263,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <StatusType />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bench-allocate"
+          element={
+            <ProtectedRoute>
+              <BenchAllocate />
             </ProtectedRoute>
           }
         />
