@@ -4,7 +4,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
-import * as XLSX from "xlsx";
+import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
 
 // Mock data for modules and submodules

@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/Badge';
 import { DonutChart } from '../components/ui/DonutChart';
 import { useApp } from '../context/AppContext';
 import { Employee } from '../types';
+import { useNavigate } from 'react-router-dom';
 
 export const Bench: React.FC = () => {
   const { employees, projects, allocateEmployee } = useApp();
@@ -31,19 +32,21 @@ export const Bench: React.FC = () => {
     endDate: '',
   });
 
+  const navigate = useNavigate();
+
   // Filter employees based on criteria
   const filteredEmployees = useMemo(() => {
     return employees
       .filter(emp => emp.availability > 0) // Only show employees with availability > 0
       .filter(emp => {
         const matchesSearch = emp.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
-                            emp.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
-                            emp.designation.toLowerCase().includes(filters.search.toLowerCase());
+          emp.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
+          emp.designation.toLowerCase().includes(filters.search.toLowerCase());
         const matchesDesignation = !filters.designation || emp.designation === filters.designation;
         const matchesAvailability = !filters.availability || emp.availability >= parseInt(filters.availability);
         const matchesDateRange = (!filters.fromDate || new Date(emp.joinedDate) >= new Date(filters.fromDate)) &&
-                                (!filters.toDate || new Date(emp.joinedDate) <= new Date(filters.toDate));
-        
+          (!filters.toDate || new Date(emp.joinedDate) <= new Date(filters.toDate));
+
         return matchesSearch && matchesDesignation && matchesAvailability && matchesDateRange;
       })
       .sort((a, b) => b.availability - a.availability);
@@ -125,7 +128,7 @@ export const Bench: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            
+
             <select
               value={filters.designation}
               onChange={(e) => handleFilterChange('designation', e.target.value)}
@@ -171,6 +174,17 @@ export const Bench: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Move Manage button to top right above Employee Bench table */}
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="primary"
+          className="ml-4"
+          onClick={() => navigate('/bench-allocate')}
+        >
+          Manage
+        </Button>
+      </div>
+
       {/* Bench Table */}
       <Card className="shadow-lg">
         <CardHeader>
@@ -187,7 +201,6 @@ export const Bench: React.FC = () => {
                   <TableCell header>Availability</TableCell>
                   <TableCell header>Available Period</TableCell>
                   <TableCell header>Current Projects</TableCell>
-                  <TableCell header>Actions</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -219,8 +232,8 @@ export const Bench: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-3">
-                          <DonutChart 
-                            percentage={employee.availability} 
+                          <DonutChart
+                            percentage={employee.availability}
                             size={50}
                             strokeWidth={4}
                           />
@@ -262,27 +275,6 @@ export const Bench: React.FC = () => {
                           <Badge variant="default" size="sm">No projects</Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewEmployee(employee)}
-                            className="p-2 hover:bg-blue-50 text-blue-600"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAllocate(employee)}
-                            disabled={employee.availability < 10}
-                            className="shadow-sm"
-                          >
-                            <ArrowRight className="w-4 h-4 mr-1" />
-                            Allocate
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -311,8 +303,8 @@ export const Bench: React.FC = () => {
         <form onSubmit={handleAllocationSubmit} className="space-y-6">
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center space-x-3">
-              <DonutChart 
-                percentage={selectedEmployee?.availability || 0} 
+              <DonutChart
+                percentage={selectedEmployee?.availability || 0}
                 size={60}
                 strokeWidth={6}
               />
@@ -367,7 +359,7 @@ export const Bench: React.FC = () => {
                 <span>{selectedEmployee?.availability}%</span>
               </div>
             </div>
-            
+
             <Input
               label="Role in Project"
               value={allocationData.role}
@@ -442,9 +434,9 @@ export const Bench: React.FC = () => {
                 </h3>
                 <p className="text-lg text-gray-600">{viewingEmployee.designation}</p>
                 <div className="flex items-center space-x-4 mt-2">
-                  <Badge 
-                    variant={viewingEmployee.status === 'active' ? 'success' : 
-                            viewingEmployee.status === 'on-leave' ? 'warning' : 'error'}
+                  <Badge
+                    variant={viewingEmployee.status === 'active' ? 'success' :
+                      viewingEmployee.status === 'on-leave' ? 'warning' : 'error'}
                   >
                     {viewingEmployee.status}
                   </Badge>
@@ -452,8 +444,8 @@ export const Bench: React.FC = () => {
                 </div>
               </div>
               <div className="text-center">
-                <DonutChart 
-                  percentage={viewingEmployee.availability} 
+                <DonutChart
+                  percentage={viewingEmployee.availability}
                   size={80}
                   strokeWidth={8}
                 />
@@ -546,15 +538,15 @@ export const Bench: React.FC = () => {
                       <span className="text-blue-900 font-bold">{viewingEmployee.availability}%</span>
                     </div>
                     <div className="w-full bg-blue-200 rounded-full h-3">
-                      <div 
+                      <div
                         className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                         style={{ width: `${viewingEmployee.availability}%` }}
                       ></div>
                     </div>
                     <p className="text-sm text-blue-700 mt-2">
                       {viewingEmployee.availability >= 80 ? 'Highly available for new projects' :
-                       viewingEmployee.availability >= 50 ? 'Partially available' :
-                       'Currently busy with existing commitments'}
+                        viewingEmployee.availability >= 50 ? 'Partially available' :
+                          'Currently busy with existing commitments'}
                     </p>
                   </div>
                 </div>
