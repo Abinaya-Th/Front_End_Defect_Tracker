@@ -362,7 +362,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   ]);
 
   const [defects, setDefects] = useState<Defect[]>([
-    // Mobile Banking App Defects
     {
       id: "D004",
       title: "Data not encrypted in transit",
@@ -376,6 +375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       subModule: "Encryption",
       type: "bug",
       reportedBy: "Security Team",
+      assignedTo: "John Doe",
       createdAt: "2024-03-04",
       testCaseId: "TC005",
       updatedAt: "2024-03-04T00:00:00Z",
@@ -392,6 +392,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       subModule: "Responsive Design",
       type: "bug",
       reportedBy: "QA Team",
+      assignedTo: "Sarah Wilson",
       createdAt: "2024-03-05",
       testCaseId: "TC006",
       updatedAt: "2024-03-05T00:00:00Z",
@@ -408,12 +409,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       subModule: "Transfer",
       type: "bug",
       reportedBy: "QA Team",
+      assignedTo: "Michael Brown",
       createdAt: "2024-03-06",
       testCaseId: "TC007",
       updatedAt: "2024-03-06T00:00:00Z",
     },
-
-    // Inventory Management Defects
     {
       id: "D007",
       title: "Database connection timeout",
@@ -426,6 +426,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       subModule: "CRUD Operations",
       type: "bug",
       reportedBy: "DevOps Team",
+      assignedTo: "Sarah Wilson",
       createdAt: "2024-03-07",
       testCaseId: "TC008",
       updatedAt: "2024-03-07T00:00:00Z",
@@ -443,6 +444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       subModule: "Analytics",
       type: "bug",
       reportedBy: "QA Team",
+      assignedTo: "John Doe",
       createdAt: "2024-03-08",
       testCaseId: "TC009",
       updatedAt: "2024-03-08T00:00:00Z",
@@ -989,11 +991,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-              ...m,
-              submodules: m.submodules.map((s, i) =>
-                i === submoduleIdx ? newName : s
-              ),
-            }
+                ...m,
+                submodules: m.submodules.map((s, i) =>
+                  i === submoduleIdx ? newName : s
+                ),
+              }
             : m
         ) || [],
     }));
@@ -1010,9 +1012,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-              ...m,
-              submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
-            }
+                ...m,
+                submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+              }
             : m
         ) || [],
     }));

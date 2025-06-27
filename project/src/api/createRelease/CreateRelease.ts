@@ -1,4 +1,4 @@
-import axios from "axios";
+import apiClient from "../apiClient";
 
 export interface CreateReleaseRequest {
   releaseName: string;
@@ -15,9 +15,8 @@ export interface CreateReleaseResponse {
 }
 
 export const createRelease = (payload: CreateReleaseRequest): Promise<CreateReleaseResponse> => {
-  return axios.post<CreateReleaseResponse>(
-    "http://192.168.1.112:8087/api/v1/releases",
+  return apiClient.post<CreateReleaseResponse>(
+    "releases",
     payload,
-   
-  ).then(({ data }) => data);
+  ).then(({ data }: { data: CreateReleaseResponse }) => data);
 };
