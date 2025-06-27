@@ -31,6 +31,8 @@ export interface Project {
 
 export interface ProjectFormData {
   name: string;
+  prefix: string;
+  projectType: string;
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;

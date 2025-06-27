@@ -1,14 +1,14 @@
-import axios from "axios";
+import apiClient from "../apiClient";
 
-export interface ProjectReleaseProps{
+export interface ProjectReleaseProps {
     message: string;
-    data:any;
+    data: any;
     status: string;
-    statusCode:string;
+    statusCode: string;
 }
 
-export const projectReleaseCardView = (projectId:string | null):Promise<ProjectReleaseProps> => {
-    return axios
-    .get<ProjectReleaseProps>(`http://192.168.1.112:8087/api/v1/releases/projectId/${projectId}`)
-        .then(({data}) => data);
+export const projectReleaseCardView = (projectId: string | null): Promise<ProjectReleaseProps> => {
+    return apiClient
+        .get<ProjectReleaseProps>(`releases/projectId/${projectId}`)
+        .then(({ data }) => data);
 };
