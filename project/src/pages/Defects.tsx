@@ -19,6 +19,8 @@ import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
+import * as XLSX from "xlsx";
+import { importDefects } from "../api/importTestCase";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -498,6 +500,49 @@ export const Defects: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEditingRejectionComment, setIsEditingRejectionComment] = useState(false);
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importDefects(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        response.data.forEach((row: any) => addDefect(row));
+        alert("Imported defects successfully.");
+      } else {
+        alert("Import succeeded but no data returned.");
+      }
+    } catch (error: any) {
+      alert("Failed to import defects: " + (error?.message || error));
+    }
+  };
+  const handleExportExcel = () => {
+    const exportData = filteredDefects.map((d) => ({
+      id: d.id,
+      title: d.title,
+      description: d.description,
+      module: d.module,
+      subModule: d.subModule,
+      type: d.type,
+      priority: d.priority,
+      severity: d.severity,
+      status: d.status,
+      assignedTo: d.assignedTo,
+      reportedBy: d.reportedBy,
+      releaseId: d.releaseId,
+      testCaseId: d.testCaseId,
+      rejectionComment: d.rejectionComment,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Defects");
+    XLSX.writeFile(wb, "defects_export.xlsx");
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
@@ -746,6 +791,57 @@ export const Defects: React.FC = () => {
             />
           </div>
         </div>
+      </div>
+
+      {/* After the filter row, add: */}
+      <div className="flex justify-end gap-2 mb-2">
+        <button
+          type="button"
+          className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+            />
+          </svg>
+          Import from Excel/CSV
+        </button>
+        <input
+          type="file"
+          accept=".xlsx,.csv"
+          onChange={handleImportExcel}
+          ref={fileInputRef}
+          className="hidden"
+        />
+        <button
+          type="button"
+          className="flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow"
+          onClick={handleExportExcel}
+        >
+          <svg
+            className="w-4 h-4 mr-2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Export to Excel
+        </button>
       </div>
 
       {/* Defect Table in a single frame with search/filter in one line */}

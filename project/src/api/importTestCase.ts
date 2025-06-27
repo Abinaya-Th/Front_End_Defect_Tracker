@@ -17,4 +17,23 @@ export const importTestCases = (formData: FormData): Promise<ImportTestCaseRespo
       },
     }
   ).then(({ data }) => data);
+};
+
+export interface ImportDefectResponse {
+  status: string;
+  message: string;
+  data: any;
+  statusCode: number;
+}
+
+export const importDefects = (formData: FormData): Promise<ImportDefectResponse> => {
+  return axios.post<ImportDefectResponse>(
+    "http://192.168.1.46:8088/api/v1/defect/import",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  ).then(({ data }) => data);
 }; 

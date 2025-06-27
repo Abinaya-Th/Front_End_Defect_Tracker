@@ -5,6 +5,8 @@ import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import { MdBugReport } from "react-icons/md";
+import * as XLSX from "xlsx";
+import { importDefects } from "../api/importTestCase";
 
 const QuickAddDefect: React.FC = () => {
   const { selectedProjectId, projects, defects, addDefect, modulesByProject, releases } =
@@ -23,6 +25,14 @@ const QuickAddDefect: React.FC = () => {
     rejectionComment: "",
   });
   const [success, setSuccess] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [modals, setModals] = useState([
+    {
+      open: false,
+      formData: { ...formData },
+    },
+  ]);
+  const [currentModalIdx, setCurrentModalIdx] = useState(0);
 
   const mockModules = [
     {
@@ -106,6 +116,26 @@ const QuickAddDefect: React.FC = () => {
         rejectionComment: "",
       });
     }, 1200);
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importDefects(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
+        setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
+      }
+    } catch (error: any) {
+      alert("Failed to import defects: " + (error?.message || error));
+    }
   };
 
   return (
@@ -317,6 +347,35 @@ const QuickAddDefect: React.FC = () => {
               />
             </div>
           )}
+          <div className="flex items-center mb-2">
+            <button
+              type="button"
+              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                />
+              </svg>
+              Import from Excel/CSV
+            </button>
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={handleImportExcel}
+              ref={fileInputRef}
+              className="hidden"
+            />
+          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               type="button"
