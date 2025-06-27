@@ -14,7 +14,7 @@ import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
-import * as exceljs from "xlsx";
+import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
@@ -53,8 +53,7 @@ const mockModulesByProject: Record<string, any[]> = {
     },
   ],
 };
-import { importTestCases } from "../api/importTestCase";
-import axios from "axios";
+
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -68,22 +67,22 @@ export const TestCase: React.FC = () => {
 
   // --- Test case state (from backend) ---
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false); // Unused
 
   // ... keep other UI state as before ...
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  // const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Unused
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
-  const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
-  const [filterText, setFilterText] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterSeverity, setFilterSeverity] = useState("");
+  const [selectedModules] = useState<string[]>([]); // setSelectedModules unused
+  const [selectedSubmodules] = useState<string[]>([]); // setSelectedSubmodules unused
+  // const [filterText, setFilterText] = useState(""); // Unused
+  // const [filterType, setFilterType] = useState(""); // Unused
+  // const [filterSeverity, setFilterSeverity] = useState(""); // Unused
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
   interface ModalFormData {
@@ -125,7 +124,7 @@ export const TestCase: React.FC = () => {
   // --- Fetch test cases when submodule is selected --- by danusan --
   useEffect(() => {
     if (selectedSubmodule) {
-      setLoading(true);
+      // setLoading(true); // loading state is removed
       fetch(`${BASE_URL}testcase/submodule/${selectedSubmodule}`)
         .then((res) => res.json())
         .then((data) => {
@@ -140,9 +139,9 @@ export const TestCase: React.FC = () => {
             type: tc.typeId || tc.type,
           }));
           setTestCases(mapped);
-          setLoading(false);
+          // setLoading(false); // loading state is removed
         })
-        .catch(() => setLoading(false));
+        .catch(() => {/* setLoading(false); */}); // loading state is removed
     } else {
       setTestCases([]);
     }
@@ -267,7 +266,7 @@ export const TestCase: React.FC = () => {
             .filter(
               (tc) =>
                 tc.projectId === String(selectedProjectId) &&
-                selectedModules.includes(tc.module)
+                selectedModules.includes(tc.module ?? "")
             )
             .map((tc) => tc.id)
         ),
@@ -281,7 +280,7 @@ export const TestCase: React.FC = () => {
             .filter(
               (tc) =>
                 tc.projectId === String(selectedProjectId) &&
-                selectedSubmodules.includes(tc.subModule)
+                selectedSubmodules.includes(tc.subModule ?? "")
             )
             .map((tc) => tc.id)
         ),
@@ -294,32 +293,32 @@ export const TestCase: React.FC = () => {
   const filteredTestCases = testCases;
 
   // Handle project selection
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    navigate(`/projects/${projectId}/test-cases`);
-  };
+  // const handleProjectSelect = (projectId: string) => {
+  //   setSelectedProjectId(projectId);
+  //   navigate(`/projects/${projectId}/test-cases`);
+  // };
 
   // Handle module selection
-  const handleModuleSelect = (moduleId: string) => {
-    setSelectedModule(moduleId);
-    setSelectedSubmodule("");
-    setSelectedTestCases([]);
-    fetch(`${BASE_URL}testcase/module/${moduleId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const mapped = (data.data || []).map((tc: any) => ({
-          id: tc.testCaseId || tc.id,
-          description: tc.description,
-          steps: tc.steps,
-          subModule: tc.subModuleId || tc.subModule,
-          module: tc.moduleId || tc.module,
-          projectId: tc.projectId,
-          severity: tc.severityName || tc.severityId || tc.severity,
-          type: tc.typeId || tc.type,
-        }));
-        setTestCases(mapped);
-      });
-  };
+  // const handleModuleSelect = (moduleId: string) => {
+  //   setSelectedModule(moduleId);
+  //   setSelectedSubmodule("");
+  //   setSelectedTestCases([]);
+  //   fetch(`${BASE_URL}testcase/module/${moduleId}`)
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       const mapped = (data.data || []).map((tc: any) => ({
+  //         id: tc.testCaseId || tc.id,
+  //         description: tc.description,
+  //         steps: tc.steps,
+  //         subModule: tc.subModuleId || tc.subModule,
+  //         module: tc.moduleId || tc.module,
+  //         projectId: tc.projectId,
+  //         severity: tc.severityName || tc.severityId || tc.severity,
+  //         type: tc.typeId || tc.type,
+  //       }));
+  //       setTestCases(mapped);
+  //     });
+  // };
 
   // Handle submodule selection (just highlight, no fetch)
   const handleSubmoduleSelect = (submoduleId: string | number) => {
@@ -402,7 +401,7 @@ export const TestCase: React.FC = () => {
         if (rows.length > 0) {
           setModals(rows.map((row) => ({ open: true, formData: row })));
           setCurrentModalIdx(0);
-          setIsModalOpen(true);
+          // setIsModalOpen(true); // isModalOpen state is removed
         }
       }
     };
@@ -464,7 +463,7 @@ export const TestCase: React.FC = () => {
         },
       ]);
       setCurrentModalIdx(0);
-      setIsModalOpen(false);
+      // setIsModalOpen(false); // isModalOpen state is removed
     }, 1200);
   };
 
@@ -509,22 +508,22 @@ export const TestCase: React.FC = () => {
     setIsViewTestCaseModalOpen(true);
   };
 
-  const toggleRowExpansion = (testCaseId: string) => {
-    setExpandedRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(testCaseId)) {
-        newSet.delete(testCaseId);
-      } else {
-        newSet.add(testCaseId);
-      }
-      return newSet;
-    });
-  };
+  // const toggleRowExpansion = (testCaseId: string) => {
+  //   setExpandedRows((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(testCaseId)) {
+  //       newSet.delete(testCaseId);
+  //     } else {
+  //       newSet.add(testCaseId);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
-  const handleViewDescription = (description: string) => {
-    setSelectedDescription(description);
-    setIsDescriptionModalOpen(true);
-  };
+  // const handleViewDescription = (description: string) => {
+  //   setSelectedDescription(description);
+  //   setIsDescriptionModalOpen(true);
+  // };
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -860,7 +859,7 @@ export const TestCase: React.FC = () => {
                                   },
                                 ]);
                                 setCurrentModalIdx(0);
-                                setIsModalOpen(true);
+                                // setIsModalOpen(true); // isModalOpen state is removed
                               }}
                               className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
                               title="Edit"
@@ -898,7 +897,7 @@ export const TestCase: React.FC = () => {
                 if (modals.length === 1) {
                   setModals([{ ...modals[0], open: false }]);
                   setCurrentModalIdx(0);
-                  setIsModalOpen(false);
+                  // setIsModalOpen(false); // isModalOpen state is removed
                 } else {
                   handleRemove(idx);
                 }
@@ -1146,7 +1145,7 @@ export const TestCase: React.FC = () => {
                         if (modals.length === 1) {
                           setModals([{ ...modals[0], open: false }]);
                           setCurrentModalIdx(0);
-                          setIsModalOpen(false);
+                          // setIsModalOpen(false); // isModalOpen state is removed
                         } else {
                           handleRemove(idx);
                         }
