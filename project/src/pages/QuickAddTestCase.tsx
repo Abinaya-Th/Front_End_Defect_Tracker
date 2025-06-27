@@ -201,8 +201,8 @@ const QuickAddTestCase: React.FC = () => {
         id: `TC-${formData.module
           .substring(0, 3)
           .toUpperCase()}-${formData.subModule
-          .substring(0, 3)
-          .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+            .substring(0, 3)
+            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
         projectId: selectedProjectId,
       });
     });

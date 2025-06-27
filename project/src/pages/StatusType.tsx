@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { BASE_URL } from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -12,8 +12,7 @@ export interface StatusType {
   defectStatusName: string;
 }
 
-
-const API_BASE = 'http://192.168.1.46:8088/api/v1/defect-status';
+const API_BASE = 'defect-status';
 
 const StatusType: React.FC = () => {
   const navigate = useNavigate();
@@ -32,17 +31,12 @@ const StatusType: React.FC = () => {
 
   const fetchStatusTypes = async () => {
     try {
-      const res = await axios.get(API_BASE);
-      console.log("Fetched data:", res.data); // 🧪 log response to verify structure
-      setStatusTypes(res.data.data); // ✅ this will work correctly now
-// ✅ assuming result is an array of objects
+      const res = await apiClient.get(API_BASE);
+      setStatusTypes(res.data.data);
     } catch (err) {
-      console.error("Error fetching status types:", err);
       setStatusTypes([]);
     }
   };
-  
-  
 
   const resetForm = () => {
     setFormData({ defectStatusName: '' });
@@ -58,40 +52,27 @@ const StatusType: React.FC = () => {
     setError('');
     return true;
   };
-  
 
   const handleCreate = async () => {
     const trimmedStatus = formData.defectStatusName?.trim();
-  
-    console.log("Sending to backend:", { defectStatusName: trimmedStatus });
-  
     if (!trimmedStatus) {
-      setError("Status Name cannot be empty.");
+      setError('Status Name cannot be empty.');
       return;
     }
-  
     try {
-      const response = await axios.post(API_BASE, {
-        defectStatusName: trimmedStatus
-      });
-  
-      console.log("Created successfully:", response.data);
+      await apiClient.post(API_BASE, { defectStatusName: trimmedStatus });
       fetchStatusTypes();
       setIsCreateModalOpen(false);
       resetForm();
     } catch (err: any) {
-      console.error("Error creating status:", err.response?.data || err.message);
-      setError(err.response?.data?.message || "Failed to create status.");
+      setError(err.response?.data?.message || 'Failed to create status.');
     }
   };
-  
-  
-  
 
   const handleEdit = async () => {
     if (!validateForm() || !editingStatus) return;
     try {
-      await axios.put(`${API_BASE}/${editingStatus.id}`, { defectStatusName: formData.defectStatusName });
+      await apiClient.put(`${API_BASE}/${editingStatus.id}`, { defectStatusName: formData.defectStatusName });
       fetchStatusTypes();
       setIsEditModalOpen(false);
       setEditingStatus(null);
@@ -104,7 +85,7 @@ const StatusType: React.FC = () => {
   const handleDelete = async () => {
     if (!deletingStatus) return;
     try {
-      await axios.delete(`${API_BASE}/${deletingStatus.id}`);
+      await apiClient.delete(`${API_BASE}/${deletingStatus.id}`);
       fetchStatusTypes();
       setIsDeleteModalOpen(false);
       setDeletingStatus(null);
