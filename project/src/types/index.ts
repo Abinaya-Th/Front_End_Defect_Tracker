@@ -21,6 +21,8 @@ export interface Employee {
   salary?: number;
   department: string;
   manager?: string;
+  startDate?: string; // Available from date
+  endDate?: string; // Available until date
   createdAt: string;
   updatedAt: string;
 }
