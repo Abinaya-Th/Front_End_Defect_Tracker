@@ -14,7 +14,7 @@ import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
-import * as XLSX from "xlsx";
+import * as exceljs from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
