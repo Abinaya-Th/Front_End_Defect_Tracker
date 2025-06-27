@@ -17,6 +17,14 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
+  Smartphone,
+  FileText,
+  ShoppingCart,
+  HeartPulse,
+  GraduationCap,
+  Cpu,
+  Plane,
+  Dumbbell,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -31,6 +39,8 @@ const mockProjects: Project[] = [
   {
     id: "2",
     name: "Mobile App Redesign",
+    prefix: "MBR",
+    projectType: "mobile",
     status: "active",
     startDate: "2024-02-01",
     endDate: "2024-04-30",
@@ -42,6 +52,8 @@ const mockProjects: Project[] = [
   {
     id: "3",
     name: "AI Research Project",
+    prefix: "AIR",
+    projectType: "web",
     status: "inactive",
     startDate: "2024-01-01",
     endDate: "2024-12-31",
@@ -50,6 +62,29 @@ const mockProjects: Project[] = [
     description: "Research project focusing on AI implementation",
     createdAt: new Date().toISOString(),
   },
+];
+
+const cardStyles = [
+  { border: "border-t-4 border-blue-400", iconBg: "bg-gradient-to-br from-blue-400 to-blue-600", iconColor: "text-white" },
+  { border: "border-t-4 border-green-400", iconBg: "bg-gradient-to-br from-green-400 to-green-600", iconColor: "text-white" },
+  { border: "border-t-4 border-purple-400", iconBg: "bg-gradient-to-br from-purple-400 to-purple-600", iconColor: "text-white" },
+  { border: "border-t-4 border-pink-400", iconBg: "bg-gradient-to-br from-pink-400 to-pink-600", iconColor: "text-white" },
+  { border: "border-t-4 border-yellow-400", iconBg: "bg-gradient-to-br from-yellow-400 to-yellow-600", iconColor: "text-white" },
+  { border: "border-t-4 border-orange-400", iconBg: "bg-gradient-to-br from-orange-400 to-orange-600", iconColor: "text-white" },
+  { border: "border-t-4 border-cyan-400", iconBg: "bg-gradient-to-br from-cyan-400 to-cyan-600", iconColor: "text-white" },
+  { border: "border-t-4 border-indigo-400", iconBg: "bg-gradient-to-br from-indigo-400 to-indigo-600", iconColor: "text-white" },
+];
+
+const projectIcons = [
+  Smartphone,        // Mobile Banking App
+  FileText,          // Inventory Management
+  ShoppingCart,      // E-commerce Platform
+  HeartPulse,        // Healthcare Portal
+  GraduationCap,     // Learning Management System
+  Users,             // CRM Solution
+  Cpu,               // IoT Device Dashboard
+  Plane,             // Travel Booking System
+  Dumbbell,          // Fitness Tracker App
 ];
 
 export const Projects: React.FC = () => {
@@ -66,6 +101,8 @@ export const Projects: React.FC = () => {
   const [editingProject, setEditingProject] = useState<any>(null);
   const [formData, setFormData] = useState<ProjectFormData>({
     name: "",
+    prefix: "",
+    projectType: "",
     status: "active",
     startDate: "",
     endDate: "",
@@ -148,6 +185,8 @@ export const Projects: React.FC = () => {
     setEditingProject(project);
     setFormData({
       name: project.name,
+      prefix: project.prefix || "",
+      projectType: project.projectType || "",
       status: project.status,
       startDate: project.startDate,
       endDate: project.endDate,
@@ -186,6 +225,8 @@ export const Projects: React.FC = () => {
   const resetForm = () => {
     setFormData({
       name: "",
+      prefix: "",
+      projectType: "",
       status: "active",
       startDate: "",
       endDate: "",
@@ -257,9 +298,8 @@ export const Projects: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...projects, ...mockProjects].map((project, index) => {
-            const manager = sampleManagers.find(
-              (emp) => emp.id === project.manager
-            );
+            const style = cardStyles[index % cardStyles.length];
+            const Icon = projectIcons[index % projectIcons.length];
             const daysLeft = project.endDate
               ? Math.ceil(
                   (new Date(project.endDate).getTime() - new Date().getTime()) /
@@ -269,58 +309,52 @@ export const Projects: React.FC = () => {
 
             return (
               <Card
-                key={`${project.id}-${index}`}
-                className={`relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.04] rounded-2xl border-1 border-sky-800 bg-gradient-to-br from-[#F7FBFC] via-[#F7FBFC] to-[#E1F2FB] backdrop-blur-md shadow-lg`}
+                key={project.id}
+                className={`relative rounded-2xl shadow-md border border-gray-200 bg-white ${style.border} cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-blue-300 hover:bg-blue-50`}
+                style={{ overflow: "visible" }}
                 onClick={() => {
                   setSelectedProjectId(project.id);
                   navigate(`/projects/${project.id}/project-management`);
                 }}
               >
-                <CardContent className="p-7">
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Briefcase className="w-6 h-6 text-blue-800" />
-                        <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
-                          {project.name}
-                        </h3>
-                      </div>
+                <CardContent className="pt-7 pb-6 px-7">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${style.iconBg}`}>
+                      <Icon className={`w-7 h-7 ${style.iconColor}`} />
                     </div>
-
-                    <div className="flex items-center space-x-2 text-gray-700">
-                      <User className="w-5 h-5 text-blue-800" />
-                      <span className="font-medium">Manager:</span>
-                      <span className="text-gray-900 font-semibold">
-                        {manager
-                          ? `${manager.firstName} ${manager.lastName}`
-                          : "Not Assigned"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2 text-gray-700">
-                      <Clock className="w-5 h-5 text-blue-800" />
-                      <span className="font-medium">Timeline:</span>
-                      <span className="text-gray-900 font-semibold">
-                        {project.startDate
-                          ? new Date(project.startDate).toLocaleDateString()
-                          : "Not set"}{" "}
-                        -{" "}
-                        {project.endDate
-                          ? new Date(project.endDate).toLocaleDateString()
-                          : "Not set"}
-                      </span>
-                    </div>
-
-                    {daysLeft > 0 && (
-                      <div className="flex items-center space-x-2 text-gray-700">
-                        <Calendar className="w-5 h-5 text-blue-800" />
-                        <span className="font-medium">Days Left:</span>
-                        <span className="text-gray-900 font-semibold">
-                          {daysLeft} days
-                        </span>
-                      </div>
-                    )}
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {project.name}
+                    </h3>
                   </div>
+                  <div className="flex items-center space-x-2 text-gray-700 mb-2">
+                    <User className="w-5 h-5 text-gray-400" />
+                    <span className="font-medium">Manager:</span>
+                    <span className="text-gray-900 font-semibold">
+                      {project.manager ? project.manager : "Not Assigned"}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-gray-700">
+                    <Calendar className="w-5 h-5 text-gray-400" />
+                    <span className="font-medium">Timeline:</span>
+                    <span className="text-gray-900 font-semibold">
+                      {project.startDate
+                        ? new Date(project.startDate).toLocaleDateString()
+                        : "Not set"}{" "}
+                      -{" "}
+                      {project.endDate
+                        ? new Date(project.endDate).toLocaleDateString()
+                        : "Not set"}
+                    </span>
+                  </div>
+                  {daysLeft > 0 && (
+                    <div className="flex items-center space-x-2 text-gray-700">
+                      <Calendar className="w-5 h-5 text-gray-400" />
+                      <span className="font-medium">Days Left:</span>
+                      <span className="text-gray-900 font-semibold">
+                        {daysLeft} days
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -352,27 +386,33 @@ export const Projects: React.FC = () => {
         >
           <form
             onSubmit={handleSubmit}
-            className="space-y-6 p-6 bg-gradient-to-br from-sky-50 via-blue-100 to-blue-200 rounded-3xl border-2 border-blue-200 shadow-2xl"
+            className="bg-white border border-gray-300 rounded-xl p-6 md:p-8 space-y-6"
+            style={{ background: '#fff' }}
           >
-            <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 space-y-6 border border-blue-100">
+           
+               
+                    
+            
+            {/* Project Details Section */}
+            <div>
+              <h2 className="font-semibold text-lg text-gray-800 mb-4">Project Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Project Name"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  required
-                  className="bg-white/70"
-                />
+                {/* Row 1: Project Name | Project Status */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Status
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    required
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
                   <select
                     value={formData.status}
-                    onChange={(e) =>
-                      handleInputChange("status", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/70"
+                    onChange={(e) => handleInputChange("status", e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                     required
                   >
                     <option value="active">Active</option>
@@ -380,52 +420,44 @@ export const Projects: React.FC = () => {
                     <option value="completed">Completed</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/70"
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Start Date"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) =>
-                    handleInputChange("startDate", e.target.value)
-                  }
-                  required
-                  className="bg-white/70"
-                />
-                <Input
-                  label="End Date"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => handleInputChange("endDate", e.target.value)}
-                  className="bg-white/70"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Row 2: Project Description (full width) */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                    rows={4}
+                    required
+                  />
+                </div>
+                {/* Row 3: Start Date | End Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <Input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => handleInputChange("startDate", e.target.value)}
+                    required
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <Input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => handleInputChange("endDate", e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                  />
+                </div>
+                {/* Row 4: Role | Project Manager */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
                     value={formData.role}
                     onChange={(e) => handleInputChange("role", e.target.value)}
-                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/70"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                     required
                   >
                     <option value="">Select Role</option>
@@ -437,15 +469,11 @@ export const Projects: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Manager
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
                   <select
                     value={formData.manager}
-                    onChange={(e) =>
-                      handleInputChange("manager", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/70"
+                    onChange={(e) => handleInputChange("manager", e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                     required
                   >
                     <option value="">Select Project Manager</option>
@@ -456,205 +484,107 @@ export const Projects: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                {/* Project Manager Privileges Accordion - placed immediately after Project Manager */}
+                <div className="md:col-span-2 mb-2">
+                  <div
+                    className="flex items-center justify-between cursor-pointer border border-gray-200 rounded-lg px-4 py-3 bg-white"
+                    onClick={() => setShowPrivileges((prev) => !prev)}
+                  >
+                    <span className="font-semibold text-base text-gray-800">Project Manager Privileges</span>
+                    <svg
+                      className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${showPrivileges ? "transform rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  {showPrivileges && (
+                    <div className="border border-t-0 border-gray-200 rounded-b-lg px-6 py-4 bg-white">
+                      <div className="space-y-3">
+                        {[
+                          { key: "read", label: "Read Access" },
+                          { key: "write", label: "Write Access" },
+                          { key: "delete", label: "Delete Access" },
+                          { key: "admin", label: "Admin Access" },
+                          { key: "exportImport", label: "Export/Import Data" },
+                          { key: "manageUsers", label: "Manage Users" },
+                          { key: "viewReports", label: "View Reports" },
+                        ].map((priv) => (
+                          <label key={priv.key} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.privileges[priv.key as keyof typeof formData.privileges]}
+                              onChange={(e) =>
+                                handleInputChange(`privileges.${priv.key}`, e.target.checked)
+                              }
+                              className="rounded border-gray-300 text-gray-600 focus:ring-gray-400"
+                            />
+                            <span>{priv.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            <Card className="bg-white/50 backdrop-blur-sm border border-blue-100">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Project Manager Privileges
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivileges(!showPrivileges)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    {showPrivileges ? (
-                      <ChevronUp className="w-5 h-5" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </CardHeader>
-              {showPrivileges && (
-                <CardContent>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.read}
-                        onChange={(e) =>
-                          handleInputChange("privileges.read", e.target.checked)
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Read Access</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.write}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.write",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Write Access</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.delete}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.delete",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Delete Access</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.admin}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.admin",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Admin Access</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.exportImport}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.exportImport",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Export/Import Data</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.manageUsers}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.manageUsers",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>Manage Users</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.privileges.viewReports}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "privileges.viewReports",
-                            e.target.checked
-                          )
-                        }
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>View Reports</span>
-                    </label>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
-            <Card className="bg-white/50 backdrop-blur-sm border border-blue-100">
-              <CardHeader>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Client Details
-                </h3>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Client Name"
-                    value={formData.clientName}
-                    onChange={(e) =>
-                      handleInputChange("clientName", e.target.value)
-                    }
-                    required
-                    className="bg-white/70"
-                  />
-                  <Input
-                    label="Country"
-                    value={formData.clientCountry}
-                    onChange={(e) =>
-                      handleInputChange("clientCountry", e.target.value)
-                    }
-                    required
-                    className="bg-white/70"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <Input
-                    label="State"
-                    value={formData.clientState}
-                    onChange={(e) =>
-                      handleInputChange("clientState", e.target.value)
-                    }
-                    required
-                    className="bg-white/70"
-                  />
-                  <Input
-                    label="Email"
-                    type="email"
-                    value={formData.clientEmail}
-                    onChange={(e) =>
-                      handleInputChange("clientEmail", e.target.value)
-                    }
-                    required
-                    className="bg-white/70"
-                  />
-                </div>
-                <div className="mt-4">
-                  <Input
-                    label="Phone Number"
-                    value={formData.clientPhone}
-                    onChange={(e) =>
-                      handleInputChange("clientPhone", e.target.value)
-                    }
-                    required
-                    className="bg-white/70"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Client Details Section */}
+            <div className="border border-gray-200 rounded-lg p-4 mb-4">
+              <h2 className="font-semibold text-lg text-gray-800 mb-4">Client Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Client Name"
+                  value={formData.clientName}
+                  onChange={(e) => handleInputChange("clientName", e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                />
+                <Input
+                  label="Country"
+                  value={formData.clientCountry}
+                  onChange={(e) => handleInputChange("clientCountry", e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                />
+                <Input
+                  label="State"
+                  value={formData.clientState}
+                  onChange={(e) => handleInputChange("clientState", e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={(e) => handleInputChange("clientEmail", e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+                />
+                <Input
+                  label="Phone Number"
+                  value={formData.clientPhone}
+                  onChange={(e) => handleInputChange("clientPhone", e.target.value)}
+                  required
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 md:col-span-2"
+                />
+              </div>
+            </div>
+           
             <div className="flex justify-end space-x-3 pt-4">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={resetForm}
-                className="bg-white/70 hover:bg-white/90"
+                className="bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-md px-4 py-2"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2"
               >
                 {editingProject ? "Update Project" : "Save Project"}
               </Button>
