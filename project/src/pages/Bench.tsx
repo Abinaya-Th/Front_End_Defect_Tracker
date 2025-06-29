@@ -181,7 +181,7 @@ export const Bench: React.FC = () => {
           className="ml-4"
           onClick={() => navigate('/bench-allocate')}
         >
-          Manage
+          Allocate
         </Button>
       </div>
 
