@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   Edit2,
@@ -53,8 +53,7 @@ const mockModulesByProject: Record<string, any[]> = {
     },
   ],
 };
-import { importTestCases } from "../api/importTestCase";
-import axios from "axios";
+
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
@@ -68,22 +67,22 @@ export const TestCase: React.FC = () => {
 
   // --- Test case state (from backend) ---
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false); // Unused
 
   // ... keep other UI state as before ...
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  // const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Unused
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
   const [selectedDescription, setSelectedDescription] = useState("");
-  const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
-  const [filterText, setFilterText] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterSeverity, setFilterSeverity] = useState("");
+  const [selectedModules] = useState<string[]>([]); // setSelectedModules unused
+  const [selectedSubmodules] = useState<string[]>([]); // setSelectedSubmodules unused
+  // const [filterText, setFilterText] = useState(""); // Unused
+  // const [filterType, setFilterType] = useState(""); // Unused
+  // const [filterSeverity, setFilterSeverity] = useState(""); // Unused
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
   interface ModalFormData {
@@ -116,10 +115,16 @@ export const TestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
 
-  // --- Fetch test cases when submodule is selected ---
+  // 1. Add state to track if modal is in edit mode
+  const isEditMode = modals[currentModalIdx]?.formData?.id !== undefined && modals[currentModalIdx]?.formData?.id !== '';
+
+  // Add after state declarations
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Fetch test cases when submodule is selected --- by danusan --
   useEffect(() => {
     if (selectedSubmodule) {
-      setLoading(true);
+      // setLoading(true); // loading state is removed
       fetch(`${BASE_URL}testcase/submodule/${selectedSubmodule}`)
         .then((res) => res.json())
         .then((data) => {
@@ -134,9 +139,9 @@ export const TestCase: React.FC = () => {
             type: tc.typeId || tc.type,
           }));
           setTestCases(mapped);
-          setLoading(false);
+          // setLoading(false); // loading state is removed
         })
-        .catch(() => setLoading(false));
+        .catch(() => {/* setLoading(false); */}); // loading state is removed
     } else {
       setTestCases([]);
     }
@@ -261,7 +266,7 @@ export const TestCase: React.FC = () => {
             .filter(
               (tc) =>
                 tc.projectId === String(selectedProjectId) &&
-                selectedModules.includes(tc.module)
+                selectedModules.includes(tc.module ?? "")
             )
             .map((tc) => tc.id)
         ),
@@ -275,7 +280,7 @@ export const TestCase: React.FC = () => {
             .filter(
               (tc) =>
                 tc.projectId === String(selectedProjectId) &&
-                selectedSubmodules.includes(tc.subModule)
+                selectedSubmodules.includes(tc.subModule ?? "")
             )
             .map((tc) => tc.id)
         ),
@@ -288,32 +293,32 @@ export const TestCase: React.FC = () => {
   const filteredTestCases = testCases;
 
   // Handle project selection
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    navigate(`/projects/${projectId}/test-cases`);
-  };
+  // const handleProjectSelect = (projectId: string) => {
+  //   setSelectedProjectId(projectId);
+  //   navigate(`/projects/${projectId}/test-cases`);
+  // };
 
   // Handle module selection
-  const handleModuleSelect = (moduleId: string) => {
-    setSelectedModule(moduleId);
-    setSelectedSubmodule("");
-    setSelectedTestCases([]);
-    fetch(`${BASE_URL}testcase/module/${moduleId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const mapped = (data.data || []).map((tc: any) => ({
-          id: tc.testCaseId || tc.id,
-          description: tc.description,
-          steps: tc.steps,
-          subModule: tc.subModuleId || tc.subModule,
-          module: tc.moduleId || tc.module,
-          projectId: tc.projectId,
-          severity: tc.severityName || tc.severityId || tc.severity,
-          type: tc.typeId || tc.type,
-        }));
-        setTestCases(mapped);
-      });
-  };
+  // const handleModuleSelect = (moduleId: string) => {
+  //   setSelectedModule(moduleId);
+  //   setSelectedSubmodule("");
+  //   setSelectedTestCases([]);
+  //   fetch(`${BASE_URL}testcase/module/${moduleId}`)
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       const mapped = (data.data || []).map((tc: any) => ({
+  //         id: tc.testCaseId || tc.id,
+  //         description: tc.description,
+  //         steps: tc.steps,
+  //         subModule: tc.subModuleId || tc.subModule,
+  //         module: tc.moduleId || tc.module,
+  //         projectId: tc.projectId,
+  //         severity: tc.severityName || tc.severityId || tc.severity,
+  //         type: tc.typeId || tc.type,
+  //       }));
+  //       setTestCases(mapped);
+  //     });
+  // };
 
   // Handle submodule selection (just highlight, no fetch)
   const handleSubmoduleSelect = (submoduleId: string | number) => {
@@ -367,24 +372,58 @@ export const TestCase: React.FC = () => {
     }
   };
 
-  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportExcelButton = () => {
+    fileInputRef.current?.click();
+  };
+  const handleImportExcelInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const response = await importTestCases(formData);
-      if (response && response.data && Array.isArray(response.data)) {
-        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
-        setCurrentModalIdx(0);
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 1200);
-      } else {
-        alert("Import succeeded but no data returned.");
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      if (data) {
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const rows = json
+          .slice(1)
+          .map((row: any[]) => ({
+            module: row[0] || "",
+            subModule: row[1] || "",
+            description: row[2] || "",
+            steps: row[3] || "",
+            type: row[4] || "functional",
+            severity: row[5] || "medium",
+            projectId: selectedProjectId,
+          }))
+          .filter((row) => row.module && row.subModule && row.description && row.steps);
+        if (rows.length > 0) {
+          setModals(rows.map((row) => ({ open: true, formData: row })));
+          setCurrentModalIdx(0);
+          // setIsModalOpen(true); // isModalOpen state is removed
+        }
       }
-    } catch (error: any) {
-      alert("Failed to import test cases: " + (error?.message || error));
-    }
+    };
+    reader.readAsBinaryString(file);
+  };
+  const handleExportExcel = () => {
+    const wsData = [
+      ["Module", "Sub Module", "Description", "Steps", "Type", "Severity", "Test Case ID"],
+      ...filteredTestCases.map(tc => [
+        tc.module,
+        tc.subModule,
+        tc.description,
+        tc.steps,
+        tc.type,
+        tc.severity,
+        tc.id
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "TestCases");
+    XLSX.writeFile(wb, `TestCases_${selectedProjectId}_${selectedModule}.xlsx`);
   };
 
   const handleSubmitAll = (e?: React.FormEvent) => {
@@ -424,7 +463,7 @@ export const TestCase: React.FC = () => {
         },
       ]);
       setCurrentModalIdx(0);
-      setIsModalOpen(false);
+      // setIsModalOpen(false); // isModalOpen state is removed
     }, 1200);
   };
 
@@ -469,22 +508,22 @@ export const TestCase: React.FC = () => {
     setIsViewTestCaseModalOpen(true);
   };
 
-  const toggleRowExpansion = (testCaseId: string) => {
-    setExpandedRows((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(testCaseId)) {
-        newSet.delete(testCaseId);
-      } else {
-        newSet.add(testCaseId);
-      }
-      return newSet;
-    });
-  };
+  // const toggleRowExpansion = (testCaseId: string) => {
+  //   setExpandedRows((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(testCaseId)) {
+  //       newSet.delete(testCaseId);
+  //     } else {
+  //       newSet.add(testCaseId);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
-  const handleViewDescription = (description: string) => {
-    setSelectedDescription(description);
-    setIsDescriptionModalOpen(true);
-  };
+  // const handleViewDescription = (description: string) => {
+  //   setSelectedDescription(description);
+  //   setIsDescriptionModalOpen(true);
+  // };
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -660,49 +699,54 @@ export const TestCase: React.FC = () => {
 
           {/* Filter Options Above Table */}
           {selectedProjectId && selectedModule && (
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Search by description..."
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{ minWidth: 220 }}
-              />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            <div className="flex justify-end gap-2 mb-2">
+              <button
+                type="button"
+                className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow"
+                onClick={handleImportExcelButton}
               >
-                <option value="">All Types</option>
-                <option value="functional">Functional</option>
-                <option value="regression">Regression</option>
-                <option value="smoke">Smoke</option>
-                <option value="integration">Integration</option>
-              </select>
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Severities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-              {(filterText || filterType || filterSeverity) && (
-                <button
-                  onClick={() => {
-                    setFilterText("");
-                    setFilterType("");
-                    setFilterSeverity("");
-                  }}
-                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-700"
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
                 >
-                  Clear
-                </button>
-              )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                  />
+                </svg>
+                Import from Excel/CSV
+              </button>
+              <input
+                type="file"
+                accept=".xlsx,.csv"
+                onChange={handleImportExcelInput}
+                ref={fileInputRef}
+                className="hidden"
+              />
+              <button
+                type="button"
+                className="flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded shadow"
+                onClick={handleExportExcel}
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Export to Excel
+              </button>
             </div>
           )}
 
@@ -815,7 +859,7 @@ export const TestCase: React.FC = () => {
                                   },
                                 ]);
                                 setCurrentModalIdx(0);
-                                setIsModalOpen(true);
+                                // setIsModalOpen(true); // isModalOpen state is removed
                               }}
                               className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
                               title="Edit"
@@ -853,12 +897,12 @@ export const TestCase: React.FC = () => {
                 if (modals.length === 1) {
                   setModals([{ ...modals[0], open: false }]);
                   setCurrentModalIdx(0);
-                  setIsModalOpen(false);
+                  // setIsModalOpen(false); // isModalOpen state is removed
                 } else {
                   handleRemove(idx);
                 }
               }}
-              title={"Create New Test Case"}
+              title={isEditMode ? "Edit Test Case" : "Create New Test Case"}
               size="xl"
             >
               <form
@@ -869,86 +913,76 @@ export const TestCase: React.FC = () => {
                 className="space-y-4"
               >
                 <div className="flex items-center mb-2">
-                  <button
-                    type="button"
-                    className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-                    onClick={() => {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = ".xlsx,.csv";
-                      input.onchange = (e) => {
-                        const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (evt) => {
-                            const data = evt.target?.result;
-                            if (data) {
-                              const workbook = XLSX.read(data, {
-                                type: "binary",
-                              });
-                              const sheetName = workbook.SheetNames[0];
-                              const worksheet = workbook.Sheets[sheetName];
-                              const json: any[] = XLSX.utils.sheet_to_json(
-                                worksheet,
-                                { header: 1 }
-                              );
-                              const rows = json
-                                .slice(1)
-                                .map((row: any[]) => ({
-                                  module: row[0] || "",
-                                  subModule: row[1] || "",
-                                  description: row[2] || "",
-                                  steps: row[3] || "",
-                                  type: row[4] || "functional",
-                                  severity: row[5] || "medium",
-                                  projectId: selectedProjectId,
-                                }))
-                                .filter(
-                                  (row) =>
-                                    row.module &&
-                                    row.subModule &&
-                                    row.description &&
-                                    row.steps
-                                );
-                              if (rows.length > 0) {
-                                setModals(
-                                  rows.map((row) => ({
-                                    open: true,
-                                    formData: row,
+                  {/* Only show import button in add mode */}
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = ".xlsx,.csv";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              const data = evt.target?.result;
+                              if (data) {
+                                const workbook = XLSX.read(data, { type: "binary" });
+                                const sheetName = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[sheetName];
+                                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                                const rows = json
+                                  .slice(1)
+                                  .map((row: any[]) => ({
+                                    module: row[0] || "",
+                                    subModule: row[1] || "",
+                                    description: row[2] || "",
+                                    steps: row[3] || "",
+                                    type: row[4] || "functional",
+                                    severity: row[5] || "medium",
+                                    projectId: selectedProjectId,
                                   }))
-                                );
-                                setCurrentModalIdx(0);
+                                  .filter((row) => row.module && row.subModule && row.description && row.steps);
+                                if (rows.length > 0) {
+                                  setModals(rows.map((row) => ({ open: true, formData: row })));
+                                  setCurrentModalIdx(0);
+                                }
                               }
-                            }
-                          };
-                          reader.readAsBinaryString(file);
-                        }
-                      };
-                      input.click();
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
+                            };
+                            reader.readAsBinaryString(file);
+                          }
+                        };
+                        input.click();
+                      }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
-                      />
-                    </svg>
-                    Import from Excel/CSV
-                  </button>
-                  <Button
-                    type="button"
-                    onClick={handleAddAnother}
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                  >
-                    + Add Another Test Case
-                  </Button>
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                        />
+                      </svg>
+                      Import from Excel/CSV
+                    </button>
+                  )}
+                  {/* Only show Add Another button in add mode */}
+                  {!isEditMode && (
+                    <Button
+                      type="button"
+                      onClick={handleAddAnother}
+                      className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
+                    >
+                      + Add Another Test Case
+                    </Button>
+                  )}
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   {modals.length > 1 && (
@@ -1082,24 +1116,27 @@ export const TestCase: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4">
-                  <div className="flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx - 1)}
-                      disabled={idx === 0}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx + 1)}
-                      disabled={idx === modals.length - 1}
-                    >
-                      Next
-                    </Button>
-                  </div>
+                  {/* Only show Previous/Next in add mode */}
+                  {!isEditMode && (
+                    <div className="flex space-x-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setCurrentModalIdx(idx - 1)}
+                        disabled={idx === 0}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setCurrentModalIdx(idx + 1)}
+                        disabled={idx === modals.length - 1}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex space-x-3">
                     <Button
                       type="button"
@@ -1108,7 +1145,7 @@ export const TestCase: React.FC = () => {
                         if (modals.length === 1) {
                           setModals([{ ...modals[0], open: false }]);
                           setCurrentModalIdx(0);
-                          setIsModalOpen(false);
+                          // setIsModalOpen(false); // isModalOpen state is removed
                         } else {
                           handleRemove(idx);
                         }
@@ -1117,7 +1154,7 @@ export const TestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {success ? "Added!" : "Create Test Case"}
+                      {isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Create Test Case")}
                     </Button>
                   </div>
                 </div>
