@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table, TableBody, TableCell, TableRow } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
-import { ChevronLeft, Plus, Edit2, Trash2, Flag } from 'lucide-react';
+import { ChevronLeft, Plus, Edit2, Trash2, Flag, AwardIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getAllPriorities, updatePriority, deletePriority, createPriority } from '../api/priority';
 
 interface Priority {
   id: number;
@@ -16,10 +17,6 @@ interface Priority {
 const Priority: React.FC = () => {
   const navigate = useNavigate();
   const [priorities, setPriorities] = useState<Priority[]>([
-    { id: 1, name: 'Critical', color: '#dc2626' },
-    { id: 2, name: 'High', color: '#ea580c' },
-    { id: 3, name: 'Medium', color: '#ca8a04' },
-    { id: 4, name: 'Low', color: '#16a34a' },
   ]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -32,6 +29,18 @@ const Priority: React.FC = () => {
     color: '#000000',
   });
 
+  useEffect(() => {
+    getAllPriorities()
+      .then((res) => {
+        const mapped = res.data.map((item) => ({
+          id: item.id,
+          name: item.priority,
+          color: item.color.startsWith('#') ? item.color : `#${item.color}`,
+        }));
+        setPriorities(mapped);
+      });
+  }, []);
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -39,32 +48,54 @@ const Priority: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newPriority: Priority = {
-      id: Math.max(...priorities.map(p => p.id)) + 1,
-      ...formData,
-    };
-    setPriorities([...priorities, newPriority]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    try {
+      const res = await createPriority({
+        priority: formData.name,
+        color: formData.color,
+      });
+      const refreshed = await getAllPriorities();
+      const mapped = refreshed.data.map((item) => ({
+        id: item.id,
+        name: item.priority,
+        color: item.color.startsWith('#') ? item.color : `#${item.color}`,
+      }));
+      setPriorities(mapped);
+  
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error('Failed to create priority:', err);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingPriority) return;
-
-    const updatedPriorities = priorities.map(priority =>
-      priority.id === editingPriority.id
-        ? { ...priority, ...formData }
-        : priority
-    );
-    setPriorities(updatedPriorities);
-    setIsEditModalOpen(false);
-    setEditingPriority(null);
-    resetForm();
+    try {
+      await updatePriority(editingPriority.id, {
+        priority: formData.name, 
+        color: formData.color,
+      });
+      const updatedPriorities = priorities.map(priority =>
+        priority.id === editingPriority.id
+          ? { ...priority, name: formData.name, color: formData.color }
+          : priority
+      );
+      setPriorities(updatedPriorities);
+      setIsEditModalOpen(false);
+      setEditingPriority(null);
+      resetForm();
+    } catch (err) {
+      console.error('Failed to update priority:', err);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async() => {
     if (!deletingPriority) return;
+    try{
+      await deletePriority(deletingPriority.id);
+    }catch{
+    }
 
     const updatedPriorities = priorities.filter(
       priority => priority.id !== deletingPriority.id
