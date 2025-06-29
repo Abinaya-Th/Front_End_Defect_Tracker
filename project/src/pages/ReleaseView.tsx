@@ -24,6 +24,7 @@ import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardVie
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
 import { getQAAllocationsByRelease } from "../api/qaAllocation/saveQAAllocation";
+import apiClient from "../api/apiClient";
 
 // Define interfaces for our data types
 interface TestCase {
@@ -483,7 +484,6 @@ export const ReleaseView: React.FC = () => {
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
   const [releases, setReleases] = useState<any[]>([]);
-  const [releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -716,8 +716,8 @@ export const ReleaseView: React.FC = () => {
       setReleaseError(null);
       apiClient
         .get(`releases/releaseId/${selectedRelease}`)
-        .then((res) => setApiRelease(res.data))
-        .catch((err) => setReleaseError(err.message))
+        .then((res: any) => setApiRelease(res.data))
+        .catch((err: any) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));
     } else {
       setApiRelease(null);
@@ -914,14 +914,6 @@ export const ReleaseView: React.FC = () => {
             </div>
             <div className="flex space-x-2">
               <Button
-                variant="primary"
-                onClick={() => navigate(`/projects/${projectId}/releases/allocation`)}
-                className="flex items-center space-x-2"
-              >
-                <Users className="w-4 h-4" />
-                <span>Allocate QA</span>
-              </Button>
-              <Button
                 variant="secondary"
                 onClick={() => setSelectedRelease(null)}
                 className="flex items-center space-x-2"
@@ -1093,7 +1085,7 @@ export const ReleaseView: React.FC = () => {
                     const isAllocated = !!assignedQA;
                     
                     return (
-                      <tr key={testCase.id} className={`hover:bg-gray-50 ${isAllocated ? 'bg-blue-50' : ''}`}>
+                      <tr key={testCase.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{testCase.description}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">
@@ -1429,17 +1421,6 @@ export const ReleaseView: React.FC = () => {
                                 Project: {currentProject.name}
                               </span>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/projects/${projectId}/releases/allocation`);
-                              }}
-                              className="text-xs"
-                            >
-                              Allocate QA
-                            </Button>
                           </div>
                         </div>
                       )}
