@@ -4,7 +4,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
-import * as XLSX from "xlsx";
+import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
 
 // Mock data for modules and submodules
@@ -201,8 +201,8 @@ const QuickAddTestCase: React.FC = () => {
         id: `TC-${formData.module
           .substring(0, 3)
           .toUpperCase()}-${formData.subModule
-          .substring(0, 3)
-          .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+            .substring(0, 3)
+            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
         projectId: selectedProjectId,
       });
     });
@@ -338,8 +338,8 @@ const QuickAddTestCase: React.FC = () => {
               }}
               title={
                 selectedProject
-                  ? `Quick Add Test Case (${selectedProject.name})`
-                  : "Quick Add Test Case"
+                  ? `Add New Test Case (${selectedProject.name})`
+                  : "Add New Test Case"
               }
               size="xl"
             >
@@ -548,7 +548,7 @@ const QuickAddTestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {success ? "Added!" : "Add Test Case"}
+                      {success ? "Added!" : "Save Test Case"}
                     </Button>
                   </div>
                 </div>

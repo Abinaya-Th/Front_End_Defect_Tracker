@@ -27,11 +27,11 @@ interface TestCase {
   projectId: string;
   releaseId?: string;
   executionStatus?:
-    | "not-started"
-    | "in-progress"
-    | "passed"
-    | "failed"
-    | "blocked";
+  | "not-started"
+  | "in-progress"
+  | "passed"
+  | "failed"
+  | "blocked";
   assignee?: string;
 }
 
@@ -930,11 +930,10 @@ export const TestExecution: React.FC = () => {
                           <div className="flex rounded border border-gray-200 bg-white shadow overflow-hidden w-fit">
                             <button
                               type="button"
-                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${
-                                isPassed
+                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${isPassed
                                   ? "bg-green-500 text-white"
                                   : "bg-white text-gray-700 hover:bg-green-100"
-                              }`}
+                                }`}
                               style={{
                                 borderTopLeftRadius: 6,
                                 borderBottomLeftRadius: 6,
@@ -952,11 +951,10 @@ export const TestExecution: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${
-                                isFailed
+                              className={`px-3 py-1 text-xs font-semibold focus:outline-none transition-colors duration-200 ${isFailed
                                   ? "bg-red-500 text-white"
                                   : "bg-white text-gray-700 hover:bg-red-100"
-                              }`}
+                                }`}
                               style={{
                                 borderTopRightRadius: 6,
                                 borderBottomRightRadius: 6,
@@ -985,8 +983,7 @@ export const TestExecution: React.FC = () => {
                               className="px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold hover:bg-blue-200 transition"
                               onClick={() =>
                                 navigate(
-                                  `/projects/${selectedProject}/defects?highlight=${
-                                    testCaseDefectMap[testCase.id]
+                                  `/projects/${selectedProject}/defects?highlight=${testCaseDefectMap[testCase.id]
                                   }`
                                 )
                               }
@@ -1143,7 +1140,7 @@ export const TestExecution: React.FC = () => {
         <Modal
           isOpen={!!defectModalOpen}
           onClose={() => setDefectModalOpen(null)}
-          title="Report New Defect"
+          title="Add New Defect"
           size="lg"
         >
           <form onSubmit={handleDefectFormSubmit} className="space-y-4">
@@ -1292,7 +1289,7 @@ export const TestExecution: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit">Report Defect</Button>
+              <Button type="submit">Save Defect</Button>
             </div>
           </form>
         </Modal>

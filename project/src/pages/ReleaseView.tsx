@@ -4,7 +4,6 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Input } from "../components/ui/Input";
-import axios from "axios";
 import {
   ChevronLeft,
   ChevronRight,
@@ -484,6 +483,7 @@ export const ReleaseView: React.FC = () => {
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
   const [releases, setReleases] = useState<any[]>([]);
+  const [releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -714,8 +714,8 @@ export const ReleaseView: React.FC = () => {
     if (selectedRelease) {
       setLoadingRelease(true);
       setReleaseError(null);
-      axios
-        .get(`http://192.168.1.46:8088/api/v1/releases/releaseId/${selectedRelease}`)
+      apiClient
+        .get(`releases/releaseId/${selectedRelease}`)
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));
@@ -742,6 +742,7 @@ export const ReleaseView: React.FC = () => {
   };
 
   useEffect(() => {
+    getReleaseCardView();
     getReleaseCardView();
   }, [selectedProject]);
 
@@ -865,8 +866,8 @@ export const ReleaseView: React.FC = () => {
     } catch (error: any) {
       alert(
         error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create release"
+        error?.message ||
+        "Failed to create release"
       );
     }
   };
@@ -1292,7 +1293,7 @@ export const ReleaseView: React.FC = () => {
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
           />
-          <button 
+          <button
             onClick={() => handleReleaseSearch(releaseSearch)}
             className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >

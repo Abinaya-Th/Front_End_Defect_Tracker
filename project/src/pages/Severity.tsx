@@ -10,17 +10,16 @@ import { useNavigate } from 'react-router-dom';
 interface Severity {
   id: number;
   name: string;
-  description: string;
   color: string;
 }
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
   const [severities, setSeverities] = useState<Severity[]>([
-    { id: 1, name: 'Critical', description: 'System crash or data loss that requires immediate attention', color: '#dc2626' },
-    { id: 2, name: 'High', description: 'Major functionality broken that affects core features', color: '#ea580c' },
-    { id: 3, name: 'Medium', description: 'Minor functionality affected with workarounds available', color: '#ca8a04' },
-    { id: 4, name: 'Low', description: 'Cosmetic or minor issues that don\'t affect functionality', color: '#16a34a' },
+    { id: 1, name: 'Critical', color: '#dc2626' },
+    { id: 2, name: 'High', color: '#ea580c' },
+    { id: 3, name: 'Medium', color: '#ca8a04' },
+    { id: 4, name: 'Low', color: '#16a34a' },
   ]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -30,14 +29,12 @@ const Severity: React.FC = () => {
   const [deletingSeverity, setDeletingSeverity] = useState<Severity | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     color: '#000000',
   });
 
   const resetForm = () => {
     setFormData({
       name: '',
-      description: '',
       color: '#000000',
     });
   };
@@ -81,7 +78,6 @@ const Severity: React.FC = () => {
     setEditingSeverity(severity);
     setFormData({
       name: severity.name,
-      description: severity.description,
       color: severity.color,
     });
     setIsEditModalOpen(true);
@@ -130,7 +126,6 @@ const Severity: React.FC = () => {
             <thead className="bg-gray-50">
               <TableRow>
                 <TableCell header>Name</TableCell>
-                <TableCell header>Description</TableCell>
                 <TableCell header>Color</TableCell>
                 <TableCell header>Actions</TableCell>
               </TableRow>
@@ -139,7 +134,6 @@ const Severity: React.FC = () => {
               {severities.map((severity) => (
                 <TableRow key={severity.id}>
                   <TableCell className="font-medium">{severity.name}</TableCell>
-                  <TableCell>{severity.description}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div
@@ -152,14 +146,14 @@ const Severity: React.FC = () => {
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => openEditModal(severity)}
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => openDeleteModal(severity)}
                         className="text-red-600 hover:text-red-700"
@@ -197,18 +191,6 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
             <div className="flex items-center gap-2">
@@ -237,7 +219,7 @@ const Severity: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Create
             </Button>
@@ -264,18 +246,6 @@ const Severity: React.FC = () => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter severity name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
             />
           </div>
           <div>
@@ -309,7 +279,7 @@ const Severity: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Update
             </Button>
@@ -354,4 +324,4 @@ const Severity: React.FC = () => {
   );
 };
 
-export default Severity; 
+export default Severity;

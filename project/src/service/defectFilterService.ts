@@ -1,6 +1,4 @@
-import axios from "axios";
-
-const BASE_URL = "http://192.168.1.99:8085/api/v1/defect";
+import apiClient, { BASE_URL } from "../api/apiClient";
 
 export interface DefectFilterParams {
   projectId?: string;
@@ -38,7 +36,7 @@ export const defectFilterService = async (filters: DefectFilterParams): Promise<
   if (filters.priorityId) params.priorityId = filters.priorityId;
   if (filters.typeId) params.typeId = filters.typeId;
 
-  const response = await axios.get(`${BASE_URL}/filter`, { params, headers: { "Content-Type": "application/json" } });
+  const response = await apiClient.get(`/defect/filter`, { params, headers: { "Content-Type": "application/json" } });
   const data = response.data.data; // This is an array
   console.log(response);
 
