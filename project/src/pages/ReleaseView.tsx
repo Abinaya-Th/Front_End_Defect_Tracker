@@ -4,7 +4,6 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { Input } from "../components/ui/Input";
-import axios from "axios";
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +23,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
+import apiClient, { BASE_URL } from '../api/apiClient';
 
 // Define interfaces for our data types
 interface TestCase {
@@ -159,7 +159,7 @@ export const ReleaseView: React.FC = () => {
     const [release, setRelease] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-  
+
     // ...then add the useEffect for fetching the release, and your render logic
   };
   const { projectId } = useParams();
@@ -175,7 +175,7 @@ export const ReleaseView: React.FC = () => {
     projectId || null
   );
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
-  const[releases, setReleases] = useState<any[]>([]);
+  const [releases, setReleases] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -204,8 +204,8 @@ export const ReleaseView: React.FC = () => {
     if (selectedRelease) {
       setLoadingRelease(true);
       setReleaseError(null);
-      axios
-        .get(`http://192.168.1.46:8088/api/v1/releases/releaseId/${selectedRelease}`)
+      apiClient
+        .get(`releases/releaseId/${selectedRelease}`)
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));
@@ -213,32 +213,32 @@ export const ReleaseView: React.FC = () => {
       setApiRelease(null);
     }
   }, [selectedRelease]);
-  
-  
+
+
 
   useEffect(() => {
     if (selectedProject) {
       setSelectedProjectId(selectedProject);
     }
   }, [selectedProject, setSelectedProjectId]);
-  console.log({releaseSearch});
-  
+  console.log({ releaseSearch });
 
-  const getReleaseCardView =  async() =>{
 
-      try {
-          const response = await projectReleaseCardView(selectedProject);
-          setReleases(response.data || []);
-      } catch (error) {
-          console.error("Error fetching release card view:", error);
-      }
+  const getReleaseCardView = async () => {
+
+    try {
+      const response = await projectReleaseCardView(selectedProject);
+      setReleases(response.data || []);
+    } catch (error) {
+      console.error("Error fetching release card view:", error);
+    }
   }
   useEffect(() => {
-      getReleaseCardView();
+    getReleaseCardView();
   }, [selectedProject]);
 
-const handleReleaseSearch = async (searchValue: string) => {
-    
+  const handleReleaseSearch = async (searchValue: string) => {
+
     setIsSearching(true);
     setSearchError("");
     // if (!searchValue && !selectedProject) {
@@ -246,37 +246,37 @@ const handleReleaseSearch = async (searchValue: string) => {
     //   setIsSearching(false);
     //   return;
     // }
-    if(!searchValue){
+    if (!searchValue) {
       setSearchResults([])
       getReleaseCardView();
       setIsSearching(false);
-    }else{
-    try {
-      
-      
-      const response = await searchRelease(searchValue );
+    } else {
+      try {
 
-      if (response.status === "success" && response.statusCode === 200) {
-        setSearchResults(response?.data);
-      } else {
+
+        const response = await searchRelease(searchValue);
+
+        if (response.status === "success" && response.statusCode === 200) {
+          setSearchResults(response?.data);
+        } else {
+          setSearchResults([]);
+          setSearchError(response.message || "No results found");
+        }
+      } catch (error: any) {
         setSearchResults([]);
-        setSearchError(response.message || "No results found");
-      }
-    } catch (error: any) {
-      setSearchResults([]);
-      setSearchError(
-        error?.response?.data?.message ||
+        setSearchError(
+          error?.response?.data?.message ||
           error?.message ||
           "Failed to search releases"
-      );
-    } finally {
-      setIsSearching(false);
+        );
+      } finally {
+        setIsSearching(false);
+      }
     }
-  }
   };
-  console.log({searchResults});
+  console.log({ searchResults });
   console.log(releaseCardView);
-  
+
 
   // Filter releases for selected project and search
   const projectReleases = releases
@@ -394,8 +394,8 @@ const handleReleaseSearch = async (searchValue: string) => {
     } catch (error: any) {
       alert(
         error?.response?.data?.message ||
-          error?.message ||
-          "Failed to create release"
+        error?.message ||
+        "Failed to create release"
       );
     }
   };
@@ -405,8 +405,8 @@ const handleReleaseSearch = async (searchValue: string) => {
   };
 
   // Handle release search
-  
-  
+
+
 
   // If we're in detailed release view (release selected)
   if (selectedRelease) {
@@ -773,14 +773,14 @@ const handleReleaseSearch = async (searchValue: string) => {
           <input
             type="text"
             placeholder="Search releases by name..."
-             onChange={(e:any) => setReleaseSearch(e.target.value)}
+            onChange={(e: any) => setReleaseSearch(e.target.value)}
 
             value={releaseSearch}
-           
+
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
           />
-          <button 
+          <button
             onClick={() => handleReleaseSearch(releaseSearch)}
             className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -845,7 +845,7 @@ const handleReleaseSearch = async (searchValue: string) => {
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {release.description}
                     </p>
-                  
+
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2">
@@ -864,8 +864,8 @@ const handleReleaseSearch = async (searchValue: string) => {
                           <p className="text-sm font-medium text-gray-900">
                             {release.releaseDate
                               ? new Date(
-                                  release.releaseDate
-                                ).toLocaleDateString()
+                                release.releaseDate
+                              ).toLocaleDateString()
                               : "TBD"}
                           </p>
                         </div>
@@ -931,13 +931,13 @@ const handleReleaseSearch = async (searchValue: string) => {
       >
         <form onSubmit={handleCreateRelease} className="space-y-4">
           {/* <div className="grid grid-cols-2 gap-4"> */}
-            <Input
-              label="Release Name"
-              value={releaseFormData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              required
-            />
-            {/* <Input
+          <Input
+            label="Release Name"
+            value={releaseFormData.name}
+            onChange={(e) => handleInputChange("name", e.target.value)}
+            required
+          />
+          {/* <Input
               label="Version"
               value={releaseFormData.version}
               onChange={(e) => handleInputChange("version", e.target.value)}

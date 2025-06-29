@@ -10,17 +10,16 @@ import { useNavigate } from 'react-router-dom';
 interface Priority {
   id: number;
   name: string;
-  description: string;
   color: string;
 }
 
 const Priority: React.FC = () => {
   const navigate = useNavigate();
   const [priorities, setPriorities] = useState<Priority[]>([
-    { id: 1, name: 'Critical', description: 'Must be fixed immediately to prevent system failure', color: '#dc2626' },
-    { id: 2, name: 'High', description: 'Should be fixed in next release to maintain functionality', color: '#ea580c' },
-    { id: 3, name: 'Medium', description: 'Should be fixed when possible without blocking releases', color: '#ca8a04' },
-    { id: 4, name: 'Low', description: 'Nice to have improvements that don\'t affect core functionality', color: '#16a34a' },
+    { id: 1, name: 'Critical', color: '#dc2626' },
+    { id: 2, name: 'High', color: '#ea580c' },
+    { id: 3, name: 'Medium', color: '#ca8a04' },
+    { id: 4, name: 'Low', color: '#16a34a' },
   ]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -30,14 +29,12 @@ const Priority: React.FC = () => {
   const [deletingPriority, setDeletingPriority] = useState<Priority | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     color: '#000000',
   });
 
   const resetForm = () => {
     setFormData({
       name: '',
-      description: '',
       color: '#000000',
     });
   };
@@ -81,7 +78,6 @@ const Priority: React.FC = () => {
     setEditingPriority(priority);
     setFormData({
       name: priority.name,
-      description: priority.description,
       color: priority.color,
     });
     setIsEditModalOpen(true);
@@ -130,7 +126,6 @@ const Priority: React.FC = () => {
             <thead className="bg-gray-50">
               <TableRow>
                 <TableCell header>Name</TableCell>
-                <TableCell header>Description</TableCell>
                 <TableCell header>Color</TableCell>
                 <TableCell header>Actions</TableCell>
               </TableRow>
@@ -139,7 +134,6 @@ const Priority: React.FC = () => {
               {priorities.map((priority) => (
                 <TableRow key={priority.id}>
                   <TableCell className="font-medium">{priority.name}</TableCell>
-                  <TableCell>{priority.description}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div
@@ -152,14 +146,14 @@ const Priority: React.FC = () => {
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => openEditModal(priority)}
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => openDeleteModal(priority)}
                         className="text-red-600 hover:text-red-700"
@@ -197,18 +191,6 @@ const Priority: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
             <div className="flex items-center gap-2">
@@ -237,7 +219,7 @@ const Priority: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Create
             </Button>
@@ -264,18 +246,6 @@ const Priority: React.FC = () => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter priority name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Enter description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
             />
           </div>
           <div>
@@ -309,7 +279,7 @@ const Priority: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.description}
+              disabled={!formData.name}
             >
               Update
             </Button>
@@ -354,4 +324,4 @@ const Priority: React.FC = () => {
   );
 };
 
-export default Priority; 
+export default Priority;

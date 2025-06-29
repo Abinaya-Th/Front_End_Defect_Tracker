@@ -1,4 +1,4 @@
-import axios from "axios";
+import apiClient from "../apiClient";
 
 
 
@@ -9,10 +9,10 @@ export interface SearchReleaseResponse {
   statusCode: number;
 }
 
-export const searchRelease = (releaseName:string): Promise<SearchReleaseResponse> => {
+export const searchRelease = (releaseName: string): Promise<SearchReleaseResponse> => {
 
-  return axios.get<SearchReleaseResponse>(
-    `http://192.168.1.112:8087/api/v1/releases/search?releaseName=${releaseName}`,
- 
+  return apiClient.get<SearchReleaseResponse>(
+    `releases/search?releaseName=${releaseName}`,
+
   ).then(({ data }) => data);
 };

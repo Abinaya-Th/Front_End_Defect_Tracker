@@ -5,9 +5,11 @@ import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import { MdBugReport } from "react-icons/md";
+import * as XLSX from "xlsx";
+import { importDefects } from "../api/importTestCase";
 
 const QuickAddDefect: React.FC = () => {
-  const { selectedProjectId, projects, defects, addDefect, modulesByProject } =
+  const { selectedProjectId, projects, defects, addDefect, modulesByProject, releases } =
     useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,18 +25,47 @@ const QuickAddDefect: React.FC = () => {
     rejectionComment: "",
   });
   const [success, setSuccess] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [modals, setModals] = useState([
+    {
+      open: false,
+      formData: { ...formData },
+    },
+  ]);
+  const [currentModalIdx, setCurrentModalIdx] = useState(0);
 
-  // Use modulesByProject from context instead of mockModules
+  const mockModules = [
+    {
+      name: "Authentication",
+      submodules: ["Login", "Logout", "Password Reset"],
+    },
+    {
+      name: "Dashboard",
+      submodules: ["Overview", "Reports", "Analytics"],
+    },
+    {
+      name: "User Management",
+      submodules: ["Add User", "Edit User", "Delete User"],
+    },
+  ];
   const projectModules = selectedProjectId
-    ? modulesByProject[selectedProjectId] || []
-    : [];
+    ? modulesByProject[selectedProjectId] && modulesByProject[selectedProjectId].length > 0
+      ? modulesByProject[selectedProjectId]
+      : mockModules
+    : mockModules;
   const modulesList = projectModules.map((m) => m.name);
-  const submodulesList = formData.module
-    ? projectModules
-        .find((m) => m.name === formData.module)
-        ?.submodules.map((s: any) => s.name) || []
-    : [];
+  let submodulesList: string[] = [];
+  if (formData.module) {
+    const found = projectModules.find((m) => m.name === formData.module);
+    if (found) {
+      // Always map to string[]
+      submodulesList = (found.submodules || []).map((s: any) =>
+        typeof s === 'string' ? s : s.name
+      );
+    }
+  }
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const activeRelease = selectedProjectId ? releases.find(r => r.projectId === selectedProjectId && r.status === 'active') : null;
 
   // Helper to generate next defect ID in order (same as Defects.tsx)
   const getNextDefectId = () => {
@@ -63,7 +94,11 @@ const QuickAddDefect: React.FC = () => {
       projectId: selectedProjectId || "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      reportedBy: "", // You can set this if you have user info
+      status: "open", // Always set status to 'open' on add
+      type: formData.type as "bug" | "test-failure" | "enhancement",
+      priority: formData.priority as "low" | "medium" | "high" | "critical",
+      severity: formData.severity as "low" | "medium" | "high" | "critical",
+      reportedBy: "", // Set to empty string or user info if available
     });
     setTimeout(() => {
       setSuccess(false);
@@ -81,6 +116,26 @@ const QuickAddDefect: React.FC = () => {
         rejectionComment: "",
       });
     }, 1200);
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await importDefects(formData);
+      if (response && response.data && Array.isArray(response.data)) {
+        setModals(response.data.map((row: any) => ({ open: true, formData: row })));
+        setCurrentModalIdx(0);
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1200);
+      } else {
+        alert("Import succeeded but no data returned.");
+      }
+    } catch (error: any) {
+      alert("Failed to import defects: " + (error?.message || error));
+    }
   };
 
   return (
@@ -127,13 +182,19 @@ const QuickAddDefect: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={
-          selectedProject
-            ? `Quick Add Defect (${selectedProject.name})`
-            : "Quick Add Defect"
-        }
+        title="Add New Defect"
         size="xl"
       >
+        {selectedProject && (
+          <div className="font-bold text-blue-600 text-base mb-2">
+            {selectedProject.name}
+          </div>
+        )}
+        {activeRelease && (
+          <div className="font-semibold text-green-700 text-sm mb-2">
+            Active Release: {activeRelease.name}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Brief Description */}
           <Input
@@ -171,7 +232,7 @@ const QuickAddDefect: React.FC = () => {
                 required
                 disabled={!selectedProjectId}
               >
-                <option value="">Select a module</option>
+                <option value="">Select...</option>
                 {modulesList.map((module: string) => (
                   <option key={module} value={module}>
                     {module}
@@ -189,11 +250,7 @@ const QuickAddDefect: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={!formData.module}
               >
-                <option value="">
-                  {submodulesList.length === 0
-                    ? "No submodules"
-                    : "Select a submodule (optional)"}
-                </option>
+                <option value="">Select...</option>
                 {submodulesList.map((submodule: string) => (
                   <option key={submodule} value={submodule}>
                     {submodule}
@@ -202,7 +259,7 @@ const QuickAddDefect: React.FC = () => {
               </select>
             </div>
           </div>
-          {/* Severity, Priority, Type, Status */}
+          {/* Severity, Priority, Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -239,6 +296,7 @@ const QuickAddDefect: React.FC = () => {
               </select>
             </div>
           </div>
+          {/* Type and Assigned To in one row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -246,7 +304,7 @@ const QuickAddDefect: React.FC = () => {
               </label>
               <select
                 value={formData.type}
-                onChange={(e) => handleInputChange("type", e.target.value)}
+                onChange={(e) => handleInputChange("type", e.target.value as any)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
@@ -258,20 +316,18 @@ const QuickAddDefect: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
+                Assigned To
               </label>
               <select
-                value={formData.status}
-                onChange={(e) => handleInputChange("status", e.target.value)}
+                value={formData.assignedTo}
+                onChange={(e) => handleInputChange("assignedTo", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="">Select status</option>
-                <option value="open">Open</option>
-                <option value="in-progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-                <option value="rejected">Rejected</option>
+                <option value="">Select assignee</option>
+                {Array.from(new Set(defects.map((d) => d.assignedTo).filter(Boolean))).map((user) => (
+                  <option key={user} value={user}>{user}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -291,13 +347,33 @@ const QuickAddDefect: React.FC = () => {
               />
             </div>
           )}
-          {/* Assigned To */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Assigned To"
-              value={formData.assignedTo}
-              onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-              required
+          <div className="flex items-center mb-2">
+            <button
+              type="button"
+              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                />
+              </svg>
+              Import from Excel/CSV
+            </button>
+            <input
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={handleImportExcel}
+              ref={fileInputRef}
+              className="hidden"
             />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -309,7 +385,7 @@ const QuickAddDefect: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" disabled={success}>
-              {success ? "Added!" : "Add Defect"}
+              {success ? "Added!" : "Save Defect"}
             </Button>
           </div>
         </form>

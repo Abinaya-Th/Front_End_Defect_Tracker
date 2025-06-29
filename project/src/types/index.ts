@@ -42,13 +42,19 @@ export interface Project {
   progress?: number; // Added to match mock data
 }
 
+export interface DefectHistoryEntry {
+  status: 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected';
+  changedAt: string;
+  comment?: string;
+}
+
 export interface Defect {
   id: string;
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected';
+  status: 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected';
   projectId: string;
   assignedTo?: string;
   reportedBy: string;
@@ -58,6 +64,7 @@ export interface Defect {
   createdAt: string;
   updatedAt: string;
   rejectionComment?: string;
+  defectHistory?: DefectHistoryEntry[];
 }
 
 export interface TestCase {
