@@ -1505,7 +1505,7 @@ export const ReleaseView: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">Create Release</Button>
+            <Button type="submit">Submit</Button>
           </div>
         </form>
       </Modal>
