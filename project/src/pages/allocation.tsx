@@ -634,11 +634,11 @@ export const Allocation: React.FC = () => {
           return (
             <div
               key={releaseId}
-              className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
+              className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                 ${
                   isSelected
-                    ? "border-blue-500 ring-2 ring-blue-300"
-                    : "border-gray-200 hover:bg-gray-50"
+                    ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
+                    : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
                 }`}
               style={{
                 boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
@@ -1065,12 +1065,20 @@ export const Allocation: React.FC = () => {
       status: qa.status
     }));
 
+    // State for summary modal
+    const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+
     return (
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          {/* Release Card Section */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Release for QA Allocation</h3>
+      <div className="space-y-6">
+        {/* Step 1: Release Selection */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                1
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Select Release for QA Allocation</h3>
+            </div>
             <div className="flex space-x-2 overflow-x-auto">
               {releasesForQAAllocation.map((release: any) => {
                 const releaseId = release.releaseId || release.id;
@@ -1078,11 +1086,11 @@ export const Allocation: React.FC = () => {
                 return (
                   <div
                     key={releaseId}
-                    className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-colors duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
+                    className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                       ${
                         isSelected
-                          ? "border-blue-500 ring-2 ring-blue-300"
-                          : "border-gray-200 hover:bg-gray-50"
+                          ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
+                          : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
                       }`}
                     style={{
                       boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
@@ -1109,91 +1117,74 @@ export const Allocation: React.FC = () => {
                 );
               })}
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* QA Allocation Summary */}
-          {selectedReleaseForQA && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">QA Allocation Summary</h3>
-              {loadingQAAllocations ? (
-                <div className="text-center py-4">
-                  <div className="text-sm text-gray-500">Loading existing QA allocations...</div>
+        {/* Step 2: Allocate New Test Cases (only show if release is selected) */}
+        {selectedReleaseForQA && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                    2
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Allocate New Test Cases</h3>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {effectiveQAEngineers.map((qa) => {
-                    const allocatedTestCases = getAllocatedTestCasesForQA(qa.id);
-                    return (
-                      <div key={qa.id} className="border rounded-lg p-3 bg-gray-50">
-                        <div className="font-medium text-gray-900 mb-2">
-                          {qa.firstName} {qa.lastName}
-                        </div>
-                        <div className="text-sm text-gray-600 mb-2">
-                          Allocated: {allocatedTestCases.length} test cases
-                        </div>
-                        {allocatedTestCases.length > 0 && (
-                          <div className="space-y-1">
-                            {allocatedTestCases.map((tcId) => {
-                              const testCase = effectiveTestCases.find((tc: any) => tc.id === tcId);
-                              return (
-                                <div key={tcId} className="flex items-center justify-between text-xs bg-white p-1 rounded">
-                                  <span className="truncate">{testCase?.id || tcId}</span>
-                                  <button
-                                    onClick={() => removeAllocationFromQA(qa.id, tcId)}
-                                    className="text-red-600 hover:text-red-800 ml-2"
-                                    title="Remove allocation"
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* QA Selection Section */}
-          {selectedReleaseForQA && (
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Allocate Test Cases to QA</h3>
+                {/* Summary Button */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsSummaryModalOpen(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>View Summary</span>
+                </Button>
+              </div>
+              
               {/* Release Info */}
               {allocatedRelease && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="text-sm font-medium text-blue-900 mb-1">
-                    Selected Release for QA Allocation:
+                    Selected Release:
                   </div>
-                  <div className="text-sm text-blue-700">
-                    <strong>{allocatedRelease.releaseName || allocatedRelease.name}</strong> (v{allocatedRelease.version})
+                  <div className="text-lg font-semibold text-blue-700 mb-1">
+                    {allocatedRelease.releaseName || allocatedRelease.name} (v{allocatedRelease.version})
                   </div>
-                  <div className="text-xs text-blue-600 mt-1">
+                  <div className="text-sm text-blue-600">
                     {qaAllocatedTestCases[selectedReleaseForQA].length} test cases available for allocation
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {effectiveQAEngineers.map((emp: any) => (
-                  <Button
-                    key={emp.id}
-                    variant={selectedQA === emp.id ? "primary" : "secondary"}
-                    onClick={() => setSelectedQA(emp.id)}
-                  >
-                    {emp.firstName} {emp.lastName}
-                  </Button>
-                ))}
+
+              {/* QA Selection */}
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-800 mb-3">Select QA Engineer:</h4>
+                <div className="flex flex-wrap gap-3">
+                  {effectiveQAEngineers.map((emp: any) => (
+                    <Button
+                      key={emp.id}
+                      variant={selectedQA === emp.id ? "primary" : "secondary"}
+                      onClick={() => setSelectedQA(emp.id)}
+                      className="min-w-[120px]"
+                    >
+                      {emp.firstName} {emp.lastName}
+                    </Button>
+                  ))}
+                </div>
               </div>
+
               {/* Allocation Action */}
               {selectedQA && selectedReleaseForQA && (selectedTestCasesForQA[selectedReleaseForQA]?.length ?? 0) > 0 && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-medium text-blue-900 mb-2">
-                    Allocate {selectedTestCasesForQA[selectedReleaseForQA]?.length ?? 0} test case(s) to {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.firstName} {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.lastName}?
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-sm font-medium text-green-900 mb-3">
+                    Ready to allocate {selectedTestCasesForQA[selectedReleaseForQA]?.length ?? 0} test case(s) to{' '}
+                    <span className="font-semibold">
+                      {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.firstName} {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.lastName}
+                    </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <Button
                       variant="primary"
                       size="sm"
@@ -1218,22 +1209,29 @@ export const Allocation: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Overall Progress */}
-          {selectedReleaseForQA && Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length === qaAllocatedTestCases[selectedReleaseForQA].length && (
-            <div className="mt-4 p-3 bg-green-50 rounded-lg">
-              <div className="text-sm font-medium text-green-900 mb-1">
-                Allocation Progress
+        {/* Step 3: Overall Progress (only show if all test cases are allocated) */}
+        {selectedReleaseForQA && Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length === qaAllocatedTestCases[selectedReleaseForQA].length && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                  ✓
+                </div>
+                <h3 className="text-lg font-semibold text-green-900">Allocation Complete!</h3>
               </div>
-              <div className="text-sm text-green-700">
-                {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} of {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated
-              </div>
-              <div className="mt-2">
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="text-sm font-medium text-green-900 mb-2">
+                  All test cases have been allocated successfully!
+                </div>
+                <div className="text-sm text-green-700 mb-4">
+                  {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} of {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated
+                </div>
                 <Button
                   variant="primary"
-                  size="sm"
                   onClick={() => {
                     const currentProjectId = selectedProject || projectId;
                     if (!currentProjectId) return;
@@ -1242,13 +1240,120 @@ export const Allocation: React.FC = () => {
                     navigate(`/projects/${currentProjectId}/releases/test-execution`);
                   }}
                 >
-                  Save All Allocations
+                  Proceed to Test Execution
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Summary Modal */}
+        <Modal
+          isOpen={isSummaryModalOpen}
+          onClose={() => setIsSummaryModalOpen(false)}
+          title="QA Allocation Summary"
+          size="xl"
+        >
+          <div className="space-y-6">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="text-2xl font-bold text-blue-600">
+                  {Object.values(qaAllocations[selectedReleaseForQA || ''] || {}).flat().length}
+                </div>
+                <div className="text-sm text-blue-700">Total Allocated</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="text-2xl font-bold text-green-600">
+                  {Object.keys(qaAllocations[selectedReleaseForQA || ''] || {}).length}
+                </div>
+                <div className="text-sm text-green-700">QA Engineers</div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="text-2xl font-bold text-purple-600">
+                  {qaAllocatedTestCases[selectedReleaseForQA || '']?.length - Object.values(qaAllocations[selectedReleaseForQA || ''] || {}).flat().length || 0}
+                </div>
+                <div className="text-sm text-purple-700">Remaining</div>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* QA Engineers List */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-800">QA Engineers & Their Assignments</h4>
+              {loadingQAAllocations ? (
+                <div className="text-center py-8">
+                  <div className="text-sm text-gray-500">Loading existing QA allocations...</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {effectiveQAEngineers.map((qa) => {
+                    const allocatedTestCases = getAllocatedTestCasesForQA(qa.id);
+                    return (
+                      <div key={qa.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                              {qa.firstName.charAt(0)}{qa.lastName.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {qa.firstName} {qa.lastName}
+                              </div>
+                              <div className="text-xs text-gray-500">{qa.designation}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-blue-600">
+                              {allocatedTestCases.length}
+                            </div>
+                            <div className="text-xs text-gray-500">test cases</div>
+                          </div>
+                        </div>
+                        {allocatedTestCases.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-xs font-medium text-gray-600 mb-2 flex items-center">
+                              <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                              Assigned Test Cases:
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {allocatedTestCases.map((tcId) => {
+                                const testCase = effectiveTestCases.find((tc: any) => tc.id === tcId);
+                                return (
+                                  <div key={tcId} className="flex items-center justify-between text-xs bg-white p-2 rounded border">
+                                    <span className="truncate font-mono text-gray-700">{testCase?.id || tcId}</span>
+                                    <button
+                                      onClick={() => removeAllocationFromQA(qa.id, tcId)}
+                                      className="text-red-500 hover:text-red-700 ml-2 p-1 hover:bg-red-50 rounded transition-colors"
+                                      title="Remove allocation"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setIsSummaryModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </div>
     );
   };
 
