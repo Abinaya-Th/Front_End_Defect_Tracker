@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowRight, ArrowLeft, Search, User, Users, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Search, User, Users, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -7,6 +7,8 @@ import { Badge } from '../components/ui/Badge';
 import { DonutChart } from '../components/ui/DonutChart';
 import { useApp } from '../context/AppContext';
 import { EmployeeDetailsCard } from '../components/ui/EmployeeDetailsCard';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '../components/ui/Card';
 
 const AVAILABILITY_COLORS = {
     100: '#10B981',
@@ -32,6 +34,7 @@ function getAvailabilityTag(availability: number) {
 
 export default function BenchAllocate() {
     const { projects, employees, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId, updateEmployee } = useApp();
+    const navigate = useNavigate();
     // Only show active projects
     const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
     // Use context projectId if available, else fallback to first project
@@ -48,6 +51,7 @@ export default function BenchAllocate() {
     const [projectAllocations, setProjectAllocations] = useState<{ [projectId: string]: any[] }>({});
     const [hoveredEmployee, setHoveredEmployee] = useState<any | null>(null);
     const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+    const [viewInfoEmployee, setViewInfoEmployee] = useState<any | null>(null);
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const scrollBy = (offset: number) => {
         if (scrollRef.current) {
@@ -130,6 +134,17 @@ export default function BenchAllocate() {
 
     return (
         <div className="min-h-screen bg-[#F9FAFB] text-[#111827] p-6 flex flex-col">
+            {/* Heading */}
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-3xl font-bold text-gray-900">Bench Allocation</h1>
+                <Button
+                    variant="secondary"
+                    onClick={() => navigate('/bench')}
+                    className="flex items-center"
+                >
+                    <ChevronLeft className="w-4 h-4 mr-2" /> Back
+                </Button>
+            </div>
             {/* Top Bar */}
             <div className="mb-4">
                 <div className="bg-white rounded-2xl border border-gray-200 p-4">
@@ -223,15 +238,6 @@ export default function BenchAllocate() {
                                 onClick={() => setSelectedBench(sel => sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id])}
                                 draggable
                                 onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
-                                onMouseEnter={e => {
-                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                    setHoveredEmployee(emp);
-                                    setPopupPosition({ x: rect.right + 10, y: rect.top });
-                                }}
-                                onMouseLeave={() => {
-                                    setHoveredEmployee(null);
-                                    setPopupPosition(null);
-                                }}
                             >
                                 <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
                                 <div className="flex-1">
@@ -246,6 +252,15 @@ export default function BenchAllocate() {
                                     <span className="text-xs text-gray-500 font-semibold">Available Period</span>
                                     <span className="text-xs text-gray-600">{emp.startDate || '-'} to {emp.endDate || '-'}</span>
                                 </div>
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="ml-2"
+                                    onClick={e => { e.stopPropagation(); setViewInfoEmployee(emp); }}
+                                    title="View Info"
+                                >
+                                    View Info
+                                </Button>
                             </div>
                         ))}
                     </div>
@@ -451,22 +466,17 @@ export default function BenchAllocate() {
                     </div>
                 </form>
             </Modal>
-            {hoveredEmployee && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        right: '40px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 1000,
-                    }}
-                    onMouseEnter={() => setHoveredEmployee(hoveredEmployee)}
-                    onMouseLeave={() => { setHoveredEmployee(null); setPopupPosition(null); }}
-                    onClick={() => { setHoveredEmployee(null); setPopupPosition(null); }}
-                >
-                    <EmployeeDetailsCard employee={hoveredEmployee} />
-                </div>
-            )}
+            {/* Central Modal for Employee Info */}
+            <Modal
+                isOpen={!!viewInfoEmployee}
+                onClose={() => setViewInfoEmployee(null)}
+                title={undefined}
+                size="2xl"
+            >
+                {viewInfoEmployee && (
+                    <EmployeeDetailsCard employee={viewInfoEmployee} onClose={() => setViewInfoEmployee(null)} />
+                )}
+            </Modal>
         </div>
     );
 } 
