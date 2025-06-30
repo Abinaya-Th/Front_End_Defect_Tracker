@@ -38,12 +38,12 @@ import StatusType from "./pages/StatusType";
 import BenchAllocate from './pages/BenchAllocate';
 
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode, noLayout?: boolean }> = ({ children, noLayout }) => {
   const { user, isLoading } = useAuth();
+  const location = window.location.pathname;
 
-  if (isLoading) {
+  // Only show loading spinner if user is not present and isLoading is true
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -56,7 +56,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     );
   }
 
-  return user ? <Layout>{children}</Layout> : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (noLayout) return <>{children}</>;
+  return <Layout>{children}</Layout>;
 };
 
 const AppRoutes: React.FC = () => {
@@ -269,7 +271,7 @@ const AppRoutes: React.FC = () => {
         <Route
           path="/bench-allocate"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute noLayout>
               <BenchAllocate />
             </ProtectedRoute>
           }
