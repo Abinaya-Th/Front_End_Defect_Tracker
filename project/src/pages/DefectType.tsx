@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Bug } from 'lucide-react';
+import { createDefectType, getDefectTypes, getDefectTypeById, updateDefectType, deleteDefectType } from '../api/defectType';
 
 interface DefectType {
   id: string;
@@ -35,99 +36,25 @@ const DefectType: React.FC = () => {
     isActive: true
   });
 
-  // Load mock data on component mount
   useEffect(() => {
-    const mockDefectTypes: DefectType[] = [
-      {
-        id: '1',
-        name: 'Functional Bug',
-        description: 'Defects related to functionality not working as expected',
-        category: 'functional',
-        severity: 'high',
-        priority: 'high',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '2',
-        name: 'Performance Issue',
-        description: 'Defects related to slow performance or resource usage',
-        category: 'performance',
-        severity: 'medium',
-        priority: 'medium',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '3',
-        name: 'Security Vulnerability',
-        description: 'Defects related to security flaws and vulnerabilities',
-        category: 'security',
-        severity: 'critical',
-        priority: 'critical',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '4',
-        name: 'UI/UX Issue',
-        description: 'Defects related to user interface and user experience',
-        category: 'usability',
-        severity: 'medium',
-        priority: 'medium',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '5',
-        name: 'Browser Compatibility',
-        description: 'Defects related to cross-browser compatibility issues',
-        category: 'compatibility',
-        severity: 'low',
-        priority: 'low',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '6',
-        name: 'Data Validation Error',
-        description: 'Defects related to data validation and input handling',
-        category: 'functional',
-        severity: 'high',
-        priority: 'high',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '7',
-        name: 'API Integration Issue',
-        description: 'Defects related to API integration and communication',
-        category: 'functional',
-        severity: 'high',
-        priority: 'high',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '8',
-        name: 'Memory Leak',
-        description: 'Defects related to memory leaks and resource management',
-        category: 'performance',
-        severity: 'critical',
-        priority: 'high',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
+    const fetchDefectTypes = async () => {
+      try {
+        const response = await getDefectTypes();
+        if (response.status === 'success') {
+          const transformedData = response.data.map(d => ({
+            ...d,
+            id: d.id.toString(),
+            name: d.defectTypeName
+          }));
+          setDefectTypes(transformedData);
+        } else {
+          console.error("Failed to fetch defect types:", response.message);
+        }
+      } catch (error) {
+        console.error("Error fetching defect types:", error);
       }
-    ];
-    setDefectTypes(mockDefectTypes);
+    };
+    fetchDefectTypes();
   }, []);
 
   const resetForm = () => {
@@ -141,54 +68,122 @@ const DefectType: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newDefectType: DefectType = {
-      id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setDefectTypes([...defectTypes, newDefectType]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    try {
+      const response = await createDefectType({ defectTypeName: formData.name });
+      if (response.status === 'success') {
+        const newDefectType: DefectType = {
+          id: response.data.id.toString(),
+          name: response.data.defectTypeName,
+          description: formData.description,
+          category: formData.category,
+          severity: formData.severity,
+          priority: formData.priority,
+          isActive: formData.isActive,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setDefectTypes([...defectTypes, newDefectType]);
+        setIsCreateModalOpen(false);
+        resetForm();
+      } else {
+        console.error('Failed to create defect type:', response.message);
+        // Optionally, show an error message to the user
+      }
+    } catch (error) {
+      console.error('Error creating defect type:', error);
+      // Optionally, show an error message to the user
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingDefectType) return;
     
-    const updatedDefectTypes = defectTypes.map(defectType =>
-      defectType.id === editingDefectType.id
-        ? { ...defectType, ...formData, updatedAt: new Date().toISOString() }
-        : defectType
-    );
-    setDefectTypes(updatedDefectTypes);
-    setIsEditModalOpen(false);
-    setEditingDefectType(null);
-    resetForm();
+    try {
+      const payload = {
+        defectTypeName: formData.name,
+        description: formData.description,
+        category: formData.category,
+        severity: formData.severity,
+        priority: formData.priority,
+        isActive: formData.isActive
+      };
+      
+      const response = await updateDefectType(editingDefectType.id, payload);
+      
+      if (response.status === 'success') {
+        const updatedDefectTypes = defectTypes.map(defectType =>
+          defectType.id === editingDefectType.id
+            ? { 
+                ...defectType, 
+                name: response.data.defectTypeName,
+                ...payload 
+              }
+            : defectType
+        );
+        setDefectTypes(updatedDefectTypes);
+        setIsEditModalOpen(false);
+        setEditingDefectType(null);
+        resetForm();
+      } else {
+        console.error("Failed to update defect type:", response.message);
+        // Optionally, show an error to the user
+      }
+    } catch (error) {
+      console.error("Error updating defect type:", error);
+      // Optionally, show an error to the user
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingDefectType) return;
     
-    const updatedDefectTypes = defectTypes.filter(
-      defectType => defectType.id !== deletingDefectType.id
-    );
-    setDefectTypes(updatedDefectTypes);
-    setIsDeleteModalOpen(false);
-    setDeletingDefectType(null);
+    try {
+      const response = await deleteDefectType(deletingDefectType.id);
+      if (response.status === 'success') {
+        const updatedDefectTypes = defectTypes.filter(
+          defectType => defectType.id !== deletingDefectType.id
+        );
+        setDefectTypes(updatedDefectTypes);
+        setIsDeleteModalOpen(false);
+        setDeletingDefectType(null);
+      } else {
+        console.error('Failed to delete defect type:', response.message);
+        // Optionally, show an error message to the user
+      }
+    } catch (error) {
+      console.error('Error deleting defect type:', error);
+      // Optionally, show an error message to the user
+    }
   };
 
-  const openEditModal = (defectType: DefectType) => {
-    setEditingDefectType(defectType);
-    setFormData({
-      name: defectType.name,
-      description: defectType.description,
-      category: defectType.category,
-      severity: defectType.severity,
-      priority: defectType.priority,
-      isActive: defectType.isActive
-    });
-    setIsEditModalOpen(true);
+  const openEditModal = async (defectType: DefectType) => {
+    try {
+      const response = await getDefectTypeById(defectType.id);
+      if (response.status === 'success') {
+        const fetchedDefectType = response.data;
+        setEditingDefectType({
+          ...fetchedDefectType,
+          id: fetchedDefectType.id.toString(),
+          name: fetchedDefectType.defectTypeName,
+        });
+        setFormData({
+          name: fetchedDefectType.defectTypeName,
+          description: fetchedDefectType.description,
+          category: fetchedDefectType.category,
+          severity: fetchedDefectType.severity,
+          priority: fetchedDefectType.priority,
+          isActive: fetchedDefectType.isActive
+        });
+        setIsEditModalOpen(true);
+      } else {
+        console.error("Failed to fetch defect type for editing:", response.message);
+        // Optionally, show an error to the user
+      }
+    } catch (error) {
+      console.error("Error fetching defect type for editing:", error);
+      // Optionally, show an error to the user
+    }
   };
 
   const openDeleteModal = (defectType: DefectType) => {
