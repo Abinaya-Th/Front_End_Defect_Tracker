@@ -1154,7 +1154,7 @@ export const TestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Create Test Case")}
+                      {isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Submit")}
                     </Button>
                   </div>
                 </div>

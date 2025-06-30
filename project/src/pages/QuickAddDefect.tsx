@@ -385,7 +385,7 @@ const QuickAddDefect: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" disabled={success}>
-              {success ? "Added!" : "Save Defect"}
+              {success ? "Added!" : "Submit"}
             </Button>
           </div>
         </form>

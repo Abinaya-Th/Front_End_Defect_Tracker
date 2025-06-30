@@ -548,7 +548,7 @@ const QuickAddTestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {success ? "Added!" : "Save Test Case"}
+                      {success ? "Added!" : "Submit"}
                     </Button>
                   </div>
                 </div>
