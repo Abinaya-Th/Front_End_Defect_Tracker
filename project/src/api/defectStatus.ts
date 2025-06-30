@@ -1,5 +1,7 @@
 import apiClient from "./apiClient";
 
+// Define interfaces for the defect status API
+
 export interface DefectStatus {
   id: number;
   defectStatusName: string;
