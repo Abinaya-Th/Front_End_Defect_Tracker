@@ -35,30 +35,30 @@ const Designation: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch designations from API on mount
+  const fetchDesignations = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get('/api/v1/designation');
+      setDesignations(
+        (response.data.data || []).map((item: any) => ({
+          id: item.id.toString(),
+          name: item.name,
+          description: item.description || '',
+          level: item.level || 'entry',
+          department: item.department || '',
+          createdAt: item.createdAt || '',
+          updatedAt: item.updatedAt || ''
+        }))
+      );
+    } catch (err: any) {
+      setError('Failed to fetch designations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDesignations = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get('/api/v1/designation');
-        // The API returns data in response.data.data
-        setDesignations(
-          (response.data.data || []).map((item: any) => ({
-            id: item.id.toString(),
-            name: item.name,
-            description: item.description || '',
-            level: item.level || 'entry',
-            department: item.department || '',
-            createdAt: item.createdAt || '',
-            updatedAt: item.updatedAt || ''
-          }))
-        );
-      } catch (err: any) {
-        setError('Failed to fetch designations');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchDesignations();
   }, []);
 
@@ -75,14 +75,8 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.post('/api/v1/designation', formData);
-      const newDesignation: Designation = {
-        id: response.data.id?.toString() || Date.now().toString(),
-        ...formData,
-        createdAt: response.data.createdAt || new Date().toISOString(),
-        updatedAt: response.data.updatedAt || new Date().toISOString()
-      };
-      setDesignations([...designations, newDesignation]);
+      await axios.post('/api/v1/designation', formData);
+      await fetchDesignations(); // Refresh the list from backend
       setIsCreateModalOpen(false);
       resetForm();
     } catch (err: any) {
@@ -215,6 +209,20 @@ const Designation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
+            {designations.length === 0 && !isLoading && !error && (
+              <tr>
+                <td colSpan={2} className="px-5 py-3 text-center text-gray-500">
+                  No designations found.
+                </td>
+              </tr>
+            )}
+            {error && (
+              <tr>
+                <td colSpan={2} className="px-5 py-3 text-center text-red-600">
+                  {error}
+                </td>
+              </tr>
+            )}
             {designations.map((designation) => (
               <tr key={designation.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{designation.name}</td>
