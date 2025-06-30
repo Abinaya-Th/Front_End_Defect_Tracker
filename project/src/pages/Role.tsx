@@ -5,6 +5,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, UserCog } from 'lucide-react';
+import { createRole } from '../api/role/createrole';
+import { getAllRoles } from '../api/role/viewrole';
+import { updateRoleById } from '../api/role/updaterole';
+import { deleteRoleById } from '../api/role/deleterole';
 
 interface Role {
   id: string;
@@ -15,6 +19,7 @@ interface Role {
   department: string;
   createdAt: string;
   updatedAt: string;
+  roleName: string;
 }
 
 const Role: React.FC = () => {
@@ -48,61 +53,19 @@ const Role: React.FC = () => {
     'Admin Access'
   ];
 
-  // Load mock data on component mount
+  // Load roles from backend on component mount
   useEffect(() => {
-    const mockRoles: Role[] = [
-      {
-        id: '1',
-        name: 'Admin',
-        description: 'Full system access with all permissions',
-        permissions: ['Admin Access', 'View Dashboard', 'Manage Projects', 'Create Defects', 'Edit Defects', 'Delete Defects', 'Manage Test Cases', 'Execute Tests', 'Manage Employees', 'View Reports', 'Manage Configurations'],
-        level: 'admin',
-        department: 'IT',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '2',
-        name: 'Project Manager',
-        description: 'Manages projects and team coordination',
-        permissions: ['View Dashboard', 'Manage Projects', 'Create Defects', 'Edit Defects', 'Manage Test Cases', 'View Reports'],
-        level: 'advanced',
-        department: 'Project Management',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '3',
-        name: 'QA Engineer',
-        description: 'Quality assurance and testing responsibilities',
-        permissions: ['View Dashboard', 'Create Defects', 'Edit Defects', 'Manage Test Cases', 'Execute Tests', 'View Reports'],
-        level: 'standard',
-        department: 'Quality Assurance',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '4',
-        name: 'Developer',
-        description: 'Software development and defect resolution',
-        permissions: ['View Dashboard', 'Create Defects', 'Edit Defects', 'View Reports'],
-        level: 'standard',
-        department: 'Engineering',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '5',
-        name: 'Viewer',
-        description: 'Read-only access to view information',
-        permissions: ['View Dashboard', 'View Reports'],
-        level: 'basic',
-        department: 'General',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
+    const fetchRoles = async () => {
+      try {
+        const response = await getAllRoles();
+        const rolesArray = Array.isArray(response.data) ? response.data : response.data?.data || [];
+        setRoles(rolesArray);
+      } catch (error) {
+        alert('Failed to fetch roles: ' + error);
+        setRoles([]);
       }
-    ];
-    setRoles(mockRoles);
+    };
+    fetchRoles();
   }, []);
 
   const resetForm = () => {
@@ -115,47 +78,61 @@ const Role: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newRole: Role = {
-      id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setRoles([...roles, newRole]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    try {
+      await createRole({ roleName: formData.name });
+      // Add this:
+      const response = await getAllRoles();
+      const rolesArray = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      setRoles(rolesArray);
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (error) {
+      alert('Failed to create role: ' + error);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingRole) return;
-    
-    const updatedRoles = roles.map(role =>
-      role.id === editingRole.id
-        ? { ...role, ...formData, updatedAt: new Date().toISOString() }
-        : role
-    );
-    setRoles(updatedRoles);
-    setIsEditModalOpen(false);
-    setEditingRole(null);
-    resetForm();
+
+    try {
+      // Call backend API to update role
+      await updateRoleById(editingRole.id, formData.name);
+
+      // Refresh roles from backend for latest data
+      const response = await getAllRoles();
+      const rolesArray = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      setRoles(rolesArray);
+      setIsEditModalOpen(false);
+      setEditingRole(null);
+      resetForm();
+    } catch (error) {
+      alert('Failed to update role: ' + error);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRole) return;
-    
-    const updatedRoles = roles.filter(
-      role => role.id !== deletingRole.id
-    );
-    setRoles(updatedRoles);
-    setIsDeleteModalOpen(false);
-    setDeletingRole(null);
+
+    try {
+      // Call backend API to delete role
+      await deleteRoleById(deletingRole.id);
+
+      // Refresh roles from backend for latest data
+      const response = await getAllRoles();
+      const rolesArray = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      setRoles(rolesArray);
+      setIsDeleteModalOpen(false);
+      setDeletingRole(null);
+    } catch (error) {
+      alert('Failed to delete role: ' + error);
+    }
   };
 
   const openEditModal = (role: Role) => {
     setEditingRole(role);
     setFormData({
-      name: role.name,
+      name: role.roleName,
       description: role.description,
       permissions: role.permissions,
       level: role.level,
@@ -236,7 +213,7 @@ const Role: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {roles.map((role) => (
               <tr key={role.id}>
-                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{role.name}</td>
+                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{role.roleName}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
                   <button
                     onClick={() => openEditModal(role)}
@@ -380,4 +357,4 @@ const Role: React.FC = () => {
   );
 };
 
-export default Role; 
+export default Role;
