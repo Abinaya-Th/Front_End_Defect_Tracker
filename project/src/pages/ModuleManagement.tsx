@@ -754,7 +754,7 @@ export const ModuleManagement: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleAddModule}>Add Module</Button>
+            <Button onClick={handleAddModule}>Submit</Button>
           </div>
         </div>
       </Modal>

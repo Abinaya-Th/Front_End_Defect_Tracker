@@ -1293,7 +1293,7 @@ export const Defects: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit">
-              {editingDefect ? "Update Defect" : "Save Defect"}
+              {editingDefect ? "Save Changes" : "Submit"}
             </Button>
           </div>
         </form>
