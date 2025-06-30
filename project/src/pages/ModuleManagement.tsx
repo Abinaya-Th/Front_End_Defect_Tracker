@@ -82,9 +82,9 @@ export const ModuleManagement: React.FC = () => {
 
   const handleAddModule = () => {
     console.log("------------------------");
-    
+
     console.log("Adding module with form data:", moduleForm);
-    
+
     if (moduleForm.name.trim() && selectedProjectId) {
       const newModule = {
         id: `mod-${Date.now()}`,
@@ -208,6 +208,27 @@ export const ModuleManagement: React.FC = () => {
       )
     ) {
       if (selectedProjectId) deleteModule(selectedProjectId, moduleId);
+    }
+  };
+
+  const handleDeleteSubmodule = (moduleId: string, submoduleId: string) => {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this submodule?"
+      )
+    ) {
+      if (selectedProjectId) {
+        const module = modules.find((m) => m.id === moduleId);
+        if (module) {
+          const updatedSubmodules = module.submodules.filter(
+            (sub) => sub.id !== submoduleId
+          );
+          updateModule(selectedProjectId, moduleId, {
+            ...module,
+            submodules: updatedSubmodules,
+          });
+        }
+      }
     }
   };
 
@@ -557,21 +578,21 @@ export const ModuleManagement: React.FC = () => {
                       {module.submodules.some(
                         (sub) => sub.assignedDevs.length > 0
                       ) && (
-                        <div className="mt-1">
-                          <span>
-                            Submodule level:{" "}
-                            {module.submodules
-                              .filter((sub) => sub.assignedDevs.length > 0)
-                              .map(
-                                (sub) =>
-                                  `${sub.name} (${getAssignedDevNames(
-                                    sub.assignedDevs
-                                  ).join(", ")})`
-                              )
-                              .join("; ")}
-                          </span>
-                        </div>
-                      )}
+                          <div className="mt-1">
+                            <span>
+                              Submodule level:{" "}
+                              {module.submodules
+                                .filter((sub) => sub.assignedDevs.length > 0)
+                                .map(
+                                  (sub) =>
+                                    `${sub.name} (${getAssignedDevNames(
+                                      sub.assignedDevs
+                                    ).join(", ")})`
+                                )
+                                .join("; ")}
+                            </span>
+                          </div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -613,10 +634,20 @@ export const ModuleManagement: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
+                          {/* Delete submodule button */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteSubmodule(module.id, submodule.id)}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Delete Submodule"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           {/* Show submodule-specific assignments if different from module */}
                           {submodule.assignedDevs.length > 0 &&
                             JSON.stringify(submodule.assignedDevs.sort()) !==
-                              JSON.stringify(module.assignedDevs.sort()) && (
+                            JSON.stringify(module.assignedDevs.sort()) && (
                               <div className="flex -space-x-1">
                                 {submodule.assignedDevs
                                   .slice(0, 3)
@@ -648,7 +679,7 @@ export const ModuleManagement: React.FC = () => {
                           {/* Show inherited module assignments */}
                           {module.assignedDevs.length > 0 &&
                             JSON.stringify(submodule.assignedDevs.sort()) ===
-                              JSON.stringify(module.assignedDevs.sort()) && (
+                            JSON.stringify(module.assignedDevs.sort()) && (
                               <div className="flex -space-x-1">
                                 {module.assignedDevs
                                   .slice(0, 3)
@@ -660,11 +691,10 @@ export const ModuleManagement: React.FC = () => {
                                       <div
                                         key={index}
                                         className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white"
-                                        title={`${
-                                          dev
-                                            ? dev.firstName + " " + dev.lastName
-                                            : "Unknown"
-                                        } (inherited from module)`}
+                                        title={`${dev
+                                          ? dev.firstName + " " + dev.lastName
+                                          : "Unknown"
+                                          } (inherited from module)`}
                                       >
                                         {dev ? dev.firstName[0] : "?"}
                                       </div>
@@ -732,7 +762,7 @@ export const ModuleManagement: React.FC = () => {
                     }
                     placeholder={`Submodule ${index + 1}`}
                   />
-                  {moduleForm.submodules.length > 1 && (
+                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
                     <Button
                       type="button"
                       variant="secondary"
@@ -763,11 +793,10 @@ export const ModuleManagement: React.FC = () => {
       <Modal
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
-        title={`Assign Developers - ${selectedModuleForAssignment?.name}${
-          selectedSubmoduleForAssignment
-            ? ` > ${selectedSubmoduleForAssignment.name}`
-            : ""
-        }`}
+        title={`Assign Developers - ${selectedModuleForAssignment?.name}${selectedSubmoduleForAssignment
+          ? ` > ${selectedSubmoduleForAssignment.name}`
+          : ""
+          }`}
       >
         <div className="space-y-4">
           <div>
@@ -874,7 +903,7 @@ export const ModuleManagement: React.FC = () => {
                     }
                     placeholder={`Submodule ${index + 1}`}
                   />
-                  {moduleForm.submodules.length > 1 && (
+                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
                     <Button
                       type="button"
                       variant="secondary"

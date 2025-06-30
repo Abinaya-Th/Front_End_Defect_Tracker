@@ -1,88 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Rocket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface ReleaseType {
-  id: number;
-  name: string;
-  description: string;
-}
+import {
+  getAllReleaseTypes,
+  createReleaseType,
+  updateReleaseType,
+  deleteReleaseType,
+  ReleaseType as ReleaseTypeModel
+} from '../api/Releasetype';
 
 const ReleaseType: React.FC = () => {
   const navigate = useNavigate();
-  const [releaseTypes, setReleaseTypes] = useState<ReleaseType[]>([
-    { id: 1, name: 'Major Release', description: 'Significant feature releases with new functionality and major improvements' },
-    { id: 2, name: 'Minor Release', description: 'Small feature updates and minor improvements to existing functionality' },
-    { id: 3, name: 'Patch Release', description: 'Bug fixes and minor updates to resolve issues and improve stability' },
-    { id: 4, name: 'Hotfix', description: 'Critical bug fixes that need immediate deployment to resolve urgent issues' },
-  ]);
-
+  const [releaseTypes, setReleaseTypes] = useState<ReleaseTypeModel[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingReleaseType, setEditingReleaseType] = useState<ReleaseType | null>(null);
-  const [deletingReleaseType, setDeletingReleaseType] = useState<ReleaseType | null>(null);
+  const [editingReleaseType, setEditingReleaseType] = useState<ReleaseTypeModel | null>(null);
+  const [deletingReleaseType, setDeletingReleaseType] = useState<ReleaseTypeModel | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    releaseTypeName: '',
   });
+
+  useEffect(() => {
+    getAllReleaseTypes().then((res) => {
+      if (res?.data) setReleaseTypes(res.data);
+    });
+  }, []);
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
+      releaseTypeName: '',
     });
   };
 
-  const handleCreate = () => {
-    const newReleaseType: ReleaseType = {
-      id: Math.max(...releaseTypes.map(rt => rt.id)) + 1,
-      ...formData,
-    };
-    setReleaseTypes([...releaseTypes, newReleaseType]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    try {
+      const created = await createReleaseType(formData);
+      // Defensive: If backend returns only id, fetch all again; else, add to list
+      if (created && created.releaseTypeName) {
+        setReleaseTypes((prev) => [...prev, created]);
+      } else {
+        // fallback: refetch all
+        const res = await getAllReleaseTypes();
+        if (res?.data) setReleaseTypes(res.data);
+      }
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (error: any) {
+      alert(error.message);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingReleaseType) return;
-
-    const updatedReleaseTypes = releaseTypes.map(releaseType =>
-      releaseType.id === editingReleaseType.id
-        ? { ...releaseType, ...formData }
-        : releaseType
-    );
-    setReleaseTypes(updatedReleaseTypes);
-    setIsEditModalOpen(false);
-    setEditingReleaseType(null);
-    resetForm();
+    try {
+      const updated = await updateReleaseType(editingReleaseType.id, {
+        releaseTypeName: formData.releaseTypeName,
+      });
+      // Update the local state so the UI refreshes immediately
+      setReleaseTypes((prev) =>
+        prev.map((rt) =>
+          rt.id === editingReleaseType.id
+            ? { ...rt, releaseTypeName: formData.releaseTypeName }
+            : rt
+        )
+      );
+      setIsEditModalOpen(false);
+      setEditingReleaseType(null);
+      setFormData({ releaseTypeName: '' });
+    } catch (error: any) {
+      alert(error.message || "Failed to update release type");
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingReleaseType) return;
-
-    const updatedReleaseTypes = releaseTypes.filter(
-      releaseType => releaseType.id !== deletingReleaseType.id
-    );
-    setReleaseTypes(updatedReleaseTypes);
-    setIsDeleteModalOpen(false);
-    setDeletingReleaseType(null);
+    try {
+      await deleteReleaseType(deletingReleaseType.id);
+      setReleaseTypes((prev) => prev.filter((rt) => rt.id !== deletingReleaseType.id));
+      setIsDeleteModalOpen(false);
+      setDeletingReleaseType(null);
+    } catch (error: any) {
+      alert(error.message);
+    }
   };
 
-  const openEditModal = (releaseType: ReleaseType) => {
+  const openEditModal = (releaseType: ReleaseTypeModel) => {
     setEditingReleaseType(releaseType);
     setFormData({
-      name: releaseType.name,
-      description: releaseType.description,
+      releaseTypeName: releaseType.releaseTypeName,
     });
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (releaseType: ReleaseType) => {
+  const openDeleteModal = (releaseType: ReleaseTypeModel) => {
     setDeletingReleaseType(releaseType);
     setIsDeleteModalOpen(true);
   };
@@ -127,7 +142,7 @@ const ReleaseType: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {releaseTypes.map((releaseType) => (
               <tr key={releaseType.id}>
-                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{releaseType.name}</td>
+                <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{releaseType.releaseTypeName}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
                   <button
                     onClick={() => openEditModal(releaseType)}
@@ -165,8 +180,8 @@ const ReleaseType: React.FC = () => {
               Release Type Name
             </label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.releaseTypeName}
+              onChange={(e) => setFormData({ ...formData, releaseTypeName: e.target.value })}
               placeholder="Enter release type name"
             />
           </div>
@@ -182,7 +197,7 @@ const ReleaseType: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.releaseTypeName}
             >
               Create
             </Button>
@@ -206,8 +221,8 @@ const ReleaseType: React.FC = () => {
               Release Type Name
             </label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.releaseTypeName}
+              onChange={(e) => setFormData({ ...formData, releaseTypeName: e.target.value })}
               placeholder="Enter release type name"
             />
           </div>
@@ -224,7 +239,7 @@ const ReleaseType: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name}
+              disabled={!formData.releaseTypeName}
             >
               Update
             </Button>
@@ -243,7 +258,7 @@ const ReleaseType: React.FC = () => {
       >
         <div className="space-y-4">
           <p className="text-gray-700">
-            Are you sure you want to delete the release type "{deletingReleaseType?.name}"?
+            Are you sure you want to delete the release type "{deletingReleaseType?.releaseTypeName}"?
             This action cannot be undone.
           </p>
           <div className="flex justify-end space-x-3 pt-4">
@@ -269,4 +284,4 @@ const ReleaseType: React.FC = () => {
   );
 };
 
-export default ReleaseType; 
+export default ReleaseType;
