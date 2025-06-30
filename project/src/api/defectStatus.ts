@@ -1,4 +1,6 @@
-import apiClient from "./apiClient";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Define interfaces for the defect status API
 
@@ -43,17 +45,15 @@ const handleApiError = (error: any, operation: string): never => {
 // GET - Fetch all defect statuses
 export const getAllDefectStatuses = async (): Promise<DefectStatusResponse> => {
   try {
-    const response = await apiClient.get<DefectStatusResponse>("defectStatus");
+    const response = await axios.get<DefectStatusResponse>(`${BASE_URL}defectStatus`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'fetch defect statuses');
   }
 };
-
-// POST - Create a new defect status
 export const createDefectStatus = async (statusData: CreateDefectStatusRequest): Promise<any> => {
   try {
-    const response = await apiClient.post("defectStatus", statusData);
+    const response = await axios.post(`${BASE_URL}defectStatus`, statusData);
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'create defect status');
@@ -63,7 +63,7 @@ export const createDefectStatus = async (statusData: CreateDefectStatusRequest):
 // PUT - Update an existing defect status
 export const updateDefectStatus = async (id: number, statusData: UpdateDefectStatusRequest): Promise<any> => {
   try {
-    const response = await apiClient.put(`defectStatus/${id}`, statusData);
+    const response = await axios.put(`${BASE_URL}defectStatus/${id}`, statusData);
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'update defect status');
@@ -73,7 +73,7 @@ export const updateDefectStatus = async (id: number, statusData: UpdateDefectSta
 // DELETE - Delete a defect status
 export const deleteDefectStatus = async (id: number): Promise<any> => {
   try {
-    const response = await apiClient.delete(`defectStatus/${id}`);
+    const response = await axios.delete(`${BASE_URL}defectStatus/${id}`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'delete defect status');

@@ -1,6 +1,6 @@
-import apiClient from "../apiClient";
+import axios from "axios";
 
-
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface SearchReleaseResponse {
   status: string;
@@ -11,8 +11,7 @@ export interface SearchReleaseResponse {
 
 export const searchRelease = (releaseName: string): Promise<SearchReleaseResponse> => {
 
-  return apiClient.get<SearchReleaseResponse>(
-    `releases/search?releaseName=${releaseName}`,
-
+  return axios.get<SearchReleaseResponse>(
+    `${BASE_URL}releases/search?releaseName=${releaseName}`,
   ).then(({ data }) => data);
 };

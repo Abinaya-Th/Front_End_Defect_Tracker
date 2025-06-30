@@ -1,4 +1,6 @@
-import apiClient from "../apiClient";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface CreateRolePayload {
   roleName: string;
@@ -6,7 +8,7 @@ export interface CreateRolePayload {
 
 export async function createRole(payload: CreateRolePayload) {
   try {
-    const response = await apiClient.post("role", payload);
+    const response = await axios.post(`${BASE_URL}role`, payload);
     return response.data;
   } catch (error: any) {
     throw error;

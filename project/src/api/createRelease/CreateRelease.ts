@@ -1,4 +1,6 @@
-import apiClient from "../apiClient";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface CreateReleaseRequest {
   releaseName: string;
@@ -15,8 +17,8 @@ export interface CreateReleaseResponse {
 }
 
 export const createRelease = (payload: CreateReleaseRequest): Promise<CreateReleaseResponse> => {
-  return apiClient.post<CreateReleaseResponse>(
-    "releases",
+  return axios.post<CreateReleaseResponse>(
+    `${BASE_URL}releases`,
     payload,
   ).then(({ data }: { data: CreateReleaseResponse }) => data);
 };
