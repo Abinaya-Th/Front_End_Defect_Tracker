@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Briefcase } from 'lucide-react';
+import axios from 'axios';
 
 interface Designation {
   id: string;
@@ -27,60 +28,38 @@ const Designation: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    level: 'entry' as const,
+    level: 'entry' as 'entry' | 'mid' | 'senior' | 'lead' | 'manager',
     department: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load mock data on component mount
+  // Fetch designations from API on mount
   useEffect(() => {
-    const mockDesignations: Designation[] = [
-      {
-        id: '1',
-        name: 'Software Engineer',
-        description: 'Develops software applications and systems',
-        level: 'mid',
-        department: 'Engineering',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '2',
-        name: 'Senior Software Engineer',
-        description: 'Leads development of complex software solutions',
-        level: 'senior',
-        department: 'Engineering',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '3',
-        name: 'QA Engineer',
-        description: 'Ensures software quality through testing',
-        level: 'mid',
-        department: 'Quality Assurance',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '4',
-        name: 'Project Manager',
-        description: 'Manages project delivery and team coordination',
-        level: 'manager',
-        department: 'Project Management',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
-      },
-      {
-        id: '5',
-        name: 'UI/UX Designer',
-        description: 'Creates user interfaces and user experiences',
-        level: 'mid',
-        department: 'Design',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z'
+    const fetchDesignations = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get('/api/v1/designation');
+        // The API returns data in response.data.data
+        setDesignations(
+          (response.data.data || []).map((item: any) => ({
+            id: item.id.toString(),
+            name: item.name,
+            description: item.description || '',
+            level: item.level || 'entry',
+            department: item.department || '',
+            createdAt: item.createdAt || '',
+            updatedAt: item.updatedAt || ''
+          }))
+        );
+      } catch (err: any) {
+        setError('Failed to fetch designations');
+      } finally {
+        setIsLoading(false);
       }
-    ];
-    setDesignations(mockDesignations);
+    };
+    fetchDesignations();
   }, []);
 
   const resetForm = () => {
@@ -92,41 +71,72 @@ const Designation: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newDesignation: Designation = {
-      id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setDesignations([...designations, newDesignation]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post('/api/v1/designation', formData);
+      const newDesignation: Designation = {
+        id: response.data.id?.toString() || Date.now().toString(),
+        ...formData,
+        createdAt: response.data.createdAt || new Date().toISOString(),
+        updatedAt: response.data.updatedAt || new Date().toISOString()
+      };
+      setDesignations([...designations, newDesignation]);
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create designation');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingDesignation) return;
-    
-    const updatedDesignations = designations.map(designation =>
-      designation.id === editingDesignation.id
-        ? { ...designation, ...formData, updatedAt: new Date().toISOString() }
-        : designation
-    );
-    setDesignations(updatedDesignations);
-    setIsEditModalOpen(false);
-    setEditingDesignation(null);
-    resetForm();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.put(
+        `/api/v1/designation/${editingDesignation.id}`,
+        formData
+      );
+      const updatedDesignation: Designation = {
+        ...editingDesignation,
+        ...formData,
+        updatedAt: response.data.updatedAt || new Date().toISOString()
+      };
+      setDesignations(
+        designations.map((designation) =>
+          designation.id === editingDesignation.id ? updatedDesignation : designation
+        )
+      );
+      setIsEditModalOpen(false);
+      setEditingDesignation(null);
+      resetForm();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update designation');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingDesignation) return;
-    
-    const updatedDesignations = designations.filter(
-      designation => designation.id !== deletingDesignation.id
-    );
-    setDesignations(updatedDesignations);
-    setIsDeleteModalOpen(false);
-    setDeletingDesignation(null);
+    setIsLoading(true);
+    setError(null);
+    try {
+      await axios.delete(`/api/v1/designation/${deletingDesignation.id}`);
+      setDesignations(
+        designations.filter((designation) => designation.id !== deletingDesignation.id)
+      );
+      setIsDeleteModalOpen(false);
+      setDeletingDesignation(null);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to delete designation');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openEditModal = (designation: Designation) => {
@@ -250,6 +260,7 @@ const Designation: React.FC = () => {
               placeholder="Enter designation name"
             />
           </div>
+          {error && <div className="text-red-600 text-sm">{error}</div>}
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -257,14 +268,15 @@ const Designation: React.FC = () => {
                 setIsCreateModalOpen(false);
                 resetForm();
               }}
+              disabled={isLoading}
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.name || isLoading}
             >
-              Create
+              {isLoading ? 'Creating...' : 'Create'}
             </Button>
           </div>
         </div>
