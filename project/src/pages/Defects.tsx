@@ -21,6 +21,7 @@ import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
+import { getAllPriorities, Priority } from "../api/priority";
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -500,7 +501,26 @@ export const Defects: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEditingRejectionComment, setIsEditingRejectionComment] = useState(false);
 
+  const [priorities, setPriorities] = useState<Priority[]>([]);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Fetch priorities from database
+  React.useEffect(() => {
+    const fetchPriorities = async () => {
+      try {
+        const response = await getAllPriorities();
+        if (response.data) {
+          setPriorities(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch priorities:", error);
+      }
+    };
+
+    fetchPriorities();
+  }, []);
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -725,9 +745,9 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniquePriorities.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {priorities.map((priority) => (
+                <option key={priority.id} value={priority.priority}>
+                  {priority.priority}
                 </option>
               ))}
             </select>
