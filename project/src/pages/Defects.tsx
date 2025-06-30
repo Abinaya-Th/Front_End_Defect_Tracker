@@ -22,6 +22,14 @@ import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
+import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
+import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
+
+// Locally extend Defect to allow 'defectHistory' and 'new' status
+interface Defect extends BaseDefect {
+  defectHistory?: DefectHistoryEntry[];
+  status: string; // Accept any string from API, including 'new'
+}
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -38,21 +46,16 @@ export const Defects: React.FC = () => {
   } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDefect, setEditingDefect] = useState<any>(null);
-  const [formData, setFormData] = useState({
+  const [editingDefect, setEditingDefect] = useState<Defect | null>(null);
+  const [formData, setFormData] = useState<Partial<Defect>>({
     title: "",
     description: "",
     module: "",
     subModule: "",
-    type: "bug" as "bug" | "test-failure" | "enhancement",
-    priority: "medium" as "low" | "medium" | "high" | "critical",
-    severity: "medium" as "low" | "medium" | "high" | "critical",
-    status: "open" as
-      | "open"
-      | "in-progress"
-      | "resolved"
-      | "closed"
-      | "rejected",
+    type: "bug",
+    priority: "medium",
+    severity: "medium",
+    status: "open",
     projectId: projectId || "",
     releaseId: "",
     testCaseId: "",
@@ -151,15 +154,16 @@ export const Defects: React.FC = () => {
     e.preventDefault();
     if (editingDefect) {
       const now = new Date().toISOString();
-      const newHistory = [
+      const newHistory: DefectHistoryEntry[] = [
         ...(editingDefect.defectHistory || []),
         {
-          status: formData.status,
+          status: formData.status as string,
           changedAt: now,
           comment: formData.status === "rejected" ? formData.rejectionComment : undefined,
         },
       ];
       updateDefect({
+        ...editingDefect,
         ...formData,
         projectId: projectId || "",
         id: editingDefect.id,
@@ -168,19 +172,28 @@ export const Defects: React.FC = () => {
         defectHistory: newHistory,
       });
     } else {
-      const newDefect = {
+      const now = new Date().toISOString();
+      const newDefect: Defect = {
         ...formData,
         projectId: projectId || "",
         id: getNextDefectId(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
         status: "new",
+        reportedBy: formData.reportedBy || "",
+        title: formData.title || "",
+        description: formData.description || "",
+        module: formData.module || "",
+        subModule: formData.subModule || "",
+        type: formData.type as any || "bug",
+        priority: formData.priority as any || "medium",
+        severity: formData.severity as any || "medium",
       };
       addDefect(newDefect);
     }
     resetForm();
   };
-  const handleEdit = (defect: any) => {
+  const handleEdit = (defect: Defect) => {
     setEditingDefect(defect);
     setFormData({
       title: defect.title,
@@ -214,7 +227,7 @@ export const Defects: React.FC = () => {
       type: "bug",
       priority: "medium",
       severity: "medium",
-      status: "new",
+      status: "open",
       projectId: projectId || "",
       releaseId: "",
       testCaseId: "",
@@ -505,6 +518,10 @@ export const Defects: React.FC = () => {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [defectStatuses, setDefectStatuses] = useState<DefectStatus[]>([]);
+  const [isStatusLoading, setIsStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   // Fetch priorities from database
   React.useEffect(() => {
     const fetchPriorities = async () => {
@@ -519,6 +536,27 @@ export const Defects: React.FC = () => {
     };
 
     fetchPriorities();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchStatuses = async () => {
+      setIsStatusLoading(true);
+      setStatusError(null);
+      try {
+        const response = await getAllDefectStatuses();
+        if (response && response.data) {
+          setDefectStatuses(response.data);
+        } else {
+          setDefectStatuses([]);
+        }
+      } catch (err: any) {
+        setStatusError(err.message || "Failed to fetch statuses");
+        setDefectStatuses([]);
+      } finally {
+        setIsStatusLoading(false);
+      }
+    };
+    fetchStatuses();
   }, []);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -758,17 +796,20 @@ export const Defects: React.FC = () => {
             </label>
             <select
               value={filters.status}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, status: e.target.value }))
-              }
+              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
               className="w-full h-8 text-xs border border-gray-300 rounded"
+              disabled={isStatusLoading || !!statusError}
             >
               <option value="">All</option>
-              {uniqueStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              {isStatusLoading ? (
+                <option disabled>Loading...</option>
+              ) : statusError ? (
+                <option disabled>Error loading statuses</option>
+              ) : (
+                defectStatuses.map((s) => (
+                  <option key={s.id} value={s.defectStatusName}>{s.defectStatusName}</option>
+                ))
+              )}
             </select>
           </div>
           <div className="min-w-[140px] flex-shrink-0">
@@ -984,7 +1025,7 @@ export const Defects: React.FC = () => {
                                 e.preventDefault();
                                 if (statusEditValue === 'rejected' && !statusEditComment) return;
                                 const now = new Date().toISOString();
-                                const newHistory = [
+                                const newHistory: DefectHistoryEntry[] = [
                                   ...(defect.defectHistory || []),
                                   {
                                     status: statusEditValue,
@@ -1007,13 +1048,17 @@ export const Defects: React.FC = () => {
                                 value={statusEditValue}
                                 onChange={e => setStatusEditValue(e.target.value)}
                                 className="w-28 px-2 py-1 border border-gray-300 rounded"
+                                disabled={isStatusLoading || !!statusError}
                               >
-                                <option value="new">New</option>
-                                <option value="open">Open</option>
-                                <option value="in-progress">In Progress</option>
-                                <option value="resolved">Resolved</option>
-                                <option value="closed">Closed</option>
-                                <option value="rejected">Rejected</option>
+                                {isStatusLoading ? (
+                                  <option disabled>Loading...</option>
+                                ) : statusError ? (
+                                  <option disabled>Error loading statuses</option>
+                                ) : (
+                                  defectStatuses.map((s) => (
+                                    <option key={s.id} value={s.defectStatusName}>{s.defectStatusName}</option>
+                                  ))
+                                )}
                               </select>
                               {statusEditValue === 'rejected' && (
                                 <input
@@ -1367,10 +1412,10 @@ export const Defects: React.FC = () => {
               onSubmit={e => {
                 e.preventDefault();
                 if (!editingStatusId) return setIsRejectionCommentModalOpen(false);
-                const defect = defects.find(d => d.id === editingStatusId);
+                const defect = defects.find(d => d.id === editingStatusId) as Defect;
                 if (!defect) return setIsRejectionCommentModalOpen(false);
                 const now = new Date().toISOString();
-                const newHistory = [
+                const newHistory: DefectHistoryEntry[] = [
                   ...(defect.defectHistory || []),
                   {
                     status: 'rejected',
