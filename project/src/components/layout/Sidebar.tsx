@@ -18,11 +18,7 @@ import { useApp } from "../../context/AppContext";
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Employees", href: "/employees", icon: Users },
-  {
-    name: "Bench", href: "/bench", icon: UserCheck, sub: [
-      { name: "Bench Allocation", href: "/bench-allocate", icon: Users }
-    ]
-  },
+  { name: "Bench", href: "/bench", icon: UserCheck },
   { name: "Configurations", href: "/configurations", icon: Settings },
 ];
 
@@ -63,7 +59,7 @@ export const Sidebar: React.FC = () => {
                 {item.name}
               </NavLink>
               {/* Sub-menu for Bench */}
-              {item.name === "Bench" && item.sub && (
+              {false && item.name === "Bench" && item.sub && (
                 <div className={`pl-10 mt-1 space-y-1 ${location.pathname === "/bench" || location.pathname === "/bench-allocate" ? '' : 'hidden'}`}>
                   {item.sub.map((subItem) => (
                     <NavLink
