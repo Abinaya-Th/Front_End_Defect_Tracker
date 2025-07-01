@@ -20,7 +20,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
-const BASE_URL = import.meta.env.VITE_BASE_URL;
+// const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
 const mockProjects = [
@@ -67,7 +67,7 @@ export const TestCase: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
 
-  // --- Test case state (from backend) ---
+  // --- Test case state (mock only, integrations removed) ---
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
   // const [loading, setLoading] = useState(false); // Unused
 
@@ -124,128 +124,55 @@ export const TestCase: React.FC = () => {
   // Add after state declarations
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Fetch test cases when submodule is selected --- by danusan --
+  // --- Integrations removed: No fetching test cases from backend ---
   useEffect(() => {
-    if (selectedSubmodule) {
-      // setLoading(true); // loading state is removed
-      fetch(`${BASE_URL}api/v1/testcase/submodule/${selectedSubmodule}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const mapped = (data.data || []).map((tc: any) => ({
-            id: tc.testCaseId || tc.id,
-            description: tc.description,
-            steps: tc.steps,
-            subModule: tc.subModuleId || tc.subModule,
-            module: tc.moduleId || tc.module,
-            projectId: tc.projectId,
-            severity: tc.severityName || tc.severityId || tc.severity,
-            type: tc.typeId || tc.type,
-          }));
-          setTestCases(mapped);
-          // setLoading(false); // loading state is removed
-        })
-        .catch(() => {/* setLoading(false); */}); // loading state is removed
-    } else {
-      setTestCases([]);
-    }
+    setTestCases([]);
   }, [selectedSubmodule]);
-console.log("--------",backendProjects);
+// console.log("--------",backendProjects);
 
-  // --- Add test case ---
+  // --- Add test case (integration removed) ---
   const addTestCase = async (formData: ModalFormData) => {
-    await fetch(`${BASE_URL}api/v1/testcase`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        testCaseId: formData.id,
+    // Integration removed: just update local state (mock)
+    setTestCases((prev) => [
+      ...prev,
+      {
+        id: formData.id || `TC-${Date.now()}`,
         description: formData.description,
         steps: formData.steps,
-        subModuleId: formData.subModule,
-        moduleId: formData.module,
+        subModule: formData.subModule,
+        module: formData.module,
         projectId: formData.projectId,
-        severityId: formData.severity,
-        typeId: formData.type,
-      }),
-    });
-    // Refresh test cases
-    if (selectedModule) {
-      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const mapped = (data.data || []).map((tc: any) => ({
-            id: tc.testCaseId || tc.id,
-            description: tc.description,
-            steps: tc.steps,
-            subModule: tc.subModuleId || tc.subModule,
-            module: tc.moduleId || tc.module,
-            projectId: tc.projectId,
-            severity: tc.severityName || tc.severityId || tc.severity,
-            type: tc.typeId || tc.type,
-          }));
-          setTestCases(mapped);
-        });
-    }
+        severity: formData.severity,
+        type: formData.type,
+      },
+    ]);
   };
 
-  // --- Update test case ---
+  // --- Update test case (integration removed) ---
   const updateTestCase = async (formData: ModalFormData) => {
-    await fetch(`${BASE_URL}api/v1/testcase/${formData.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        testCaseId: formData.id,
-        description: formData.description,
-        steps: formData.steps,
-        subModuleId: formData.subModule,
-        moduleId: formData.module,
-        projectId: formData.projectId,
-        severityId: formData.severity,
-        typeId: formData.type,
-      }),
-    });
-    // Refresh test cases
-    if (selectedModule) {
-      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const mapped = (data.data || []).map((tc: any) => ({
-            id: tc.testCaseId || tc.id,
-            description: tc.description,
-            steps: tc.steps,
-            subModule: tc.subModuleId || tc.subModule,
-            module: tc.moduleId || tc.module,
-            projectId: tc.projectId,
-            severity: tc.severityName || tc.severityId || tc.severity,
-            type: tc.typeId || tc.type,
-          }));
-          setTestCases(mapped);
-        });
-    }
+    // Integration removed: just update local state (mock)
+    setTestCases((prev) =>
+      prev.map((tc) =>
+        tc.id === formData.id
+          ? {
+              ...tc,
+              description: formData.description,
+              steps: formData.steps,
+              subModule: formData.subModule,
+              module: formData.module,
+              projectId: formData.projectId,
+              severity: formData.severity,
+              type: formData.type,
+            }
+          : tc
+      )
+    );
   };
 
-  // --- Delete test case ---
+  // --- Delete test case (integration removed) ---
   const deleteTestCase = async (testCaseId: string) => {
-    await fetch(`${BASE_URL}api/v1/testcase/${testCaseId}`, {
-      method: "DELETE",
-    });
-    // Refresh test cases
-    if (selectedModule) {
-      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const mapped = (data.data || []).map((tc: any) => ({
-            id: tc.testCaseId || tc.id,
-            description: tc.description,
-            steps: tc.steps,
-            subModule: tc.subModuleId || tc.subModule,
-            module: tc.moduleId || tc.module,
-            projectId: tc.projectId,
-            severity: tc.severityName || tc.severityId || tc.severity,
-            type: tc.typeId || tc.type,
-          }));
-          setTestCases(mapped);
-        });
-    }
+    // Integration removed: just update local state (mock)
+    setTestCases((prev) => prev.filter((tc) => tc.id !== testCaseId));
   };
 
   // If no selectedProjectId, show a message or redirect
@@ -511,19 +438,7 @@ console.log("--------",backendProjects);
     setViewingTestCase(testCase);
     setIsViewTestCaseModalOpen(true);
   };
-    useEffect(() => {
-      getAllProjects()
-            .then((data: any) => {
-              console.log("Fetched projects:", data); // Debug: log the response
-              let projectsArray = Array.isArray(data)
-                ? data
-                : (data && Array.isArray(data.data))
-                  ? data.data
-                  : [];
-              setBackendProjects(projectsArray);
-            
-            })
-    },[])
+    // Integration removed: no fetching of all projects
 
   // const toggleRowExpansion = (testCaseId: string) => {
   //   setExpandedRows((prev) => {
