@@ -67,6 +67,7 @@ export const Projects: React.FC = () => {
     employees,
     setSelectedProjectId,
   } = useApp();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPrivileges, setShowPrivileges] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
@@ -277,8 +278,8 @@ export const Projects: React.FC = () => {
                 className={`relative rounded-2xl shadow-md border border-gray-200 bg-white ${style.border} cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-blue-300 hover:bg-blue-50`}
                 style={{ overflow: "visible" }}
                 onClick={() => {
-                  setSelectedProjectId(project.id);
-                  navigate(`/projects/${project.id}/project-management`);
+                  setSelectedProjectId(project?.projectId);
+                  navigate(`/projects/${project?.projectId}/project-management`);
                 }}
               >
                 <CardContent className="pt-7 pb-6 px-7">
