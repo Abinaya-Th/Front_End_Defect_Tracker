@@ -26,20 +26,19 @@ const Designation: React.FC = () => {
   const [editingDesignation, setEditingDesignation] = useState<Designation | null>(null);
   const [deletingDesignation, setDeletingDesignation] = useState<Designation | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    level: 'entry' as 'entry' | 'mid' | 'senior' | 'lead' | 'manager',
-    department: ''
+    name: ''
+  
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const baseUrl=import.meta.env.VITE_BASE_URL;
 
   // Fetch designations from API on mount
   const fetchDesignations = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get('/api/v1/designation');
+      const response = await axios.get(`${baseUrl}designation`);
       setDesignations(
         (response.data.data || []).map((item: any) => ({
           id: item.id.toString(),
@@ -64,10 +63,8 @@ const Designation: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      level: 'entry',
-      department: ''
+      name: ''
+    
     });
   };
 
@@ -75,7 +72,7 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.post('/api/v1/designation', formData);
+      await axios.post(`${baseUrl}designation`, formData);
       await fetchDesignations(); // Refresh the list from backend
       setIsCreateModalOpen(false);
       resetForm();
@@ -92,7 +89,7 @@ const Designation: React.FC = () => {
     setError(null);
     try {
       const response = await axios.put(
-        `/api/v1/designation/${editingDesignation.id}`,
+        `${baseUrl}designation/${editingDesignation.id}`,
         formData
       );
       const updatedDesignation: Designation = {
@@ -136,10 +133,8 @@ const Designation: React.FC = () => {
   const openEditModal = (designation: Designation) => {
     setEditingDesignation(designation);
     setFormData({
-      name: designation.name,
-      description: designation.description,
-      level: designation.level,
-      department: designation.department
+      name: designation.name
+    
     });
     setIsEditModalOpen(true);
   };

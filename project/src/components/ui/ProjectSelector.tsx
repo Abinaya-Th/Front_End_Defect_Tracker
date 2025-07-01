@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent } from './Card';
 import { Button } from './Button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getAllProjects } from '../../api/projectget';
 
 interface Project {
   id: string;
@@ -13,6 +14,7 @@ interface ProjectSelectorProps {
   selectedProjectId: string | null;
   onSelect: (id: string) => void;
   className?: string;
+ 
 }
 
 export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
@@ -20,8 +22,27 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   selectedProjectId,
   onSelect,
   className = '',
+  
+ 
 }) => {
-  return (
+  const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
+  useEffect(() => {
+    getAllProjects()
+          .then((data: any) => {
+            console.log("Fetched projects:", data); // Debug: log the response
+            let projectsArray = Array.isArray(data)
+              ? data
+              : (data && Array.isArray(data.data))
+                ? data.data
+                : [];
+            setBackendProjects(projectsArray);
+          
+          })
+  },[])
+  console.log("Backend Projects:", backendProjects); // Debug: log the projects
+  
+    
+    return (
     <Card className={className}>
       <CardContent className="p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
@@ -41,14 +62,14 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
           >
-            {projects.map((project) => (
+            {backendProjects.map((project) => (
               <Button
                 key={project.id}
-                variant={selectedProjectId === project.id ? 'primary' : 'secondary'}
-                onClick={() => onSelect(project.id)}
+                variant={selectedProjectId === project?.projectId ? 'primary' : 'secondary'}
+                onClick={() => onSelect(project?.projectId)}
                 className="whitespace-nowrap m-2"
               >
-                {project.name}
+                {project?.projectName}
               </Button>
             ))}
           </div>

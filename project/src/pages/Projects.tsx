@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   FolderOpen,
@@ -33,36 +33,7 @@ import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { ProjectFormData, Project } from "../types";
 import { useNavigate } from "react-router-dom";
-
-// Mock data for initial projects
-const mockProjects: Project[] = [
-  {
-    id: "2",
-    name: "Mobile App Redesign",
-    prefix: "MBR",
-    projectType: "mobile",
-    status: "active",
-    startDate: "2024-02-01",
-    endDate: "2024-04-30",
-    manager: "2",
-    teamMembers: [],
-    description: "Redesigning the mobile app with improved UX/UI",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    name: "AI Research Project",
-    prefix: "AIR",
-    projectType: "web",
-    status: "inactive",
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    manager: "3",
-    teamMembers: [],
-    description: "Research project focusing on AI implementation",
-    createdAt: new Date().toISOString(),
-  },
-];
+import { getAllProjects } from "../api/projectget";
 
 const cardStyles = [
   { border: "border-t-4 border-blue-400", iconBg: "bg-gradient-to-br from-blue-400 to-blue-600", iconColor: "text-white" },
@@ -96,6 +67,7 @@ export const Projects: React.FC = () => {
     employees,
     setSelectedProjectId,
   } = useApp();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPrivileges, setShowPrivileges] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
@@ -125,41 +97,28 @@ export const Projects: React.FC = () => {
       viewReports: false,
     },
   });
+  const [backendProjects, setBackendProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const sampleManagers = [
-    {
-      id: "1",
-      firstName: "John",
-      lastName: "Smith",
-      designation: "Project Manager",
-    },
-    {
-      id: "2",
-      firstName: "Sarah",
-      lastName: "Johnson",
-      designation: "Senior Project Manager",
-    },
-    {
-      id: "3",
-      firstName: "Michael",
-      lastName: "Brown",
-      designation: "Technical Project Manager",
-    },
-    {
-      id: "4",
-      firstName: "Emily",
-      lastName: "Davis",
-      designation: "Project Manager",
-    },
-    {
-      id: "5",
-      firstName: "David",
-      lastName: "Wilson",
-      designation: "Lead Project Manager",
-    },
-  ];
-
-  const navigate = useNavigate();
+  useEffect(() => {
+    setLoading(true);
+    getAllProjects()
+      .then((data: any) => {
+        console.log("Fetched projects:", data); // Debug: log the response
+        let projectsArray = Array.isArray(data)
+          ? data
+          : (data && Array.isArray(data.data))
+            ? data.data
+            : [];
+        setBackendProjects(projectsArray);
+        setError(null);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+  console.log(backendProjects);
+  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,36 +140,36 @@ export const Projects: React.FC = () => {
     resetForm();
   };
 
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    setFormData({
-      name: project.name,
-      prefix: project.prefix || "",
-      projectType: project.projectType || "",
-      status: project.status,
-      startDate: project.startDate,
-      endDate: project.endDate,
-      role: project.role || "",
-      manager: project.manager,
-      clientName: project.clientName || "",
-      clientCountry: project.clientCountry || "",
-      clientState: project.clientState || "",
-      clientEmail: project.clientEmail || "",
-      clientPhone: project.clientPhone || "",
-      address: project.address || "",
-      description: project.description,
-      privileges: project.privileges || {
-        read: false,
-        write: false,
-        delete: false,
-        admin: false,
-        exportImport: false,
-        manageUsers: false,
-        viewReports: false,
-      },
-    });
-    setIsModalOpen(true);
-  };
+  // const handleEdit = (project: Project) => {
+  //   setEditingProject(project);
+  //   setFormData({
+  //     name: project.name,
+  //     prefix: project.prefix || "",
+  //     projectType: project.projectType || "",
+  //     status: project.status,
+  //     startDate: project.startDate,
+  //     endDate: project.endDate,
+  //     role: project.role || "",
+  //     manager: project.manager,
+  //     clientName: project.clientName || "",
+  //     clientCountry: project.clientCountry || "",
+  //     clientState: project.clientState || "",
+  //     clientEmail: project.clientEmail || "",
+  //     clientPhone: project.clientPhone || "",
+  //     address: project.address || "",
+  //     description: project.description,
+  //     privileges: project.privileges || {
+  //       read: false,
+  //       write: false,
+  //       delete: false,
+  //       admin: false,
+  //       exportImport: false,
+  //       manageUsers: false,
+  //       viewReports: false,
+  //     },
+  //   });
+  //   setIsModalOpen(true);
+  // };
 
   const handleDelete = (projectId: string) => {
     if (
@@ -296,8 +255,14 @@ export const Projects: React.FC = () => {
           </Button>
         </div>
 
+        {loading && (
+          <div className="text-center text-gray-500">Loading projects...</div>
+        )}
+        {error && (
+          <div className="text-center text-red-500">{error}</div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...projects, ...mockProjects].map((project, index) => {
+          {backendProjects.map((project, index) => {
             const style = cardStyles[index % cardStyles.length];
             const Icon = projectIcons[index % projectIcons.length];
             const daysLeft = project.endDate
@@ -313,8 +278,8 @@ export const Projects: React.FC = () => {
                 className={`relative rounded-2xl shadow-md border border-gray-200 bg-white ${style.border} cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-blue-300 hover:bg-blue-50`}
                 style={{ overflow: "visible" }}
                 onClick={() => {
-                  setSelectedProjectId(project.id);
-                  navigate(`/projects/${project.id}/project-management`);
+                  setSelectedProjectId(project?.projectId);
+                  navigate(`/projects/${project?.projectId}/project-management`);
                 }}
               >
                 <CardContent className="pt-7 pb-6 px-7">
@@ -323,7 +288,7 @@ export const Projects: React.FC = () => {
                       <Icon className={`w-7 h-7 ${style.iconColor}`} />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900">
-                      {project.name}
+                      {project?.projectName}
                     </h3>
                   </div>
                   <div className="flex items-center space-x-2 text-gray-700 mb-2">
@@ -360,8 +325,7 @@ export const Projects: React.FC = () => {
             );
           })}
         </div>
-
-        {projects.length === 0 && (
+        {backendProjects.length === 0 && !loading && !error && (
           <Card>
             <CardContent className="p-12 text-center">
               <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -468,7 +432,8 @@ export const Projects: React.FC = () => {
                     <option value="qa">QA Engineer</option>
                   </select>
                 </div>
-                <div>
+                {/* Remove or comment out the Project Manager select field if sampleManagers is not defined or not needed */}
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
                   <select
                     value={formData.manager}
@@ -483,7 +448,7 @@ export const Projects: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
                 {/* Project Manager Privileges Accordion - placed immediately after Project Manager */}
                 <div className="md:col-span-2 mb-2">
                   <div

@@ -1,4 +1,18 @@
 export interface Project {
+//  clientName: string; 
+//  country:string; 
+//  description:string;
+//  endDate: string;
+//  phoneNo:number;
+// projectId:string;
+// projectName:string;
+// startDate: string;
+// id:string;
+// state: string;
+// userFirstName: string;
+// userLastName: string;
+
+
   id: string;
   name: string;
   prefix: string; // Added
