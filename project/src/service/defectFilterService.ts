@@ -1,5 +1,3 @@
-import apiClient, { BASE_URL } from "../api/apiClient";
-
 export interface DefectFilterParams {
   projectId?: string;
   statusId?: string;
@@ -36,6 +34,7 @@ export const defectFilterService = async (filters: DefectFilterParams): Promise<
   if (filters.priorityId) params.priorityId = filters.priorityId;
   if (filters.typeId) params.typeId = filters.typeId;
 
+  // TODO: Replace with axios or fetch call
   const response = await apiClient.get(`/defect/filter`, { params, headers: { "Content-Type": "application/json" } });
   const data = response.data.data; // This is an array
   console.log(response);

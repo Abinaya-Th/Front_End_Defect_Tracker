@@ -23,7 +23,6 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
-import { getQAAllocationsByRelease } from "../api/qaAllocation/saveQAAllocation";
 import axios from 'axios';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -478,7 +477,7 @@ export const ReleaseView: React.FC = () => {
     addRelease,
     modulesByProject,
   } = useApp();
-  
+
   // State declarations - all at the top
   const [selectedProject, setSelectedProject] = useState<string | null>(
     projectId || null
@@ -506,8 +505,8 @@ export const ReleaseView: React.FC = () => {
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
-  const [qaAllocations, setQaAllocations] = useState<{[releaseId: string]: {[qaId: string]: string[]}}>({});
-  const [loadingQAAllocations, setLoadingQAAllocations] = useState<{[releaseId: string]: boolean}>({});
+  const [qaAllocations, setQaAllocations] = useState<{ [releaseId: string]: { [qaId: string]: string[] } }>({});
+  const [loadingQAAllocations, setLoadingQAAllocations] = useState<{ [releaseId: string]: boolean }>({});
 
   // Read allocations from localStorage (as set by allocation.tsx) with error handling
   const [allocatedTestCasesMap, setAllocatedTestCasesMap] = useState<{ [key: string]: string[] }>({});
@@ -542,7 +541,7 @@ export const ReleaseView: React.FC = () => {
   useEffect(() => {
     const existingAllocations = localStorage.getItem('qaAllocatedTestCases');
     const existingQAAllocations = localStorage.getItem('qaAllocations');
-    
+
     if (!existingAllocations) {
       // Sample allocation data for testing
       const sampleAllocations = {
@@ -554,7 +553,7 @@ export const ReleaseView: React.FC = () => {
       localStorage.setItem('qaAllocatedTestCases', JSON.stringify(sampleAllocations));
       setAllocatedTestCasesMap(sampleAllocations);
     }
-    
+
     if (!existingQAAllocations) {
       // Sample QA allocation mapping for testing
       const sampleQAAllocations = {
@@ -657,12 +656,12 @@ export const ReleaseView: React.FC = () => {
     (mockReleasesWithSamples || []).filter((r: any) => {
       // If no project selected, show all releases
       if (!selectedProject) return true;
-      
+
       // Special handling for PR0001 - show all PR0001 releases
       if (selectedProject === "PR0001") {
         return r.projectId === "PR0001";
       }
-      
+
       // For other projects, show releases for that project OR sample releases for PR0001
       const shouldShow = r.projectId === selectedProject || r.projectId === "PR0001";
       console.log(`Release ${r.id} (projectId: ${r.projectId}) - shouldShow: ${shouldShow} for selectedProject: ${selectedProject}`);
@@ -730,7 +729,7 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject, setSelectedProjectId]);
 
-  const getReleaseCardView = async() => {
+  const getReleaseCardView = async () => {
     try {
       const response = await projectReleaseCardView(selectedProject);
       setReleases(response.data || []);
@@ -745,32 +744,6 @@ export const ReleaseView: React.FC = () => {
     getReleaseCardView();
     getReleaseCardView();
   }, [selectedProject]);
-
-  const fetchQAAllocations = async (releaseId: string) => {
-    if (qaAllocations[releaseId]) return; // Already loaded
-    
-    setLoadingQAAllocations(prev => ({ ...prev, [releaseId]: true }));
-    try {
-      const response = await getQAAllocationsByRelease(releaseId);
-      setQaAllocations(prev => ({ 
-        ...prev, 
-        [releaseId]: response.data || {} 
-      }));
-    } catch (error) {
-      console.error("Error fetching QA allocations:", error);
-    } finally {
-      setLoadingQAAllocations(prev => ({ ...prev, [releaseId]: false }));
-    }
-  };
-
-  // Fetch QA allocations for all releases when they are loaded
-  useEffect(() => {
-    if (releases.length > 0) {
-      releases.forEach(release => {
-        fetchQAAllocations(release.id || release.releaseId);
-      });
-    }
-  }, [releases]);
 
   // Event handlers
   const handleProjectSelect = (projectId: string) => {
@@ -810,7 +783,7 @@ export const ReleaseView: React.FC = () => {
   const handleReleaseSearch = async (searchValue: string) => {
     setIsSearching(true);
     setSearchError("");
-    if(!searchValue){
+    if (!searchValue) {
       setSearchResults([])
       getReleaseCardView();
       setIsSearching(false);
@@ -827,8 +800,8 @@ export const ReleaseView: React.FC = () => {
         setSearchResults([]);
         setSearchError(
           error?.response?.data?.message ||
-            error?.message ||
-            "Failed to search releases"
+          error?.message ||
+          "Failed to search releases"
         );
       } finally {
         setIsSearching(false);
@@ -889,7 +862,7 @@ export const ReleaseView: React.FC = () => {
     if (loadingRelease) {
       return <div className="p-8 text-center">Loading release details...</div>;
     }
-      
+
     // Use fallback logic: if API fails, use mock data
     const currentRelease = apiRelease || (effectiveReleases || []).find((r: any) => r.id === selectedRelease);
     const currentProject = projects?.find((p) => p.id === selectedProject);
@@ -1083,7 +1056,7 @@ export const ReleaseView: React.FC = () => {
                   {filteredTestCases.map((testCase: TestCase) => {
                     const assignedQA = getAssignedQA(testCase.id);
                     const isAllocated = !!assignedQA;
-                    
+
                     return (
                       <tr key={testCase.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
@@ -1280,7 +1253,7 @@ export const ReleaseView: React.FC = () => {
           <input
             type="text"
             placeholder="Search releases by name..."
-            onChange={(e:any) => setReleaseSearch(e.target.value)}
+            onChange={(e: any) => setReleaseSearch(e.target.value)}
             value={releaseSearch}
             className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ minWidth: 220 }}
@@ -1362,7 +1335,7 @@ export const ReleaseView: React.FC = () => {
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                         {release.description}
                       </p>
-                    
+
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="flex items-center space-x-2">
@@ -1381,8 +1354,8 @@ export const ReleaseView: React.FC = () => {
                             <p className="text-sm font-medium text-gray-900">
                               {release.releaseDate
                                 ? new Date(
-                                    release.releaseDate
-                                  ).toLocaleDateString()
+                                  release.releaseDate
+                                ).toLocaleDateString()
                                 : "TBD"}
                             </p>
                           </div>
