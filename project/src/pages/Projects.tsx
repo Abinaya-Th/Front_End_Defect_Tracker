@@ -153,6 +153,7 @@ export const Projects: React.FC = () => {
     },
   ];
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -487,7 +488,7 @@ export const Projects: React.FC = () => {
                   </select>
                 </div>
                 {/* Remove or comment out the Project Manager select field if sampleManagers is not defined or not needed */}
-                {/* <div>
+                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
                   <select
                     value={formData.manager}
@@ -502,7 +503,7 @@ export const Projects: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                </div> */}
+                </div> 
                 {/* Project Manager Privileges Accordion - placed immediately after Project Manager */}
                 <div className="md:col-span-2 mb-2">
                   <div
