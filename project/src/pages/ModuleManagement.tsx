@@ -18,6 +18,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi } from "../api/module/createModule";
+import { Module, Submodule } from "../types/index";
+
+type ModuleAssignment = {
+  moduleId: string;
+  submoduleId?: string;
+  employeeIds: string[];
+};
 
 export const ModuleManagement: React.FC = () => {
   const { projectId } = useParams();
@@ -80,46 +88,45 @@ export const ModuleManagement: React.FC = () => {
       emp.department.toLowerCase().includes("engineering")
   );
 
-  const handleAddModule = () => {
-    
-
-    console.log("Adding module with form data:", moduleForm);
-
+  const handleAddModule = async () => {
     if (moduleForm.name.trim() && selectedProjectId) {
-      const newModule = {
-        id: `mod-${Date.now()}`,
-        name: moduleForm.name,
-        assignedDevs: [],
-        submodules: moduleForm.submodules
-          .filter((sub) => sub.name.trim())
-          .map((sub) => ({
-            id: `sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: sub.name,
-            assignedDevs: [],
-          })),
-      };
-      addModule(selectedProjectId, newModule);
-      setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
-      setIsAddModuleModalOpen(false);
+      const payload = {
+        moduleName: moduleForm.name,
+        projectId: selectedProjectId,
+        
+      }
+      console.log({payload});
+      
+      try {
+        // Call backend API to create module
+        const response = await createModuleApi(payload);
+        if (response.success && response.module) {
+          addModule(selectedProjectId, response.module);
+        }
+        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setIsAddModuleModalOpen(false);
+      } catch (error) {
+        alert("Failed to add module. Please try again.");
+      }
     }
   };
 
   const handleAddSubmodule = () => {
-    setModuleForm((prev) => ({
+    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
       ...prev,
       submodules: [...prev.submodules, { id: "", name: "" }],
     }));
   };
 
   const handleRemoveSubmodule = (index: number) => {
-    setModuleForm((prev) => ({
+    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
       ...prev,
       submodules: prev.submodules.filter((_, i) => i !== index),
     }));
   };
 
   const handleSubmoduleChange = (index: number, value: string) => {
-    setModuleForm((prev) => ({
+    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
       ...prev,
       submodules: prev.submodules.map((sub, i) =>
         i === index ? { ...sub, name: value } : sub
@@ -181,33 +188,43 @@ export const ModuleManagement: React.FC = () => {
     setIsEditModuleModalOpen(true);
   };
 
-  const handleUpdateModule = () => {
+  const handleUpdateModule = async () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
-      updateModule(selectedProjectId, editingModule.id, {
-        name: moduleForm.name,
-        submodules: moduleForm.submodules
-          .filter((sub) => sub.name.trim())
-          .map((sub) => ({
-            id:
-              sub.id ||
-              `sub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: sub.name,
-            assignedDevs: editingModule.assignedDevs || [],
-          })),
-      });
-      setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
-      setEditingModule(null);
-      setIsEditModuleModalOpen(false);
+      try {
+        const response = await updateModuleApi(editingModule.id, {
+          moduleName: moduleForm.name,
+          submodules: moduleForm.submodules
+            .filter((sub) => sub.name.trim())
+            .map((sub) => ({ name: sub.name })),
+        });
+        if (response.success && response.module) {
+          updateModule(selectedProjectId, editingModule.id, response.module);
+        }
+        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setEditingModule(null);
+        setIsEditModuleModalOpen(false);
+      } catch (error) {
+        alert("Failed to update module. Please try again.");
+      }
     }
   };
 
-  const handleDeleteModule = (moduleId: string) => {
+  const handleDeleteModule = async (moduleId: string) => {
     if (
       window.confirm(
         "Are you sure you want to delete this module? This will also delete all submodules."
       )
     ) {
-      if (selectedProjectId) deleteModule(selectedProjectId, moduleId);
+      if (selectedProjectId) {
+        try {
+          const response = await deleteModuleApi(moduleId);
+          if (response.success) {
+            deleteModule(selectedProjectId, moduleId);
+          }
+        } catch (error) {
+          alert("Failed to delete module. Please try again.");
+        }
+      }
     }
   };
 
@@ -814,12 +831,12 @@ export const ModuleManagement: React.FC = () => {
                     checked={assignmentForm.employeeIds.includes(dev.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setAssignmentForm((prev) => ({
+                        setAssignmentForm((prev: ModuleAssignment) => ({
                           ...prev,
                           employeeIds: [...prev.employeeIds, dev.id],
                         }));
                       } else {
-                        setAssignmentForm((prev) => ({
+                        setAssignmentForm((prev: ModuleAssignment) => ({
                           ...prev,
                           employeeIds: prev.employeeIds.filter(
                             (id) => id !== dev.id
@@ -982,12 +999,12 @@ export const ModuleManagement: React.FC = () => {
                     checked={assignmentForm.employeeIds.includes(dev.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setAssignmentForm((prev) => ({
+                        setAssignmentForm((prev: ModuleAssignment) => ({
                           ...prev,
                           employeeIds: [...prev.employeeIds, dev.id],
                         }));
                       } else {
-                        setAssignmentForm((prev) => ({
+                        setAssignmentForm((prev: ModuleAssignment) => ({
                           ...prev,
                           employeeIds: prev.employeeIds.filter(
                             (id) => id !== dev.id
