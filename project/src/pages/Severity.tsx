@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableRow } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { createSeverity, CreateSeverityRequest } from '../api/severity';
 
 interface Severity {
   id: number;
@@ -15,12 +16,7 @@ interface Severity {
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
-  const [severities, setSeverities] = useState<Severity[]>([
-    { id: 1, name: 'Critical', color: '#dc2626' },
-    { id: 2, name: 'High', color: '#ea580c' },
-    { id: 3, name: 'Medium', color: '#ca8a04' },
-    { id: 4, name: 'Low', color: '#16a34a' },
-  ]);
+  const [severities, setSeverities] = useState<Severity[]>([]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,14 +35,20 @@ const Severity: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newSeverity: Severity = {
-      id: Math.max(...severities.map(s => s.id)) + 1,
-      ...formData,
-    };
-    setSeverities([...severities, newSeverity]);
-    setIsCreateModalOpen(false);
-    resetForm();
+  const handleCreate = async () => {
+    try {
+      const payload: CreateSeverityRequest = {
+        name: formData.name,
+        color: formData.color,
+      };
+      const response = await createSeverity(payload);
+      setSeverities([...severities, response.data]);
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Failed to create severity:', error);
+      // Optionally show error to user
+    }
   };
 
   const handleEdit = () => {
