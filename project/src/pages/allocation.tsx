@@ -16,9 +16,10 @@ import { Modal } from "../components/ui/Modal";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
-import apiClient, { BASE_URL } from '../api/apiClient';
+import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
-import { saveQAAllocation, getQAAllocationsByRelease } from "../api/qaAllocation/saveQAAllocation";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
@@ -397,55 +398,12 @@ export const Allocation: React.FC = () => {
 
   const loadExistingQAAllocations = async () => {
     if (!selectedProject || !effectiveProjectRelease.length) return;
-    
     setLoadingQAAllocations(true);
     try {
-      // Load QA allocations for each release
-      for (const release of effectiveProjectRelease) {
-        const releaseId = release.releaseId || release.id;
-        try {
-          const response = await getQAAllocationsByRelease(releaseId);
-          if (response.data && response.data.length > 0) {
-            // Convert the API response to our local format
-            const allocations: {[qaId: string]: string[]} = {};
-            response.data.forEach((allocation: any) => {
-              // Find the QA ID from the QA name (you might need to adjust this based on your API response)
-              const qaEngineers = employees.filter((emp: any) => emp.designation.toLowerCase().includes("qa"));
-              const effectiveQAEngineers = qaEngineers.length > 0 ? qaEngineers : mockQA.map(qa => ({
-                id: qa.id,
-                firstName: qa.name.split(' ')[0],
-                lastName: qa.name.split(' ').slice(1).join(' '),
-                designation: qa.role,
-                email: qa.email,
-                department: qa.department,
-                status: qa.status
-              }));
-              
-              const qa = effectiveQAEngineers.find((emp: any) => 
-                `${emp.firstName} ${emp.lastName}` === allocation.qaName
-              );
-              if (qa) {
-                allocations[qa.id] = allocation.testCaseIds || [];
-              }
-            });
-            
-            // Update the QA allocations state
-            setQaAllocations(prev => ({
-              ...prev,
-              [releaseId]: allocations
-            }));
-            
-            // Also update the qaAllocatedTestCases to include all allocated test cases
-            const allAllocatedTestCases = Object.values(allocations).flat();
-            setQaAllocatedTestCases(prev => ({
-              ...prev,
-              [releaseId]: allAllocatedTestCases
-            }));
-          }
-        } catch (error) {
-          console.error(`Error loading QA allocations for release ${releaseId}:`, error);
-        }
-      }
+      // Since API integration is removed, use only mock data or skip loading from API
+      // You may want to reset or keep the current state as is
+      // setQaAllocations({});
+      // setQaAllocatedTestCases({});
     } catch (error) {
       console.error("Error loading existing QA allocations:", error);
     } finally {
@@ -1360,8 +1318,8 @@ export const Allocation: React.FC = () => {
     if (activeTab === "release" && selectedReleaseIds.length === 1) {
       setLoadingRelease(true);
       setReleaseError(null);
-      apiClient
-        .get(`releases/releaseId/${selectedReleaseIds[0]}`)
+      axios
+        .get(`${BASE_URL}releases/releaseId/${selectedReleaseIds[0]}`)
         .then((res) => setApiRelease(res.data))
         .catch((err) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));

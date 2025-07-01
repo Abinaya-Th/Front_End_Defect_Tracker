@@ -1,4 +1,6 @@
-import apiClient from "../apiClient";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface ProjectReleaseProps {
     message: string;
@@ -8,7 +10,7 @@ export interface ProjectReleaseProps {
 }
 
 export const projectReleaseCardView = (projectId: string | null): Promise<ProjectReleaseProps> => {
-    return apiClient
-        .get<ProjectReleaseProps>(`releases/projectId/${projectId}`)
+    return axios
+        .get<ProjectReleaseProps>(`${BASE_URL}releases/projectId/${projectId}`)
         .then(({ data }) => data);
 };

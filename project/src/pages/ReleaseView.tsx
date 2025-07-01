@@ -24,7 +24,8 @@ import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardVie
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
 import { getQAAllocationsByRelease } from "../api/qaAllocation/saveQAAllocation";
-import apiClient from "../api/apiClient";
+import axios from 'axios';
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Define interfaces for our data types
 interface TestCase {
@@ -714,8 +715,7 @@ export const ReleaseView: React.FC = () => {
     if (selectedRelease) {
       setLoadingRelease(true);
       setReleaseError(null);
-      apiClient
-        .get(`releases/releaseId/${selectedRelease}`)
+      axios.get(`${BASE_URL}/releases/releaseId/${selectedRelease}`)
         .then((res: any) => setApiRelease(res.data))
         .catch((err: any) => setReleaseError(err.message))
         .finally(() => setLoadingRelease(false));
