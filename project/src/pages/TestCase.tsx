@@ -18,6 +18,8 @@ import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
+import { Project } from "../types";
+import { getAllProjects } from "../api/projectget";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
@@ -114,6 +116,7 @@ export const TestCase: React.FC = () => {
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
+   const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
 
   // 1. Add state to track if modal is in edit mode
   const isEditMode = modals[currentModalIdx]?.formData?.id !== undefined && modals[currentModalIdx]?.formData?.id !== '';
@@ -146,6 +149,7 @@ export const TestCase: React.FC = () => {
       setTestCases([]);
     }
   }, [selectedSubmodule]);
+console.log("--------",backendProjects);
 
   // --- Add test case ---
   const addTestCase = async (formData: ModalFormData) => {
@@ -507,6 +511,19 @@ export const TestCase: React.FC = () => {
     setViewingTestCase(testCase);
     setIsViewTestCaseModalOpen(true);
   };
+    useEffect(() => {
+      getAllProjects()
+            .then((data: any) => {
+              console.log("Fetched projects:", data); // Debug: log the response
+              let projectsArray = Array.isArray(data)
+                ? data
+                : (data && Array.isArray(data.data))
+                  ? data.data
+                  : [];
+              setBackendProjects(projectsArray);
+            
+            })
+    },[])
 
   // const toggleRowExpansion = (testCaseId: string) => {
   //   setExpandedRows((prev) => {
@@ -534,7 +551,7 @@ export const TestCase: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
               {selectedProjectId
-                ? `Project: ${projects.find((p) => p.id === selectedProjectId)?.name}`
+                ? `Project: ${backendProjects.find((p) => p.id === selectedProjectId)?.name}`
                 : "Select a project to begin"}
             </p>
           </div>
