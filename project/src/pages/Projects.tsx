@@ -190,7 +190,11 @@ export const Projects: React.FC = () => {
           email: formData.clientEmail,
           phoneNo: formData.clientPhone,
         };
-        await createProject(payload);
+        console.log(payload);
+        
+       const response = await createProject(payload);
+       console.log(response);
+
         // Optionally, refresh project list here
       }
       resetForm();
