@@ -551,7 +551,7 @@ console.log("--------",backendProjects);
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
               {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.projectId === selectedProjectId)?.projectName || ''}`
+                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.projectName || ''}`
                 : "Select a project to begin"}
             </p>
           </div>

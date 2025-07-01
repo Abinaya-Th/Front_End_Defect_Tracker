@@ -65,8 +65,8 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             {backendProjects.map((project) => (
               <Button
                 key={project.id}
-                variant={selectedProjectId === project?.projectId ? 'primary' : 'secondary'}
-                onClick={() => onSelect(project?.projectId)}
+                variant={selectedProjectId === project?.id ? 'primary' : 'secondary'}
+                onClick={() => onSelect(project?.id)}
                 className="whitespace-nowrap m-2"
               >
                 {project?.projectName}

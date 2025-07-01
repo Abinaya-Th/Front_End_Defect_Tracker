@@ -81,7 +81,7 @@ export const ModuleManagement: React.FC = () => {
   );
 
   const handleAddModule = () => {
-    console.log("------------------------");
+    
 
     console.log("Adding module with form data:", moduleForm);
 
