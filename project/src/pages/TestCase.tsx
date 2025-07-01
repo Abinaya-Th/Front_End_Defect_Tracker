@@ -20,6 +20,11 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { searchTestCases } from "../api/testCase/searchTestCase";
+import { updateTestCase } from "../api/testCase/updateTestCase";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
@@ -27,33 +32,25 @@ const mockProjects = [
   { id: "PROJ001", name: "Project Alpha" },
   { id: "PROJ002", name: "Project Beta" },
 ];
-const mockModulesByProject: Record<string, any[]> = {
-  PROJ001: [
+// --- MOCK DATA for modules/submodules by projectId (numeric IDs matching DB) ---
+const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
+  "1": [
     {
-      id: "MOD001",
-      name: "Module 1",
-      submodules: [
-        { id: 1, code: "SUB001", name: "Submodule 1" },
-        { id: 2, code: "SUB002", name: "Submodule 2" },
-      ],
-    },
-    {
-      id: "MOD002",
+      id: "2",
       name: "Module 2",
       submodules: [
-        { id: "SUB003", name: "Submodule 3" },
-      ],
+        { id: "2", name: "Submodule 2" },
+        { id: "3", name: "Submodule 3" }
+      ]
     },
-  ],
-  PROJ002: [
     {
-      id: "MOD003",
+      id: "3",
       name: "Module 3",
       submodules: [
-        { id: "SUB004", name: "Submodule 4" },
-      ],
-    },
-  ],
+        { id: "3", name: "Submodule 3" }
+      ]
+    }
+  ]
 };
 
 
@@ -62,14 +59,10 @@ export const TestCase: React.FC = () => {
   const navigate = useNavigate();
   // --- State for projects/modules/submodules (mock) ---
   const [projects] = useState(mockProjects);
-  const [modulesByProject] = useState(mockModulesByProject);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
-  const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState("");
-
-  // --- Test case state (mock only, integrations removed) ---
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
-  // const [loading, setLoading] = useState(false); // Unused
 
   // ... keep other UI state as before ...
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
@@ -116,7 +109,7 @@ export const TestCase: React.FC = () => {
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
-   const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
+  const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
 
   // 1. Add state to track if modal is in edit mode
   const isEditMode = modals[currentModalIdx]?.formData?.id !== undefined && modals[currentModalIdx]?.formData?.id !== '';
@@ -124,56 +117,39 @@ export const TestCase: React.FC = () => {
   // Add after state declarations
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Integrations removed: No fetching test cases from backend ---
+  // Get modules for selected project
+  const projectModules = selectedProjectId ? mockModulesByProject[selectedProjectId] || [] : [];
+  // Get submodules for selected module
+  const submodules = selectedModuleId !== null ? (projectModules.find(m => m.id === selectedModuleId)?.submodules || []) : [];
+
+  // Add state for severities and defect types
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+
+  // Fetch test cases when projectId and submoduleId are selected
   useEffect(() => {
-    setTestCases([]);
-  }, [selectedSubmodule]);
-// console.log("--------",backendProjects);
+    if (!selectedProjectId || selectedSubmoduleId === null) return;
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+      // Map moduleId/subModuleId to names for display
+      const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
+      const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
+      setTestCases(
+        data.map(tc => ({
+          ...tc,
+          module: moduleMap[tc.moduleId] || tc.moduleId,
+          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+          severity: severities.find(s => s.id === tc.severityId)?.name || "",
+          type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
+        }))
+      );
+    });
+  }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
 
-  // --- Add test case (integration removed) ---
-  const addTestCase = async (formData: ModalFormData) => {
-    // Integration removed: just update local state (mock)
-    setTestCases((prev) => [
-      ...prev,
-      {
-        id: formData.id || `TC-${Date.now()}`,
-        description: formData.description,
-        steps: formData.steps,
-        subModule: formData.subModule,
-        module: formData.module,
-        projectId: formData.projectId,
-        severity: formData.severity,
-        type: formData.type,
-      },
-    ]);
-  };
-
-  // --- Update test case (integration removed) ---
-  const updateTestCase = async (formData: ModalFormData) => {
-    // Integration removed: just update local state (mock)
-    setTestCases((prev) =>
-      prev.map((tc) =>
-        tc.id === formData.id
-          ? {
-              ...tc,
-              description: formData.description,
-              steps: formData.steps,
-              subModule: formData.subModule,
-              module: formData.module,
-              projectId: formData.projectId,
-              severity: formData.severity,
-              type: formData.type,
-            }
-          : tc
-      )
-    );
-  };
-
-  // --- Delete test case (integration removed) ---
-  const deleteTestCase = async (testCaseId: string) => {
-    // Integration removed: just update local state (mock)
-    setTestCases((prev) => prev.filter((tc) => tc.id !== testCaseId));
-  };
+  // Fetch severities and defect types on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -183,9 +159,6 @@ export const TestCase: React.FC = () => {
       </div>
     );
   }
-
-  // Get modules for selected project from context
-  const projectModules = selectedProjectId ? modulesByProject[String(selectedProjectId)] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
   const selectedTestCaseIds = useMemo(() => {
@@ -231,8 +204,8 @@ export const TestCase: React.FC = () => {
 
   // Handle module selection
   // const handleModuleSelect = (moduleId: string) => {
-  //   setSelectedModule(moduleId);
-  //   setSelectedSubmodule("");
+  //   setSelectedModuleId(Number(moduleId));
+  //   setSelectedSubmoduleId(null);
   //   setSelectedTestCases([]);
   //   fetch(`${BASE_URL}testcase/module/${moduleId}`)
   //     .then((res) => res.json())
@@ -252,9 +225,11 @@ export const TestCase: React.FC = () => {
   // };
 
   // Handle submodule selection (just highlight, no fetch)
-  const handleSubmoduleSelect = (submoduleId: string | number) => {
-    setSelectedSubmodule(String(submoduleId));
+  const handleSubmoduleSelect = (submoduleId: string | null) => {
+    setSelectedSubmoduleId(submoduleId);
     setSelectedTestCases([]);
+    setSearchResults(null);
+    setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
   };
 
   // When selection changes, update selectedTestCases for bulk actions
@@ -354,15 +329,28 @@ export const TestCase: React.FC = () => {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "TestCases");
-    XLSX.writeFile(wb, `TestCases_${selectedProjectId}_${selectedModule}.xlsx`);
+    XLSX.writeFile(wb, `TestCases_${selectedProjectId}_${selectedModuleId}.xlsx`);
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
+    for (const { formData } of modals) {
       if (formData.id) {
-        // Edit mode
-        updateTestCase({ ...formData });
+        // Map module and submodule names to IDs
+        const moduleObj = projectModules.find(m => m.name === formData.module);
+        const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+        await updateTestCase(formData.id, {
+          testcaseId: Number(formData.id),
+          testcase: formData.description, // Use description as the title/name
+          description: formData.description,
+          steps: formData.steps,
+          subModuleId: submoduleObj ? Number(submoduleObj.id) : undefined,
+          moduleId: moduleObj ? Number(moduleObj.id) : undefined,
+          projectId: formData.projectId ? Number(formData.projectId) : undefined,
+          severityId: severities.find(s => s.name === formData.severity)?.id,
+          typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+        });
       } else {
         // Add mode
         addTestCase({
@@ -375,7 +363,7 @@ export const TestCase: React.FC = () => {
           projectId: selectedProjectId,
         });
       }
-    });
+    }
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);
@@ -395,6 +383,22 @@ export const TestCase: React.FC = () => {
       ]);
       setCurrentModalIdx(0);
       // setIsModalOpen(false); // isModalOpen state is removed
+      // Refresh test cases after update
+      if (selectedProjectId && selectedSubmoduleId !== null) {
+        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+          const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
+          const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
+          setTestCases(
+            data.map(tc => ({
+              ...tc,
+              module: moduleMap[tc.moduleId] || tc.moduleId,
+              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+              severity: severities.find(s => s.id === tc.severityId)?.name || "",
+              type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
+            }))
+          );
+        });
+      }
     }, 1200);
   };
 
@@ -438,7 +442,7 @@ export const TestCase: React.FC = () => {
     setViewingTestCase(testCase);
     setIsViewTestCaseModalOpen(true);
   };
-    // Integration removed: no fetching of all projects
+  // Integration removed: no fetching of all projects
 
   // const toggleRowExpansion = (testCaseId: string) => {
   //   setExpandedRows((prev) => {
@@ -456,6 +460,16 @@ export const TestCase: React.FC = () => {
   //   setSelectedDescription(description);
   //   setIsDescriptionModalOpen(true);
   // };
+
+  // Add state for search filters and search results
+  const [searchFilters, setSearchFilters] = useState({
+    description: "",
+    typeId: "",
+    severityId: "",
+    submoduleId: "",
+  });
+  const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -490,14 +504,10 @@ export const TestCase: React.FC = () => {
           {selectedProjectId && (
             <ModuleSelector
               modules={projectModules}
-              selectedModuleId={
-                projectModules.find((m: any) => m.name === selectedModule)?.id ||
-                null
-              }
+              selectedModuleId={selectedModuleId}
               onSelect={(id) => {
-                const mod = projectModules.find((m: any) => m.id === id);
-                setSelectedModule(mod ? mod.name : "");
-                setSelectedSubmodule("");
+                setSelectedModuleId(id);
+                setSelectedSubmoduleId(null);
                 setSelectedTestCases([]);
               }}
               className="mb-4"
@@ -505,7 +515,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Submodule Selection Panel */}
-          {selectedProjectId && selectedModule && (
+          {selectedProjectId && selectedModuleId && (
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
@@ -533,64 +543,61 @@ export const TestCase: React.FC = () => {
                       maxWidth: "100%",
                     }}
                   >
-                    {projectModules
-                      .find((m: any) => m.name === selectedModule)
-                      ?.submodules.map((submodule: any) => {
-                        const submoduleTestCases = testCases.filter(
-                          (tc: TestCaseType) =>
-                            tc.projectId === selectedProjectId &&
-                            tc.module === selectedModule &&
-                            tc.subModule === submodule.name
-                        );
-                        return (
-                          <div key={submodule.id} className="flex items-center">
-                            <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
-                              <Button
-                                variant={
-                                  selectedSubmodule === submodule.name
-                                    ? "primary"
-                                    : "secondary"
-                                }
-                                onClick={() => handleSubmoduleSelect(String(submodule.id))}
-                                className="whitespace-nowrap border-0 m-2"
-                              >
-                                {submodule.name}
-                                <Badge variant="info" className="ml-2">
-                                  {submoduleTestCases.length}
-                                </Badge>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setModals((prev) => {
-                                    const newModals = [
-                                      ...prev,
-                                      {
-                                        open: true,
-                                        formData: {
-                                          module: selectedModule,
-                                          subModule: submodule.name,
-                                          description: "",
-                                          steps: "",
-                                          type: "functional",
-                                          severity: "medium",
-                                          projectId: selectedProjectId,
-                                        },
+                    {projectModules.map((module: any) => {
+                      const submoduleTestCases = testCases.filter(
+                        (tc: TestCaseType) =>
+                          tc.projectId === selectedProjectId &&
+                          tc.module === module.name
+                      );
+                      return (
+                        <div key={module.id} className="flex items-center">
+                          <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
+                            <Button
+                              variant={
+                                selectedSubmoduleId === module.id
+                                  ? "primary"
+                                  : "secondary"
+                              }
+                              onClick={() => handleSubmoduleSelect(module.id)}
+                              className="whitespace-nowrap border-0 m-2"
+                            >
+                              {module.name}
+                              <Badge variant="info" className="ml-2">
+                                {submoduleTestCases.length}
+                              </Badge>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setModals((prev) => {
+                                  const newModals = [
+                                    ...prev,
+                                    {
+                                      open: true,
+                                      formData: {
+                                        module: module.name,
+                                        subModule: "",
+                                        description: "",
+                                        steps: "",
+                                        type: "functional",
+                                        severity: "medium",
+                                        projectId: selectedProjectId,
                                       },
-                                    ];
-                                    setCurrentModalIdx(newModals.length - 1);
-                                    return newModals;
-                                  });
-                                }}
-                                className="p-1 border-0 hover:bg-gray-50"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </Button>
-                            </div>
+                                    },
+                                  ];
+                                  setCurrentModalIdx(newModals.length - 1);
+                                  return newModals;
+                                });
+                              }}
+                              className="p-1 border-0 hover:bg-gray-50"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           </div>
-                        );
-                      })}
+                        </div>
+                      );
+                    })}
                   </div>
                   <button
                     onClick={() => {
@@ -608,7 +615,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Bulk Operations Panel */}
-          {selectedProjectId && selectedModule && selectedTestCases.length > 0 && (
+          {selectedProjectId && selectedModuleId && selectedTestCases.length > 0 && (
             <div className="flex justify-end space-x-3 mb-4">
               <Button
                 onClick={() => {
@@ -630,7 +637,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Filter Options Above Table */}
-          {selectedProjectId && selectedModule && (
+          {selectedProjectId && selectedModuleId && (
             <div className="flex justify-end gap-2 mb-2">
               <button
                 type="button"
@@ -682,8 +689,91 @@ export const TestCase: React.FC = () => {
             </div>
           )}
 
+          {/* Add a search/filter panel above the table */}
+          {selectedProjectId && selectedModuleId && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <form
+                  className="flex flex-wrap gap-4 items-end"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setIsSearching(true);
+                    try {
+                      const params: any = {};
+                      if (searchFilters.description) params.description = searchFilters.description;
+                      if (searchFilters.typeId) params.typeId = Number(searchFilters.typeId);
+                      if (searchFilters.severityId) params.severityId = Number(searchFilters.severityId);
+                      const res = await searchTestCases(params);
+                      const normalized = (res.data || []).map(tc => ({
+                        ...tc,
+                        type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
+                        severity: severities.find(s => s.id === tc.severityId)?.name || "",
+                      }));
+                      setSearchResults(normalized);
+                    } finally {
+                      setIsSearching(false);
+                    }
+                  }}
+                >
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                    <input
+                      type="text"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Search by description"
+                      value={searchFilters.description}
+                      onChange={e => setSearchFilters(f => ({ ...f, description: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                    <select
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={searchFilters.typeId}
+                      onChange={e => setSearchFilters(f => ({ ...f, typeId: e.target.value }))}
+                    >
+                      <option value="">All</option>
+                      {defectTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.defectTypeName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Severity</label>
+                    <select
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={searchFilters.severityId}
+                      onChange={e => setSearchFilters(f => ({ ...f, severityId: e.target.value }))}
+                    >
+                      <option value="">All</option>
+                      {severities.map(sev => (
+                        <option key={sev.id} value={sev.id}>{sev.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                      {isSearching ? "Searching..." : "Search"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="px-4 py-2 rounded"
+                      onClick={() => {
+                        setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
+                        setSearchResults(null);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Test Cases Table - Now with dynamic height */}
-          {selectedProjectId && selectedModule && (
+          {selectedProjectId && selectedModuleId && (
             <Card>
               <CardContent className="p-0">
                 <table className="w-full">
@@ -721,7 +811,7 @@ export const TestCase: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTestCases.map((testCase: TestCaseType) => (
+                    {(searchResults !== null ? searchResults : filteredTestCases).map((testCase: TestCaseType) => (
                       <tr key={testCase.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
@@ -941,7 +1031,7 @@ export const TestCase: React.FC = () => {
                         required
                       >
                         <option value="">Select Module</option>
-                        {(modulesByProject[String(selectedProjectId)] || []).map((module: any) => (
+                        {projectModules.map((module: any) => (
                           <option key={module.id} value={module.name}>
                             {module.name}
                           </option>
@@ -962,19 +1052,11 @@ export const TestCase: React.FC = () => {
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {(
-                            modulesByProject[String(selectedProjectId)]?.find(
-                              (m: any) => m.name === modal.formData.module
-                            )?.submodules || []
-                          ).length === 0
+                          {(projectModules.find(m => m.name === modal.formData.module)?.submodules.length === 0
                             ? "No submodules"
-                            : "Select Sub Module (optional)"}
+                            : "Select Sub Module (optional)")}
                         </option>
-                        {(
-                          modulesByProject[String(selectedProjectId)]?.find(
-                            (m: any) => m.name === modal.formData.module
-                          )?.submodules || []
-                        ).map((submodule: any) => (
+                        {projectModules.find(m => m.name === modal.formData.module)?.submodules.map((submodule: any) => (
                           <option key={submodule.id} value={submodule.name}>
                             {submodule.name}
                           </option>
@@ -993,10 +1075,10 @@ export const TestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
+                        <option value="">Select Type</option>
+                        {defectTypes.map(type => (
+                          <option key={type.id} value={type.defectTypeName}>{type.defectTypeName}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1011,10 +1093,10 @@ export const TestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
+                        <option value="">Select Severity</option>
+                        {severities.map(sev => (
+                          <option key={sev.id} value={sev.name}>{sev.name}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
