@@ -33,6 +33,7 @@ import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { ProjectFormData, Project } from "../types";
 import { useNavigate } from "react-router-dom";
+import { createProject } from "../api/project";
 
 // Mock data for initial projects
 const mockProjects: Project[] = [
@@ -106,7 +107,7 @@ export const Projects: React.FC = () => {
     status: "active",
     startDate: "",
     endDate: "",
-    role: "",
+    designation: "",
     manager: "",
     clientName: "",
     clientCountry: "",
@@ -125,6 +126,8 @@ export const Projects: React.FC = () => {
       viewReports: false,
     },
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sampleManagers = [
     {
@@ -161,24 +164,41 @@ export const Projects: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProject) {
-      updateProject({
-        ...formData,
-        id: editingProject.id,
-        teamMembers: editingProject.teamMembers || [],
-        createdAt: editingProject.createdAt,
-      });
-    } else {
-      addProject({
-        ...formData,
-        id: `PRJ-${Date.now()}`,
-        teamMembers: [],
-        createdAt: new Date().toISOString(),
-      });
+    setError(null);
+    setLoading(true);
+    try {
+      if (editingProject) {
+        updateProject({
+          ...formData,
+          id: editingProject.id,
+          teamMembers: editingProject.teamMembers || [],
+          createdAt: editingProject.createdAt,
+        });
+      } else {
+        // Map formData to API payload
+        const payload = {
+          projectName: formData.name,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          userId: formData.manager, // Assuming manager is userId
+          description: formData.description,
+          clientName: formData.clientName,
+          country: formData.clientCountry,
+          state: formData.clientState,
+          email: formData.clientEmail,
+          phoneNo: formData.clientPhone,
+        };
+        await createProject(payload);
+        // Optionally, refresh project list here
+      }
+      resetForm();
+    } catch (err: any) {
+      setError("Failed to create project. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    resetForm();
   };
 
   const handleEdit = (project: Project) => {
@@ -190,7 +210,7 @@ export const Projects: React.FC = () => {
       status: project.status,
       startDate: project.startDate,
       endDate: project.endDate,
-      role: project.role || "",
+      designation: project.designation || "",
       manager: project.manager,
       clientName: project.clientName || "",
       clientCountry: project.clientCountry || "",
@@ -230,7 +250,7 @@ export const Projects: React.FC = () => {
       status: "active",
       startDate: "",
       endDate: "",
-      role: "",
+      designation: "",
       manager: "",
       clientName: "",
       clientCountry: "",
@@ -451,16 +471,16 @@ export const Projects: React.FC = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                   />
                 </div>
-                {/* Row 4: Role | Project Manager */}
+                {/* Row 4: designation | Project Manager */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
                   <select
-                    value={formData.role}
-                    onChange={(e) => handleInputChange("role", e.target.value)}
+                    value={formData.designation}
+                    onChange={(e) => handleInputChange("designation", e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                     required
                   >
-                    <option value="">Select Role</option>
+                    <option value="">Select Designation</option>
                     <option value="project_manager">Project Manager</option>
                     <option value="team_lead">Team Lead</option>
                     <option value="developer">Developer</option>

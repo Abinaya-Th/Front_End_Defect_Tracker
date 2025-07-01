@@ -6,7 +6,7 @@ export interface Project {
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
-  role?: string;
+  designation?: string;
   manager: string;
   teamMembers: string[];
   progress?: number;
@@ -36,7 +36,7 @@ export interface ProjectFormData {
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
-  role: string;
+  designation: string;
   manager: string;
   clientName: string;
   clientCountry: string;
