@@ -51,4 +51,4 @@ const Status: React.FC = () => {
   );
 };
 
-export default Status; 
+export default Status;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -6,27 +6,19 @@ import { Table, TableBody, TableCell, TableRow } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Severity {
-  id: number;
-  name: string;
-  color: string;
-}
+import { getSeverities, createSeverity as apiCreateSeverity, updateSeverity as apiUpdateSeverity, deleteSeverity as apiDeleteSeverity, Severity as SeverityType } from '../api/severity';
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
-  const [severities, setSeverities] = useState<Severity[]>([
-    { id: 1, name: 'Critical', color: '#dc2626' },
-    { id: 2, name: 'High', color: '#ea580c' },
-    { id: 3, name: 'Medium', color: '#ca8a04' },
-    { id: 4, name: 'Low', color: '#16a34a' },
-  ]);
+  const [severities, setSeverities] = useState<SeverityType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingSeverity, setEditingSeverity] = useState<Severity | null>(null);
-  const [deletingSeverity, setDeletingSeverity] = useState<Severity | null>(null);
+  const [editingSeverity, setEditingSeverity] = useState<SeverityType | null>(null);
+  const [deletingSeverity, setDeletingSeverity] = useState<SeverityType | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     color: '#000000',
@@ -39,42 +31,77 @@ const Severity: React.FC = () => {
     });
   };
 
-  const handleCreate = () => {
-    const newSeverity: Severity = {
-      id: Math.max(...severities.map(s => s.id)) + 1,
-      ...formData,
+  useEffect(() => {
+    const fetchSeverities = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getSeverities();
+        setSeverities(res.data);
+      } catch (err: any) {
+        setError('Failed to fetch severities');
+      } finally {
+        setLoading(false);
+      }
     };
-    setSeverities([...severities, newSeverity]);
-    setIsCreateModalOpen(false);
-    resetForm();
+    fetchSeverities();
+  }, []);
+
+  const handleCreate = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiCreateSeverity(formData);
+      setSeverities([...severities, res.data]);
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (err: any) {
+      setError('Failed to create severity');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editingSeverity) return;
-
-    const updatedSeverities = severities.map(severity =>
-      severity.id === editingSeverity.id
-        ? { ...severity, ...formData }
-        : severity
-    );
-    setSeverities(updatedSeverities);
-    setIsEditModalOpen(false);
-    setEditingSeverity(null);
-    resetForm();
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiUpdateSeverity(editingSeverity.id, formData);
+      const updatedSeverities = severities.map(severity =>
+        severity.id === editingSeverity.id ? res.data : severity
+      );
+      setSeverities(updatedSeverities);
+      setIsEditModalOpen(false);
+      setEditingSeverity(null);
+      resetForm();
+    } catch (err: any) {
+      setError('Failed to update severity');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingSeverity) return;
-
-    const updatedSeverities = severities.filter(
-      severity => severity.id !== deletingSeverity.id
-    );
-    setSeverities(updatedSeverities);
-    setIsDeleteModalOpen(false);
-    setDeletingSeverity(null);
+    try {
+      setLoading(true);
+      setError(null);
+      await apiDeleteSeverity(deletingSeverity.id);
+      const updatedSeverities = severities.filter(
+        severity => severity.id !== deletingSeverity.id
+      );
+      setSeverities(updatedSeverities);
+      setIsDeleteModalOpen(false);
+      setDeletingSeverity(null);
+    } catch (err: any) {
+      setError('Failed to delete severity');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const openEditModal = (severity: Severity) => {
+  const openEditModal = (severity: SeverityType) => {
     setEditingSeverity(severity);
     setFormData({
       name: severity.name,
@@ -83,7 +110,7 @@ const Severity: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (severity: Severity) => {
+  const openDeleteModal = (severity: SeverityType) => {
     setDeletingSeverity(severity);
     setIsDeleteModalOpen(true);
   };
@@ -320,6 +347,9 @@ const Severity: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {error && <div className="text-red-600 mb-4">{error}</div>}
+      {loading && <div className="text-gray-600 mb-4">Loading...</div>}
     </div>
   );
 };

@@ -32,10 +32,10 @@ import Severity from "./pages/Severity";
 import Priority from "./pages/Priority";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Status from "./pages/Status";
 import StatusWorkflow from "./pages/StatusWorkflow";
 import StatusType from "./pages/StatusType";
 import BenchAllocate from './pages/BenchAllocate';
+import Status from "./pages/Status";
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, noLayout?: boolean }> = ({ children, noLayout }) => {
