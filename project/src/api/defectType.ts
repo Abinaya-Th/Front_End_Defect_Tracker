@@ -1,4 +1,5 @@
-import apiClient from "./apiClient";
+import axios from "axios";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- Create Defect Type ---
 
@@ -17,13 +18,8 @@ export interface CreateDefectTypeResponse {
 }
 
 export const createDefectType = async (payload: CreateDefectTypePayload): Promise<CreateDefectTypeResponse> => {
-    try {
-        const response = await apiClient.post<CreateDefectTypeResponse>('/defectType', payload);
-        return response.data;
-    } catch (error) {
-        console.error('Error creating defect type:', error);
-        throw error;
-    }
+    const response = await axios.post<CreateDefectTypeResponse>(`${BASE_URL}defectType`, payload);
+    return response.data;
 };
 
 // --- Get All Defect Types ---
@@ -48,13 +44,8 @@ export interface GetDefectTypesResponse {
 }
 
 export const getDefectTypes = async (): Promise<GetDefectTypesResponse> => {
-    try {
-        const response = await apiClient.get<GetDefectTypesResponse>('/defectType');
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching defect types:', error);
-        throw error;
-    }
+    const response = await axios.get<GetDefectTypesResponse>(`${BASE_URL}defectType`);
+    return response.data;
 };
 
 // --- Get Defect Type by ID ---
@@ -67,13 +58,8 @@ export interface GetDefectTypeByIdResponse {
 }
 
 export const getDefectTypeById = async (id: string): Promise<GetDefectTypeByIdResponse> => {
-    try {
-        const response = await apiClient.get<GetDefectTypeByIdResponse>(`/defectType/${id}`);
-        return response.data;
-    } catch (error) {
-        console.error(`Error fetching defect type with id ${id}:`, error);
-        throw error;
-    }
+    const response = await axios.get<GetDefectTypeByIdResponse>(`${BASE_URL}defectType/${id}`);
+    return response.data;
 };
 
 // --- Update Defect Type ---
@@ -99,13 +85,8 @@ export interface UpdateDefectTypeResponse {
 }
 
 export const updateDefectType = async (id: string, payload: UpdateDefectTypePayload): Promise<UpdateDefectTypeResponse> => {
-    try {
-        const response = await apiClient.put<UpdateDefectTypeResponse>(`/defectType/${id}`, payload);
-        return response.data;
-    } catch (error) {
-        console.error(`Error updating defect type with id ${id}:`, error);
-        throw error;
-    }
+    const response = await axios.put<UpdateDefectTypeResponse>(`${BASE_URL}defectType/${id}`, payload);
+    return response.data;
 };
 
 // --- Delete Defect Type ---
@@ -117,11 +98,6 @@ export interface DeleteDefectTypeResponse {
 }
 
 export const deleteDefectType = async (id: string): Promise<DeleteDefectTypeResponse> => {
-    try {
-        const response = await apiClient.delete<DeleteDefectTypeResponse>(`/defectType/${id}`);
-        return response.data;
-    } catch (error) {
-        console.error(`Error deleting defect type with id ${id}:`, error);
-        throw error;
-    }
+    const response = await axios.delete<DeleteDefectTypeResponse>(`${BASE_URL}defectType/${id}`);
+    return response.data;
 }; 

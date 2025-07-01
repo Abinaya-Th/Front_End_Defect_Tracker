@@ -1,4 +1,6 @@
-import apiClient, { BASE_URL } from "./apiClient";
+import axios from "axios";
+
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface ImportTestCaseResponse {
   status: string;
@@ -8,8 +10,8 @@ export interface ImportTestCaseResponse {
 }
 
 export const importTestCases = (formData: FormData): Promise<ImportTestCaseResponse> => {
-  return apiClient.post<ImportTestCaseResponse>(
-    "testcase/import",
+  return axios.post<ImportTestCaseResponse>(
+    `${BASE_URL}testcase/import`,
     formData,
     {
       headers: {
@@ -27,8 +29,8 @@ export interface ImportDefectResponse {
 }
 
 export const importDefects = (formData: FormData): Promise<ImportDefectResponse> => {
-  return apiClient.post<ImportDefectResponse>(
-    "defect/import",
+  return axios.post<ImportDefectResponse>(
+    `${BASE_URL}defect/import`,
     formData,
     {
       headers: {

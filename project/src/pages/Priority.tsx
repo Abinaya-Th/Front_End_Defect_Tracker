@@ -32,12 +32,21 @@ const Priority: React.FC = () => {
   useEffect(() => {
     getAllPriorities()
       .then((res) => {
-        const mapped = res.data.map((item) => ({
-          id: item.id,
-          name: item.priority,
-          color: item.color.startsWith('#') ? item.color : `#${item.color}`,
-        }));
-        setPriorities(mapped);
+        if (res && Array.isArray(res.data)) {
+          const mapped = res.data.map((item) => ({
+            id: item.id,
+            name: item.priority,
+            color: item.color.startsWith('#') ? item.color : `#${item.color}`,
+          }));
+          setPriorities(mapped);
+        } else {
+          setPriorities([]);
+          console.error("API response does not contain data array:", res);
+        }
+      })
+      .catch((err) => {
+        setPriorities([]);
+        console.error("Failed to fetch priorities:", err);
       });
   }, []);
 
@@ -61,7 +70,7 @@ const Priority: React.FC = () => {
         color: item.color.startsWith('#') ? item.color : `#${item.color}`,
       }));
       setPriorities(mapped);
-  
+
       setIsCreateModalOpen(false);
       resetForm();
     } catch (err) {
@@ -73,7 +82,7 @@ const Priority: React.FC = () => {
     if (!editingPriority) return;
     try {
       await updatePriority(editingPriority.id, {
-        priority: formData.name, 
+        priority: formData.name,
         color: formData.color,
       });
       const updatedPriorities = priorities.map(priority =>
@@ -90,11 +99,11 @@ const Priority: React.FC = () => {
     }
   };
 
-  const handleDelete = async() => {
+  const handleDelete = async () => {
     if (!deletingPriority) return;
-    try{
+    try {
       await deletePriority(deletingPriority.id);
-    }catch{
+    } catch {
     }
 
     const updatedPriorities = priorities.filter(

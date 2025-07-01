@@ -18,7 +18,7 @@ import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
-import { BASE_URL } from "../api/apiClient";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
 const mockProjects = [
@@ -125,7 +125,7 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     if (selectedSubmodule) {
       // setLoading(true); // loading state is removed
-      fetch(`${BASE_URL}testcase/submodule/${selectedSubmodule}`)
+      fetch(`${BASE_URL}api/v1/testcase/submodule/${selectedSubmodule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -149,7 +149,7 @@ export const TestCase: React.FC = () => {
 
   // --- Add test case ---
   const addTestCase = async (formData: ModalFormData) => {
-    await fetch(`${BASE_URL}testcase`, {
+    await fetch(`${BASE_URL}api/v1/testcase`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -165,7 +165,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`${BASE_URL}testcase/module/${selectedModule}`)
+      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -185,7 +185,7 @@ export const TestCase: React.FC = () => {
 
   // --- Update test case ---
   const updateTestCase = async (formData: ModalFormData) => {
-    await fetch(`${BASE_URL}testcase/${formData.id}`, {
+    await fetch(`${BASE_URL}api/v1/testcase/${formData.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -201,7 +201,7 @@ export const TestCase: React.FC = () => {
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`${BASE_URL}testcase/module/${selectedModule}`)
+      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
@@ -221,12 +221,12 @@ export const TestCase: React.FC = () => {
 
   // --- Delete test case ---
   const deleteTestCase = async (testCaseId: string) => {
-    await fetch(`${BASE_URL}testcase/${testCaseId}`, {
+    await fetch(`${BASE_URL}api/v1/testcase/${testCaseId}`, {
       method: "DELETE",
     });
     // Refresh test cases
     if (selectedModule) {
-      fetch(`${BASE_URL}testcase/module/${selectedModule}`)
+      fetch(`${BASE_URL}api/v1/testcase/module/${selectedModule}`)
         .then((res) => res.json())
         .then((data) => {
           const mapped = (data.data || []).map((tc: any) => ({
