@@ -1,3 +1,6 @@
+import axios from "axios";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
+
 // Interfaces for ReleaseType API
 export interface ReleaseType {
   id: number;
@@ -36,15 +39,9 @@ const handleApiError = (error: any, operation: string): never => {
 
 // GET - Fetch all release types
 export const getAllReleaseTypes = async (): Promise<ReleaseTypeResponse> => {
-  // TODO: Replace with axios or fetch call
   try {
-    // const response = await apiClient.get<ReleaseTypeResponse>("ReleaseType");
-    return {
-      status: "success",
-      message: "Release types fetched successfully",
-      data: [],
-      statusCode: 200
-    };
+    const response = await axios.get<ReleaseTypeResponse>(`${BASE_URL}ReleaseType`);
+    return response.data;
   } catch (error: any) {
     handleApiError(error, 'fetch release types');
   }
@@ -52,27 +49,19 @@ export const getAllReleaseTypes = async (): Promise<ReleaseTypeResponse> => {
 
 // POST - Create a new release type
 export const createReleaseType = async (data: CreateReleaseTypeRequest): Promise<ReleaseType> => {
-  // TODO: Replace with axios or fetch call
   try {
-    // const response = await apiClient.post<ReleaseType>("ReleaseType", data);
-    return {
-      id: 0,
-      releaseTypeName: data.releaseTypeName
-    };
+    const response = await axios.post<ReleaseType>(`${BASE_URL}ReleaseType`, data);
+    return response.data;
   } catch (error: any) {
     handleApiError(error, 'create release type');
   }
 };
 
 // PUT - Update an existing release type
-export const updateReleaseType = async (id: number, data: UpdateReleaseTypeRequest): Promise<ReleaseType | undefined> => {
-  // TODO: Replace with axios or fetch call
+export const updateReleaseType = async (id: number, data: UpdateReleaseTypeRequest): Promise<ReleaseType> => {
   try {
-    // const response = await apiClient.put<ReleaseType>(`ReleaseType/${id}`, data);
-    return {
-      id: 0,
-      releaseTypeName: data.releaseTypeName
-    };
+    const response = await axios.put<ReleaseType>(`${BASE_URL}ReleaseType/${id}`, data);
+    return response.data;
   } catch (error: any) {
     handleApiError(error, 'update release type');
   }
@@ -80,15 +69,9 @@ export const updateReleaseType = async (id: number, data: UpdateReleaseTypeReque
 
 // DELETE - Delete a release type
 export const deleteReleaseType = async (id: number): Promise<any> => {
-  // TODO: Replace with axios or fetch call
   try {
-    // const response = await apiClient.delete(`ReleaseType/${id}`);
-    return {
-      status: "success",
-      message: "Release type deleted successfully",
-      data: null,
-      statusCode: 200
-    };
+    const response = await axios.delete(`${BASE_URL}ReleaseType/${id}`);
+    return response.data;
   } catch (error: any) {
     handleApiError(error, 'delete release type');
   }
