@@ -817,7 +817,9 @@ export const ReleaseView: React.FC = () => {
       releaseName: releaseFormData.name,
       releaseDate: releaseFormData.releaseDate,
       releaseType: releaseFormData.releaseType,
-      projectId: selectedProject,
+      projectId: Number(selectedProject),
+      description: "Description: ",
+      releaseStatus: releaseFormData.releaseType,
     };
 
     try {

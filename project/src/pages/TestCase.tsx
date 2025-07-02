@@ -25,44 +25,57 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { searchTestCases } from "../api/testCase/searchTestCase";
 import { updateTestCase } from "../api/testCase/updateTestCase";
+import { getModulesByProjectId } from "../api/module/getModule";
+import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
-const mockProjects = [
-  { id: "PROJ001", name: "Project Alpha" },
-  { id: "PROJ002", name: "Project Beta" },
-];
+// const mockProjects = [
+//   { id: "PROJ001", name: "Project Alpha" },
+//   { id: "PROJ002", name: "Project Beta" },
+// ];
 // --- MOCK DATA for modules/submodules by projectId (numeric IDs matching DB) ---
-const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
-  "1": [
-    {
-      id: "2",
-      name: "Module 2",
-      submodules: [
-        { id: "2", name: "Submodule 2" },
-        { id: "3", name: "Submodule 3" }
-      ]
-    },
-    {
-      id: "3",
-      name: "Module 3",
-      submodules: [
-        { id: "3", name: "Submodule 3" }
-      ]
-    }
-  ]
-};
-
+// const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
+//   "1": [ ... ]
+// };
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  // --- State for projects/modules/submodules (mock) ---
-  const [projects] = useState(mockProjects);
+  // --- State for projects/modules/submodules (real backend) ---
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
+
+  // Add state for modules by project
+  const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
+
+  // Fetch real projects from backend on mount
+  useEffect(() => {
+    getAllProjects().then(res => setProjects(res));
+  }, []);
+
+  // Fetch modules when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    getModulesByProjectId(selectedProjectId).then((res) => {
+      // Transform API data to expected format
+      const modules = (res.data || []).map((mod: any) => ({
+        id: String(mod.id), // Always use backend module ID
+        name: mod.moduleName || mod.name,
+        submodules: (mod.submodules || []).map((sm: any) => ({
+          id: String(sm.id),
+          name: sm.subModuleName || sm.name,
+        })),
+      }));
+      setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
+    });
+  }, [selectedProjectId]);
+
+  // Use fetched modules for the selected project
+  const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
 
   // ... keep other UI state as before ...
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
@@ -117,10 +130,32 @@ export const TestCase: React.FC = () => {
   // Add after state declarations
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get modules for selected project
-  const projectModules = selectedProjectId ? mockModulesByProject[selectedProjectId] || [] : [];
-  // Get submodules for selected module
-  const submodules = selectedModuleId !== null ? (projectModules.find(m => m.id === selectedModuleId)?.submodules || []) : [];
+  // Add state for submodules
+  const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [submoduleError, setSubmoduleError] = useState<string>("");
+
+  // Fetch submodules when selectedModuleId changes
+  useEffect(() => {
+    if (!selectedModuleId) {
+      setSubmodules([]);
+      setSubmoduleError("");
+      return;
+    }
+    getSubmodulesByModuleId(selectedModuleId)
+      .then((res) => {
+        setSubmodules(res.data || []);
+        setSubmoduleError("");
+      })
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setSubmodules([]);
+          setSubmoduleError("No submodules found for this module.");
+        } else {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        }
+      });
+  }, [selectedModuleId]);
 
   // Add state for severities and defect types
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
@@ -523,6 +558,9 @@ export const TestCase: React.FC = () => {
                     Submodule Selection
                   </h2>
                 </div>
+                {submoduleError && (
+                  <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+                )}
                 <div className="relative flex items-center">
                   <button
                     onClick={() => {
@@ -1348,7 +1386,7 @@ export const TestCase: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProjectId} />
         <QuickAddDefect />
       </div>
     </div>

@@ -22,6 +22,7 @@ import { createModule as createModuleApi } from "../api/module/createModule";
 import { createSubmodule } from "../api/module/createModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
+import axios from "axios";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -60,7 +61,7 @@ export const ModuleManagement: React.FC = () => {
       submoduleId?: string;
     }>
   >([]);
-  const [modulesByProjectId, setModulesByProjectId] = useState<any[]>([]);
+  const [modulesByProjectId, setModulesByProjectId] = useState<any[] | null>(null);
 
   const [moduleForm, setModuleForm] = useState({
     name: ""
@@ -394,9 +395,9 @@ export const ModuleManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    
+
     fetchModules();
-  }, [selectedProjectId]);
+  }, [selectedProjectId ]);
 
 console.log({modulesByProjectId});
 
@@ -554,18 +555,32 @@ console.log({modulesByProjectId});
                                   type="button"
                                   className="p-1 hover:text-red-600"
                                   title="Delete Submodule"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                      setModulesByProjectId(prev =>
-                                        prev.map(m =>
-                                          m.id === module.id
-                                            ? {
-                                                ...m,
-                                                submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                              }
-                                            : m
-                                        )
-                                      );
+                                      try {
+                                        const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
+                                        if (response.data && response.data.success) {
+                                          setModulesByProjectId(prev =>
+                                            prev.map(m =>
+                                              m.id === module.id
+                                                ? {
+                                                    ...m,
+                                                    submodules: m.submodules.filter((s: any) => s.id !== sub.id)
+                                                  }
+                                                : m
+                                            )
+                                          );
+                                          alert("Submodule deleted successfully.");
+                                        } else {
+                                          alert("Failed to delete submodule. Please try again.");
+                                        }
+                                      } catch (error: any) {
+                                        if (error.response && error.response.data) {
+                                          alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
+                                        } else {
+                                          alert("Failed to delete submodule. Please try again.");
+                                        }
+                                      }
                                     }
                                   }}
                                 >
@@ -864,19 +879,36 @@ console.log({modulesByProjectId});
               onClick={async () => {
                 if (!submoduleForm.name.trim() || !currentModuleIdForSubmodule) return;
                 if (isEditingSubmodule && editingSubmoduleId) {
-                  // Edit mode: update submodule name (local only)
-                  setModulesByProjectId(prev =>
-                    prev.map(module =>
-                      module.id === currentModuleIdForSubmodule
-                        ? {
-                            ...module,
-                            submodules: module.submodules.map((sub: any) =>
-                              sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                            )
-                          }
-                        : module
-                    )
-                  );
+                  // Edit mode: update submodule name via API
+                  try {
+                    const response = await axios.put(
+                      `http://34.57.197.188:8087/api/v1/subModule/${editingSubmoduleId}`,
+                      { subModuleName: submoduleForm.name }
+                    );
+                    if (response.data && response.data.success) {
+                      setModulesByProjectId(prev =>
+                        prev.map(module =>
+                          module.id === currentModuleIdForSubmodule
+                            ? {
+                                ...module,
+                                submodules: module.submodules.map((sub: any) =>
+                                  sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                                )
+                              }
+                            : module
+                        )
+                      );
+                      alert("Submodule updated successfully.");
+                    } else {
+                      alert("Failed to update submodule. Please try again.");
+                    }
+                  } catch (error: any) {
+                    if (error.response && error.response.data) {
+                      alert("Failed to update submodule: " + JSON.stringify(error.response.data));
+                    } else {
+                      alert("Failed to update submodule. Please try again.");
+                    }
+                  }
                 } else {
                   // Add mode: call API to create submodule
                   try {
