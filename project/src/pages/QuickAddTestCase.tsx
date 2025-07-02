@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -6,6 +6,9 @@ import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -116,8 +119,7 @@ const mockModules: Record<
 };
 
 const QuickAddTestCase: React.FC = () => {
-  const { selectedProjectId, projects, addTestCase, modulesByProject } =
-    useApp();
+  const { selectedProjectId, projects, addTestCase } = useApp();
   const [modals, setModals] = useState([
     {
       open: false,
@@ -134,6 +136,9 @@ const QuickAddTestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [modules, setModules] = useState<{ id: string; moduleName: string; submodules: { id: string; name: string }[] }[]>([]);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -227,12 +232,30 @@ const QuickAddTestCase: React.FC = () => {
   };
 
   // Use modulesByProject from context instead of mockModules
-  const projectModules = selectedProjectId
-    ? modulesByProject[selectedProjectId] || []
-    : [];
+  const projectModules = modules;
   const selectedProject = projects.find(
     (p: { id: string }) => p.id === selectedProjectId
   );
+
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
+  // Fetch modules when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setModules([]);
+      return;
+    }
+    getModulesByProjectId(selectedProjectId).then(res => {
+      if (Array.isArray(res.data)) {
+        setModules(res.data);
+      } else {
+        setModules([]);
+      }
+    });
+  }, [selectedProjectId]);
 
   return (
     <div>
@@ -322,7 +345,7 @@ const QuickAddTestCase: React.FC = () => {
           const modal = modals[idx];
           const submodules: string[] =
             projectModules
-              .find((m: { name: string }) => m.name === modal.formData.module)
+              .find((m: { moduleName: string }) => m.moduleName === modal.formData.module)
               ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal
@@ -414,9 +437,9 @@ const QuickAddTestCase: React.FC = () => {
                       >
                         <option value="">Select Module</option>
                         {projectModules.map(
-                          (module: { id: string; name: string }) => (
-                            <option key={module.id} value={module.name}>
-                              {module.name}
+                          (module: { id: string; moduleName: string }) => (
+                            <option key={module.id} value={module.moduleName}>
+                              {module.moduleName}
                             </option>
                           )
                         )}
@@ -459,10 +482,12 @@ const QuickAddTestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
+                        <option value="">Select Type</option>
+                        {defectTypes.map((type) => (
+                          <option key={type.id} value={type.defectTypeName}>
+                            {type.defectTypeName}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -477,10 +502,12 @@ const QuickAddTestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
+                        <option value="">Select Severity</option>
+                        {severities.map((severity) => (
+                          <option key={severity.id} value={severity.name}>
+                            {severity.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
