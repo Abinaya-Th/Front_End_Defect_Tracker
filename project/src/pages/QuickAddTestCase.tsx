@@ -9,6 +9,7 @@ import { importTestCases } from "../api/importTestCase";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { getModulesByProjectId } from "../api/module/getModule";
+import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -140,6 +141,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [modules, setModules] = useState<any[]>([]);
+  const [subModules, setSubModules] = useState<any[]>([]);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -245,6 +247,7 @@ console.log("id",selectedProjectId);
     getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
+    getSubmodulesByModuleId(selectedProjectId || "").then(res => setSubModules(res.data));
     
   }, [selectedProjectId ]);
 
@@ -450,13 +453,13 @@ console.log("id",selectedProjectId);
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {submodules.length === 0
+                          {subModules.length === 0
                             ? "No submodules"
                             : "Select a submodule (optional)"}
                         </option>
-                        {submodules.map((submodule: string) => (
-                          <option key={submodule} value={submodule}>
-                            {submodule}
+                        {subModules.map((submodule: string) => (
+                          <option key={submodule.subModuleId} value={submodule.subModuleName}>
+                            {submodule.subModuleName}
                           </option>
                         ))}
                       </select>
