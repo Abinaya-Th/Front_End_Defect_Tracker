@@ -512,18 +512,18 @@ export const Defects: React.FC = () => {
       prev.map(d =>
         d.defectId === defect.defectId
           ? {
-              ...d,
-              defectStatusId: defectStatuses.find(s => s.defectStatusName === newStatus)?.id || d.defectStatusId,
-              defectHistory: [
-                ...initialHistory,
-                {
-                  status: newStatus,
-                  changedAt: now,
-                  comment: newStatus === 'rejected' ? comment : undefined,
-                },
-              ],
-              updatedAt: now,
-            }
+            ...d,
+            defectStatusId: defectStatuses.find(s => s.defectStatusName === newStatus)?.id || d.defectStatusId,
+            defectHistory: [
+              ...initialHistory,
+              {
+                status: newStatus,
+                changedAt: now,
+                comment: newStatus === 'rejected' ? comment : undefined,
+              },
+            ],
+            updatedAt: now,
+          }
           : d
       )
     );
@@ -865,7 +865,7 @@ export const Defects: React.FC = () => {
                         {moduleMap[defect.moduleId] || defect.moduleId}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {submoduleMap[String(defect.subModuleId)] || defect.subModuleId}
+                        {submoduleMap[defect.subModuleId] || defect.subModuleId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {typeMap[defect.typeId] || defect.typeId}
