@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { CreateModuleRequest, CreateModuleResponse } from "../../types/index";
 
@@ -20,6 +21,29 @@ export const createModule = async (data: CreateModuleRequest): Promise<CreateMod
     return response.data;
   } catch (error) {
     console.error("Error creating module:", error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new submodule for a module
+ * @param data - Object containing subModuleName and moduleId
+ * @returns Promise with the API response
+ */
+export const createSubmodule = async (data: { subModuleName: string; moduleId: number }): Promise<any> => {
+  try {
+    // Use full URL since the endpoint is external
+    const response = await apiClient.post(
+      "http://34.57.197.188:8087/api/v1/subModule",
+      data
+    );
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error("Error creating submodule:", error.response.data);
+    } else {
+      console.error("Error creating submodule:", error);
+    }
     throw error;
   }
 };
