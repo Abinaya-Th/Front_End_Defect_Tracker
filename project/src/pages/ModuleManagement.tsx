@@ -59,7 +59,7 @@ export const ModuleManagement: React.FC = () => {
       submoduleId?: string;
     }>
   >([]);
-  const [modulesByProjectId, setModulesByProjectId] = useState<any[]>([]);
+  const [modulesByProjectId, setModulesByProjectId] = useState<any[] | null>(null);
 
   const [moduleForm, setModuleForm] = useState({
     name: "",
@@ -450,17 +450,21 @@ export const ModuleManagement: React.FC = () => {
       try {
         const response = await getModulesByProjectId(selectedProjectId);
         console.log("Fetched modules:", response); // Debug: log the response
-        
-        setModulesByProjectId(response.data);
+        if(response?.statusCode === 2000) {
+          setModulesByProjectId(response.data);
+          
+        } else {
+          setModulesByProjectId([]);
+        }
       } catch (error) {
         console.error("Error fetching modules:", error);
       }
     };
 
   useEffect(() => {
-    
+
     fetchModules();
-  }, [selectedProjectId]);
+  }, [selectedProjectId ]);
 
 console.log({modulesByProjectId});
 
@@ -551,7 +555,7 @@ console.log({modulesByProjectId});
 
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modulesByProjectId.map((module) => (
+          {(modulesByProjectId ?? []).map((module) => (
             <Card key={module.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">

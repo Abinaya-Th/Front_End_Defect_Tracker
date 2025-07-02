@@ -2,16 +2,16 @@
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-// interface Module {
-//   id: number;
-//   moduleId: string;
-//   moduleName: string;
-//   projectId: string;
-// }
-interface CreateReleaseResponse {
+export interface Modules {
+  id: number;
+  moduleId: string;
+  moduleName: string;
+  projectId: string;
+}
+export interface CreateReleaseResponse {
   status: string;
   message: string;
-  data: any[];
+  data: Modules[];
   statusCode: number;
 }
 
