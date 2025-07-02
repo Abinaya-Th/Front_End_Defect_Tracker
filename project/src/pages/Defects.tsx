@@ -24,6 +24,9 @@ import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
 import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
 import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
+import { defectFilterService } from "../api/defect/defectFilterService";
+import { getDefectTypes } from "../api/defectType";
+import { getSeverities } from "../api/severity";
 
 // Locally extend Defect to allow 'defectHistory' and 'new' status
 interface Defect extends BaseDefect {
@@ -81,6 +84,7 @@ export const Defects: React.FC = () => {
     severity: "",
     priority: "",
     status: "",
+    releaseId: "",
     assignedTo: "",
     reportedBy: "",
     search: "",
@@ -98,6 +102,7 @@ export const Defects: React.FC = () => {
       (filters.severity === "" || d.severity === filters.severity) &&
       (filters.priority === "" || d.priority === filters.priority) &&
       (filters.status === "" || d.status === filters.status) &&
+      (filters.releaseId === "" || d.releaseId === filters.releaseId) &&
       (filters.assignedTo === "" ||
         (d.assignedTo || "")
           .toLowerCase()
@@ -489,6 +494,14 @@ export const Defects: React.FC = () => {
         .filter(Boolean)
     )
   );
+  const uniqueReportedBy = Array.from(
+    new Set(
+      defects
+        .filter((d) => d.projectId === projectId)
+        .map((d) => d.reportedBy)
+        .filter(Boolean)
+    )
+  );
 
   // Get highlight param from URL
   const highlightId = React.useMemo(() => {
@@ -521,6 +534,16 @@ export const Defects: React.FC = () => {
   const [defectStatuses, setDefectStatuses] = useState<DefectStatus[]>([]);
   const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Add state for severities and defect types
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+
+  // Fetch severities and defect types on mount
+  React.useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
 
   // Fetch priorities from database
   React.useEffect(() => {
@@ -663,30 +686,14 @@ export const Defects: React.FC = () => {
       {/* Filter Row - compact, scrollable, and responsive design */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 mb-6">
         <div className="flex flex-nowrap overflow-x-auto gap-2 hide-scrollbar">
-          {/* Each filter in a compact, min-w-[160px] block */}
-          <div className="min-w-[140px] flex-shrink-0">
+          <div className="min-w-[160px] flex-shrink-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">
-              Defect ID
+              Search
             </label>
             <Input
-              placeholder="Defect ID"
-              value={filters.id}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, id: e.target.value }))
-              }
-              className="w-full h-8 text-xs"
-            />
-          </div>
-          <div className="min-w-[140px] flex-shrink-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Test Case ID
-            </label>
-            <Input
-              placeholder="Test Case ID"
-              value={filters.testCaseId || ""}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, testCaseId: e.target.value }))
-              }
+              placeholder="Search..."
+              value={filters.search}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
               className="w-full h-8 text-xs"
             />
           </div>
@@ -745,10 +752,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
+              {defectTypes.map((t) => (
+                <option key={t.id} value={t.defectTypeName}>{t.defectTypeName}</option>
               ))}
             </select>
           </div>
@@ -764,10 +769,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueSeverities.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+              {severities.map((s) => (
+                <option key={s.id} value={s.name}>{s.name}</option>
               ))}
             </select>
           </div>
@@ -788,6 +791,23 @@ export const Defects: React.FC = () => {
                   {priority.priority}
                 </option>
               ))}
+            </select>
+          </div>
+          <div className="min-w-[140px] flex-shrink-0">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Release
+            </label>
+            <select
+              value={filters.releaseId}
+              onChange={e => setFilters(f => ({ ...f, releaseId: e.target.value }))}
+              className="w-full h-8 text-xs border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {releases
+                .filter(r => r.projectId === projectId)
+                .map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
             </select>
           </div>
           <div className="min-w-[120px] flex-shrink-0">
@@ -816,40 +836,31 @@ export const Defects: React.FC = () => {
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Assigned To
             </label>
-            <Input
-              placeholder="Name"
+            <select
               value={filters.assignedTo}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, assignedTo: e.target.value }))
-              }
-              className="w-full h-8 text-xs"
-            />
+              onChange={e => setFilters(f => ({ ...f, assignedTo: e.target.value }))}
+              className="w-full h-8 text-xs border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueAssignedTo.map((user) => (
+                <option key={user} value={user}>{user}</option>
+              ))}
+            </select>
           </div>
           <div className="min-w-[140px] flex-shrink-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Entered By
             </label>
-            <Input
-              placeholder="Name"
-              value={filters.reportedBy || ""}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, reportedBy: e.target.value }))
-              }
-              className="w-full h-8 text-xs"
-            />
-          </div>
-          <div className="min-w-[160px] flex-shrink-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Search
-            </label>
-            <Input
-              placeholder="Search..."
-              value={filters.search || ""}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, search: e.target.value }))
-              }
-              className="w-full h-8 text-xs"
-            />
+            <select
+              value={filters.reportedBy}
+              onChange={e => setFilters(f => ({ ...f, reportedBy: e.target.value }))}
+              className="w-full h-8 text-xs border border-gray-300 rounded"
+            >
+              <option value="">All</option>
+              {uniqueReportedBy.map((user) => (
+                <option key={user} value={user}>{user}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -1292,9 +1303,9 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select severity</option>
-                <option value="critical">Critical</option>
-                <option value="major">Major</option>
-                <option value="minor">Minor</option>
+                {severities.map((s) => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -1327,9 +1338,9 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select type</option>
-                <option value="ui-issue">UI Issue</option>
-                <option value="functional-bug">Functional Bug</option>
-                <option value="performance-issue">Performance Issue</option>
+                {defectTypes.map((t) => (
+                  <option key={t.id} value={t.defectTypeName}>{t.defectTypeName}</option>
+                ))}
               </select>
             </div>
             <div>

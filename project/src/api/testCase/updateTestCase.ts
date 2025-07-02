@@ -20,7 +20,7 @@ export interface UpdateTestCasePayload {
 
 export async function updateTestCase(id: string, payload: UpdateTestCasePayload) {
   const url = `${BASE_URL}/testcase/${id}`;
-  const response = await axios.put(url, { request: payload }, {
+  const response = await axios.put(url, payload, {
     headers: { "Content-Type": "application/json" },
   });
   return response.data;
