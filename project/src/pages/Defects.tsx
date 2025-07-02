@@ -25,6 +25,7 @@ import { getAllPriorities, Priority } from "../api/priority";
 import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
 import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
 import axios from "axios";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Locally extend Defect to allow 'defectHistory' and 'new' status
 interface Defect extends BaseDefect {
@@ -581,7 +582,7 @@ export const Defects: React.FC = () => {
   // Add exportDefects function
   const exportDefects = async () => {
     try {
-      const response = await axios.get("http://34.57.197.188:8087/api/v1/defect/export", {
+      const response = await axios.get(`${BASE_URL}defect/export`, {
         responseType: "blob",
       });
       // Create a link to download the file
