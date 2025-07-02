@@ -884,7 +884,7 @@ console.log({modulesByProjectId});
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    if (response.success && response.submodule) {
+                    if (response.success ) {
                       setModulesByProjectId(prev =>
                         prev.map(module =>
                           module.id === currentModuleIdForSubmodule
