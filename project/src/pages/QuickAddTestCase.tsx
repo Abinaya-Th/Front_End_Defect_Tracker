@@ -118,8 +118,9 @@ const mockModules: Record<
   ],
 };
 
-const QuickAddTestCase: React.FC = () => {
-  const { selectedProjectId, projects, addTestCase } = useApp();
+const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedProjectId }) => {
+  const { projects, addTestCase, modulesByProject } =
+    useApp();
   const [modals, setModals] = useState([
     {
       open: false,
@@ -138,7 +139,7 @@ const QuickAddTestCase: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
-  const [modules, setModules] = useState<{ id: string; moduleName: string; submodules: { id: string; name: string }[] }[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -149,6 +150,7 @@ const QuickAddTestCase: React.FC = () => {
       )
     );
   };
+console.log("id",selectedProjectId);  
 
   const handleAddAnother = () => {
     setModals((prev) => [
@@ -232,30 +234,19 @@ const QuickAddTestCase: React.FC = () => {
   };
 
   // Use modulesByProject from context instead of mockModules
-  const projectModules = modules;
+  const projectModules = selectedProjectId
+    ? modulesByProject[selectedProjectId] || []
+    : [];
   const selectedProject = projects.find(
     (p: { id: string }) => p.id === selectedProjectId
   );
 
   useEffect(() => {
+    getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
-  }, []);
-
-  // Fetch modules when selectedProjectId changes
-  useEffect(() => {
-    if (!selectedProjectId) {
-      setModules([]);
-      return;
-    }
-    getModulesByProjectId(selectedProjectId).then(res => {
-      if (Array.isArray(res.data)) {
-        setModules(res.data);
-      } else {
-        setModules([]);
-      }
-    });
-  }, [selectedProjectId]);
+    
+  }, [selectedProjectId ]);
 
   return (
     <div>
@@ -345,7 +336,7 @@ const QuickAddTestCase: React.FC = () => {
           const modal = modals[idx];
           const submodules: string[] =
             projectModules
-              .find((m: { moduleName: string }) => m.moduleName === modal.formData.module)
+              .find((m: { name: string }) => m.name === modal.formData.module)
               ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal
@@ -436,12 +427,12 @@ const QuickAddTestCase: React.FC = () => {
                         disabled={!selectedProjectId}
                       >
                         <option value="">Select Module</option>
-                        {projectModules.map(
+                        {modules.map(
                           (module: { id: string; moduleName: string }) => (
                             <option key={module.id} value={module.moduleName}>
                               {module.moduleName}
                             </option>
-                          )
+                          ) 
                         )}
                       </select>
                     </div>
