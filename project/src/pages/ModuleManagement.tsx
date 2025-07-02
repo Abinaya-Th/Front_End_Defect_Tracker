@@ -20,6 +20,7 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi } from "../api/module/createModule";
 import { Module, Submodule } from "../types/index";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -58,6 +59,7 @@ export const ModuleManagement: React.FC = () => {
       submoduleId?: string;
     }>
   >([]);
+  const [modulesByProjectId, setModulesByProjectId] = useState<any[]>([]);
 
   const [moduleForm, setModuleForm] = useState({
     name: "",
@@ -441,6 +443,27 @@ export const ModuleManagement: React.FC = () => {
 
   const project = projects.find((p) => p.id === selectedProjectId);
 
+  console.log(selectedProjectId);
+  
+   const fetchModules = async () => {
+   
+      try {
+        const response = await getModulesByProjectId(selectedProjectId);
+        console.log("Fetched modules:", response); // Debug: log the response
+        
+        setModulesByProjectId(response.data);
+      } catch (error) {
+        console.error("Error fetching modules:", error);
+      }
+    };
+
+  useEffect(() => {
+    
+    fetchModules();
+  }, [selectedProjectId]);
+
+console.log({modulesByProjectId});
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Header */}
@@ -528,7 +551,7 @@ export const ModuleManagement: React.FC = () => {
 
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modules.map((module) => (
+          {modulesByProjectId.map((module) => (
             <Card key={module.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -542,7 +565,7 @@ export const ModuleManagement: React.FC = () => {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {module.name}
+                      {module.moduleName}
                     </h3>
                   </div>
                   <div className="flex space-x-2">
@@ -568,7 +591,7 @@ export const ModuleManagement: React.FC = () => {
                 </div>
 
                 {/* Module Level Assignment */}
-                {getAllModuleDevelopers(module).length > 0 && (
+                {/* {getAllModuleDevelopers(module).length > 0 && (
                   <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-center space-x-2 mb-2">
                       <Users className="w-4 h-4 text-blue-600" />
@@ -612,10 +635,10 @@ export const ModuleManagement: React.FC = () => {
                         )}
                     </div>
                   </div>
-                )}
+                )} */}
 
                 {/* Submodules */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3">
                   <h4 className="text-sm font-medium text-gray-700">
                     Submodules
                   </h4>
@@ -650,9 +673,9 @@ export const ModuleManagement: React.FC = () => {
                             {submodule.name}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2"> */}
                           {/* Delete submodule button */}
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteSubmodule(module.id, submodule.id)}
@@ -660,9 +683,9 @@ export const ModuleManagement: React.FC = () => {
                             title="Delete Submodule"
                           >
                             <Trash2 className="w-3 h-3" />
-                          </Button>
+                          </Button> */}
                           {/* Show submodule-specific assignments if different from module */}
-                          {submodule.assignedDevs.length > 0 &&
+                          {/* {submodule.assignedDevs.length > 0 &&
                             JSON.stringify(submodule.assignedDevs.sort()) !==
                             JSON.stringify(module.assignedDevs.sort()) && (
                               <div className="flex -space-x-1">
@@ -692,9 +715,9 @@ export const ModuleManagement: React.FC = () => {
                                   </div>
                                 )}
                               </div>
-                            )}
+                            )} */}
                           {/* Show inherited module assignments */}
-                          {module.assignedDevs.length > 0 &&
+                          {/* {module.assignedDevs.length > 0 &&
                             JSON.stringify(submodule.assignedDevs.sort()) ===
                             JSON.stringify(module.assignedDevs.sort()) && (
                               <div className="flex -space-x-1">
@@ -723,11 +746,11 @@ export const ModuleManagement: React.FC = () => {
                                   </div>
                                 )}
                               </div>
-                            )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                            )} */}
+                        {/* </div>
+                      </div> */}
+                    {/* ))} */}
+                {/* </div> */}
               </CardContent>
             </Card>
           ))}
