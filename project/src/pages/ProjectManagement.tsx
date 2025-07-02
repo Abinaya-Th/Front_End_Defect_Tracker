@@ -4,21 +4,15 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Eye, ChevronLeft, Settings } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
-import { useApp } from '../context/AppContext';
+// import { useApp } from '../context/AppContext';
 import QuickAddDefect from './QuickAddDefect';
 import QuickAddTestCase from './QuickAddTestCase';
-import { ProjectSelector } from '../components/ui/ProjectSelector';
+// import { ProjectSelector } from '../components/ui/ProjectSelector';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const [showModuleManagement, setShowModuleManagement] = useState(false);
-  const { projects, setSelectedProjectId } = useApp();
-
-  const handleProjectSelect = (id: string) => {
-    setSelectedProjectId(id);
-    navigate(`/projects/${id}/project-management`);
-  };
 
   if (showModuleManagement) {
     return (
@@ -39,13 +33,6 @@ export const ProjectManagement: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Project Selection Panel */}
-      <ProjectSelector
-        projects={projects}
-        selectedProjectId={projectId || null}
-        onSelect={handleProjectSelect}
-      />
-      {/* End Project Selection Panel */}
       <h1 className="text-2xl font-bold text-gray-900 mb-8 mt-2">Project Management</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* View Card */}

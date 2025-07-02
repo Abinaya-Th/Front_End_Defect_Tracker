@@ -155,3 +155,33 @@ export interface EmailConfig {
   createdAt: string;
   updatedAt: string;
 }
+
+// Submodule and Module types for module management
+export interface Submodule {
+  id: string;
+  name: string;
+  assignedDevs: string[];
+}
+
+export interface Module {
+  id: string;
+  name: string;
+  submodules: Submodule[];
+  assignedDevs: string[];
+}
+
+export interface CreateModuleRequest {
+  moduleName: string;
+  projectId: string;
+  submodules?: { name: string }[];
+}
+
+export interface CreateModuleResponse {
+  success: boolean;
+  message?: string;
+  module?: Module;
+}
+
+export interface GetModulesResponse {
+  modules: Module[];
+}
