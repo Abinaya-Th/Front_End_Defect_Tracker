@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Edit2,
@@ -24,6 +24,7 @@ import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
 import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
 import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 // Locally extend Defect to allow 'defectHistory' and 'new' status
 interface Defect extends BaseDefect {
@@ -522,6 +523,10 @@ export const Defects: React.FC = () => {
   const [isStatusLoading, setIsStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
+  const [modules, setModules] = useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+
   // Fetch priorities from database
   React.useEffect(() => {
     const fetchPriorities = async () => {
@@ -558,6 +563,27 @@ export const Defects: React.FC = () => {
     };
     fetchStatuses();
   }, []);
+
+  // Fetch modules from API when projectId changes
+  useEffect(() => {
+    if (!projectId) return;
+    setLoadingModules(true);
+    getModulesByProjectId(projectId)
+      .then((res) => {
+        if (res.status === "success") {
+          setModules(res.data || []);
+          setModulesError(null);
+        } else {
+          setModules([]);
+          setModulesError(res.message || "Failed to fetch modules");
+        }
+      })
+      .catch((err) => {
+        setModules([]);
+        setModulesError(err.message || "Failed to fetch modules");
+      })
+      .finally(() => setLoadingModules(false));
+  }, [projectId]);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -706,10 +732,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
+              {modules.map((module: any) => (
+                <option key={module.id || module.Id} value={module.moduleName}>{module.moduleName}</option>
               ))}
             </select>
           </div>
@@ -726,7 +750,7 @@ export const Defects: React.FC = () => {
               disabled={!filters.module}
             >
               <option value="">All</option>
-              {uniqueSubmodules.map((sm) => (
+              {modules.find((m: any) => m.moduleName === formData.module)?.submodules.map((sm: string) => (
                 <option key={sm} value={sm}>
                   {sm}
                 </option>
@@ -1252,10 +1276,8 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select a module</option>
-                {modulesList.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module}
-                  </option>
+                {modules.map((module: any) => (
+                  <option key={module.id || module.Id} value={module.moduleName}>{module.moduleName}</option>
                 ))}
               </select>
             </div>
@@ -1271,9 +1293,9 @@ export const Defects: React.FC = () => {
                 disabled={!formData.module}
               >
                 <option value="">Select a submodule</option>
-                {submodulesList.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
+                {modules.find((m: any) => m.moduleName === formData.module)?.submodules.map((sm: string) => (
+                  <option key={sm} value={sm}>
+                    {sm}
                   </option>
                 ))}
               </select>

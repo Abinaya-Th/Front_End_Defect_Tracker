@@ -20,6 +20,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
+import { getModulesByProjectId } from "../api/module/getModule";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
@@ -62,7 +63,6 @@ export const TestCase: React.FC = () => {
   const navigate = useNavigate();
   // --- State for projects/modules/submodules (mock) ---
   const [projects] = useState(mockProjects);
-  const [modulesByProject] = useState(mockModulesByProject);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
@@ -163,7 +163,7 @@ export const TestCase: React.FC = () => {
               projectId: formData.projectId,
               severity: formData.severity,
               type: formData.type,
-            }
+            } 
           : tc
       )
     );
@@ -185,7 +185,7 @@ export const TestCase: React.FC = () => {
   }
 
   // Get modules for selected project from context
-  const projectModules = selectedProjectId ? modulesByProject[String(selectedProjectId)] || [] : [];
+  const projectModules = selectedProjectId ? mockModulesByProject[String(selectedProjectId)] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
   const selectedTestCaseIds = useMemo(() => {
@@ -457,6 +457,31 @@ export const TestCase: React.FC = () => {
   //   setIsDescriptionModalOpen(true);
   // };
 
+  const [modules, setModules] = useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+
+  // Fetch modules from API when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    setLoadingModules(true);
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        if (res.status === "success") {
+          setModules(res.data || []);
+          setModulesError(null);
+        } else {
+          setModules([]);
+          setModulesError(res.message || "Failed to fetch modules");
+        }
+      })
+      .catch((err) => {
+        setModules([]);
+        setModulesError(err.message || "Failed to fetch modules");
+      })
+      .finally(() => setLoadingModules(false));
+  }, [selectedProjectId]);
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -489,13 +514,13 @@ export const TestCase: React.FC = () => {
           {/* Module Selection Panel */}
           {selectedProjectId && (
             <ModuleSelector
-              modules={projectModules}
+              modules={modules}
               selectedModuleId={
-                projectModules.find((m: any) => m.name === selectedModule)?.id ||
+                modules.find((m: any) => m.name === selectedModule)?.id ||
                 null
               }
               onSelect={(id) => {
-                const mod = projectModules.find((m: any) => m.id === id);
+                const mod = modules.find((m: any) => m.id === id);
                 setSelectedModule(mod ? mod.name : "");
                 setSelectedSubmodule("");
                 setSelectedTestCases([]);
@@ -533,7 +558,7 @@ export const TestCase: React.FC = () => {
                       maxWidth: "100%",
                     }}
                   >
-                    {projectModules
+                    {modules
                       .find((m: any) => m.name === selectedModule)
                       ?.submodules.map((submodule: any) => {
                         const submoduleTestCases = testCases.filter(
@@ -941,10 +966,8 @@ export const TestCase: React.FC = () => {
                         required
                       >
                         <option value="">Select Module</option>
-                        {(modulesByProject[String(selectedProjectId)] || []).map((module: any) => (
-                          <option key={module.id} value={module.name}>
-                            {module.name}
-                          </option>
+                        {modules.map((module: any) => (
+                          <option key={module.id || module.Id} value={module.moduleName}>{module.moduleName}</option>
                         ))}
                       </select>
                     </div>
@@ -963,17 +986,13 @@ export const TestCase: React.FC = () => {
                       >
                         <option value="">
                           {(
-                            modulesByProject[String(selectedProjectId)]?.find(
-                              (m: any) => m.name === modal.formData.module
-                            )?.submodules || []
+                            modules.find((m: any) => m.moduleName === modal.formData.module)?.submodules || []
                           ).length === 0
                             ? "No submodules"
                             : "Select Sub Module (optional)"}
                         </option>
                         {(
-                          modulesByProject[String(selectedProjectId)]?.find(
-                            (m: any) => m.name === modal.formData.module
-                          )?.submodules || []
+                          modules.find((m: any) => m.moduleName === modal.formData.module)?.submodules || []
                         ).map((submodule: any) => (
                           <option key={submodule.id} value={submodule.name}>
                             {submodule.name}

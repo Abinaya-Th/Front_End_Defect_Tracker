@@ -24,6 +24,7 @@ import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardVie
 import { createRelease } from "../api/createRelease/CreateRelease";
 import { searchRelease } from "../api/searchRelease/SearchRelease";
 import axios from 'axios';
+import { getModulesByProjectId } from "../api/module/getModule";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Define interfaces for our data types

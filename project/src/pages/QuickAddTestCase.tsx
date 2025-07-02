@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -6,114 +6,7 @@ import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
-
-// Mock data for modules and submodules
-const mockModules: Record<
-  string,
-  { id: string; name: string; submodules: string[] }[]
-> = {
-  "2": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: [
-        "Biometric Login",
-        "PIN Login",
-        "Password Reset",
-        "Session Management",
-      ],
-    },
-    {
-      id: "acc",
-      name: "Account Management",
-      submodules: [
-        "Account Overview",
-        "Transaction History",
-        "Account Statements",
-        "Account Settings",
-      ],
-    },
-    {
-      id: "tra",
-      name: "Money Transfer",
-      submodules: [
-        "Quick Transfer",
-        "Scheduled Transfer",
-        "International Transfer",
-        "Transfer Limits",
-      ],
-    },
-    {
-      id: "bil",
-      name: "Bill Payments",
-      submodules: [
-        "Bill List",
-        "Payment Scheduling",
-        "Payment History",
-        "Recurring Payments",
-      ],
-    },
-    {
-      id: "sec",
-      name: "Security Features",
-      submodules: [
-        "Two-Factor Auth",
-        "Device Management",
-        "Security Alerts",
-        "Fraud Protection",
-      ],
-    },
-    {
-      id: "sup",
-      name: "Customer Support",
-      submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-    },
-  ],
-  "3": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "reporting",
-      name: "Reporting",
-      submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-    },
-    {
-      id: "data",
-      name: "Data Management",
-      submodules: ["Data Import", "Data Processing", "Data Export"],
-    },
-    {
-      id: "visualization",
-      name: "Visualization",
-      submodules: ["Charts", "Graphs", "Widgets"],
-    },
-  ],
-  "4": [
-    {
-      id: "auth",
-      name: "Authentication",
-      submodules: ["Login", "Registration", "Password Reset"],
-    },
-    {
-      id: "content",
-      name: "Content Management",
-      submodules: ["Articles", "Media", "Categories", "Templates"],
-    },
-    {
-      id: "user",
-      name: "User Management",
-      submodules: ["Profile", "Settings", "Permissions", "Roles"],
-    },
-    {
-      id: "workflow",
-      name: "Workflow",
-      submodules: ["Approval Process", "Review Process", "Publishing"],
-    },
-  ],
-};
+import { getModulesByProjectId } from "../api/module/getModule";
 
 const QuickAddTestCase: React.FC = () => {
   const { selectedProjectId, projects, addTestCase, modulesByProject } =
@@ -134,6 +27,9 @@ const QuickAddTestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [modules, setModules] = React.useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = React.useState(false);
+  const [modulesError, setModulesError] = React.useState<string | null>(null);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -225,6 +121,27 @@ const QuickAddTestCase: React.FC = () => {
       setCurrentModalIdx(0);
     }, 1200);
   };
+
+  // Fetch modules from API when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    setLoadingModules(true);
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        if (res.status === "success") {
+          setModules(res.data || []);
+          setModulesError(null);
+        } else {
+          setModules([]);
+          setModulesError(res.message || "Failed to fetch modules");
+        }
+      })
+      .catch((err) => {
+        setModules([]);
+        setModulesError(err.message || "Failed to fetch modules");
+      })
+      .finally(() => setLoadingModules(false));
+  }, [selectedProjectId]);
 
   // Use modulesByProject from context instead of mockModules
   const projectModules = selectedProjectId
@@ -413,13 +330,11 @@ const QuickAddTestCase: React.FC = () => {
                         disabled={!selectedProjectId}
                       >
                         <option value="">Select Module</option>
-                        {projectModules.map(
-                          (module: { id: string; name: string }) => (
-                            <option key={module.id} value={module.name}>
-                              {module.name}
-                            </option>
-                          )
-                        )}
+                        {modules.map((module: any) => (
+                          <option key={module.id || module.Id} value={module.moduleName}>
+                            {module.moduleName}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>

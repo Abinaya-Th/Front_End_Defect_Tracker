@@ -18,196 +18,12 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
-const TABS = [
-  { key: "release", label: "Release Allocation" },
-  { key: "qa", label: "QA Allocation" },
-];
-
-// --- MOCK DATA SECTION (for modules, submodules, testcases, QA, releases) ---
-
-// Mock Modules and Submodules
-const mockModules = [
-  {
-    id: "auth",
-    name: "Authentication",
-    submodules: [
-      { id: "auth-bio", name: "Biometric Login" },
-      { id: "auth-pin", name: "PIN Login" },
-      { id: "auth-pass", name: "Password Reset" },
-      { id: "auth-session", name: "Session Management" },
-    ],
-  },
-  {
-    id: "acc",
-    name: "Account Management",
-    submodules: [
-      { id: "acc-overview", name: "Account Overview" },
-      { id: "acc-history", name: "Transaction History" },
-      { id: "acc-statements", name: "Account Statements" },
-      { id: "acc-settings", name: "Account Settings" },
-    ],
-  },
-  {
-    id: "payment",
-    name: "Payment",
-    submodules: [
-      { id: "pay-gateway", name: "Gateway Integration" },
-      { id: "pay-methods", name: "Payment Methods" },
-      { id: "pay-security", name: "Payment Security" },
-      { id: "pay-processing", name: "Payment Processing" },
-    ],
-  },
-  {
-    id: "cart",
-    name: "Shopping Cart",
-    submodules: [
-      { id: "cart-management", name: "Cart Management" },
-      { id: "cart-checkout", name: "Checkout Process" },
-      { id: "cart-discounts", name: "Discounts & Coupons" },
-      { id: "cart-inventory", name: "Inventory Check" },
-    ],
-  },
-  {
-    id: "user",
-    name: "User Management",
-    submodules: [
-      { id: "user-dashboard", name: "Dashboard" },
-      { id: "user-profile", name: "Profile Management" },
-      { id: "user-preferences", name: "User Preferences" },
-      { id: "user-security", name: "Security Settings" },
-    ],
-  },
-  {
-    id: "analytics",
-    name: "Analytics",
-    submodules: [
-      { id: "analytics-realtime", name: "Real-time Data" },
-      { id: "analytics-trends", name: "Trend Analysis" },
-      { id: "analytics-metrics", name: "Key Metrics" },
-      { id: "analytics-insights", name: "Data Insights" },
-    ],
-  },
-  {
-    id: "reporting",
-    name: "Reporting",
-    submodules: [
-      { id: "reports-custom", name: "Custom Reports" },
-      { id: "reports-scheduled", name: "Scheduled Reports" },
-      { id: "reports-export", name: "Data Export" },
-      { id: "reports-sharing", name: "Report Sharing" },
-    ],
-  },
-  {
-    id: "visualization",
-    name: "Visualization",
-    submodules: [
-      { id: "visual-charts", name: "Charts" },
-      { id: "visual-graphs", name: "Graphs" },
-      { id: "visual-dashboards", name: "Dashboards" },
-      { id: "visual-widgets", name: "Widgets" },
-    ],
-  },
-  // ...add more modules as needed
-];
-
-// Mock Test Cases
-const mockTestCases = [
-  {
-    id: "TC-AUT-BIO-0001",
-    module: "Authentication",
-    subModule: "Biometric Login",
-    description: "Verify that users can log in using biometric authentication",
-    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-AUT-PIN-0001",
-    module: "Authentication",
-    subModule: "PIN Login",
-    description: "Test PIN login security features",
-    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
-    type: "functional",
-    severity: "critical",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-PAY-001",
-    module: "Payment",
-    subModule: "Gateway Integration",
-    description: "Test new payment gateway integration",
-    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
-    type: "integration",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-CART-002",
-    module: "Shopping Cart",
-    subModule: "Cart Management",
-    description: "Test enhanced cart functionality",
-    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-USER-003",
-    module: "User Management",
-    subModule: "Dashboard",
-    description: "Test new user dashboard features",
-    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-ANALYTICS-001",
-    module: "Analytics",
-    subModule: "Real-time Data",
-    description: "Test real-time analytics data display",
-    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-REPORTS-002",
-    module: "Reporting",
-    subModule: "Custom Reports",
-    description: "Test custom report generation",
-    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-VISUAL-003",
-    module: "Visualization",
-    subModule: "Charts",
-    description: "Test data visualization components",
-    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
-    type: "functional",
-    severity: "low",
-    status: "active",
-    projectId: "PR0002",
-  },
-  // ...add more test cases as needed
-];
-
 // Mock QA (engineers/teams)
-const mockQA = [
+const mockQA: any[] = [
   {
     id: "QA001",
     name: "Sarah Wilson",
@@ -278,76 +94,104 @@ const mockQA = [
     department: "Quality Assurance",
     status: "active",
   },
-  // ...add more QA engineers/teams as needed
 ];
 
-// Mock Releases
-const mockReleases = [
+// Mock Test Cases
+const mockTestCases: any[] = [
   {
-    id: "R002",
-    name: "Mobile Banking v2.1",
-    version: "2.1.0",
-    description: "Security enhancements and UI updates for mobile banking",
+    id: "TC-AUT-BIO-0001",
+    module: "Authentication",
+    subModule: "Biometric Login",
+    description: "Verify that users can log in using biometric authentication",
+    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
+    type: "functional",
+    severity: "high",
     projectId: "PR0001",
-    status: "planned",
-    releaseDate: "2024-04-01",
-    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
-    features: ["Biometric login", "Quick transfer"],
-    bugFixes: ["Fixed session timeout"],
-    createdAt: "2024-03-10T09:00:00Z",
+    releaseId: "R002",
   },
   {
-    id: "R003",
-    name: "Inventory v1.2",
-    version: "1.2.0",
-    description: "Performance improvements and bug fixes for inventory system",
-    projectId: "PR0003",
-    status: "completed",
-    releaseDate: "2024-02-15",
-    testCases: [],
-    features: ["Faster report generation"],
-    bugFixes: ["Fixed database timeout"],
-    createdAt: "2024-02-01T08:00:00Z",
-  },
-  {
-    id: "R004",
-    name: "E-commerce Platform v3.0",
-    version: "3.0.0",
-    description: "Major update with new payment gateway integration and improved user experience",
+    id: "TC-AUT-PIN-0001",
+    module: "Authentication",
+    subModule: "PIN Login",
+    description: "Test PIN login security features",
+    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
+    type: "functional",
+    severity: "critical",
     projectId: "PR0001",
-    status: "in-progress",
-    releaseDate: "2024-05-15",
-    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
-    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
-    bugFixes: ["Fixed checkout flow", "Improved search"],
-    createdAt: "2024-04-01T10:00:00Z",
+    releaseId: "R002",
   },
   {
-    id: "R005",
-    name: "Analytics Dashboard v2.5",
-    version: "2.5.0",
-    description: "Advanced analytics with real-time data visualization and custom reports",
+    id: "TC-PAY-001",
+    module: "Payment",
+    subModule: "Gateway Integration",
+    description: "Test new payment gateway integration",
+    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
+    type: "integration",
+    severity: "high",
+    projectId: "PR0001",
+    releaseId: "R004",
+  },
+  {
+    id: "TC-CART-002",
+    module: "Shopping Cart",
+    subModule: "Cart Management",
+    description: "Test enhanced cart functionality",
+    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
+    type: "functional",
+    severity: "medium",
+    projectId: "PR0001",
+    releaseId: "R004",
+  },
+  {
+    id: "TC-USER-003",
+    module: "User Management",
+    subModule: "Dashboard",
+    description: "Test new user dashboard features",
+    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
+    type: "functional",
+    severity: "medium",
+    projectId: "PR0001",
+    releaseId: "R004",
+  },
+  {
+    id: "TC-ANALYTICS-001",
+    module: "Analytics",
+    subModule: "Real-time Data",
+    description: "Test real-time analytics data display",
+    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
+    type: "functional",
+    severity: "high",
     projectId: "PR0002",
-    status: "planned",
-    releaseDate: "2024-06-01",
-    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002", "TC-VISUAL-003"],
-    features: ["Real-time analytics", "Custom reports", "Data export"],
-    bugFixes: ["Fixed chart rendering", "Improved performance"],
-    createdAt: "2024-04-15T14:00:00Z",
+    releaseId: "R005",
   },
-  // ...add more releases as needed
+  {
+    id: "TC-REPORTS-002",
+    module: "Reporting",
+    subModule: "Custom Reports",
+    description: "Test custom report generation",
+    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
+    type: "functional",
+    severity: "medium",
+    projectId: "PR0002",
+    releaseId: "R005",
+  },
+  {
+    id: "TC-VISUAL-003",
+    module: "Visualization",
+    subModule: "Charts",
+    description: "Test data visualization components",
+    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
+    type: "functional",
+    severity: "low",
+    projectId: "PR0002",
+    releaseId: "R005",
+  },
 ];
 
-// --- END MOCK DATA SECTION ---
-
-// Helper: Use mock data if API/server is not working
-function useMockOrApiData(apiData: any, mockData: any): any {
-  // If API data is empty or null, use mock data
-  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
-    return mockData;
-  }
-  return apiData;
-}
+const TABS = [
+  { key: "release", label: "Release Allocation" },
+  { key: "qa", label: "QA Allocation" },
+];
 
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
@@ -383,6 +227,10 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = useState(false);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
@@ -418,7 +266,6 @@ export const Allocation: React.FC = () => {
 
   console.log("Project Release Data:", projectRelease);
 
-
   // Filter releases for this project
   const projectReleases = releases.filter((r) => r.projectId === projectId);
   // Filter test cases for this project
@@ -428,9 +275,9 @@ export const Allocation: React.FC = () => {
   const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Use mock data if API/server is not working
-  const effectiveProjectRelease = useMockOrApiData(projectRelease, mockReleases.filter((r: any) => !projectId || r.projectId === projectId));
-  const effectiveTestCases = useMockOrApiData(testCases, mockTestCases.filter((tc: any) => !projectId || tc.projectId === projectId));
-  const effectiveModules = useMockOrApiData(projectModules, mockModules);
+  const effectiveProjectRelease = projectReleases;
+  const effectiveTestCases = projectTestCases;
+  const effectiveModules = projectModules;
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -658,63 +505,66 @@ export const Allocation: React.FC = () => {
             </Button>
           )}
         </div>
-        <div className="relative flex items-center">
-          <button
-            onClick={() => {
-              const container = document.getElementById("module-scroll");
-              if (container) container.scrollLeft -= 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div
-            id="module-scroll"
-            className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
-            {effectiveModules.map((module: any) => {
-              const moduleTestCases = effectiveTestCases.filter(
-                (tc: any) => tc.module === module.name
-              );
-              const isSelected = bulkModuleSelect
-                ? selectedModules.includes(module.name)
-                : selectedModule === module.name;
-              return (
-                <Button
-                  key={module.id}
-                  variant={isSelected ? "primary" : "secondary"}
-                  onClick={() => {
-                    if (bulkModuleSelect) {
-                      setSelectedModules((prev) =>
-                        prev.includes(module.name)
-                          ? prev.filter((m) => m !== module.name)
-                          : [...prev, module.name]
-                      );
-                    } else {
-                      setSelectedModule(module.name);
-                      setSelectedSubmodule("");
-                      setSelectedTestCases([]);
-                    }
-                  }}
-                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                    }`}
-                >
-                  {module.name}
-                </Button>
-              );
-            })}
+        {loadingModules ? (
+          <div className="text-blue-600">Loading modules...</div>
+        ) : modulesError ? (
+          <div className="text-red-600">{modulesError}</div>
+        ) : (
+          <div className="relative flex items-center">
+            <button
+              onClick={() => {
+                const container = document.getElementById("module-scroll");
+                if (container) container.scrollLeft -= 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div
+              id="module-scroll"
+              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {modules.map((module: any) => {
+                const isSelected = bulkModuleSelect
+                  ? selectedModules.includes(module.moduleName)
+                  : selectedModule === module.moduleName;
+                return (
+                  <Button
+                    key={module.id || module.Id}
+                    variant={isSelected ? "primary" : "secondary"}
+                    onClick={() => {
+                      if (bulkModuleSelect) {
+                        setSelectedModules((prev) =>
+                          prev.includes(module.moduleName)
+                            ? prev.filter((m) => m !== module.moduleName)
+                            : [...prev, module.moduleName]
+                        );
+                      } else {
+                        setSelectedModule(module.moduleName);
+                        setSelectedSubmodule("");
+                        setSelectedTestCases([]);
+                      }
+                    }}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
+                      }`}
+                  >
+                    {module.moduleName}
+                  </Button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => {
+                const container = document.getElementById("module-scroll");
+                if (container) container.scrollLeft += 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
           </div>
-          <button
-            onClick={() => {
-              const container = document.getElementById("module-scroll");
-              if (container) container.scrollLeft += 200;
-            }}
-            className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -722,13 +572,13 @@ export const Allocation: React.FC = () => {
   const SubmoduleSelectionPanel = () => {
     const submodules =
       selectedModule
-        ? (effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
+        ? (modules.find((m: any) => m.moduleName === selectedModule)?.submodules || [])
         : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-medium text-gray-900">
               Submodule Selection
             </h2>
             {activeTab === "release" && selectedReleaseIds.length > 0 && (
@@ -1343,6 +1193,28 @@ export const Allocation: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('qaAllocations', JSON.stringify(qaAllocations));
   }, [qaAllocations]);
+
+  // Fetch modules from API when selectedProject or projectId changes
+  useEffect(() => {
+    const pid = selectedProject || projectId;
+    if (!pid) return;
+    setLoadingModules(true);
+    getModulesByProjectId(pid)
+      .then((res) => {
+        if (res.status === "success") {
+          setModules(res.data || []);
+          setModulesError(null);
+        } else {
+          setModules([]);
+          setModulesError(res.message || "Failed to fetch modules");
+        }
+      })
+      .catch((err) => {
+        setModules([]);
+        setModulesError(err.message || "Failed to fetch modules");
+      })
+      .finally(() => setLoadingModules(false));
+  }, [selectedProject, projectId]);
 
   return (
     <div className="max-w-5xl mx-auto py-8">

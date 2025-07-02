@@ -162,7 +162,13 @@ export interface Submodule {
   name: string;
   assignedDevs: string[];
 }
-
+export interface Modules{
+  name: string;
+  id: string;
+  moduleId: string;
+  moduleName: string;
+  projectId: string;
+}
 export interface Module {
   id: string;
   name: string;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bug, Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -7,6 +7,7 @@ import { useApp } from "../context/AppContext";
 import { MdBugReport } from "react-icons/md";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 const QuickAddDefect: React.FC = () => {
   const { selectedProjectId, projects, defects, addDefect, modulesByProject, releases } =
@@ -33,26 +34,36 @@ const QuickAddDefect: React.FC = () => {
     },
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [modules, setModules] = React.useState<any[]>([]);
+  const [loadingModules, setLoadingModules] = React.useState(false);
+  const [modulesError, setModulesError] = React.useState<string | null>(null);
 
-  const mockModules = [
-    {
-      name: "Authentication",
-      submodules: ["Login", "Logout", "Password Reset"],
-    },
-    {
-      name: "Dashboard",
-      submodules: ["Overview", "Reports", "Analytics"],
-    },
-    {
-      name: "User Management",
-      submodules: ["Add User", "Edit User", "Delete User"],
-    },
-  ];
+  // Fetch modules from API when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    setLoadingModules(true);
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        if (res.status === "success") {
+          setModules(res.data || []);
+          setModulesError(null);
+        } else {
+          setModules([]);
+          setModulesError(res.message || "Failed to fetch modules");
+        }
+      })
+      .catch((err) => {
+        setModules([]);
+        setModulesError(err.message || "Failed to fetch modules");
+      })
+      .finally(() => setLoadingModules(false));
+  }, [selectedProjectId]);
+
   const projectModules = selectedProjectId
     ? modulesByProject[selectedProjectId] && modulesByProject[selectedProjectId].length > 0
       ? modulesByProject[selectedProjectId]
-      : mockModules
-    : mockModules;
+      : modules
+    : modules;
   const modulesList = projectModules.map((m) => m.name);
   let submodulesList: string[] = [];
   if (formData.module) {
@@ -233,10 +244,8 @@ const QuickAddDefect: React.FC = () => {
                 disabled={!selectedProjectId}
               >
                 <option value="">Select...</option>
-                {modulesList.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module}
-                  </option>
+                {modules.map((module: any) => (
+                  <option key={module.id || module.Id} value={module.moduleName}>{module.moduleName}</option>
                 ))}
               </select>
             </div>
