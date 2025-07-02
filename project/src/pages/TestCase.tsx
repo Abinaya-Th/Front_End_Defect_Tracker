@@ -30,10 +30,10 @@ import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submodulege
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
-const mockProjects = [
-  { id: "PROJ001", name: "Project Alpha" },
-  { id: "PROJ002", name: "Project Beta" },
-];
+// const mockProjects = [
+//   { id: "PROJ001", name: "Project Alpha" },
+//   { id: "PROJ002", name: "Project Beta" },
+// ];
 // --- MOCK DATA for modules/submodules by projectId (numeric IDs matching DB) ---
 // const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
 //   "1": [ ... ]
@@ -42,8 +42,8 @@ const mockProjects = [
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  // --- State for projects/modules/submodules (mock) ---
-  const [projects] = useState(mockProjects);
+  // --- State for projects/modules/submodules (real backend) ---
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
@@ -52,13 +52,18 @@ export const TestCase: React.FC = () => {
   // Add state for modules by project
   const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
 
+  // Fetch real projects from backend on mount
+  useEffect(() => {
+    getAllProjects().then(res => setProjects(res));
+  }, []);
+
   // Fetch modules when selectedProjectId changes
   useEffect(() => {
     if (!selectedProjectId) return;
     getModulesByProjectId(selectedProjectId).then((res) => {
       // Transform API data to expected format
       const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id),
+        id: String(mod.id), // Always use backend module ID
         name: mod.moduleName || mod.name,
         submodules: (mod.submodules || []).map((sm: any) => ({
           id: String(sm.id),
