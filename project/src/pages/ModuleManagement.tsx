@@ -18,7 +18,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
-import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi } from "../api/module/createModule";
+import { createModule as createModuleApi } from "../api/module/createModule";
+import { updateModule as updateModuleApi } from "../api/module/updateModule";
+import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
 
@@ -75,6 +77,7 @@ export const ModuleManagement: React.FC = () => {
   const [currentModuleIdForSubmodule, setCurrentModuleIdForSubmodule] = useState<string | null>(null);
   const [isEditingSubmodule, setIsEditingSubmodule] = useState(false);
   const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
+  const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -161,18 +164,21 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleEditModule = (module: Module) => {
+    console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name,
+      name: module.name || '',
     });
     setIsEditModuleModalOpen(true);
   };
 
   const handleUpdateModule = async () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
+      setIsUpdatingModule(true);
       try {
         const response = await updateModuleApi(editingModule.id, {
           moduleName: moduleForm.name,
+          projectId: Number(selectedProjectId),
         });
         if (response.success && response.module) {
           updateModule(selectedProjectId, editingModule.id, response.module);
@@ -182,6 +188,8 @@ export const ModuleManagement: React.FC = () => {
         setIsEditModuleModalOpen(false);
       } catch (error) {
         alert("Failed to update module. Please try again.");
+      } finally {
+        setIsUpdatingModule(false);
       }
     }
   };
@@ -197,9 +205,11 @@ export const ModuleManagement: React.FC = () => {
           const response = await deleteModuleApi(moduleId);
           if (response.success) {
             deleteModule(selectedProjectId, moduleId);
+          } else {
+            alert(response.message || "Failed to delete module on server.");
           }
         } catch (error) {
-          alert("Failed to delete module. Please try again.");
+          alert("Failed to delete module on server.");
         }
       }
     }
@@ -571,18 +581,25 @@ console.log({modulesByProjectId});
                               type="button"
                               className="p-1 hover:text-red-600"
                               title="Delete Submodule"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                  setModulesByProjectId(prev =>
-                                    prev.map(m =>
-                                      m.id === module.id
-                                        ? {
-                                            ...m,
-                                            submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                          }
-                                        : m
-                                    )
-                                  );
+                                  const moduleToUpdate = modulesByProjectId.find((m) => m.id === module.id);
+                                  if (!moduleToUpdate) return;
+                                  const updatedSubmodules = moduleToUpdate.submodules.filter((s: any) => s.id !== sub.id);
+                                  try {
+                                    const response = await updateModuleApi(module.id, { submodules: updatedSubmodules });
+                                    if (response.success && response.module) {
+                                      setModulesByProjectId((prev) =>
+                                        prev.map((m) =>
+                                          m.id === module.id ? { ...m, submodules: response.module?.submodules } : m
+                                        )
+                                      );
+                                    } else {
+                                      alert('Failed to delete submodule on server.');
+                                    }
+                                  } catch {
+                                    alert('Failed to delete submodule on server.');
+                                  }
                                 }
                               }}
                             >
@@ -748,7 +765,9 @@ console.log({modulesByProjectId});
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateModule}>Update Module</Button>
+            <Button onClick={handleUpdateModule} disabled={isUpdatingModule}>
+              {isUpdatingModule ? 'Updating...' : 'Update Module'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -880,33 +899,51 @@ console.log({modulesByProjectId});
                 if (!submoduleForm.name.trim() || !currentModuleIdForSubmodule) return;
                 if (isEditingSubmodule && editingSubmoduleId) {
                   // Edit mode: update submodule name
-                  setModulesByProjectId(prev =>
-                    prev.map(module =>
-                      module.id === currentModuleIdForSubmodule
-                        ? {
-                            ...module,
-                            submodules: module.submodules.map((sub: any) =>
-                              sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                            )
-                          }
-                        : module
-                    )
+                  const moduleToUpdate = modulesByProjectId.find(
+                    (m) => m.id === currentModuleIdForSubmodule
                   );
+                  if (!moduleToUpdate) return;
+                  const updatedSubmodules = moduleToUpdate.submodules.map((sub: any) =>
+                    sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                  );
+                  try {
+                    const response = await updateModuleApi(currentModuleIdForSubmodule, { submodules: updatedSubmodules });
+                    if (response.success && response.module) {
+                      setModulesByProjectId((prev) =>
+                        prev.map((m) =>
+                          m.id === currentModuleIdForSubmodule ? { ...m, submodules: response.module?.submodules } : m
+                        )
+                      );
+                    } else {
+                      alert('Failed to update submodule on server.');
+                    }
+                  } catch {
+                    alert('Failed to update submodule on server.');
+                  }
                 } else {
                   // Add mode: add new submodule
-                  setModulesByProjectId(prev =>
-                    prev.map(module =>
-                      module.id === currentModuleIdForSubmodule
-                        ? {
-                            ...module,
-                            submodules: [
-                              ...(Array.isArray(module.submodules) ? module.submodules : []),
-                              { id: Date.now().toString(), name: submoduleForm.name }
-                            ]
-                          }
-                        : module
-                    )
+                  const moduleToUpdate = modulesByProjectId.find(
+                    (m) => m.id === currentModuleIdForSubmodule
                   );
+                  if (!moduleToUpdate) return;
+                  const updatedSubmodules = [
+                    ...(Array.isArray(moduleToUpdate.submodules) ? moduleToUpdate.submodules : []),
+                    { id: Date.now().toString(), name: submoduleForm.name, assignedDevs: [] }
+                  ];
+                  try {
+                    const response = await updateModuleApi(currentModuleIdForSubmodule, { submodules: updatedSubmodules });
+                    if (response.success && response.module) {
+                      setModulesByProjectId((prev) =>
+                        prev.map((m) =>
+                          m.id === currentModuleIdForSubmodule ? { ...m, submodules: response.module?.submodules } : m
+                        )
+                      );
+                    } else {
+                      alert('Failed to add submodule on server.');
+                    }
+                  } catch {
+                    alert('Failed to add submodule on server.');
+                  }
                 }
                 setIsAddSubmoduleModalOpen(false);
                 setIsEditingSubmodule(false);
