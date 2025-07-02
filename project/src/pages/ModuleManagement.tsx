@@ -102,10 +102,10 @@ export const ModuleManagement: React.FC = () => {
       const payload = {
         moduleName: moduleForm.name,
         projectId: selectedProjectId,
-        
+
       }
-      console.log({payload});
-      
+      console.log({ payload });
+
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
@@ -381,13 +381,13 @@ export const ModuleManagement: React.FC = () => {
   const project = projects.find((p) => p.id === selectedProjectId);
 
   console.log(selectedProjectId);
-  
-   const fetchModules = async () => {
+
+  const fetchModules = async () => {
     if (!selectedProjectId) return;
     try {
       const response = await getModulesByProjectId(selectedProjectId);
       console.log("Fetched modules:", response); // Debug: log the response
-      
+
       setModulesByProjectId(response.data);
     } catch (error) {
       console.error("Error fetching modules:", error);
@@ -397,9 +397,9 @@ export const ModuleManagement: React.FC = () => {
   useEffect(() => {
 
     fetchModules();
-  }, [selectedProjectId ]);
+  }, [selectedProjectId]);
 
-console.log({modulesByProjectId});
+  console.log({ modulesByProjectId });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -490,7 +490,7 @@ console.log({modulesByProjectId});
             </div>
             {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {modulesByProjectId.map((module) => (
+              {(modulesByProjectId || []).map((module) => (
                 <Card key={module.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
@@ -564,9 +564,9 @@ console.log({modulesByProjectId});
                                             prev.map(m =>
                                               m.id === module.id
                                                 ? {
-                                                    ...m,
-                                                    submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                                  }
+                                                  ...m,
+                                                  submodules: m.submodules.filter((s: any) => s.id !== sub.id)
+                                                }
                                                 : m
                                             )
                                           );
@@ -890,11 +890,11 @@ console.log({modulesByProjectId});
                         prev.map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
-                                ...module,
-                                submodules: module.submodules.map((sub: any) =>
-                                  sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                                )
-                              }
+                              ...module,
+                              submodules: module.submodules.map((sub: any) =>
+                                sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                              )
+                            }
                             : module
                         )
                       );
@@ -921,12 +921,12 @@ console.log({modulesByProjectId});
                         prev.map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
-                                ...module,
-                                submodules: [
-                                  ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                  response.submodule,
-                                ],
-                              }
+                              ...module,
+                              submodules: [
+                                ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                response.submodule,
+                              ],
+                            }
                             : module
                         )
                       );
