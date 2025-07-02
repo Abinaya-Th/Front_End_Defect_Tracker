@@ -54,3 +54,33 @@ export const deleteModule = async (moduleId: string): Promise<CreateModuleRespon
     throw error;
   }
 };
+
+/**
+ * Gets modules for a given projectId
+ * @param projectId - The ID of the project
+ * @returns Promise with the API response
+ */
+export const getModulesByProjectId = async (projectId: string) => {
+  try {
+    const response = await apiClient.get(`modules/projectId/${projectId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching modules by projectId:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gets submodules for a given moduleId
+ * @param moduleId - The ID of the module
+ * @returns Promise with the API response
+ */
+export const getSubmodulesByModuleId = async (moduleId: string) => {
+  try {
+    const response = await apiClient.get(`subModule/${moduleId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching submodules by moduleId:", error);
+    throw error;
+  }
+};

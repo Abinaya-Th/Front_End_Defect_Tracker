@@ -18,5 +18,5 @@ export interface CreateProjectPayload {
 
 export async function createProject(payload: CreateProjectPayload) {
   return axios.post(`${BASE_URL}/projects`, payload); 
-  console.log(BASE_URL);
+  console.log(BASE_URL); 
 } 

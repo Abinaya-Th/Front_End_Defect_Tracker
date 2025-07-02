@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -6,6 +6,10 @@ import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { getModulesByProjectId, getSubmodulesByModuleId } from "../api/module/createModule";
+import { createTestCase } from "../api/testCase";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -118,6 +122,8 @@ const mockModules: Record<
 const QuickAddTestCase: React.FC = () => {
   const { selectedProjectId, projects, addTestCase, modulesByProject } =
     useApp();
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [modals, setModals] = useState([
     {
       open: false,
@@ -126,7 +132,7 @@ const QuickAddTestCase: React.FC = () => {
         subModule: "",
         description: "",
         steps: "",
-        type: "functional",
+        defectType: "",
         severity: "medium",
       },
     },
@@ -134,6 +140,48 @@ const QuickAddTestCase: React.FC = () => {
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [submodules, setSubmodules] = useState<any[]>([]);
+  const [selectedModule, setSelectedModule] = useState("");
+  const [selectedSubmodule, setSelectedSubmodule] = useState("");
+
+  useEffect(() => {
+    getSeverities().then((res) => setSeverities(res.data));
+    getDefectTypes().then((res) => setDefectTypes(res.data));
+  }, []);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      getModulesByProjectId(selectedProjectId).then((res) => {
+        console.log('Modules API response:', res);
+        setModules(res.data.data || []);
+      }).catch((error) => {
+        console.error('Error fetching modules:', error);
+        setModules([]);
+      });
+    } else {
+      setModules([]);
+    }
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedModule) {
+      const moduleObj = modules.find((m) => m.moduleId === selectedModule || m.id === selectedModule);
+      if (moduleObj) {
+        getSubmodulesByModuleId(moduleObj.moduleId || moduleObj.id).then((res) => {
+          console.log('Submodules API response:', res);
+          setSubmodules(res.data.data || []);
+        }).catch((error) => {
+          console.error('Error fetching submodules:', error);
+          setSubmodules([]);
+        });
+      } else {
+        setSubmodules([]);
+      }
+    } else {
+      setSubmodules([]);
+    }
+  }, [selectedModule, modules]);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -155,7 +203,7 @@ const QuickAddTestCase: React.FC = () => {
           subModule: "",
           description: "",
           steps: "",
-          type: "functional",
+          defectType: "",
           severity: "medium",
         },
       },
@@ -193,20 +241,41 @@ const QuickAddTestCase: React.FC = () => {
     }
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  // Helper to get ID from selected value
+  const getIdFromList = (list: any[], value: any, idKey: string, nameKey: string): number | undefined => {
+    const found = list.find((item) => item[idKey] === value || item[nameKey] === value || String(item[idKey]) === String(value));
+    return found ? Number(found[idKey]) : undefined;
+  };
+
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module
-          .substring(0, 3)
-          .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: selectedProjectId,
-      });
-    });
-    setSuccess(true);
+    for (const { formData } of modals) {
+      // Map form fields to API body
+      const moduleId = getIdFromList(modules, formData.module, 'moduleId', 'moduleName');
+      const subModuleId = getIdFromList(submodules, formData.subModule, 'subModuleId', 'subModuleName');
+      const severityId = getIdFromList(severities, formData.severity, 'id', 'name');
+      const defectTypeId = getIdFromList(defectTypes, formData.defectType, 'id', 'defectTypeName');
+      const projectId = selectedProjectId ? Number(selectedProjectId) : undefined;
+      if (moduleId && subModuleId && projectId && severityId && defectTypeId) {
+        const payload = {
+          description: formData.description,
+          steps: formData.steps,
+          subModuleId,
+          moduleId,
+          projectId,
+          severityId,
+          defectTypeId,
+        };
+        try {
+          await createTestCase(payload);
+          setSuccess(true);
+        } catch (err) {
+          alert("Failed to create test case: " + (err && typeof err === 'object' ? JSON.stringify(err) : err));
+        }
+      } else {
+        alert("Please select all required fields (module, submodule, severity, defect type, project)");
+      }
+    }
     setTimeout(() => {
       setSuccess(false);
       setModals([
@@ -217,7 +286,7 @@ const QuickAddTestCase: React.FC = () => {
             subModule: "",
             description: "",
             steps: "",
-            type: "functional",
+            defectType: "",
             severity: "medium",
           },
         },
@@ -230,9 +299,6 @@ const QuickAddTestCase: React.FC = () => {
   const projectModules = selectedProjectId
     ? modulesByProject[selectedProjectId] || []
     : [];
-  const selectedProject = projects.find(
-    (p: { id: string }) => p.id === selectedProjectId
-  );
 
   return (
     <div>
@@ -320,10 +386,6 @@ const QuickAddTestCase: React.FC = () => {
         (() => {
           const idx = currentModalIdx;
           const modal = modals[idx];
-          const submodules: string[] =
-            projectModules
-              .find((m: { name: string }) => m.name === modal.formData.module)
-              ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal
               key={idx}
@@ -337,8 +399,8 @@ const QuickAddTestCase: React.FC = () => {
                 }
               }}
               title={
-                selectedProject
-                  ? `Add New Test Case (${selectedProject.name})`
+                selectedProjectId
+                  ? `Add New Test Case (${selectedProjectId})`
                   : "Add New Test Case"
               }
               size="xl"
@@ -413,13 +475,11 @@ const QuickAddTestCase: React.FC = () => {
                         disabled={!selectedProjectId}
                       >
                         <option value="">Select Module</option>
-                        {projectModules.map(
-                          (module: { id: string; name: string }) => (
-                            <option key={module.id} value={module.name}>
-                              {module.name}
-                            </option>
-                          )
-                        )}
+                        {modules.map((module: any) => (
+                          <option key={module.moduleId} value={module.moduleId}>
+                            {module.moduleName}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -432,7 +492,6 @@ const QuickAddTestCase: React.FC = () => {
                           handleInputChange(idx, "subModule", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
@@ -440,29 +499,31 @@ const QuickAddTestCase: React.FC = () => {
                             ? "No submodules"
                             : "Select a submodule (optional)"}
                         </option>
-                        {submodules.map((submodule: string) => (
-                          <option key={submodule} value={submodule}>
-                            {submodule}
+                        {submodules.map((submodule: any) => (
+                          <option key={submodule.subModuleId} value={submodule.subModuleId}>
+                            {submodule.subModuleName}
                           </option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Type
+                        Defect Type
                       </label>
                       <select
-                        value={modal.formData.type}
+                        value={modal.formData.defectType}
                         onChange={(e) =>
-                          handleInputChange(idx, "type", e.target.value)
+                          handleInputChange(idx, "defectType", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
+                        <option value="">Select Defect Type</option>
+                        {defectTypes.map((dt) => (
+                          <option key={dt.id} value={dt.defectTypeName}>
+                            {dt.defectTypeName}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -477,10 +538,12 @@ const QuickAddTestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
+                        <option value="">Select Severity</option>
+                        {severities.map((sev) => (
+                          <option key={sev.id} value={sev.name}>
+                            {sev.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

@@ -7,3 +7,5 @@ export const getAllProjects = async (): Promise<Project[]> => {
   const response = await axios.get<Project[]>(`${baseUrl}projects`);
   return response.data;
 };
+
+

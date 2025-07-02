@@ -20,6 +20,10 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { getModulesByProjectId, getSubmodulesByModuleId } from "../api/module/createModule";
+import { createTestCase } from "../api/testCase";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
@@ -60,10 +64,9 @@ const mockModulesByProject: Record<string, any[]> = {
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  // --- State for projects/modules/submodules (mock) ---
-  const [projects] = useState(mockProjects);
-  const [modulesByProject] = useState(mockModulesByProject);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
+  const [submodules, setSubmodules] = useState<any[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedSubmodule, setSelectedSubmodule] = useState("");
 
@@ -92,7 +95,7 @@ export const TestCase: React.FC = () => {
     subModule: string;
     description: string;
     steps: string;
-    type: string;
+    defectType: string;
     severity: string;
     projectId: string | undefined;
     id?: string;
@@ -108,7 +111,7 @@ export const TestCase: React.FC = () => {
         subModule: "",
         description: "",
         steps: "",
-        type: "functional",
+        defectType: "",
         severity: "medium",
         projectId: projectId,
       },
@@ -125,14 +128,49 @@ export const TestCase: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Integrations removed: No fetching test cases from backend ---
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+
   useEffect(() => {
+    getAllProjects().then((data) => setProjects(data));
+    // Fetch severities and defect types
+    getSeverities().then((res) => setSeverities(res.data));
+    getDefectTypes().then((res) => setDefectTypes(res.data));
+    if (projectId) {
+      getModulesByProjectId(projectId).then((res) => {
+        console.log('Modules API response:', res);
+        setModules(res.data || []);
+      }).catch((error) => {
+        console.error('Error fetching modules:', error);
+        setModules([]);
+      });
+    } else {
+      setModules([]);
+    }
     setTestCases([]);
-  }, [selectedSubmodule]);
-// console.log("--------",backendProjects);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (selectedModule) {
+      const moduleObj = modules.find((m) => m.moduleId === selectedModule || m.id === selectedModule);
+      if (moduleObj) {
+        getSubmodulesByModuleId(moduleObj.moduleId || moduleObj.id).then((res) => {
+          console.log('Submodules API response:', res);
+          setSubmodules(res.data || []);
+        }).catch((error) => {
+          console.error('Error fetching submodules:', error);
+          setSubmodules([]);
+        });
+      } else {
+        setSubmodules([]);
+      }
+    } else {
+      setSubmodules([]);
+    }
+  }, [selectedModule, modules]);
 
   // --- Add test case (integration removed) ---
   const addTestCase = async (formData: ModalFormData) => {
-    // Integration removed: just update local state (mock)
     setTestCases((prev) => [
       ...prev,
       {
@@ -141,16 +179,20 @@ export const TestCase: React.FC = () => {
         steps: formData.steps,
         subModule: formData.subModule,
         module: formData.module,
-        projectId: formData.projectId,
-        severity: formData.severity,
-        type: formData.type,
-      },
+        projectId: String(formData.projectId),
+        severity: formData.severity as TestCaseType['severity'],
+        defectType: formData.defectType,
+        priority: "medium",
+        createdBy: "mockUser",
+        status: "draft",
+        category: "General",
+        createdAt: new Date().toISOString(),
+      } as TestCaseType,
     ]);
   };
 
   // --- Update test case (integration removed) ---
   const updateTestCase = async (formData: ModalFormData) => {
-    // Integration removed: just update local state (mock)
     setTestCases((prev) =>
       prev.map((tc) =>
         tc.id === formData.id
@@ -160,9 +202,9 @@ export const TestCase: React.FC = () => {
               steps: formData.steps,
               subModule: formData.subModule,
               module: formData.module,
-              projectId: formData.projectId,
-              severity: formData.severity,
-              type: formData.type,
+              projectId: String(formData.projectId),
+              severity: formData.severity as TestCaseType['severity'],
+              defectType: formData.defectType,
             }
           : tc
       )
@@ -176,7 +218,7 @@ export const TestCase: React.FC = () => {
   };
 
   // If no selectedProjectId, show a message or redirect
-  if (!selectedProjectId) {
+  if (!projectId) {
     return (
       <div className="p-8 text-center text-gray-500">
         Please select a project to view its test cases.
@@ -185,7 +227,7 @@ export const TestCase: React.FC = () => {
   }
 
   // Get modules for selected project from context
-  const projectModules = selectedProjectId ? modulesByProject[String(selectedProjectId)] || [] : [];
+  const projectModules = projectId ? mockModulesByProject[String(projectId)] || [] : [];
 
   // Compute selected test case IDs based on selected modules/submodules
   const selectedTestCaseIds = useMemo(() => {
@@ -196,7 +238,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === String(selectedProjectId) &&
+                tc.projectId === String(projectId) &&
                 selectedModules.includes(tc.module ?? "")
             )
             .map((tc) => tc.id)
@@ -210,7 +252,7 @@ export const TestCase: React.FC = () => {
           testCases
             .filter(
               (tc) =>
-                tc.projectId === String(selectedProjectId) &&
+                tc.projectId === String(projectId) &&
                 selectedSubmodules.includes(tc.subModule ?? "")
             )
             .map((tc) => tc.id)
@@ -218,16 +260,15 @@ export const TestCase: React.FC = () => {
       ];
     }
     return Array.from(new Set(ids));
-  }, [selectedModules, selectedSubmodules, testCases, selectedProjectId]);
+  }, [selectedModules, selectedSubmodules, testCases, projectId]);
 
   // Compute filtered test cases for the table (show all for module)
   const filteredTestCases = testCases;
 
   // Handle project selection
-  // const handleProjectSelect = (projectId: string) => {
-  //   setSelectedProjectId(projectId);
-  //   navigate(`/projects/${projectId}/test-cases`);
-  // };
+  const handleProjectSelect = (projectId: string) => {
+    navigate(`/projects/${projectId}/test-cases`);
+  };
 
   // Handle module selection
   // const handleModuleSelect = (moduleId: string) => {
@@ -284,9 +325,9 @@ export const TestCase: React.FC = () => {
           subModule: "",
           description: "",
           steps: "",
-          type: "functional",
+          defectType: "",
           severity: "medium",
-          projectId: selectedProjectId,
+          projectId: projectId,
         },
       },
     ]);
@@ -324,9 +365,9 @@ export const TestCase: React.FC = () => {
             subModule: row[1] || "",
             description: row[2] || "",
             steps: row[3] || "",
-            type: row[4] || "functional",
+            defectType: row[4] || "",
             severity: row[5] || "medium",
-            projectId: selectedProjectId,
+            projectId: projectId,
           }))
           .filter((row) => row.module && row.subModule && row.description && row.steps);
         if (rows.length > 0) {
@@ -340,13 +381,13 @@ export const TestCase: React.FC = () => {
   };
   const handleExportExcel = () => {
     const wsData = [
-      ["Module", "Sub Module", "Description", "Steps", "Type", "Severity", "Test Case ID"],
+      ["Module", "Sub Module", "Description", "Steps", "Defect Type", "Severity", "Test Case ID"],
       ...filteredTestCases.map(tc => [
         tc.module,
         tc.subModule,
         tc.description,
         tc.steps,
-        tc.type,
+        tc.defectType,
         tc.severity,
         tc.id
       ])
@@ -354,29 +395,44 @@ export const TestCase: React.FC = () => {
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "TestCases");
-    XLSX.writeFile(wb, `TestCases_${selectedProjectId}_${selectedModule}.xlsx`);
+    XLSX.writeFile(wb, `TestCases_${projectId}_${selectedModule}.xlsx`);
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  // Helper to get ID from selected value
+  const getIdFromList = (list: any[], value: any, idKey: string, nameKey: string): number | undefined => {
+    const found = list.find((item) => item[idKey] === value || item[nameKey] === value || String(item[idKey]) === String(value));
+    return found ? Number(found[idKey]) : undefined;
+  };
+
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
-      if (formData.id) {
-        // Edit mode
-        updateTestCase({ ...formData });
+    for (const { formData } of modals) {
+      // Map form fields to API body
+      const moduleId = getIdFromList(modules, formData.module, 'moduleId', 'moduleName');
+      const subModuleId = getIdFromList(submodules, formData.subModule, 'subModuleId', 'subModuleName');
+      const severityId = getIdFromList(severities, formData.severity, 'id', 'name');
+      const defectTypeId = getIdFromList(defectTypes, formData.defectType, 'id', 'defectTypeName');
+      const projectIdNum = Number(projectId);
+      if (moduleId && subModuleId && projectIdNum && severityId && defectTypeId) {
+        const payload = {
+          description: formData.description,
+          steps: formData.steps,
+          subModuleId,
+          moduleId,
+          projectId: projectIdNum,
+          severityId,
+          defectTypeId,
+        };
+        try {
+          await createTestCase(payload);
+          setSuccess(true);
+        } catch (err) {
+          alert("Failed to create test case: " + (err && typeof err === 'object' ? JSON.stringify(err) : err));
+        }
       } else {
-        // Add mode
-        addTestCase({
-          ...formData,
-          id: `TC-${formData.module
-            .substring(0, 3)
-            .toUpperCase()}-${formData.subModule
-              .substring(0, 3)
-              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-          projectId: selectedProjectId,
-        });
+        alert("Please select all required fields (module, submodule, severity, defect type, project)");
       }
-    });
-    setSuccess(true);
+    }
     setTimeout(() => {
       setSuccess(false);
       setModals([
@@ -387,14 +443,13 @@ export const TestCase: React.FC = () => {
             subModule: "",
             description: "",
             steps: "",
-            type: "functional",
+            defectType: "",
             severity: "medium",
-            projectId: selectedProjectId,
+            projectId: projectId,
           },
         },
       ]);
       setCurrentModalIdx(0);
-      // setIsModalOpen(false); // isModalOpen state is removed
     }, 1200);
   };
 
@@ -465,29 +520,31 @@ export const TestCase: React.FC = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
-              {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.projectName || ''}`
+              {projectId
+                ? `Project: ${backendProjects.find((p) => p?.id === projectId)?.name || ''}`
                 : "Select a project to begin"}
             </p>
           </div>
         </div>
 
         {/* Project Selection Panel */}
-        <ProjectSelector
-          projects={projects}
-          selectedProjectId={selectedProjectId || ''}
-          onSelect={(id: string) => {
-            setSelectedProjectId(id);
-            navigate(`/projects/${id}/test-cases`);
-          }}
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+          <ProjectSelector
+            projects={projects}
+            selectedProjectId={projectId || ''}
+            onSelect={(id: string) => {
+              navigate(`/projects/${id}/test-cases`);
+            }}
+          />
+        </div>
       </div>
 
       {/* Content Area - Now scrollable at page level */}
       <div className="flex-1 px-6 pb-6">
         <div className="flex flex-col">
           {/* Module Selection Panel */}
-          {selectedProjectId && (
+          {projectId && (
             <ModuleSelector
               modules={projectModules}
               selectedModuleId={
@@ -505,7 +562,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Submodule Selection Panel */}
-          {selectedProjectId && selectedModule && (
+          {projectId && selectedModule && (
             <Card className="mb-4">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center mb-3">
@@ -538,7 +595,7 @@ export const TestCase: React.FC = () => {
                       ?.submodules.map((submodule: any) => {
                         const submoduleTestCases = testCases.filter(
                           (tc: TestCaseType) =>
-                            tc.projectId === selectedProjectId &&
+                            tc.projectId === projectId &&
                             tc.module === selectedModule &&
                             tc.subModule === submodule.name
                         );
@@ -573,9 +630,9 @@ export const TestCase: React.FC = () => {
                                           subModule: submodule.name,
                                           description: "",
                                           steps: "",
-                                          type: "functional",
+                                          defectType: "",
                                           severity: "medium",
-                                          projectId: selectedProjectId,
+                                          projectId: projectId,
                                         },
                                       },
                                     ];
@@ -608,7 +665,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Bulk Operations Panel */}
-          {selectedProjectId && selectedModule && selectedTestCases.length > 0 && (
+          {projectId && selectedModule && selectedTestCases.length > 0 && (
             <div className="flex justify-end space-x-3 mb-4">
               <Button
                 onClick={() => {
@@ -630,7 +687,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Filter Options Above Table */}
-          {selectedProjectId && selectedModule && (
+          {projectId && selectedModule && (
             <div className="flex justify-end gap-2 mb-2">
               <button
                 type="button"
@@ -683,7 +740,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Test Cases Table - Now with dynamic height */}
-          {selectedProjectId && selectedModule && (
+          {projectId && selectedModule && (
             <Card>
               <CardContent className="p-0">
                 <table className="w-full">
@@ -710,7 +767,7 @@ export const TestCase: React.FC = () => {
                         STEPS
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        TYPE
+                        DEFECT TYPE
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         SEVERITY
@@ -753,7 +810,7 @@ export const TestCase: React.FC = () => {
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.type}
+                          {testCase.defectType}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -783,9 +840,9 @@ export const TestCase: React.FC = () => {
                                       subModule: testCase.subModule || "",
                                       description: testCase.description || "",
                                       steps: testCase.steps || "",
-                                      type: testCase.type || "functional",
+                                      defectType: testCase.defectType || "",
                                       severity: testCase.severity || "medium",
-                                      projectId: testCase.projectId,
+                                      projectId: projectId,
                                       id: testCase.id,
                                     },
                                   },
@@ -872,9 +929,9 @@ export const TestCase: React.FC = () => {
                                     subModule: row[1] || "",
                                     description: row[2] || "",
                                     steps: row[3] || "",
-                                    type: row[4] || "functional",
+                                    defectType: row[4] || "",
                                     severity: row[5] || "medium",
-                                    projectId: selectedProjectId,
+                                    projectId: projectId,
                                   }))
                                   .filter((row) => row.module && row.subModule && row.description && row.steps);
                                 if (rows.length > 0) {
@@ -934,16 +991,17 @@ export const TestCase: React.FC = () => {
                       </label>
                       <select
                         value={modal.formData.module}
-                        onChange={(e) =>
-                          handleInputChange(idx, "module", e.target.value)
-                        }
+                        onChange={(e) => {
+                          handleInputChange(idx, "module", e.target.value);
+                          handleInputChange(idx, "subModule", "");
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
                         <option value="">Select Module</option>
-                        {(modulesByProject[String(selectedProjectId)] || []).map((module: any) => (
-                          <option key={module.id} value={module.name}>
-                            {module.name}
+                        {modules.map((module: any) => (
+                          <option key={module.moduleId} value={module.moduleId}>
+                            {module.moduleName}
                           </option>
                         ))}
                       </select>
@@ -958,45 +1016,38 @@ export const TestCase: React.FC = () => {
                           handleInputChange(idx, "subModule", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {(
-                            modulesByProject[String(selectedProjectId)]?.find(
-                              (m: any) => m.name === modal.formData.module
-                            )?.submodules || []
-                          ).length === 0
+                          {submodules.length === 0
                             ? "No submodules"
                             : "Select Sub Module (optional)"}
                         </option>
-                        {(
-                          modulesByProject[String(selectedProjectId)]?.find(
-                            (m: any) => m.name === modal.formData.module
-                          )?.submodules || []
-                        ).map((submodule: any) => (
-                          <option key={submodule.id} value={submodule.name}>
-                            {submodule.name}
+                        {submodules.map((submodule: any) => (
+                          <option key={submodule.subModuleId} value={submodule.subModuleId}>
+                            {submodule.subModuleName}
                           </option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Type
+                        Defect Type
                       </label>
                       <select
-                        value={modal.formData.type}
+                        value={modal.formData.defectType}
                         onChange={(e) =>
-                          handleInputChange(idx, "type", e.target.value)
+                          handleInputChange(idx, "defectType", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="functional">Functional</option>
-                        <option value="regression">Regression</option>
-                        <option value="smoke">Smoke</option>
-                        <option value="integration">Integration</option>
+                        <option value="">Select Defect Type</option>
+                        {defectTypes.map((dt) => (
+                          <option key={dt.id} value={dt.defectTypeName}>
+                            {dt.defectTypeName}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1011,10 +1062,12 @@ export const TestCase: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
+                        <option value="">Select Severity</option>
+                        {severities.map((sev) => (
+                          <option key={sev.id} value={sev.name}>
+                            {sev.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

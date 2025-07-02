@@ -86,6 +86,7 @@ export interface TestCase {
   subModule?: string;
   type?: 'functional' | 'regression' | 'smoke' | 'integration';
   severity?: 'low' | 'medium' | 'high' | 'critical';
+  defectType?: string;
 }
 
 export interface Release {
