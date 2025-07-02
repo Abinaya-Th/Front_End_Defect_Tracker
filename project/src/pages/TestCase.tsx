@@ -340,16 +340,16 @@ export const TestCase: React.FC = () => {
         const moduleObj = projectModules.find(m => m.name === formData.module);
         const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
         await updateTestCase(formData.id, {
-          testcaseId: Number(formData.id),
+          testcaseId: String(formData.id),
           testcase: formData.description, // Use description as the title/name
           description: formData.description,
           steps: formData.steps,
-          subModuleId: submoduleObj ? Number(submoduleObj.id) : undefined,
-          moduleId: moduleObj ? Number(moduleObj.id) : undefined,
-          projectId: formData.projectId ? Number(formData.projectId) : undefined,
-          severityId: severities.find(s => s.name === formData.severity)?.id,
-          typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
-          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+          subModuleId: submoduleObj ? String(submoduleObj.id) : undefined,
+          moduleId: moduleObj ? String(moduleObj.id) : undefined,
+          projectId: formData.projectId ? String(formData.projectId) : undefined,
+          severityId: severities.find(s => s.name === formData.severity)?.id ? String(severities.find(s => s.name === formData.severity)?.id) : undefined,
+          typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id ? String(defectTypes.find(dt => dt.defectTypeName === formData.type)?.id) : undefined,
+          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id ? String(defectTypes.find(dt => dt.defectTypeName === formData.type)?.id) : undefined,
         });
       } else {
         // Add mode
