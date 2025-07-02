@@ -20,6 +20,7 @@ import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
+//integration
 
 const TABS = [
   { key: "release", label: "Release Allocation" },
