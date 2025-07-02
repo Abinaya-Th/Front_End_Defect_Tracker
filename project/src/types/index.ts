@@ -183,6 +183,22 @@ export interface CreateModuleResponse {
   module?: Module;
 }
 
+export interface CreateSubmoduleRequest {
+  submoduleName: string;
+  moduleId: string;
+}
+
+export interface CreateSubmoduleResponse {
+  success: boolean;
+  message?: string;
+  submodule?: Submodule;
+}
+
+export interface DeleteSubmoduleResponse {
+  success: boolean;
+  message?: string;
+}
+
 export interface GetModulesResponse {
   modules: Module[];
 }

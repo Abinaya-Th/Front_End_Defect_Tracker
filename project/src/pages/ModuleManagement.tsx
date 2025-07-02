@@ -18,7 +18,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
-import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi } from "../api/module/createModule";
+import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi, getModulesByProjectId } from "../api/module/createModule";
+import { createSubmodule } from "../api/module/createSubmodule";
 import { Module, Submodule } from "../types/index";
 
 type ModuleAssignment = {
@@ -60,8 +61,7 @@ export const ModuleManagement: React.FC = () => {
   >([]);
 
   const [moduleForm, setModuleForm] = useState({
-    name: "",
-    submodules: [{ id: "", name: "" }],
+    name: ""
   });
 
   const [assignmentForm, setAssignmentForm] = useState<ModuleAssignment>({
@@ -69,16 +69,40 @@ export const ModuleManagement: React.FC = () => {
     employeeIds: [],
   });
 
+  const [isAddSubmoduleModalOpen, setIsAddSubmoduleModalOpen] = useState(false);
+  const [submoduleForm, setSubmoduleForm] = useState({ name: "" });
+  const [currentModuleForSubmodule, setCurrentModuleForSubmodule] = useState<Module | null>(null);
+
+  // Replace modules with local state for fetched modules
+  const [fetchedModules, setFetchedModules] = useState<Module[]>([]);
+
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
     }
   }, [projectId, setSelectedProjectId]);
 
-  // Get modules for selected project from context
-  const modules = selectedProjectId
-    ? modulesByProject[selectedProjectId] || []
-    : [];
+  useEffect(() => {
+    if (selectedProjectId) {
+      // Find the selected project and use its numeric projectId for the API call
+      const selectedProject = projects.find(p => p.id === selectedProjectId);
+      const backendProjectId = selectedProject?.projectId; // numeric projectId
+      if (backendProjectId) {
+        getModulesByProjectId(backendProjectId.toString())
+          .then((data) => {
+            setFetchedModules(data.modules || data);
+          })
+          .catch(() => setFetchedModules([]));
+      } else {
+        setFetchedModules([]);
+      }
+    } else {
+      setFetchedModules([]);
+    }
+  }, [selectedProjectId, projects]);
+
+  // Use fetchedModules instead of modules for display
+  const modules = fetchedModules;
 
   // Filter developers (engineers/developers)
   const availableDevelopers = employees.filter(
@@ -90,48 +114,62 @@ export const ModuleManagement: React.FC = () => {
 
   const handleAddModule = async () => {
     if (moduleForm.name.trim() && selectedProjectId) {
+      // Check for duplicate module name in the frontend
+      const duplicate = modules.some(
+        (mod) => mod.name.trim().toLowerCase() === moduleForm.name.trim().toLowerCase()
+      );
+      if (duplicate) {
+        alert("A module with this name already exists in this project.");
+        return;
+      }
       const payload = {
         moduleName: moduleForm.name,
         projectId: selectedProjectId,
-        
-      }
-      console.log({payload});
-      
+      };
       try {
-        // Call backend API to create module
         const response = await createModuleApi(payload);
         if (response.success && response.module) {
           addModule(selectedProjectId, response.module);
         }
-        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
-      } catch (error) {
-        alert("Failed to add module. Please try again.");
+      } catch (error: any) {
+        if (error.response && error.response.status === 409) {
+          alert("A module with this name already exists in this project.");
+        } else {
+          alert("Failed to add module. Please try again.");
+        }
       }
     }
   };
 
-  const handleAddSubmodule = () => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: [...prev.submodules, { id: "", name: "" }],
-    }));
-  };
-
-  const handleRemoveSubmodule = (index: number) => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: prev.submodules.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleSubmoduleChange = (index: number, value: string) => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: prev.submodules.map((sub, i) =>
-        i === index ? { ...sub, name: value } : sub
-      ),
-    }));
+  const handleAddSubmodule = async () => {
+    if (!submoduleForm.name.trim() || !currentModuleForSubmodule || !selectedProjectId) return;
+    try {
+      // Ensure moduleId is a number for the API call
+      const moduleId = Number(currentModuleForSubmodule.id);
+      const response = await createSubmodule({
+        subModuleName: submoduleForm.name,
+        moduleId: moduleId,
+      });
+      if (response.success && response.subModule) {
+        // Refresh modules after adding submodule
+        const selectedProject = projects.find(p => p.id === selectedProjectId);
+        const backendProjectId = selectedProject?.projectId;
+        if (backendProjectId) {
+          getModulesByProjectId(backendProjectId.toString())
+            .then((data) => {
+              setFetchedModules(data.modules || data);
+            })
+            .catch(() => {});
+        }
+      }
+      setIsAddSubmoduleModalOpen(false);
+      setSubmoduleForm({ name: "" });
+      setCurrentModuleForSubmodule(null);
+    } catch (error) {
+      alert("Failed to add submodule. Please try again.");
+    }
   };
 
   const handleModuleAssignment = (module: Module, submodule?: Submodule) => {
@@ -180,10 +218,6 @@ export const ModuleManagement: React.FC = () => {
     setEditingModule(module);
     setModuleForm({
       name: module.name,
-      submodules: module.submodules.map((sub) => ({
-        id: sub.id,
-        name: sub.name,
-      })),
     });
     setIsEditModuleModalOpen(true);
   };
@@ -193,14 +227,11 @@ export const ModuleManagement: React.FC = () => {
       try {
         const response = await updateModuleApi(editingModule.id, {
           moduleName: moduleForm.name,
-          submodules: moduleForm.submodules
-            .filter((sub) => sub.name.trim())
-            .map((sub) => ({ name: sub.name })),
         });
         if (response.success && response.module) {
           updateModule(selectedProjectId, editingModule.id, response.module);
         }
-        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setModuleForm({ name: "" });
         setEditingModule(null);
         setIsEditModuleModalOpen(false);
       } catch (error) {
@@ -429,6 +460,13 @@ export const ModuleManagement: React.FC = () => {
   // Project selection handler
   const handleProjectSelect = (id: string) => {
     setSelectedProjectId(id);
+  };
+
+  // Add submodule handler
+  const handleOpenAddSubmoduleModal = (module: Module) => {
+    setCurrentModuleForSubmodule(module);
+    setSubmoduleForm({ name: "" });
+    setIsAddSubmoduleModalOpen(true);
   };
 
   if (!selectedProjectId) {
@@ -728,6 +766,15 @@ export const ModuleManagement: React.FC = () => {
                       </div>
                     ))}
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleOpenAddSubmoduleModal(module)}
+                  className="mt-2"
+                >
+                  + Add Submodule
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -754,46 +801,6 @@ export const ModuleManagement: React.FC = () => {
               placeholder="Enter module name"
             />
           </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Submodules
-              </label>
-              <Button
-                type="button"
-                onClick={handleAddSubmodule}
-                className="flex items-center space-x-1 text-sm"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Submodule</span>
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {moduleForm.submodules.map((submodule, index) => (
-                <div key={index} className="flex space-x-2">
-                  <Input
-                    value={submodule.name}
-                    onChange={(e) =>
-                      handleSubmoduleChange(index, e.target.value)
-                    }
-                    placeholder={`Submodule ${index + 1}`}
-                  />
-                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemoveSubmodule(index)}
-                      className="px-3"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -877,7 +884,7 @@ export const ModuleManagement: React.FC = () => {
         onClose={() => {
           setIsEditModuleModalOpen(false);
           setEditingModule(null);
-          setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+          setModuleForm({ name: "" });
         }}
         title="Edit Module"
         size="xl"
@@ -895,53 +902,13 @@ export const ModuleManagement: React.FC = () => {
               placeholder="Enter module name"
             />
           </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Submodules
-              </label>
-              <Button
-                type="button"
-                onClick={handleAddSubmodule}
-                className="flex items-center space-x-1 text-sm"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Submodule</span>
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {moduleForm.submodules.map((submodule, index) => (
-                <div key={index} className="flex space-x-2">
-                  <Input
-                    value={submodule.name}
-                    onChange={(e) =>
-                      handleSubmoduleChange(index, e.target.value)
-                    }
-                    placeholder={`Submodule ${index + 1}`}
-                  />
-                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemoveSubmodule(index)}
-                      className="px-3"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
               onClick={() => {
                 setIsEditModuleModalOpen(false);
                 setEditingModule(null);
-                setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+                setModuleForm({ name: "" });
               }}
             >
               Cancel
@@ -1043,6 +1010,45 @@ export const ModuleManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Add Submodule Modal */}
+      <Modal
+        isOpen={isAddSubmoduleModalOpen}
+        onClose={() => {
+          setIsAddSubmoduleModalOpen(false);
+          setCurrentModuleForSubmodule(null);
+          setSubmoduleForm({ name: "" });
+        }}
+        title={`Add Submodule to ${currentModuleForSubmodule?.name || ""}`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Submodule Name
+            </label>
+            <Input
+              value={submoduleForm.name}
+              onChange={(e) => setSubmoduleForm({ name: e.target.value })}
+              placeholder="Enter submodule name"
+            />
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsAddSubmoduleModalOpen(false);
+                setCurrentModuleForSubmodule(null);
+                setSubmoduleForm({ name: "" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddSubmodule}>Add Submodule</Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Fixed Quick Add Button */}
       <div
         style={{

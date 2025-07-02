@@ -62,7 +62,7 @@ export const deleteModule = async (moduleId: string): Promise<CreateModuleRespon
  */
 export const getModulesByProjectId = async (projectId: string) => {
   try {
-    const response = await apiClient.get(`modules/projectId/${projectId}`);
+    const response = await axios.get(`http://34.57.197.188:8087/api/v1/modules/projectId/${projectId}`);
     return response.data;
   } catch (error) {
     console.error("Error fetching modules by projectId:", error);
@@ -84,3 +84,10 @@ export const getSubmodulesByModuleId = async (moduleId: string) => {
     throw error;
   }
 };
+
+export interface Project {
+  id: string;
+  projectId: number;
+  name: string;
+  // ...other fields
+}

@@ -24,6 +24,7 @@ import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
 import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
 import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
+import axios from "axios";
 
 // Locally extend Defect to allow 'defectHistory' and 'new' status
 interface Defect extends BaseDefect {
@@ -576,29 +577,37 @@ export const Defects: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
+
+  // Add exportDefects function
+  const exportDefects = async () => {
+    try {
+      const response = await axios.get("http://34.57.197.188:8087/api/v1/defect/export", {
+        responseType: "blob",
+      });
+      // Create a link to download the file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      // Try to get filename from content-disposition header, fallback to defects_export.csv
+      const contentDisposition = response.headers["content-disposition"];
+      let fileName = "defects_export.csv";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) fileName = match[1];
+      }
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Failed to export defects. Please try again.");
+    }
+  };
+
+  // Update handleExportExcel to use exportDefects
   const handleExportExcel = () => {
-    const exportData = filteredDefects.map((d) => ({
-      id: d.id,
-      title: d.title,
-      description: d.description,
-      module: d.module,
-      subModule: d.subModule,
-      type: d.type,
-      priority: d.priority,
-      severity: d.severity,
-      status: d.status,
-      assignedTo: d.assignedTo,
-      reportedBy: d.reportedBy,
-      releaseId: d.releaseId,
-      testCaseId: d.testCaseId,
-      rejectionComment: d.rejectionComment,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Defects");
-    XLSX.writeFile(wb, "defects_export.xlsx");
+    exportDefects();
   };
 
   return (
