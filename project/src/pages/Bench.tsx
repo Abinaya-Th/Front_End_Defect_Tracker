@@ -178,7 +178,7 @@ export const Bench: React.FC = () => {
       <div className="flex justify-end mb-2">
         <Button
           variant="primary"
-          className="ml-4"
+          className="ml-4"  
           onClick={() => navigate('/bench-allocate')}
         >
           Allocate
