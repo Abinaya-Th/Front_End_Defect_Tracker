@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { CreateModuleRequest, CreateModuleResponse } from "../../types/index";
 
@@ -25,32 +26,25 @@ export const createModule = async (data: CreateModuleRequest): Promise<CreateMod
 };
 
 /**
- * Updates an existing module
- * @param moduleId - The ID of the module to update
- * @param data - Object containing the updated module data
+ * Creates a new submodule for a module
+ * @param data - Object containing subModuleName and moduleId
  * @returns Promise with the API response
  */
-export const updateModule = async (moduleId: string, data: Partial<CreateModuleRequest>): Promise<CreateModuleResponse> => {
+export const createSubmodule = async (data: { subModuleName: string; moduleId: number }): Promise<any> => {
   try {
-    const response = await apiClient.put<CreateModuleResponse>(`modules/${moduleId}`, data);
+    // Use full URL since the endpoint is external
+    const response = await apiClient.post(
+      "http://34.57.197.188:8087/api/v1/subModule",
+      data
+    );
     return response.data;
-  } catch (error) {
-    console.error("Error updating module:", error);
+  } catch (error: any) {
+    if (error.response) {
+      console.error("Error creating submodule:", error.response.data);
+    } else {
+      console.error("Error creating submodule:", error);
+    }
     throw error;
   }
 };
 
-/**
- * Deletes a module
- * @param moduleId - The ID of the module to delete
- * @returns Promise with the API response
- */
-export const deleteModule = async (moduleId: string): Promise<CreateModuleResponse> => {
-  try {
-    const response = await apiClient.delete<CreateModuleResponse>(`modules/${moduleId}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error deleting module:", error);
-    throw error;
-  }
-};
