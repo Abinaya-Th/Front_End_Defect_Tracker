@@ -12,6 +12,7 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
+import { useApp } from "../context/AppContext";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
@@ -25,6 +26,7 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { searchTestCases } from "../api/testCase/searchTestCase";
 import { updateTestCase } from "../api/testCase/updateTestCase";
+import { createTestCase, createMultipleTestCases, CreateTestCaseRequest } from "../api/testCase/createTestcase";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
@@ -57,6 +59,7 @@ const mockModulesByProject: Record<string, { id: string, name: string, submodule
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { deleteTestCase } = useApp();
   // --- State for projects/modules/submodules (mock) ---
   const [projects] = useState(mockProjects);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
@@ -109,6 +112,7 @@ export const TestCase: React.FC = () => {
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
 
   // 1. Add state to track if modal is in edit mode
@@ -134,7 +138,7 @@ export const TestCase: React.FC = () => {
       const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
       const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
       setTestCases(
-        data.map(tc => ({
+        data.map((tc: any) => ({
           ...tc,
           module: moduleMap[tc.moduleId] || tc.moduleId,
           subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
@@ -316,7 +320,7 @@ export const TestCase: React.FC = () => {
   const handleExportExcel = () => {
     const wsData = [
       ["Module", "Sub Module", "Description", "Steps", "Type", "Severity", "Test Case ID"],
-      ...filteredTestCases.map(tc => [
+      ...filteredTestCases.map((tc: any) => [
         tc.module,
         tc.subModule,
         tc.description,
@@ -334,72 +338,105 @@ export const TestCase: React.FC = () => {
 
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    for (const { formData } of modals) {
-      if (formData.id) {
-        // Map module and submodule names to IDs
-        const moduleObj = projectModules.find(m => m.name === formData.module);
-        const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
-        await updateTestCase(formData.id, {
-          testcaseId: Number(formData.id),
-          testcase: formData.description, // Use description as the title/name
-          description: formData.description,
-          steps: formData.steps,
-          subModuleId: submoduleObj ? Number(submoduleObj.id) : undefined,
-          moduleId: moduleObj ? Number(moduleObj.id) : undefined,
-          projectId: formData.projectId ? Number(formData.projectId) : undefined,
-          severityId: severities.find(s => s.name === formData.severity)?.id,
-          typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
-          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
-        });
-      } else {
-        // Add mode
-        addTestCase({
-          ...formData,
-          id: `TC-${formData.module
-            .substring(0, 3)
-            .toUpperCase()}-${formData.subModule
-              .substring(0, 3)
-              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-          projectId: selectedProjectId,
-        });
+
+    setSubmitting(true);
+    try {
+      const testCasesToCreate: CreateTestCaseRequest[] = [];
+      const testCasesToUpdate: any[] = [];
+
+      // Separate create and update operations
+      for (const { formData } of modals) {
+        if (formData.id) {
+          // Update mode
+          const moduleObj = projectModules.find(m => m.name === formData.module);
+          const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+          testCasesToUpdate.push({
+            id: formData.id,
+            payload: {
+              testcaseId: Number(formData.id),
+              testcase: formData.description,
+              description: formData.description,
+              steps: formData.steps,
+              subModuleId: submoduleObj ? String(submoduleObj.id) : undefined,
+              moduleId: moduleObj ? String(moduleObj.id) : undefined,
+              projectId: formData.projectId ? String(formData.projectId) : undefined,
+              severityId: severities.find(s => s.name === formData.severity)?.id?.toString(),
+              typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+              defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+            }
+          });
+        } else {
+          // Create mode
+          const moduleObj = projectModules.find(m => m.name === formData.module);
+          const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+
+          if (moduleObj && submoduleObj && formData.projectId) {
+            testCasesToCreate.push({
+              testcase: formData.description,
+              description: formData.description,
+              steps: formData.steps,
+              submoduleId: Number(submoduleObj.id),
+              moduleId: Number(moduleObj.id),
+              projectId: Number(formData.projectId),
+              severityId: severities.find(s => s.name === formData.severity)?.id || 1,
+              defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id || 1,
+            });
+          }
+        }
       }
-    }
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setModals([
-        {
-          open: false,
-          formData: {
-            module: "",
-            subModule: "",
-            description: "",
-            steps: "",
-            type: "functional",
-            severity: "medium",
-            projectId: selectedProjectId,
+
+      // Execute create operations
+      if (testCasesToCreate.length > 0) {
+        await createMultipleTestCases(testCasesToCreate);
+      }
+
+      // Execute update operations
+      for (const { id, payload } of testCasesToUpdate) {
+        await updateTestCase(id, payload);
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setModals([
+          {
+            open: false,
+            formData: {
+              module: "",
+              subModule: "",
+              description: "",
+              steps: "",
+              type: "functional",
+              severity: "medium",
+              projectId: selectedProjectId,
+            },
           },
-        },
-      ]);
-      setCurrentModalIdx(0);
-      // setIsModalOpen(false); // isModalOpen state is removed
-      // Refresh test cases after update
-      if (selectedProjectId && selectedSubmoduleId !== null) {
-        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-          const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
-          const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
-          setTestCases(
-            data.map(tc => ({
-              ...tc,
-              module: moduleMap[tc.moduleId] || tc.moduleId,
-              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-              severity: severities.find(s => s.id === tc.severityId)?.name || "",
-              type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
-            }))
-          );
-        });
-      }
-    }, 1200);
+        ]);
+        setCurrentModalIdx(0);
+
+        // Refresh test cases after update
+        if (selectedProjectId && selectedSubmoduleId !== null) {
+          getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+            const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
+            const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
+            setTestCases(
+              data.map((tc: any) => ({
+                ...tc,
+                module: moduleMap[tc.moduleId] || tc.moduleId,
+                subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                severity: severities.find(s => s.id === tc.severityId)?.name || "",
+                type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
+              }))
+            );
+          });
+        }
+      }, 1200);
+    } catch (error: any) {
+      console.error('Error submitting test cases:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getSeverityColor = (severity: string) => {
@@ -480,7 +517,7 @@ export const TestCase: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
               {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.projectName || ''}`
+                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.name || ''}`
                 : "Select a project to begin"}
             </p>
           </div>
@@ -704,7 +741,7 @@ export const TestCase: React.FC = () => {
                       if (searchFilters.typeId) params.typeId = Number(searchFilters.typeId);
                       if (searchFilters.severityId) params.severityId = Number(searchFilters.severityId);
                       const res = await searchTestCases(params);
-                      const normalized = (res.data || []).map(tc => ({
+                      const normalized = (res.data || []).map((tc: any) => ({
                         ...tc,
                         type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
                         severity: severities.find(s => s.id === tc.severityId)?.name || "",
@@ -1167,8 +1204,8 @@ export const TestCase: React.FC = () => {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={success}>
-                      {isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Submit")}
+                    <Button type="submit" disabled={success || submitting}>
+                      {submitting ? "Submitting..." : (isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Submit"))}
                     </Button>
                   </div>
                 </div>

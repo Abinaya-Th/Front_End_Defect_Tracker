@@ -32,8 +32,9 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { ProjectFormData, Project } from "../types";
+import { BackendProject } from "../types/index";
 import { useNavigate } from "react-router-dom";
-import { getAllProjects } from "../api/projectget";
+import { getAllProjects, createProject, CreateProjectRequest } from "../api/project/getproject";
 
 const cardStyles = [
   { border: "border-t-4 border-blue-400", iconBg: "bg-gradient-to-br from-blue-400 to-blue-600", iconColor: "text-white" },
@@ -97,9 +98,10 @@ export const Projects: React.FC = () => {
       viewReports: false,
     },
   });
-  const [backendProjects, setBackendProjects] = useState<Project[]>([]);
+  const [backendProjects, setBackendProjects] = useState<BackendProject[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -118,26 +120,63 @@ export const Projects: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
   console.log(backendProjects);
-  
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (editingProject) {
+      // Handle editing existing project (to be implemented)
       updateProject({
         ...formData,
         id: editingProject.id,
         teamMembers: editingProject.teamMembers || [],
         createdAt: editingProject.createdAt,
       });
+      resetForm();
     } else {
-      addProject({
-        ...formData,
-        id: `PRJ-${Date.now()}`,
-        teamMembers: [],
-        createdAt: new Date().toISOString(),
-      });
+      // Create new project using API
+      setSaving(true);
+      setError(null);
+
+      try {
+        const projectData: CreateProjectRequest = {
+          projectName: formData.name,
+          description: formData.description,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          clientName: formData.clientName,
+          country: formData.clientCountry,
+          state: formData.clientState,
+          email: formData.clientEmail,
+          phoneNo: formData.clientPhone,
+        };
+
+        const response = await createProject(projectData);
+        console.log('Project created successfully:', response);
+
+        // Refresh the projects list
+        const updatedProjects = await getAllProjects();
+        let projectsArray = Array.isArray(updatedProjects)
+          ? updatedProjects
+          : (updatedProjects && Array.isArray(updatedProjects.data))
+            ? updatedProjects.data
+            : [];
+        setBackendProjects(projectsArray);
+
+        // Close modal and reset form
+        resetForm();
+
+        // Show success message (you can add a toast notification here)
+        alert('Project created successfully!');
+
+      } catch (error: any) {
+        console.error('Error creating project:', error);
+        setError(error.message || 'Failed to create project');
+      } finally {
+        setSaving(false);
+      }
     }
-    resetForm();
   };
 
   // const handleEdit = (project: Project) => {
@@ -267,9 +306,9 @@ export const Projects: React.FC = () => {
             const Icon = projectIcons[index % projectIcons.length];
             const daysLeft = project.endDate
               ? Math.ceil(
-                  (new Date(project.endDate).getTime() - new Date().getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )
+                (new Date(project.endDate).getTime() - new Date().getTime()) /
+                (1000 * 60 * 60 * 24)
+              )
               : 0;
 
             return (
@@ -295,7 +334,9 @@ export const Projects: React.FC = () => {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="font-medium">Manager:</span>
                     <span className="text-gray-900 font-semibold">
-                      {project.manager ? project.manager : "Not Assigned"}
+                      {project.userFirstName && project.userLastName
+                        ? `${project.userFirstName} ${project.userLastName}`
+                        : "Not Assigned"}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 text-gray-700">
@@ -353,10 +394,25 @@ export const Projects: React.FC = () => {
             className="bg-white border border-gray-300 rounded-xl p-6 md:p-8 space-y-6"
             style={{ background: '#fff' }}
           >
-           
-               
-                    
-            
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Error</h3>
+                    <div className="mt-2 text-sm text-red-700">{error}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+
+
             {/* Project Details Section */}
             <div>
               <h2 className="font-semibold text-lg text-gray-800 mb-4">Project Details</h2>
@@ -537,7 +593,7 @@ export const Projects: React.FC = () => {
                 />
               </div>
             </div>
-           
+
             <div className="flex justify-end space-x-3 pt-4">
               <Button
                 type="button"
@@ -549,9 +605,10 @@ export const Projects: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2"
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {editingProject ? "Update Project" : "Save Project"}
+                {saving ? "Saving..." : (editingProject ? "Update Project" : "Save Project")}
               </Button>
             </div>
           </form>

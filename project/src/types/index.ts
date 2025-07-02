@@ -44,6 +44,24 @@ export interface Project {
   progress?: number; // Added to match mock data
 }
 
+// Backend API Project interface that matches the actual API response
+export interface BackendProject {
+  id: number;
+  projectId: string;
+  projectName: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  clientName: string;
+  country: string;
+  state: string;
+  email: string;
+  phoneNo: string;
+  userId: number;
+  userFirstName: string;
+  userLastName: string;
+}
+
 export interface DefectHistoryEntry {
   status: 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected';
   changedAt: string;

@@ -6,6 +6,7 @@ import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import * as exceljs from "xlsx";
 import { importTestCases } from "../api/importTestCase";
+import { createTestCase, createMultipleTestCases, CreateTestCaseRequest } from "../api/testCase/createTestcase";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -116,7 +117,7 @@ const mockModules: Record<
 };
 
 const QuickAddTestCase: React.FC = () => {
-  const { selectedProjectId, projects, addTestCase, modulesByProject } =
+  const { selectedProjectId, projects, addTestCase, modulesByProject, setSelectedProjectId } =
     useApp();
   const [modals, setModals] = useState([
     {
@@ -133,7 +134,29 @@ const QuickAddTestCase: React.FC = () => {
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Helper functions to convert names to IDs
+  const getSeverityId = (severityName: string): number => {
+    switch (severityName.toLowerCase()) {
+      case 'critical': return 1;
+      case 'high': return 2;
+      case 'medium': return 3;
+      case 'low': return 4;
+      default: return 3; // Default to medium
+    }
+  };
+
+  const getDefectTypeId = (typeName: string): number => {
+    switch (typeName.toLowerCase()) {
+      case 'functional': return 1;
+      case 'regression': return 2;
+      case 'smoke': return 3;
+      case 'integration': return 4;
+      default: return 1; // Default to functional
+    }
+  };
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -193,43 +216,87 @@ const QuickAddTestCase: React.FC = () => {
     }
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module
-          .substring(0, 3)
-          .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: selectedProjectId,
-      });
-    });
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setModals([
-        {
-          open: false,
-          formData: {
-            module: "",
-            subModule: "",
-            description: "",
-            steps: "",
-            type: "functional",
-            severity: "medium",
-          },
-        },
-      ]);
-      setCurrentModalIdx(0);
-    }, 1200);
+
+    setSubmitting(true);
+    try {
+      const testCasesToCreate: CreateTestCaseRequest[] = [];
+
+      // Convert form data to API format
+      for (const { formData } of modals) {
+        // Find module and submodule IDs from names
+        const moduleObj = projectModules.find(m => m.name === formData.module);
+        const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+
+        if (moduleObj && submoduleObj && selectedProjectId) {
+          testCasesToCreate.push({
+            testcase: formData.description,
+            description: formData.description,
+            steps: formData.steps,
+            submoduleId: Number(submoduleObj.id),
+            moduleId: Number(moduleObj.id),
+            projectId: Number(selectedProjectId),
+            severityId: getSeverityId(formData.severity),
+            defectTypeId: getDefectTypeId(formData.type),
+          });
+        }
+      }
+
+      if (testCasesToCreate.length > 0) {
+        await createMultipleTestCases(testCasesToCreate);
+        setSuccess(true);
+        setTimeout(() => {
+          setSuccess(false);
+          setModals([
+            {
+              open: false,
+              formData: {
+                module: "",
+                subModule: "",
+                description: "",
+                steps: "",
+                type: "functional",
+                severity: "medium",
+              },
+            },
+          ]);
+          setCurrentModalIdx(0);
+        }, 1200);
+      } else {
+        alert("Please fill in all required fields for at least one test case.");
+      }
+    } catch (error: any) {
+      console.error('Error creating test cases:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Use modulesByProject from context instead of mockModules
-  const projectModules = selectedProjectId
+  let projectModules = selectedProjectId
     ? modulesByProject[selectedProjectId] || []
     : [];
+
+  // Fallback to mock data if no modules are available
+  if (projectModules.length === 0 && selectedProjectId) {
+    const mockData = mockModules[selectedProjectId] || [];
+    projectModules = mockData.map(module => ({
+      id: module.id,
+      name: module.name,
+      submodules: module.submodules.map(submodule => ({
+        id: submodule,
+        name: submodule,
+        assignedDevs: []
+      })),
+      assignedDevs: []
+    }));
+  }
+
+  // Debug logging
+  console.log('QuickAddTestCase - selectedProjectId:', selectedProjectId);
+  console.log('QuickAddTestCase - projectModules:', projectModules);
   const selectedProject = projects.find(
     (p: { id: string }) => p.id === selectedProjectId
   );
@@ -242,7 +309,6 @@ const QuickAddTestCase: React.FC = () => {
           setCurrentModalIdx(0);
         }}
         className="flex items-center justify-center p-0 rounded-full shadow-lg bg-white hover:bg-gray-100 text-blue-700 relative group border border-blue-200"
-        disabled={!selectedProjectId}
         style={{
           width: 40,
           height: 40,
@@ -339,7 +405,7 @@ const QuickAddTestCase: React.FC = () => {
               title={
                 selectedProject
                   ? `Add New Test Case (${selectedProject.name})`
-                  : "Add New Test Case"
+                  : "Add New Test Case - Select Project"
               }
               size="xl"
             >
@@ -350,6 +416,36 @@ const QuickAddTestCase: React.FC = () => {
                 }}
                 className="space-y-4"
               >
+                {!selectedProjectId && (
+                  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <svg className="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <label className="block text-sm font-medium text-yellow-800">
+                        Select Project First
+                      </label>
+                    </div>
+                    <select
+                      value={selectedProjectId || ""}
+                      onChange={(e) => {
+                        setSelectedProjectId(e.target.value || null);
+                      }}
+                      className="w-full px-3 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                      required
+                    >
+                      <option value="">Select a Project</option>
+                      {projects.map((project: any) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      You need to select a project before creating test cases.
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center mb-2">
                   <button
                     type="button"
@@ -547,8 +643,8 @@ const QuickAddTestCase: React.FC = () => {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={success}>
-                      {success ? "Added!" : "Submit"}
+                    <Button type="submit" disabled={success || submitting || !selectedProjectId}>
+                      {submitting ? "Submitting..." : (success ? "Added!" : (!selectedProjectId ? "Select Project First" : "Submit"))}
                     </Button>
                   </div>
                 </div>
