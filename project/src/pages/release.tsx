@@ -50,7 +50,7 @@ export const Releases: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={projectId || ""} />
         <QuickAddDefect />
       </div>
     </div>

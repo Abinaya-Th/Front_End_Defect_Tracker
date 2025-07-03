@@ -247,9 +247,20 @@ console.log("id",selectedProjectId);
     getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
-    getSubmodulesByModuleId(selectedProjectId || "").then(res => setSubModules(res.data));
-    
   }, [selectedProjectId ]);
+
+  // Fetch submodules for the selected module only
+  useEffect(() => {
+    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const selectedModuleObj = modules.find(
+      (m: any) => m.moduleName === currentModuleName
+    );
+    if (selectedModuleObj && selectedModuleObj.id) {
+      getSubmodulesByModuleId(selectedModuleObj.id).then(res => setSubModules(res.data || []));
+    } else {
+      setSubModules([]);
+    }
+  }, [modals[currentModalIdx]?.formData.module, modules]);
 
   return (
     <div>
@@ -445,11 +456,8 @@ console.log("id",selectedProjectId);
                       </label>
                       <select
                         value={modal.formData.subModule}
-                        onChange={(e) =>
-                          handleInputChange(idx, "subModule", e.target.value)
-                        }
+                        onChange={(e) => handleInputChange(idx, "subModule", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
@@ -457,11 +465,19 @@ console.log("id",selectedProjectId);
                             ? "No submodules"
                             : "Select a submodule (optional)"}
                         </option>
-                        {subModules.map((submodule: string) => (
-                          <option key={submodule.subModuleId} value={submodule.subModuleName}>
-                            {submodule.subModuleName}
-                          </option>
-                        ))}
+                        {subModules
+                          .filter((submodule: any) => {
+                            return (
+                              submodule.moduleName === modal.formData.module ||
+                              submodule.name === modal.formData.subModule ||
+                              !submodule.moduleName // fallback for mock data
+                            );
+                          })
+                          .map((submodule: any) => (
+                            <option key={submodule.subModuleId || submodule.id || submodule.name} value={submodule.subModuleName || submodule.name}>
+                              {submodule.subModuleName || submodule.name}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div>

@@ -164,6 +164,8 @@ export interface Submodule {
 }
 
 export interface Module {
+  projectId: number;
+  moduleName: string;
   id: string;
   name: string;
   submodules: Submodule[];
