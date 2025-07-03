@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import {
   Employee,
   Project,
@@ -11,6 +11,7 @@ import {
   StatusTransition,
   StatusType,
 } from "../types";
+import { getModulesByProjectId } from "../api/module/getModule";
 
 export interface Project {
   id: string;
@@ -1143,6 +1144,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteStatusType = (id: string) => {
     setStatusTypes((prev) => prev.filter((status) => status.id !== id));
   };
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    getModulesByProjectId(selectedProjectId).then((res) => {
+      const modules = (res.data || []).map((mod: any) => ({
+        id: String(mod.id),
+        name: mod.moduleName || mod.name,
+        assignedDevs: [],
+        submodules: (mod.submodules || []).map((sm: any) => ({
+          id: String(sm.id),
+          name: sm.subModuleName || sm.name,
+          assignedDevs: [],
+        })),
+      }));
+      setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
+    });
+  }, [selectedProjectId]);
 
   return (
     <AppContext.Provider

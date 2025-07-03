@@ -24,15 +24,18 @@ import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
 import { getAllDefectStatuses, DefectStatus } from "../api/defectStatus";
 import type { Defect as BaseDefect, DefectHistoryEntry } from "../types/index";
-import { defectFilterService } from "../api/defect/defectFilterService";
 import { getDefectTypes } from "../api/defectType";
 import { getSeverities } from "../api/severity";
+import { ProjectSelector } from "../components/ui/ProjectSelector";
+import { getAllProjects } from "../api/projectget";
+import type { Project } from "../types";
+import { FilteredDefect } from '../api/defect/filterDefectByProject';
+import { getModulesByProjectId } from '../api/module/getModule';
+import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
+import { filterDefects } from "../api/defect/filterDefectByProject";
+import { updateDefectById } from '../api/defect/updateDefect';
 
-// Locally extend Defect to allow 'defectHistory' and 'new' status
-interface Defect extends BaseDefect {
-  defectHistory?: DefectHistoryEntry[];
-  status: string; // Accept any string from API, including 'new'
-}
+// Use Defect type from types/index.ts directly
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -40,31 +43,51 @@ export const Defects: React.FC = () => {
   const location = useLocation();
   const {
     defects,
-    projects,
     releases,
     addDefect,
     updateDefect,
     deleteDefect,
     setSelectedProjectId,
+    employees,
   } = useApp();
 
+  // Backend projects state
+  const [projects, setProjects] = React.useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectIdLocal] = React.useState<string | null>(projectId || null);
+
+  // Backend defects state
+  const [backendDefects, setBackendDefects] = React.useState<FilteredDefect[]>([]);
+  // Lookup maps for names
+  const [statusMap, setStatusMap] = React.useState<Record<number, string>>({});
+  const [severityMap, setSeverityMap] = React.useState<Record<number, string>>({});
+  const [priorityMap, setPriorityMap] = React.useState<Record<number, string>>({});
+  const [typeMap, setTypeMap] = React.useState<Record<number, string>>({});
+  const [moduleMap, setModuleMap] = React.useState<Record<number, string>>({});
+  const [submoduleMap, setSubmoduleMap] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    getAllProjects().then((data) => {
+      setProjects(Array.isArray(data) ? data : []);
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (projectId) setSelectedProjectIdLocal(projectId);
+  }, [projectId]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDefect, setEditingDefect] = useState<Defect | null>(null);
-  const [formData, setFormData] = useState<Partial<Defect>>({
-    title: "",
-    description: "",
-    module: "",
-    subModule: "",
-    type: "bug",
-    priority: "medium",
-    severity: "medium",
-    status: "open",
-    projectId: projectId || "",
-    releaseId: "",
-    testCaseId: "",
-    assignedTo: "",
-    reportedBy: "",
-    rejectionComment: "",
+  const [editingDefect, setEditingDefect] = useState<FilteredDefect | null>(null);
+  const [formData, setFormData] = useState({
+    defectId: '',
+    description: '',
+    steps: '',
+    moduleId: '',
+    subModuleId: '',
+    severityId: '',
+    priorityId: '',
+    typeId: '',
+    assigntoId: '',
+    assignbyId: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -90,56 +113,73 @@ export const Defects: React.FC = () => {
     search: "",
   });
 
+  // Fetch lookup data on mount or project change
+  React.useEffect(() => {
+    if (!selectedProjectId) return;
+    // Fetch all lookup data in parallel
+    Promise.all([
+      getAllDefectStatuses(),
+      getSeverities(),
+      getAllPriorities(),
+      getDefectTypes(),
+      getModulesByProjectId(selectedProjectId),
+    ]).then(([statuses, severities, priorities, types, modules]) => {
+      setStatusMap(Object.fromEntries((statuses.data || []).map((s: any) => [s.id, s.defectStatusName])));
+      setSeverityMap(Object.fromEntries((severities.data || []).map((s: any) => [s.id, s.name])));
+      setPriorityMap(Object.fromEntries((priorities.data || []).map((p: any) => [p.id, p.priority])));
+      setTypeMap(Object.fromEntries((types.data || []).map((t: any) => [t.id, t.defectTypeName])));
+      setModuleMap(Object.fromEntries((modules.data || []).map((m: any) => [m.id, m.moduleName])));
+      // For submodules, fetch all for each module
+      Promise.all((modules.data || []).map((m: any) => getSubmodulesByModuleId(m.id))).then((submoduleResults) => {
+        const subMap: Record<string, string> = {};
+        submoduleResults.forEach((res) => {
+          (res.data || []).forEach((sm: any) => {
+            subMap[String(sm.id)] = sm.name;
+          });
+        });
+        setSubmoduleMap(subMap);
+      });
+    });
+  }, [selectedProjectId]);
+
+  // Fetch defects when project changes
+  React.useEffect(() => {
+    if (!selectedProjectId) return;
+    // Prepare backend-supported filters
+    const backendFilters = {
+      projectId: selectedProjectId,
+      typeId: filters.type ? defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
+      severityId: filters.severity ? severities.find(s => s.name === filters.severity)?.id : undefined,
+      priorityId: filters.priority ? priorities.find(p => p.priority === filters.priority)?.id : undefined,
+      defectStatusId: filters.status ? defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
+      releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
+    };
+    filterDefects(backendFilters).then(setBackendDefects);
+  }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.releaseId]);
+
   // Filtered defects based on filters
-  const filteredDefects = defects.filter(
-    (d) =>
-      d.projectId === projectId &&
-      (filters.id === "" ||
-        d.id.toLowerCase().includes(filters.id.toLowerCase())) &&
-      (filters.module === "" || d.module === filters.module) &&
-      (filters.subModule === "" || d.subModule === filters.subModule) &&
-      (filters.type === "" || d.type === filters.type) &&
-      (filters.severity === "" || d.severity === filters.severity) &&
-      (filters.priority === "" || d.priority === filters.priority) &&
-      (filters.status === "" || d.status === filters.status) &&
-      (filters.releaseId === "" || d.releaseId === filters.releaseId) &&
-      (filters.assignedTo === "" ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.assignedTo.toLowerCase())) &&
-      (filters.reportedBy === "" ||
-        (d.reportedBy || "")
-          .toLowerCase()
-          .includes(filters.reportedBy.toLowerCase())) &&
-      (filters.search === "" ||
-        d.id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.title || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.description || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.module || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.subModule || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.type || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.severity || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.priority || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.status || "").toLowerCase().includes(filters.search.toLowerCase()) ||
-        (d.assignedTo || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()) ||
-        (d.reportedBy || "")
-          .toLowerCase()
-          .includes(filters.search.toLowerCase()))
-  );
+  const filteredDefects = backendDefects.filter((d) => {
+    const search = filters.search.trim().toLowerCase();
+    const matchesSearch =
+      !search ||
+      (d.description && d.description.toLowerCase().includes(search)) ||
+      (d.defectId && d.defectId.toLowerCase().includes(search)) ||
+      (d.steps && d.steps.toLowerCase().includes(search));
+    return (
+      matchesSearch &&
+      (!filters.module || moduleMap[d.moduleId] === filters.module) &&
+      (!filters.subModule || submoduleMap[String(d.subModuleId)] === filters.subModule) &&
+      (!filters.type || typeMap[d.typeId] === filters.type) &&
+      (!filters.severity || severityMap[d.severityId] === filters.severity) &&
+      (!filters.priority || priorityMap[d.priorityId] === filters.priority) &&
+      (!filters.status || statusMap[d.defectStatusId] === filters.status)
+    );
+  });
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
-    setSelectedProjectId(id);
+    setSelectedProjectIdLocal(id);
+    setSelectedProjectId?.(id); // If provided by context
     navigate(`/projects/${id}/defects`);
   };
 
@@ -155,66 +195,80 @@ export const Defects: React.FC = () => {
   };
 
   // CRUD handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      const now = new Date().toISOString();
-      const newHistory: DefectHistoryEntry[] = [
-        ...(editingDefect.defectHistory || []),
-        {
-          status: formData.status as string,
-          changedAt: now,
-          comment: formData.status === "rejected" ? formData.rejectionComment : undefined,
-        },
-      ];
-      updateDefect({
+      const { severityId, priorityId, typeId, ...restFormData } = formData;
+      let severityValue = severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
+      if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
+      let priorityValue = priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
+      if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
+      let typeValue = defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
+      if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
+      // Guard: Only update if id is a valid number
+      if (typeof editingDefect.id !== 'number' || isNaN(editingDefect.id)) {
+        alert('Defect ID is missing or invalid. Cannot update defect.');
+        return;
+      }
+      // Build payload matching backend API
+      const payload = {
         ...editingDefect,
-        ...formData,
-        projectId: projectId || "",
-        id: editingDefect.id,
-        createdAt: editingDefect.createdAt,
-        updatedAt: now,
-        defectHistory: newHistory,
-      });
-    } else {
-      const now = new Date().toISOString();
-      const newDefect: Defect = {
-        ...formData,
-        projectId: projectId || "",
-        id: getNextDefectId(),
-        createdAt: now,
-        updatedAt: now,
-        status: "new",
-        reportedBy: formData.reportedBy || "",
-        title: formData.title || "",
-        description: formData.description || "",
-        module: formData.module || "",
-        subModule: formData.subModule || "",
-        type: formData.type as any || "bug",
-        priority: formData.priority as any || "medium",
-        severity: formData.severity as any || "medium",
+        ...restFormData,
+        moduleId: formData.moduleId ? Number(formData.moduleId) : undefined,
+        subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
+        severityId: formData.severityId ? Number(formData.severityId) : undefined,
+        priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
+        typeId: formData.typeId ? Number(formData.typeId) : undefined,
+        assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+        assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+        id: editingDefect.id, // always use the existing numeric id
       };
-      addDefect(newDefect);
+      try {
+        await updateDefectById(editingDefect.id, payload);
+        alert('Defect updated successfully!');
+      } catch (error) {
+        alert('Failed to update defect.');
+      }
+    } else {
+      const { severityId, priorityId, typeId, ...restFormData } = formData;
+      let severityValue = severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
+      if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
+      let priorityValue = priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
+      if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
+      let typeValue = defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
+      if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
+      // Do NOT include id or steps in the payload for new defects if not part of Defect type
+      addDefect({
+        description: restFormData.description || '',
+        module: formData.moduleId || '',
+        subModule: formData.subModuleId || '',
+        severity: severityValue as 'low' | 'medium' | 'high' | 'critical',
+        priority: priorityValue as 'low' | 'medium' | 'high' | 'critical',
+        type: typeValue as 'bug' | 'test-failure' | 'enhancement',
+        assignedTo: formData.assigntoId || '',
+        reportedBy: formData.assignbyId || '',
+        status: 'open',
+        projectId: selectedProjectId || '',
+        releaseId: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
     resetForm();
   };
-  const handleEdit = (defect: Defect) => {
+  const handleEdit = (defect: FilteredDefect) => {
     setEditingDefect(defect);
     setFormData({
-      title: defect.title,
-      description: defect.description,
-      module: defect.module,
-      subModule: defect.subModule,
-      type: defect.type,
-      priority: defect.priority,
-      severity: defect.severity,
-      status: defect.status,
-      projectId: defect.projectId,
-      releaseId: defect.releaseId || "",
-      testCaseId: defect.testCaseId || "",
-      assignedTo: defect.assignedTo || "",
-      reportedBy: defect.reportedBy,
-      rejectionComment: defect.rejectionComment || "",
+      defectId: defect.defectId || '',
+      description: defect.description || '',
+      steps: defect.steps || '',
+      moduleId: defect.moduleId?.toString() || '',
+      subModuleId: defect.subModuleId?.toString() || '',
+      severityId: defect.severityId?.toString() || '',
+      priorityId: defect.priorityId?.toString() || '',
+      typeId: defect.typeId?.toString() || '',
+      assigntoId: defect.assigntoId?.toString() || '',
+      assignbyId: defect.assignbyId?.toString() || '',
     });
     setIsModalOpen(true);
   };
@@ -225,26 +279,22 @@ export const Defects: React.FC = () => {
   };
   const resetForm = () => {
     setFormData({
-      title: "",
-      description: "",
-      module: "",
-      subModule: "",
-      type: "bug",
-      priority: "medium",
-      severity: "medium",
-      status: "open",
-      projectId: projectId || "",
-      releaseId: "",
-      testCaseId: "",
-      assignedTo: "",
-      reportedBy: "",
-      rejectionComment: "",
+      defectId: '',
+      description: '',
+      steps: '',
+      moduleId: '',
+      subModuleId: '',
+      severityId: '',
+      priorityId: '',
+      typeId: '',
+      assigntoId: '',
+      assignbyId: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
   };
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   // Color helpers
@@ -293,215 +343,67 @@ export const Defects: React.FC = () => {
     }
   };
 
-  // Use the same mockModules structure as in TestCase.tsx
-  interface Module {
-    id: string;
-    name: string;
-    submodules: string[];
-  }
-  // Project-specific modules and submodules
-  const mockModules: { [key: string]: Module[] } = {
-    "2": [
-      // Mobile Banking App
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: [
-          "Biometric Login",
-          "PIN Login",
-          "Password Reset",
-          "Session Management",
-        ],
-      },
-      {
-        id: "acc",
-        name: "Account Management",
-        submodules: [
-          "Account Overview",
-          "Transaction History",
-          "Account Statements",
-          "Account Settings",
-        ],
-      },
-      {
-        id: "tra",
-        name: "Money Transfer",
-        submodules: [
-          "Quick Transfer",
-          "Scheduled Transfer",
-          "International Transfer",
-          "Transfer Limits",
-        ],
-      },
-      {
-        id: "bil",
-        name: "Bill Payments",
-        submodules: [
-          "Bill List",
-          "Payment Scheduling",
-          "Payment History",
-          "Recurring Payments",
-        ],
-      },
-      {
-        id: "sec",
-        name: "Security Features",
-        submodules: [
-          "Two-Factor Auth",
-          "Device Management",
-          "Security Alerts",
-          "Fraud Protection",
-        ],
-      },
-      {
-        id: "sup",
-        name: "Customer Support",
-        submodules: ["Chat Support", "FAQs", "Contact Us", "Feedback"],
-      },
-    ],
-    "3": [
-      // Analytics Dashboard
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "reporting",
-        name: "Reporting",
-        submodules: ["Analytics", "Exports", "Dashboards", "Custom Reports"],
-      },
-      {
-        id: "data",
-        name: "Data Management",
-        submodules: ["Data Import", "Data Processing", "Data Export"],
-      },
-      {
-        id: "visualization",
-        name: "Visualization",
-        submodules: ["Charts", "Graphs", "Widgets"],
-      },
-    ],
-    "4": [
-      // Content Management
-      {
-        id: "auth",
-        name: "Authentication",
-        submodules: ["Login", "Registration", "Password Reset"],
-      },
-      {
-        id: "content",
-        name: "Content Management",
-        submodules: ["Articles", "Media", "Categories", "Templates"],
-      },
-      {
-        id: "user",
-        name: "User Management",
-        submodules: ["Profile", "Settings", "Permissions", "Roles"],
-      },
-      {
-        id: "workflow",
-        name: "Workflow",
-        submodules: ["Approval Process", "Review Process", "Publishing"],
-      },
-    ],
-  };
+  // Add state for modules and submodules
+  const [modules, setModules] = React.useState<{ id: string; name: string }[]>([]);
+  const [submodules, setSubmodules] = React.useState<{ id: string; name: string }[]>([]);
+  const [submoduleError, setSubmoduleError] = React.useState<string>("");
 
-  // Mock data for modules and submodules if none exist for the project
-  const fallbackModules = [
-    {
-      id: "mod1",
-      name: "Authentication",
-      submodules: ["Login", "Logout", "Password Reset"],
-    },
-    {
-      id: "mod2",
-      name: "Dashboard",
-      submodules: ["Overview", "Reports", "Analytics"],
-    },
-    {
-      id: "mod3",
-      name: "User Management",
-      submodules: ["Add User", "Edit User", "Delete User"],
-    },
-  ];
+  // Separate state for filter submodules
+  const [filterSubmodules, setFilterSubmodules] = React.useState<{ id: string; name: string }[]>([]);
 
-  // Use fallback if no modules for current project
-  const modulesList =
-    projectId && mockModules[projectId] && mockModules[projectId].length > 0
-      ? mockModules[projectId].map((m) => m.name)
-      : fallbackModules.map((m) => m.name);
-  const submodulesList =
-    formData.module && modulesList.includes(formData.module)
-      ? (projectId &&
-        mockModules[projectId] &&
-        mockModules[projectId].length > 0
-        ? mockModules[projectId]
-        : fallbackModules
-      ).find((m) => m.name === formData.module)?.submodules || []
-      : [];
+  // Fetch modules when project changes
+  React.useEffect(() => {
+    if (!selectedProjectId) return;
+    getModulesByProjectId(selectedProjectId).then((res) => {
+      setModules((res.data || []).map((m: any) => ({ id: m.id?.toString(), name: m.moduleName })));
+    });
+  }, [selectedProjectId]);
 
-  // Unique values for dropdowns
-  const uniqueModules = modulesList;
-  const uniqueSubmodules =
-    formData.module && modulesList.includes(formData.module)
-      ? submodulesList
-      : Array.from(
-        new Set(
-          defects
-            .filter((d) => d.projectId === projectId)
-            .map((d) => d.subModule)
-            .filter(Boolean)
-        )
-      );
-  const uniqueTypes = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.type)
-        .filter(Boolean)
-    )
-  );
-  const uniqueSeverities = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.severity)
-        .filter(Boolean)
-    )
-  );
-  const uniquePriorities = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.priority)
-        .filter(Boolean)
-    )
-  );
-  const uniqueStatuses = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.status)
-        .filter(Boolean)
-    )
-  );
-  const uniqueAssignedTo = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.assignedTo)
-        .filter(Boolean)
-    )
-  );
-  const uniqueReportedBy = Array.from(
-    new Set(
-      defects
-        .filter((d) => d.projectId === projectId)
-        .map((d) => d.reportedBy)
-        .filter(Boolean)
-    )
-  );
+  // Fetch submodules when module changes in the form
+  React.useEffect(() => {
+    if (!formData.moduleId) {
+      setSubmodules([]);
+      setFormData(f => ({ ...f, subModuleId: '' }));
+      return;
+    }
+    getSubmodulesByModuleId(formData.moduleId)
+      .then(res => {
+        const mapped = (res.data || []).map(sm => ({
+          id: sm.id?.toString(),
+          name: sm.name
+        }));
+        setSubmodules(mapped);
+      })
+      .catch(() => setSubmodules([]));
+  }, [formData.moduleId]);
+
+  // Fetch submodules for filter when module filter changes
+  React.useEffect(() => {
+    if (!filters.module) {
+      setFilterSubmodules([]);
+      return;
+    }
+    const selectedModule = modules.find(m => m.name === filters.module);
+    console.log('Filter submodule fetch - selectedModule:', selectedModule);
+    if (!selectedModule || !selectedModule.id) {
+      setFilterSubmodules([]);
+      return;
+    }
+    console.log('Fetching submodules for module id:', selectedModule.id);
+    getSubmodulesByModuleId(selectedModule.id)
+      .then(res => {
+        console.log('Fetched submodules for filter:', res.data, 'for module:', selectedModule.id, selectedModule.name);
+        const mapped = (res.data || []).map(sm => ({
+          id: sm.id?.toString(),
+          name: sm.name
+        }));
+        setFilterSubmodules(mapped);
+      })
+      .catch(() => setFilterSubmodules([]));
+  }, [filters.module, modules]);
+
+  // For Assigned To and Entered By, use employees context
+  const employeeOptions = employees.map(e => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
 
   // Get highlight param from URL
   const highlightId = React.useMemo(() => {
@@ -602,21 +504,16 @@ export const Defects: React.FC = () => {
   const handleExportExcel = () => {
     const exportData = filteredDefects.map((d) => ({
       id: d.id,
-      title: d.title,
+      defectId: d.defectId,
       description: d.description,
-      module: d.module,
-      subModule: d.subModule,
-      type: d.type,
-      priority: d.priority,
-      severity: d.severity,
-      status: d.status,
-      assignedTo: d.assignedTo,
-      reportedBy: d.reportedBy,
-      releaseId: d.releaseId,
-      testCaseId: d.testCaseId,
-      rejectionComment: d.rejectionComment,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
+      steps: d.steps,
+      module: moduleMap[d.moduleId] || d.moduleId,
+      subModule: submoduleMap[String(d.subModuleId)] || d.subModuleId,
+      type: typeMap[d.typeId] || d.typeId,
+      priority: priorityMap[d.priorityId] || d.priorityId,
+      severity: severityMap[d.severityId] || d.severityId,
+      status: statusMap[d.defectStatusId] || d.defectStatusId,
+      assignee: (employeeOptions.find(e => e.id.toString() === d.assigntoId?.toString())?.name) || d.assigntoId,
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -624,56 +521,32 @@ export const Defects: React.FC = () => {
     XLSX.writeFile(wb, "defects_export.xlsx");
   };
 
+  const releaseMap = React.useMemo(() => Object.fromEntries(releases.map(r => [Number(r.id), r.name])), [releases]);
+
+  const handleStatusSave = (defect: FilteredDefect, newStatus: string, comment: string) => {
+    const now = new Date().toISOString();
+    setBackendDefects(prev =>
+      prev.map(d =>
+        d.defectId === defect.defectId
+          ? {
+            ...d,
+            defectStatusId: defectStatuses.find(s => s.defectStatusName === newStatus)?.id || d.defectStatusId,
+            updatedAt: now,
+          }
+          : d
+      )
+    );
+    setEditingStatusId(null);
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Project Selection
-          </h2>
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft -= 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div
-              id="project-scroll"
-              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                maxWidth: "100%",
-              }}
-            >
-              {projects.map((project) => (
-                <Button
-                  key={project.id}
-                  variant={projectId === project.id ? "primary" : "secondary"}
-                  onClick={() => handleProjectSelect(project.id)}
-                  className="whitespace-nowrap m-2"
-                >
-                  {project.name}
-                </Button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const container = document.getElementById("project-scroll");
-                if (container) container.scrollLeft += 200;
-              }}
-              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectSelector
+        projects={projects}
+        selectedProjectId={selectedProjectId}
+        onSelect={handleProjectSelect}
+      />
 
       {/* Add Defect Button */}
       <div className="flex justify-between items-center m-4">
@@ -713,9 +586,9 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
+              {modules.map((m) => (
+                <option key={m.id} value={m.name}>
+                  {m.name}
                 </option>
               ))}
             </select>
@@ -726,17 +599,13 @@ export const Defects: React.FC = () => {
             </label>
             <select
               value={filters.subModule}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, subModule: e.target.value }))
-              }
+              onChange={e => setFilters(f => ({ ...f, subModule: e.target.value }))}
               className="w-full h-8 text-xs border border-gray-300 rounded"
               disabled={!filters.module}
             >
               <option value="">All</option>
-              {uniqueSubmodules.map((sm) => (
-                <option key={sm} value={sm}>
-                  {sm}
-                </option>
+              {filterSubmodules.map(sm => (
+                <option key={sm.id} value={sm.name}>{sm.name}</option>
               ))}
             </select>
           </div>
@@ -842,8 +711,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueAssignedTo.map((user) => (
-                <option key={user} value={user}>{user}</option>
+              {employeeOptions.map((user) => (
+                <option key={user.id} value={user.name}>{user.name}</option>
               ))}
             </select>
           </div>
@@ -857,8 +726,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {uniqueReportedBy.map((user) => (
-                <option key={user} value={user}>{user}</option>
+              {employeeOptions.map((user) => (
+                <option key={user.id} value={user.name}>{user.name}</option>
               ))}
             </select>
           </div>
@@ -962,36 +831,33 @@ export const Defects: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200">
                 {filteredDefects.length > 0 ? (
                   filteredDefects.map((defect) => (
                     <tr
-                      key={defect.id}
+                      key={defect.defectId}
                       ref={
-                        highlightId === defect.id
+                        highlightId === defect.defectId
                           ? highlightedRowRef
                           : undefined
                       }
-                      className={`hover:bg-gray-50${highlightId === defect.id
-                        ? " bg-yellow-100 border-2 border-yellow-400"
-                        : ""
-                        }`}
+                      className={`${highlightId === defect.defectId ? "  border-2 " : ""}`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.id}
+                        {defect.defectId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.testCaseId || "-"}
+                        {defect.releaseTestCaseId || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.title}
+                        {defect.description}
                       </td>
                       <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
                         <button
                           type="button"
                           className="flex items-center space-x-1 hover:underline"
                           onClick={() => {
-                            setViewingSteps(defect.description);
+                            setViewingSteps(defect.steps);
                             setIsViewStepsModalOpen(true);
                           }}
                           title="View Steps"
@@ -1001,57 +867,33 @@ export const Defects: React.FC = () => {
                         </button>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.module}
+                        {defect.moduleId}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.subModule}
+                        {submoduleMap[String(defect.subModuleId)] || defect.subModuleId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.type}
+                        {defect.typeId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                            defect.severity
-                          )}`}
-                        >
-                          {defect.severity}
+                        <span className="px-2 py-1 rounded-full text-xs font-medium">
+                          {defect.severityId}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                            defect.priority
-                          )}`}
-                        >
-                          {defect.priority}
+                        <span className="px-2 py-1 rounded-full text-xs font-medium">
+                          {defect.priorityId}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap w-32">
                         <div className="flex flex-col items-center gap-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(defect.status)}`}>{defect.status}</span>
-                          {editingStatusId === defect.id ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium">{defect.defectStatusId}</span>
+                          {editingStatusId === defect.defectId ? (
                             <form
                               onSubmit={e => {
                                 e.preventDefault();
                                 if (statusEditValue === 'rejected' && !statusEditComment) return;
-                                const now = new Date().toISOString();
-                                const newHistory: DefectHistoryEntry[] = [
-                                  ...(defect.defectHistory || []),
-                                  {
-                                    status: statusEditValue,
-                                    changedAt: now,
-                                    comment: statusEditValue === 'rejected' ? statusEditComment : undefined,
-                                  },
-                                ];
-                                updateDefect({
-                                  ...defect,
-                                  status: statusEditValue,
-                                  rejectionComment: statusEditValue === 'rejected' ? statusEditComment : '',
-                                  updatedAt: now,
-                                  defectHistory: newHistory,
-                                });
-                                setEditingStatusId(null);
+                                handleStatusSave(defect, statusEditValue, statusEditComment);
                               }}
                               className="flex flex-col items-center gap-1 mt-2"
                             >
@@ -1067,7 +909,7 @@ export const Defects: React.FC = () => {
                                   <option disabled>Error loading statuses</option>
                                 ) : (
                                   defectStatuses.map((s) => (
-                                    <option key={s.id} value={s.defectStatusName}>{s.defectStatusName}</option>
+                                    <option key={s.id} value={s.id}>{s.id}</option>
                                   ))
                                 )}
                               </select>
@@ -1099,36 +941,18 @@ export const Defects: React.FC = () => {
                               </div>
                             </form>
                           ) : (
-                            <div className="flex flex-col items-center gap-1 mt-1">
-                              <div className="flex gap-2">
-                                {defect.status === "rejected" && defect.rejectionComment && (
-                                  <button
-                                    type="button"
-                                    className="text-blue-600 hover:text-blue-800 flex-shrink-0"
-                                    title="View rejection comment"
-                                    onClick={() => {
-                                      setEditingStatusId(defect.id);
-                                      setStatusEditComment(defect.rejectionComment || "");
-                                      setIsRejectionCommentModalOpen(true);
-                                    }}
-                                  >
-                                    <MessageSquareWarning className="w-4 h-4 text-red-700" />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="text-blue-600 hover:text-blue-900 p-1"
-                                  title="Edit status"
-                                  onClick={() => {
-                                    setEditingStatusId(defect.id);
-                                    setStatusEditValue(defect.status);
-                                    setStatusEditComment(defect.rejectionComment || '');
-                                  }}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
+                            <button
+                              type="button"
+                              className="text-blue-600 hover:text-blue-900 p-1 mt-1"
+                              title="Edit status"
+                              onClick={() => {
+                                setEditingStatusId(defect.defectId);
+                                setStatusEditValue(defect.defectStatusId.toString() || '');
+                                setStatusEditComment('');
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1138,7 +962,7 @@ export const Defects: React.FC = () => {
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="View defect history"
                           onClick={() => {
-                            setViewingDefectHistory(defect.defectHistory || []);
+                            setViewingDefectHistory([]);
                             setIsHistoryModalOpen(true);
                           }}
                         >
@@ -1146,16 +970,13 @@ export const Defects: React.FC = () => {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.assignedTo || '-'}
+                        {defect.assigntoId || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.reportedBy || '-'}
+                        {defect.assignbyId || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(() => {
-                          const release = releases.find(r => r.id === defect.releaseId);
-                          return release ? release.name : '-';
-                        })()}
+                        {defect.releaseTestCaseId ? (releaseMap[String(defect.releaseTestCaseId)] || defect.releaseTestCaseId) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1165,7 +986,7 @@ export const Defects: React.FC = () => {
                             title="View Defect Details"
                             onClick={() => {
                               setViewingSteps(
-                                `ID: ${defect.id}\nTitle: ${defect.title}\nDescription: ${defect.description}\nModule: ${defect.module}\nSubmodule: ${defect.subModule}\nType: ${defect.type}\nSeverity: ${defect.severity}\nPriority: ${defect.priority}\nStatus: ${defect.status}\nAssigned To: ${defect.assignedTo}\nEntered By: ${defect.reportedBy}`
+                                `ID: ${defect.id}\nDescription: ${defect.description}\nModule: ${moduleMap[defect.moduleId] || defect.moduleId}\nSubmodule: ${submoduleMap[String(defect.subModuleId)] || defect.subModuleId}\nType: ${typeMap[defect.typeId] || defect.typeId}\nSeverity: ${severityMap[defect.severityId] || defect.severityId}\nPriority: ${priorityMap[defect.priorityId] || defect.priorityId}\nStatus: ${statusMap[defect.defectStatusId] || defect.defectStatusId}`
                               );
                               setIsViewStepsModalOpen(true);
                             }}
@@ -1184,7 +1005,7 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="text-red-600 hover:text-red-900 flex items-center"
                             title="Delete Defect"
-                            onClick={() => handleDelete(defect.id)}
+                            onClick={() => handleDelete(defect.id ? String(defect.id) : '')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1221,20 +1042,12 @@ export const Defects: React.FC = () => {
         title={editingDefect ? "Edit Defect" : "Add New Defect"}
         size="lg"
       >
-        {projects && formData.projectId && (
-          (() => {
-            const project = projects.find((p) => p.id === formData.projectId);
-            return project ? (
-              <div className="font-bold text-blue-600 text-base mb-2">{project.name}</div>
-            ) : null;
-          })()
-        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Brief Description */}
           <Input
             label="Brief Description"
-            value={formData.title}
-            onChange={(e) => handleInputChange("title", e.target.value)}
+            value={formData.description}
+            onChange={e => handleInputChange("description", e.target.value)}
             required
           />
           {/* Steps */}
@@ -1243,8 +1056,8 @@ export const Defects: React.FC = () => {
               Steps
             </label>
             <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
+              value={formData.steps}
+              onChange={e => handleInputChange("steps", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
               required
@@ -1257,16 +1070,14 @@ export const Defects: React.FC = () => {
                 Modules
               </label>
               <select
-                value={formData.module}
-                onChange={(e) => handleInputChange("module", e.target.value)}
+                value={formData.moduleId}
+                onChange={e => setFormData(f => ({ ...f, moduleId: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select a module</option>
-                {modulesList.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module}
-                  </option>
+                {modules.map(module => (
+                  <option key={module.id} value={module.id}>{module.name}</option>
                 ))}
               </select>
             </div>
@@ -1274,17 +1085,23 @@ export const Defects: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Submodules
               </label>
+              {submoduleError && (
+                <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+              )}
               <select
-                value={formData.subModule}
-                onChange={(e) => handleInputChange("subModule", e.target.value)}
+                value={formData.subModuleId}
+                onChange={e => setFormData(f => ({ ...f, subModuleId: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={!formData.module}
+                disabled={!formData.moduleId}
               >
-                <option value="">Select a submodule</option>
-                {submodulesList.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
+                <option value="">
+                  {submodules.length === 0
+                    ? "No submodules"
+                    : "Select a submodule (optional)"}
+                </option>
+                {submodules.map((submodule) => (
+                  <option key={submodule.id} value={submodule.id}>
+                    {submodule.name}
                   </option>
                 ))}
               </select>
@@ -1297,14 +1114,14 @@ export const Defects: React.FC = () => {
                 Severity
               </label>
               <select
-                value={formData.severity}
-                onChange={(e) => handleInputChange("severity", e.target.value)}
+                value={formData.severityId}
+                onChange={e => handleInputChange('severityId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select severity</option>
-                {severities.map((s) => (
-                  <option key={s.id} value={s.name}>{s.name}</option>
+                {severities.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -1313,15 +1130,15 @@ export const Defects: React.FC = () => {
                 Priority
               </label>
               <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange("priority", e.target.value)}
+                value={formData.priorityId}
+                onChange={e => handleInputChange('priorityId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select priority</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                {priorities.map(p => (
+                  <option key={p.id} value={p.id.toString()}>{p.priority}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -1332,14 +1149,14 @@ export const Defects: React.FC = () => {
                 Types
               </label>
               <select
-                value={formData.type}
-                onChange={(e) => handleInputChange("type", e.target.value)}
+                value={formData.typeId}
+                onChange={e => handleInputChange('typeId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select type</option>
                 {defectTypes.map((t) => (
-                  <option key={t.id} value={t.defectTypeName}>{t.defectTypeName}</option>
+                  <option key={t.id} value={t.id}>{t.defectTypeName}</option>
                 ))}
               </select>
             </div>
@@ -1348,18 +1165,14 @@ export const Defects: React.FC = () => {
                 Assigned To
               </label>
               <select
-                value={formData.assignedTo}
-                onChange={(e) =>
-                  handleInputChange("assignedTo", e.target.value)
-                }
+                value={formData.assigntoId}
+                onChange={e => handleInputChange('assigntoId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Select assignee</option>
-                {uniqueAssignedTo.map((user) => (
-                  <option key={user} value={user}>
-                    {user}
-                  </option>
+                {employeeOptions.map(user => (
+                  <option key={user.id} value={user.id.toString()}>{user.name}</option>
                 ))}
               </select>
             </div>
@@ -1423,21 +1236,12 @@ export const Defects: React.FC = () => {
               onSubmit={e => {
                 e.preventDefault();
                 if (!editingStatusId) return setIsRejectionCommentModalOpen(false);
-                const defect = defects.find(d => d.id === editingStatusId) as Defect;
+                const defect = backendDefects.find(d => d.id === editingStatusId) as FilteredDefect;
                 if (!defect) return setIsRejectionCommentModalOpen(false);
                 const now = new Date().toISOString();
-                const newHistory: DefectHistoryEntry[] = [
-                  ...(defect.defectHistory || []),
-                  {
-                    status: 'rejected',
-                    changedAt: now,
-                    comment: statusEditComment,
-                  },
-                ];
                 updateDefect({
                   ...defect,
                   rejectionComment: statusEditComment,
-                  defectHistory: newHistory,
                   updatedAt: now,
                 });
                 setIsEditingRejectionComment(false);
@@ -1509,8 +1313,8 @@ export const Defects: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
-        <QuickAddDefect />
+        <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
+        <QuickAddDefect selectedProjectId={selectedProjectId || ''} />
       </div>
     </div>
   );
