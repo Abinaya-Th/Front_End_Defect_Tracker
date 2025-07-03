@@ -490,7 +490,7 @@ console.log({modulesByProjectId});
             </div>
             {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {modulesByProjectId.map((module) => (
+              {Array.isArray(modulesByProjectId) && modulesByProjectId.map((module) => (
                 <Card key={module.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
@@ -561,14 +561,16 @@ console.log({modulesByProjectId});
                                         const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
-                                            prev.map(m =>
-                                              m.id === module.id
-                                                ? {
-                                                    ...m,
-                                                    submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                                  }
-                                                : m
-                                            )
+                                            Array.isArray(prev)
+                                              ? prev.map(m =>
+                                                  m.id === module.id
+                                                    ? {
+                                                        ...m,
+                                                        submodules: m.submodules.filter((s: any) => s.id !== sub.id)
+                                                      }
+                                                    : m
+                                                )
+                                              : prev
                                           );
                                           alert("Submodule deleted successfully.");
                                         } else {
@@ -887,16 +889,18 @@ console.log({modulesByProjectId});
                     );
                     if (response.data && response.data.success) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
-                          module.id === currentModuleIdForSubmodule
-                            ? {
-                                ...module,
-                                submodules: module.submodules.map((sub: any) =>
-                                  sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                                )
-                              }
-                            : module
-                        )
+                        Array.isArray(prev)
+                          ? prev.map(module =>
+                              module.id === currentModuleIdForSubmodule
+                                ? {
+                                    ...module,
+                                    submodules: module.submodules.map((sub: any) =>
+                                      sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                                    )
+                                  }
+                                : module
+                            )
+                          : prev
                       );
                       alert("Submodule updated successfully.");
                     } else {
@@ -918,17 +922,19 @@ console.log({modulesByProjectId});
                     });
                     if (response.success ) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
-                          module.id === currentModuleIdForSubmodule
-                            ? {
-                                ...module,
-                                submodules: [
-                                  ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                  response.submodule,
-                                ],
-                              }
-                            : module
-                        )
+                        Array.isArray(prev)
+                          ? prev.map(module =>
+                              module.id === currentModuleIdForSubmodule
+                                ? {
+                                    ...module,
+                                    submodules: [
+                                      ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                      response.submodule,
+                                    ],
+                                  }
+                                : module
+                            )
+                          : prev
                       );
                     } else {
                       alert("Failed to add submodule. Please try again.");
@@ -964,7 +970,7 @@ console.log({modulesByProjectId});
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect />
       </div>
     </div>
