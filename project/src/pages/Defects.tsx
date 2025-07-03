@@ -345,6 +345,10 @@ export const Defects: React.FC = () => {
   // Add state for modules and submodules
   const [modules, setModules] = React.useState<{ id: string; name: string }[]>([]);
   const [submodules, setSubmodules] = React.useState<{ id: string; name: string }[]>([]);
+  const [submoduleError, setSubmoduleError] = React.useState<string>("");
+
+  // Separate state for filter submodules
+  const [filterSubmodules, setFilterSubmodules] = React.useState<{ id: string; name: string }[]>([]);
 
   // Fetch modules when project changes
   React.useEffect(() => {
@@ -358,18 +362,58 @@ export const Defects: React.FC = () => {
   React.useEffect(() => {
     if (!formData.module) {
       setSubmodules([]);
+      setSubmoduleError("");
       return;
     }
     // Find moduleId by name
     const selectedModule = modules.find((m) => m.name === formData.module);
     if (!selectedModule) {
       setSubmodules([]);
+      setSubmoduleError("");
       return;
     }
-    getSubmodulesByModuleId(selectedModule.id).then((res) => {
-      setSubmodules((res.data || []).map((sm: any) => ({ id: sm.id?.toString(), name: sm.name })));
-    });
+    getSubmodulesByModuleId(selectedModule.id)
+      .then((res) => {
+        setSubmodules((res.data || []).map((sm: any) => ({
+          id: sm.subModuleId?.toString() || sm.id?.toString(),
+          name: sm.subModuleName || sm.name
+        })));
+        setSubmoduleError("");
+      })
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setSubmodules([]);
+          setSubmoduleError("No submodules found for this module.");
+        } else {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        }
+      });
   }, [formData.module, modules]);
+
+  // Fetch submodules for filter when module filter changes
+  React.useEffect(() => {
+    if (!filters.module) {
+      setFilterSubmodules([]);
+      return;
+    }
+    // Find moduleId by name
+    const selectedModule = modules.find((m) => m.name === filters.module);
+    if (!selectedModule) {
+      setFilterSubmodules([]);
+      return;
+    }
+    getSubmodulesByModuleId(selectedModule.id)
+      .then((res) => {
+        setFilterSubmodules((res.data || []).map((sm: any) => ({
+          id: sm.subModuleId?.toString() || sm.id?.toString(),
+          name: sm.subModuleName || sm.name
+        })));
+      })
+      .catch((err) => {
+        setFilterSubmodules([]);
+      });
+  }, [filters.module, modules]);
 
   // For Assigned To and Entered By, use employees context
   const employeeOptions = employees.map(e => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
@@ -597,7 +641,7 @@ export const Defects: React.FC = () => {
               disabled={!filters.module}
             >
               <option value="">All</option>
-              {submodules.map((sm) => (
+              {filterSubmodules.map((sm) => (
                 <option key={sm.id} value={sm.name}>
                   {sm.name}
                 </option>
@@ -1094,14 +1138,20 @@ export const Defects: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Submodules
               </label>
+              {submoduleError && (
+                <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+              )}
               <select
                 value={formData.subModule}
                 onChange={(e) => handleInputChange("subModule", e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
                 disabled={!formData.module}
               >
-                <option value="">Select a submodule</option>
+                <option value="">
+                  {submodules.length === 0
+                    ? "No submodules"
+                    : "Select a submodule (optional)"}
+                </option>
                 {submodules.map((submodule) => (
                   <option key={submodule.id} value={submodule.name}>
                     {submodule.name}
