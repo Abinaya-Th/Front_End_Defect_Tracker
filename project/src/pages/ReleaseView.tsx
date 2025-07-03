@@ -687,7 +687,7 @@ export const ReleaseView: React.FC = () => {
     const allocations = qaAllocationsMap[selectedRelease || ''] || {};
     for (const [qaId, testCaseIds] of Object.entries(allocations)) {
       if ((testCaseIds as string[]).includes(testCaseId)) {
-        const qa = effectiveQA.find((q: any) => q.id === qaId);
+        const qa = effectiveQA && effectiveQA.find((q: any) => q.id === qaId);
         return qa ? qa.name : qaId;
       }
     }
@@ -866,8 +866,8 @@ export const ReleaseView: React.FC = () => {
     }
 
     // Use fallback logic: if API fails, use mock data
-    const currentRelease = apiRelease || (effectiveReleases || []).find((r: any) => r.id === selectedRelease);
-    const currentProject = projects?.find((p) => p.id === selectedProject);
+    const currentRelease = apiRelease || (effectiveReleases && (effectiveReleases || []).find((r: any) => r.id === selectedRelease));
+    const currentProject = projects && projects?.find((p) => p.id === selectedProject);
 
     // If no release found (neither API nor mock), show error
     if (!currentRelease) {
@@ -985,7 +985,7 @@ export const ReleaseView: React.FC = () => {
                   }}
                 >
                   {projectModules
-                    .find((m) => m.name === selectedModule)
+                    && projectModules.find((m) => m.name === selectedModule)
                     ?.submodules.map((submodule) => {
                       const submoduleTestCases = releaseTestCases.filter(
                         (tc: TestCase) =>
@@ -1310,7 +1310,7 @@ export const ReleaseView: React.FC = () => {
                     tc.releaseId === (release.id || release.releaseId)
                 );
                 const totalTestCases = releaseTestCases.length;
-                const currentProject = projects.find(
+                const currentProject = projects && projects.find(
                   (p) => p.id === selectedProject
                 );
                 const releaseId = release.id || release.releaseId;

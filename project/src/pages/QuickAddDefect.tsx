@@ -56,7 +56,7 @@ const QuickAddDefect: React.FC = () => {
   const modulesList = projectModules.map((m) => m.name);
   let submodulesList: string[] = [];
   if (formData.module) {
-    const found = projectModules.find((m) => m.name === formData.module);
+    const found = projectModules && projectModules.find((m) => m.name === formData.module);
     if (found) {
       // Always map to string[]
       submodulesList = (found.submodules || []).map((s: any) =>
@@ -64,8 +64,8 @@ const QuickAddDefect: React.FC = () => {
       );
     }
   }
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-  const activeRelease = selectedProjectId ? releases.find(r => r.projectId === selectedProjectId && r.status === 'active') : null;
+  const selectedProject = projects && projects.find((p) => p.id === selectedProjectId);
+  const activeRelease = selectedProjectId ? releases && releases.find(r => r.projectId === selectedProjectId && r.status === 'active') : null;
 
   // Helper to generate next defect ID in order (same as Defects.tsx)
   const getNextDefectId = () => {

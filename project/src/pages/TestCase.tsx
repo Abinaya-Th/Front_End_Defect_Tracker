@@ -158,7 +158,7 @@ export const TestCase: React.FC = () => {
       });
   }, [selectedModuleId]);
   console.log("Submodules fetched:", submodules);
-  
+
 
   // Add state for severities and defect types
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
@@ -176,8 +176,8 @@ export const TestCase: React.FC = () => {
           ...tc,
           module: moduleMap[tc.moduleId] || tc.moduleId,
           subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-          severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-          type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+          type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
         })) as TestCaseType[]
       );
     });
@@ -187,7 +187,7 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
-    
+
   }, []);
 
   // If no selectedProjectId, show a message or redirect
@@ -266,7 +266,7 @@ export const TestCase: React.FC = () => {
   // Handle submodule selection (just highlight, no fetch)
   const handleSubmoduleSelect = (submoduleId: string | null) => {
     console.log("Submodule selected:", submoduleId);
-    
+
     setSelectedSubmoduleId(submoduleId);
     setSelectedTestCases([]);
     setSearchResults(null);
@@ -374,38 +374,38 @@ export const TestCase: React.FC = () => {
   };
 
   const handleSubmitAll = async (e?: React.FormEvent) => {
- if (e) e.preventDefault();
+    if (e) e.preventDefault();
     for (const { formData } of modals) {
       console.log("Submitting form data:", formData);
-      
+
       //  const moduleObj = projectModules.find(m => m.name === formData.module);
       //   const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
-    const payload = {
-  
-          description: formData.description,
-          steps: formData.steps,
-          subModuleId: Number(selectedSubmoduleId),
-          moduleId:  Number(selectedModuleId) ,
-          projectId:(formData.projectId) ,
-          severityId: severities.find(s => s.name === formData.severity)?.id,
-          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id
-    };
-    try {
-      const response = await createTestCase(payload);
-      console.log("Test case created successfully:", response);
-    } catch (error) {
-      console.error("Error creating test case:", error);
+      const payload = {
+
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: Number(selectedSubmoduleId),
+        moduleId: Number(selectedModuleId),
+        projectId: (formData.projectId),
+        severityId: severities && severities.find(s => s.name === formData.severity)?.id,
+        defectTypeId: defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id
+      };
+      try {
+        const response = await createTestCase(payload);
+        console.log("Test case created successfully:", response);
+      } catch (error) {
+        console.error("Error creating test case:", error);
+      }
+
     }
-     
-  }
- 
+
 
     if (e) e.preventDefault();
     for (const { formData } of modals) {
       if (formData.id) {
         // Map module and submodule names to IDs
-        const moduleObj = projectModules.find(m => m.name === formData.module);
-        const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+        const moduleObj = projectModules && projectModules.find(m => m.name === formData.module);
+        const submoduleObj = moduleObj?.submodules && moduleObj?.submodules.find(sm => sm.name === formData.subModule);
         await updateTestCase(formData.id, {
           testcaseId: String(formData.id),
           testcase: formData.description, // Use description as the title/name
@@ -414,9 +414,9 @@ export const TestCase: React.FC = () => {
           submoduleId: submoduleObj ? String(submoduleObj.id) : undefined,
           moduleId: moduleObj ? String(moduleObj.id) : undefined,
           projectId: formData.projectId ? String(formData.projectId) : undefined,
-          severityId: (() => { const id = severities.find(s => s.name === formData.severity)?.id; return id !== undefined ? String(id) : undefined; })(),
-          typeId: (() => { const id = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
-          defectTypeId: (() => { const id = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
+          severityId: (() => { const id = severities && severities.find(s => s.name === formData.severity)?.id; return id !== undefined ? String(id) : undefined; })(),
+          typeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
+          defectTypeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
         });
       } else {
         // Add mode
@@ -460,8 +460,8 @@ export const TestCase: React.FC = () => {
               ...tc,
               module: moduleMap[tc.moduleId] || tc.moduleId,
               subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-              severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-              type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
             })) as TestCaseType[]
           );
         });
@@ -537,8 +537,8 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-console.log("----------",selectedSubmoduleId);
-console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName);
+  console.log("----------", selectedSubmoduleId);
+  console.log(submodules && submodules.find((sm: any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName);
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
@@ -546,7 +546,7 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
   // Add a useEffect to fetch submodules for the selected module in the current modal
   useEffect(() => {
     const currentModuleName = modals[currentModalIdx]?.formData.module;
-    const moduleObj = projectModules.find((m: any) => m.name === currentModuleName);
+    const moduleObj = projectModules && projectModules.find((m: any) => m.name === currentModuleName);
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id).then(res => {
         setModalSubmodules(prev => {
@@ -673,7 +673,7 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                                       open: true,
                                       formData: {
                                         module: module.moduleName,
-                                        subModule: submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName || "",
+                                        subModule: submodules && submodules.find((sm: any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName || "",
                                         description: "",
                                         steps: "",
                                         type: "functional",
@@ -731,8 +731,8 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                               ...tc,
                               module: moduleMap[tc.moduleId] || tc.moduleId,
                               subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                              severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                              type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
                             })) as TestCaseType[]
                           );
                         });
@@ -818,8 +818,8 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                       const res = await searchTestCases(params);
                       const normalized = (res.data || []).map((tc: any) => ({
                         ...tc,
-                        type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
-                        severity: severities.find(s => s.id === tc.severityId)?.name || "",
+                        type: defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
+                        severity: severities && severities.find(s => s.id === tc.severityId)?.name || "",
                       }));
                       setSearchResults(normalized);
                     } finally {
@@ -1012,8 +1012,8 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                                           ...tc,
                                           module: moduleMap[tc.moduleId] || tc.moduleId,
                                           subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                                          severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                          type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                                          severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                                          type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
                                         })) as TestCaseType[]
                                       );
                                     });

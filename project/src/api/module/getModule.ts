@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import axios from "axios";
 
-const baseUrl = '/api/v1/';
+const baseUrl = import.meta.env.VITE_BASE_URL;
 export interface Modules {
   id: number;
   moduleId: string;
