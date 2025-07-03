@@ -362,19 +362,26 @@ export const Defects: React.FC = () => {
   // Fetch submodules when module changes in the form
   React.useEffect(() => {
     if (!formData.moduleId) {
+      console.log('No moduleId selected, submodule dropdown will be disabled.');
       setSubmodules([]);
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
+    console.log('Fetching submodules for moduleId:', formData.moduleId);
     getSubmodulesByModuleId(formData.moduleId)
       .then(res => {
+        console.log('Submodule API response:', res);
         const mapped = (res.data || []).map(sm => ({
-          id: sm.id?.toString(),
-          name: sm.name
+          id: sm.subModuleId?.toString(),
+          name: sm.subModuleName
         }));
+        console.log('Mapped submodules:', mapped);
         setSubmodules(mapped);
       })
-      .catch(() => setSubmodules([]));
+      .catch((err) => {
+        console.error('Failed to fetch submodules:', err);
+        setSubmodules([]);
+      });
   }, [formData.moduleId]);
 
   // Fetch submodules for filter when module filter changes
@@ -394,8 +401,8 @@ export const Defects: React.FC = () => {
       .then(res => {
         console.log('Fetched submodules for filter:', res.data, 'for module:', selectedModule.id, selectedModule.name);
         const mapped = (res.data || []).map(sm => ({
-          id: sm.id?.toString(),
-          name: sm.name
+          id: sm.subModuleId?.toString(),
+          name: sm.subModuleName
         }));
         setFilterSubmodules(mapped);
       })
