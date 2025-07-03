@@ -78,7 +78,7 @@ export default function BenchAllocate() {
         const matchesAvailability = availabilityFilter.length === 0 || availabilityFilter.some(val => e.availability >= val);
         return matchesSearch && matchesDesignation && matchesAvailability;
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
-    const currentProject = useMemo(() => availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
+    const currentProject = useMemo(() => availableProjects && availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
     const allocatedEmployees = useMemo(() => projectAllocations[selectedProjectId] || [], [projectAllocations, selectedProjectId]);
 
     // Handlers
@@ -317,7 +317,7 @@ export default function BenchAllocate() {
                                 <tbody>
                                     {allocatedEmployees.map(emp => {
                                         // Find the allocation for this employee in the current project
-                                        const allocation = allocatedEmployees.find(e => e.id === emp.id);
+                                        const allocation = allocatedEmployees && allocatedEmployees.find(e => e.id === emp.id);
                                         const allocatedPercent = allocation?.allocationAvailability || allocation?.availability || 0;
                                         return (
                                             <tr

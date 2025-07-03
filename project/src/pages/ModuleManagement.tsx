@@ -136,7 +136,7 @@ export const ModuleManagement: React.FC = () => {
   // Assignment handler: update via context
   const handleSaveAssignment = () => {
     if (!selectedProjectId || !assignmentForm.moduleId) return;
-    const module = modules.find((m) => m.id === assignmentForm.moduleId);
+    const module = modules && modules.find((m) => m.id === assignmentForm.moduleId);
     if (!module) return;
     if (assignmentForm.submoduleId) {
       // Update only the submodule's assignedDevs
@@ -230,7 +230,7 @@ export const ModuleManagement: React.FC = () => {
   const handleSaveBulkAssignment = () => {
     if (!selectedProjectId) return;
     selectedItems.forEach((item) => {
-      const module = modules.find((m) => m.id === item.moduleId);
+      const module = modules && modules.find((m) => m.id === item.moduleId);
       if (!module) return;
       if (item.type === "module") {
         // Assign to module and all submodules
@@ -269,7 +269,7 @@ export const ModuleManagement: React.FC = () => {
     if (checked) {
       if (type === "module") {
         // When selecting a module, also select all its submodules
-        const module = modules.find((m) => m.id === moduleId);
+        const module = modules && modules.find((m) => m.id === moduleId);
         const newItems = [
           { type: "module" as const, moduleId, submoduleId: undefined },
           ...(module?.submodules.map((sub) => ({
@@ -287,7 +287,7 @@ export const ModuleManagement: React.FC = () => {
         setSelectedItems((prev) => [...prev, { type, moduleId, submoduleId }]);
 
         // Check if all submodules of this module are now selected
-        const module = modules.find((m) => m.id === moduleId);
+        const module = modules && modules.find((m) => m.id === moduleId);
         const allSubmodules = module?.submodules || [];
         const selectedSubmodules = selectedItems.filter(
           (item) => item.type === "submodule" && item.moduleId === moduleId
@@ -373,7 +373,7 @@ export const ModuleManagement: React.FC = () => {
 
   const getAssignedDevNames = (devIds: string[]) => {
     return devIds.map((id) => {
-      const dev = employees.find((e) => e.id === id);
+      const dev = employees && employees.find((e) => e.id === id);
       return dev ? `${dev.firstName} ${dev.lastName}` : "Unknown";
     });
   };
@@ -398,7 +398,7 @@ export const ModuleManagement: React.FC = () => {
     setSelectedProjectId(id);
   };
 
-  const project = projects.find((p) => p.id === selectedProjectId);
+  const project = projects && projects.find((p) => p.id === selectedProjectId);
 
   console.log(selectedProjectId);
 
@@ -791,11 +791,11 @@ export const ModuleManagement: React.FC = () => {
             </label>
             <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 rounded text-sm">
               {selectedItems.map((item, index) => {
-                const module = modules.find((m) => m.id === item.moduleId);
+                const module = modules && modules.find((m) => m.id === item.moduleId);
                 if (item.type === "module") {
                   return <div key={index}>📁 {module?.name}</div>;
                 } else {
-                  const submodule = module?.submodules.find(
+                  const submodule = module?.submodules && module?.submodules.find(
                     (s) => s.id === item.submoduleId
                   );
                   return (

@@ -508,7 +508,7 @@ export const Bench: React.FC = () => {
                   {viewingEmployee.currentProjects.length > 0 ? (
                     <div className="space-y-2">
                       {viewingEmployee.currentProjects.map((projectName, index) => {
-                        const project = projects.find(p => p.name === projectName);
+                        const project = projects && projects.find(p => p.name === projectName);
                         return (
                           <div key={index} className="bg-green-50 p-3 rounded-lg border border-green-200">
                             <p className="font-medium text-green-900">{projectName}</p>
