@@ -19,7 +19,8 @@ import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi } from "../api/module/createModule";
-import { createSubmodule } from "../api/module/createModule";
+import { updateModule as updateModuleApi } from "../api/module/updateModule";
+import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
 import axios from "axios";
@@ -77,6 +78,7 @@ export const ModuleManagement: React.FC = () => {
   const [currentModuleIdForSubmodule, setCurrentModuleIdForSubmodule] = useState<string | null>(null);
   const [isEditingSubmodule, setIsEditingSubmodule] = useState(false);
   const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
+  const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -163,23 +165,33 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleEditModule = (module: Module) => {
+    console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name,
+      name: module.name || '',
     });
     setIsEditModuleModalOpen(true);
   };
 
   const handleUpdateModule = async () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
-      // Directly update via context (no API wrapper)
-      updateModule(selectedProjectId, editingModule.id, {
-        ...editingModule,
-        name: moduleForm.name,
-      });
-      setModuleForm({ name: "" });
-      setEditingModule(null);
-      setIsEditModuleModalOpen(false);
+      setIsUpdatingModule(true);
+      try {
+        const response = await updateModuleApi(editingModule.id, {
+          moduleName: moduleForm.name,
+          projectId: Number(selectedProjectId),
+        });
+        if (response.success && response.module) {
+          updateModule(selectedProjectId, editingModule.id, response.module);
+        }
+        setModuleForm({ name: "" });
+        setEditingModule(null);
+        setIsEditModuleModalOpen(false);
+      } catch (error) {
+        alert("Failed to update module. Please try again.");
+      } finally {
+        setIsUpdatingModule(false);
+      }
     }
   };
 
@@ -190,8 +202,16 @@ export const ModuleManagement: React.FC = () => {
       )
     ) {
       if (selectedProjectId) {
-        // Directly update via context (no API wrapper)
-        deleteModule(selectedProjectId, moduleId);
+        try {
+          const response = await deleteModuleApi(moduleId);
+          if (response.success) {
+            deleteModule(selectedProjectId, moduleId);
+          } else {
+            alert(response.message || "Failed to delete module on server.");
+          }
+        } catch (error) {
+          alert("Failed to delete module on server.");
+        }
       }
     }
   };
@@ -748,7 +768,9 @@ export const ModuleManagement: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateModule}>Update Module</Button>
+            <Button onClick={handleUpdateModule} disabled={isUpdatingModule}>
+              {isUpdatingModule ? 'Updating...' : 'Update Module'}
+            </Button>
           </div>
         </div>
       </Modal>
