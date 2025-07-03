@@ -24,6 +24,7 @@ import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
 import axios from "axios";
+import { createSubmodule } from "../api/module/createModule";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -578,7 +579,7 @@ export const ModuleManagement: React.FC = () => {
                                   onClick={async () => {
                                     if (window.confirm('Are you sure you want to delete this submodule?')) {
                                       try {
-                                        const response = await axios.delete(`http://192.168.1.100:8087/api/v1/subModule/${sub.id}`);
+                                        const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
                                             prev.map(m =>

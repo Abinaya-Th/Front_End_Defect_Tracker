@@ -199,30 +199,28 @@ export const Defects: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      const { severityId, priorityId, typeId, ...restFormData } = formData;
-      let severityValue = severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
-      let priorityValue = priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
-      let typeValue = defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
-      if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
       // Guard: Only update if id is a valid number
       if (typeof editingDefect.id !== 'number' || isNaN(editingDefect.id)) {
         alert('Defect ID is missing or invalid. Cannot update defect.');
         return;
       }
-      // Build payload matching backend API
+      // Build payload matching backend API (no defectId, match Postman input)
       const payload = {
-        ...editingDefect,
-        ...restFormData,
-        moduleId: formData.moduleId ? Number(formData.moduleId) : undefined,
-        subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
-        severityId: formData.severityId ? Number(formData.severityId) : undefined,
-        priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
-        typeId: formData.typeId ? Number(formData.typeId) : undefined,
-        assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
-        assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-        id: editingDefect.id, // always use the existing numeric id
+        description: formData.description,
+        projectId: editingDefect.projectId,
+        severityId: formData.severityId ? Number(formData.severityId) : null,
+        priorityId: formData.priorityId ? Number(formData.priorityId) : null,
+        defectStatusId: editingDefect.defectStatusId,
+        typeId: formData.typeId ? Number(formData.typeId) : null,
+        id: editingDefect.id, // numeric id for update
+        reOpenCount: editingDefect.reOpenCount ?? 0,
+        attachment: editingDefect.attachment ?? null,
+        steps: formData.steps,
+        subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
+        releaseTestCaseId: editingDefect.releaseTestCaseId ?? null,
+        assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null,
+        assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null,
+        moduleId: formData.moduleId ? Number(formData.moduleId) : null,
       };
       try {
         await updateDefectById(editingDefect.id, payload);
@@ -560,6 +558,18 @@ export const Defects: React.FC = () => {
     );
     setEditingStatusId(null);
   };
+
+  // Add state for users for 'Assigned To' and 'Entered By'
+  const [userList, setUserList] = React.useState<{ id: number; firstName: string; lastName: string }[]>([]);
+
+  // Fetch users for 'Assigned To' and 'Entered By' on mount
+  React.useEffect(() => {
+    axios.get(`${BASE_URL}user`).then(res => {
+      if (res.data && Array.isArray(res.data.data)) {
+        setUserList(res.data.data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName })));
+      }
+    });
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1193,8 +1203,28 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select assignee</option>
-                {employeeOptions.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.name}</option>
+                {userList.map(user => (
+                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {/* Entered By Dropdown */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Entered By
+              </label>
+              <select
+                value={formData.assignbyId}
+                onChange={e => handleInputChange('assignbyId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select reporter</option>
+                {userList.map(user => (
+                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
                 ))}
               </select>
             </div>
