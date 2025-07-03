@@ -1,24 +1,24 @@
 /// <reference types="vite/client" />
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
-// interface Module {
-//   id: number;
-//   moduleId: string;
-//   moduleName: string;
-//   projectId: string;
-// }
-interface CreateReleaseResponse {
+const baseUrl = '/api/v1/';
+export interface Modules {
+  id: number;
+  moduleId: string;
+  moduleName: string;
+  projectId: string;
+}
+export interface CreateReleaseResponse {
   status: string;
   message: string;
-  data: any[];
+  data: Modules[];
   statusCode: number;
 }
 
 
 export const getModulesByProjectId = (projectId: string | number): Promise<CreateReleaseResponse> => {
   return axios.get<CreateReleaseResponse>(
-    `${BASE_URL}modules/project/${projectId}`
+    `${baseUrl}modules/project/${projectId}`
   ).then(({ data }: { data: CreateReleaseResponse }) => data);
 };
 
@@ -30,7 +30,7 @@ export const getModulesByProjectId = (projectId: string | number): Promise<Creat
  */
 // export const getModulesByProjectId = async (projectId: string | number) => {
 //   try {
-//     const response = await axios.get(`${BASE_URL}modules/projectId/${projectId}`);
+//     const response = await axios.get(`${baseUrl}modules/projectId/${projectId}`);
 //     return response.data;
 //   } catch (error: any) {
 //     // Optionally, you can return a consistent error object
