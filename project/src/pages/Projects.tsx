@@ -34,6 +34,7 @@ import { useApp } from "../context/AppContext";
 import { ProjectFormData, Project } from "../types";
 import { useNavigate } from "react-router-dom";
 import { getAllProjects } from "../api/projectget";
+import { createProject } from "../api/createProject/createProject";
 
 const cardStyles = [
   { border: "border-t-4 border-blue-400", iconBg: "bg-gradient-to-br from-blue-400 to-blue-600", iconColor: "text-white" },
@@ -118,26 +119,38 @@ export const Projects: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
   console.log(backendProjects);
-  
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProject) {
-      updateProject({
-        ...formData,
-        id: editingProject.id,
-        teamMembers: editingProject.teamMembers || [],
-        createdAt: editingProject.createdAt,
-      });
-    } else {
-      addProject({
-        ...formData,
-        id: `PRJ-${Date.now()}`,
-        teamMembers: [],
-        createdAt: new Date().toISOString(),
-      });
+    setLoading(true);
+    setError(null);
+    try {
+      if (editingProject) {
+        updateProject({
+          ...formData,
+          id: editingProject.id,
+          teamMembers: editingProject.teamMembers || [],
+          createdAt: editingProject.createdAt,
+        });
+      } else {
+        // Call backend API to create project
+        await createProject(formData);
+        // Refresh project list
+        const data = await getAllProjects();
+        let projectsArray = Array.isArray(data)
+          ? data
+          : (data && Array.isArray(data.data))
+            ? data.data
+            : [];
+        setBackendProjects(projectsArray);
+      }
+      resetForm();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create project');
+    } finally {
+      setLoading(false);
     }
-    resetForm();
   };
 
   // const handleEdit = (project: Project) => {
@@ -267,9 +280,9 @@ export const Projects: React.FC = () => {
             const Icon = projectIcons[index % projectIcons.length];
             const daysLeft = project.endDate
               ? Math.ceil(
-                  (new Date(project.endDate).getTime() - new Date().getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )
+                (new Date(project.endDate).getTime() - new Date().getTime()) /
+                (1000 * 60 * 60 * 24)
+              )
               : 0;
 
             return (
@@ -353,10 +366,10 @@ export const Projects: React.FC = () => {
             className="bg-white border border-gray-300 rounded-xl p-6 md:p-8 space-y-6"
             style={{ background: '#fff' }}
           >
-           
-               
-                    
-            
+
+
+
+
             {/* Project Details Section */}
             <div>
               <h2 className="font-semibold text-lg text-gray-800 mb-4">Project Details</h2>
@@ -537,7 +550,7 @@ export const Projects: React.FC = () => {
                 />
               </div>
             </div>
-           
+
             <div className="flex justify-end space-x-3 pt-4">
               <Button
                 type="button"

@@ -72,7 +72,7 @@ export const ProjectManagement: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={projectId || ""} />
         <QuickAddDefect />
       </div>
     </div>

@@ -4,15 +4,17 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface CreateReleaseRequest {
   releaseName: string;
-  releaseDate: string; // YYYY-MM-DD
+  releaseDate: String; // YYYY-MM-DD
   releaseType: string;
-  projectId: string;
+  projectId: number;
+  releaseStatus: string;
+  description: string;
 }
 
 export interface CreateReleaseResponse {
   status: string;
   message: string;
-  data: any;
+  data: CreateReleaseRequest[];
   statusCode: number;
 }
 

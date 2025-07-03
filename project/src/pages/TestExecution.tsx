@@ -336,6 +336,7 @@ export const TestExecution: React.FC = () => {
   });
   const [releaseLoading, setReleaseLoading] = useState(false);
   const [releaseError, setReleaseError] = useState("");
+  const [projectReleaseCard, setProjectReleaseCard] = useState<any[]>([]);
 
   // Read allocations from localStorage (as set by allocation.tsx)
   const allocatedTestCasesMap = JSON.parse(localStorage.getItem('qaAllocatedTestCases') || '{}');
@@ -497,6 +498,7 @@ export const TestExecution: React.FC = () => {
         .then((res) => {
           if (res.status === "success" || res.statusCode === "2000") {
             console.log("Releases loaded from API:", res.data || []);
+            setProjectReleaseCard(res.data || []);
           } else {
             console.log("API returned no releases, using mock data");
             setReleaseError(res.message || "No releases found");
@@ -510,6 +512,8 @@ export const TestExecution: React.FC = () => {
         .finally(() => setReleaseLoading(false));
     }
   }, [selectedProject]);
+  console.log("Project Releases:", projectReleaseCard);
+  
 
   // Filter releases for selected project (API or mock fallback)
   const safeReleases = Array.isArray(releases) ? releases : [];
@@ -1322,7 +1326,7 @@ export const TestExecution: React.FC = () => {
               Releases for Project
             </h2>
           </div>
-          {projectReleases.length === 0 ? (
+          {projectReleaseCard.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-gray-500">
@@ -1332,20 +1336,20 @@ export const TestExecution: React.FC = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projectReleases.map((release: any) => {
+              {projectReleaseCard.map((release: any) => {
                 const releaseTestCases = effectiveTestCases.filter(
                   (tc: any) =>
                     tc.projectId === selectedProject &&
-                    tc.releaseId === (release.id || release.releaseId)
+                    tc.releaseId === (release.releaseId)
                 );
                 const totalTestCases = releaseTestCases.length;
                 const currentProject = projects.find(
                   (p: any) => p.id === selectedProject
                 );
-                const isActive = activeReleaseId === (release.id || release.releaseId);
+                const isActive = activeReleaseId === ( release.releaseId);
                 return (
                 <Card
-                  key={release.id || release.releaseId}
+                  key={ release.releaseId}
                   hover
                   className={`group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
                     isActive 
@@ -1363,10 +1367,10 @@ export const TestExecution: React.FC = () => {
                       {/* Header */}
                     <div className="mb-4">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {release.name || release.releaseName}
+                        { release.releaseName}
                       </h3>
                       <p className="text-sm text-gray-500">
-                          v{release.version || release.releaseId}
+                          v{ release.releaseId}
                       </p>
                     </div>
 
@@ -1480,7 +1484,7 @@ export const TestExecution: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProject || ""} />
         <QuickAddDefect />
       </div>
     </div>

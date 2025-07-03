@@ -18,8 +18,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
-import { createModule as createModuleApi, updateModule as updateModuleApi, deleteModule as deleteModuleApi } from "../api/module/createModule";
+import { createModule as createModuleApi } from "../api/module/createModule";
+import { updateModule as updateModuleApi } from "../api/module/updateModule";
+import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
+import { getModulesByProjectId } from "../api/module/getModule";
+import axios from "axios";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -58,16 +62,23 @@ export const ModuleManagement: React.FC = () => {
       submoduleId?: string;
     }>
   >([]);
+  const [modulesByProjectId, setModulesByProjectId] = useState<any[] | null>(null);
 
   const [moduleForm, setModuleForm] = useState({
-    name: "",
-    submodules: [{ id: "", name: "" }],
+    name: ""
   });
 
   const [assignmentForm, setAssignmentForm] = useState<ModuleAssignment>({
     moduleId: "",
     employeeIds: [],
   });
+
+  const [isAddSubmoduleModalOpen, setIsAddSubmoduleModalOpen] = useState(false);
+  const [submoduleForm, setSubmoduleForm] = useState({ name: "" });
+  const [currentModuleIdForSubmodule, setCurrentModuleIdForSubmodule] = useState<string | null>(null);
+  const [isEditingSubmodule, setIsEditingSubmodule] = useState(false);
+  const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
+  const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -93,45 +104,22 @@ export const ModuleManagement: React.FC = () => {
       const payload = {
         moduleName: moduleForm.name,
         projectId: selectedProjectId,
-        
+
       }
-      console.log({payload});
-      
+      console.log({ payload });
+
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
         if (response.success && response.module) {
           addModule(selectedProjectId, response.module);
         }
-        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
       } catch (error) {
         alert("Failed to add module. Please try again.");
       }
     }
-  };
-
-  const handleAddSubmodule = () => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: [...prev.submodules, { id: "", name: "" }],
-    }));
-  };
-
-  const handleRemoveSubmodule = (index: number) => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: prev.submodules.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleSubmoduleChange = (index: number, value: string) => {
-    setModuleForm((prev: { name: string; submodules: { id: string; name: string; }[]; }) => ({
-      ...prev,
-      submodules: prev.submodules.map((sub, i) =>
-        i === index ? { ...sub, name: value } : sub
-      ),
-    }));
   };
 
   const handleModuleAssignment = (module: Module, submodule?: Submodule) => {
@@ -177,34 +165,32 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleEditModule = (module: Module) => {
+    console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name,
-      submodules: module.submodules.map((sub) => ({
-        id: sub.id,
-        name: sub.name,
-      })),
+      name: module.name || '',
     });
     setIsEditModuleModalOpen(true);
   };
 
   const handleUpdateModule = async () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
+      setIsUpdatingModule(true);
       try {
         const response = await updateModuleApi(editingModule.id, {
           moduleName: moduleForm.name,
-          submodules: moduleForm.submodules
-            .filter((sub) => sub.name.trim())
-            .map((sub) => ({ name: sub.name })),
+          projectId: Number(selectedProjectId),
         });
         if (response.success && response.module) {
           updateModule(selectedProjectId, editingModule.id, response.module);
         }
-        setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+        setModuleForm({ name: "" });
         setEditingModule(null);
         setIsEditModuleModalOpen(false);
       } catch (error) {
         alert("Failed to update module. Please try again.");
+      } finally {
+        setIsUpdatingModule(false);
       }
     }
   };
@@ -220,30 +206,11 @@ export const ModuleManagement: React.FC = () => {
           const response = await deleteModuleApi(moduleId);
           if (response.success) {
             deleteModule(selectedProjectId, moduleId);
+          } else {
+            alert(response.message || "Failed to delete module on server.");
           }
         } catch (error) {
-          alert("Failed to delete module. Please try again.");
-        }
-      }
-    }
-  };
-
-  const handleDeleteSubmodule = (moduleId: string, submoduleId: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this submodule?"
-      )
-    ) {
-      if (selectedProjectId) {
-        const module = modules.find((m) => m.id === moduleId);
-        if (module) {
-          const updatedSubmodules = module.submodules.filter(
-            (sub) => sub.id !== submoduleId
-          );
-          updateModule(selectedProjectId, moduleId, {
-            ...module,
-            submodules: updatedSubmodules,
-          });
+          alert("Failed to delete module on server.");
         }
       }
     }
@@ -431,308 +398,242 @@ export const ModuleManagement: React.FC = () => {
     setSelectedProjectId(id);
   };
 
-  if (!selectedProjectId) {
-    return (
-      <div className="p-8 text-center text-gray-500">
-        Please select a project to manage modules.
-      </div>
-    );
-  }
-
   const project = projects.find((p) => p.id === selectedProjectId);
+
+  console.log(selectedProjectId);
+
+  const fetchModules = async () => {
+    if (!selectedProjectId) return;
+    try {
+      const response = await getModulesByProjectId(selectedProjectId);
+      console.log("Fetched modules:", response); // Debug: log the response
+
+      setModulesByProjectId(response.data);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+    }
+  };
+
+  useEffect(() => {
+
+    fetchModules();
+  }, [selectedProjectId]);
+
+  console.log({ modulesByProjectId });
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Project Selection Header */}
-      <div className="flex-none p-6 pb-4">
-        <div className="flex justify-between items-center mb-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Module Management
-            </h1>
-            <p className="text-sm text-gray-500">
-              {selectedProjectId
-                ? `Project: ${project?.name}`
-                : "Select a project to begin"}
-            </p>
-          </div>
+      {!selectedProjectId ? (
+        <div className="p-8 text-center text-gray-500">
+          Please select a project to manage modules.
         </div>
-
-        {/* Project Selection Panel */}
-        <ProjectSelector
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          onSelect={handleProjectSelect}
-        />
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 px-6 pb-6">
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex space-x-3">
-            <Button
-              onClick={() => setIsAddModuleModalOpen(true)}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Module</span>
-            </Button>
-            {selectedItems.length > 0 && (
-              <Button
-                onClick={handleBulkAssignment}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Allocate ({selectedItems.length})</span>
-              </Button>
-            )}
-          </div>
-          <div className="text-sm text-gray-500">
-            {availableDevelopers.length} developers available
-          </div>
-        </div>
-
-        {/* Bulk Selection Controls */}
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={isAllModulesSelected()}
-                  onChange={(e) => handleSelectAllModules(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Select All Modules
-                </span>
-              </label>
-              {selectedItems.length > 0 && (
-                <span className="text-sm text-gray-500">
-                  {selectedItems.length} item(s) selected
-                </span>
-              )}
+      ) : (
+        <>
+          {/* Project Selection Header */}
+          <div className="flex-none p-6 pb-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Module Management
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {selectedProjectId
+                    ? `Project: ${project?.name}`
+                    : "Select a project to begin"}
+                </p>
+              </div>
             </div>
-            {selectedItems.length > 0 && (
-              <Button
-                variant="secondary"
-                onClick={() => setSelectedItems([])}
-                className="text-sm"
-              >
-                Clear Selection
-              </Button>
-            )}
+            {/* Project Selection Panel */}
+            <ProjectSelector
+              projects={projects}
+              selectedProjectId={selectedProjectId}
+              onSelect={handleProjectSelect}
+            />
           </div>
-        </div>
-
-        {/* Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modules.map((module) => (
-            <Card key={module.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center space-x-3">
+          {/* Content Area */}
+          <div className="flex-1 px-6 pb-6">
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex space-x-3">
+                <Button
+                  onClick={() => setIsAddModuleModalOpen(true)}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Module</span>
+                </Button>
+                {selectedItems.length > 0 && (
+                  <Button
+                    onClick={handleBulkAssignment}
+                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Allocate ({selectedItems.length})</span>
+                  </Button>
+                )}
+              </div>
+              <div className="text-sm text-gray-500">
+                {availableDevelopers.length} developers available
+              </div>
+            </div>
+            {/* Bulk Selection Controls */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center space-x-2">
                     <input
                       type="checkbox"
-                      checked={isItemSelected("module", module.id)}
-                      onChange={(e) =>
-                        handleSelectItem("module", module.id, e.target.checked)
-                      }
+                      checked={isAllModulesSelected()}
+                      onChange={(e) => handleSelectAllModules(e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {module.name}
-                    </h3>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditModule(module)}
-                      className="p-1"
-                      title="Edit Module"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteModule(module.id)}
-                      className="p-1 text-red-600 hover:text-red-800"
-                      title="Delete Module"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Select All Modules
+                    </span>
+                  </label>
+                  {selectedItems.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      {selectedItems.length} item(s) selected
+                    </span>
+                  )}
                 </div>
-
-                {/* Module Level Assignment */}
-                {getAllModuleDevelopers(module).length > 0 && (
-                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Users className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">
-                        Complete Module Team
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {getAssignedDevNames(getAllModuleDevelopers(module)).map(
-                        (name, index) => (
-                          <Badge key={index} variant="info" className="text-xs">
-                            {name}
-                          </Badge>
-                        )
-                      )}
-                    </div>
-                    <div className="mt-2 text-xs text-blue-600">
-                      {module.assignedDevs.length > 0 && (
-                        <span>
-                          Module level:{" "}
-                          {getAssignedDevNames(module.assignedDevs).join(", ")}
-                        </span>
-                      )}
-                      {module.submodules.some(
-                        (sub) => sub.assignedDevs.length > 0
-                      ) && (
-                          <div className="mt-1">
-                            <span>
-                              Submodule level:{" "}
-                              {module.submodules
-                                .filter((sub) => sub.assignedDevs.length > 0)
-                                .map(
-                                  (sub) =>
-                                    `${sub.name} (${getAssignedDevNames(
-                                      sub.assignedDevs
-                                    ).join(", ")})`
-                                )
-                                .join("; ")}
-                            </span>
-                          </div>
-                        )}
-                    </div>
-                  </div>
+                {selectedItems.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setSelectedItems([])}
+                    className="text-sm"
+                  >
+                    Clear Selection
+                  </Button>
                 )}
-
-                {/* Submodules */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-700">
-                    Submodules
-                  </h4>
-                  {module.submodules.length === 0 ? (
-                    <div className="italic text-gray-400">No Submodule</div>
-                  ) : null}
-                  {module.submodules.length > 0 &&
-                    module.submodules.map((submodule) => (
-                      <div
-                        key={submodule.id}
-                        className="flex justify-between items-center p-2 bg-gray-50 rounded"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={isItemSelected(
-                              "submodule",
-                              module.id,
-                              submodule.id
-                            )}
-                            onChange={(e) =>
-                              handleSelectItem(
-                                "submodule",
-                                module.id,
-                                e.target.checked,
-                                submodule.id
-                              )
-                            }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {submodule.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {/* Delete submodule button */}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteSubmodule(module.id, submodule.id)}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Delete Submodule"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                          {/* Show submodule-specific assignments if different from module */}
-                          {submodule.assignedDevs.length > 0 &&
-                            JSON.stringify(submodule.assignedDevs.sort()) !==
-                            JSON.stringify(module.assignedDevs.sort()) && (
-                              <div className="flex -space-x-1">
-                                {submodule.assignedDevs
-                                  .slice(0, 3)
-                                  .map((devId, index) => {
-                                    const dev = employees.find(
-                                      (e) => e.id === devId
-                                    );
-                                    return (
-                                      <div
-                                        key={index}
-                                        className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white"
-                                        title={
-                                          dev
-                                            ? `${dev.firstName} ${dev.lastName}`
-                                            : "Unknown"
-                                        }
-                                      >
-                                        {dev ? dev.firstName[0] : "?"}
-                                      </div>
-                                    );
-                                  })}
-                                {submodule.assignedDevs.length > 3 && (
-                                  <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs border-2 border-white">
-                                    +{submodule.assignedDevs.length - 3}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          {/* Show inherited module assignments */}
-                          {module.assignedDevs.length > 0 &&
-                            JSON.stringify(submodule.assignedDevs.sort()) ===
-                            JSON.stringify(module.assignedDevs.sort()) && (
-                              <div className="flex -space-x-1">
-                                {module.assignedDevs
-                                  .slice(0, 3)
-                                  .map((devId, index) => {
-                                    const dev = employees.find(
-                                      (e) => e.id === devId
-                                    );
-                                    return (
-                                      <div
-                                        key={index}
-                                        className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs border-2 border-white"
-                                        title={`${dev
-                                          ? dev.firstName + " " + dev.lastName
-                                          : "Unknown"
-                                          } (inherited from module)`}
-                                      >
-                                        {dev ? dev.firstName[0] : "?"}
-                                      </div>
-                                    );
-                                  })}
-                                {module.assignedDevs.length > 3 && (
-                                  <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs border-2 border-white">
-                                    +{module.assignedDevs.length - 3}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                        </div>
+              </div>
+            </div>
+            {/* Modules Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(modulesByProjectId || []).map((module) => (
+                <Card key={module.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isItemSelected("module", module.id)}
+                          onChange={(e) =>
+                            handleSelectItem("module", module.id, e.target.checked)
+                          }
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {module.moduleName}
+                        </h3>
                       </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditModule(module)}
+                          className="p-1"
+                          title="Edit Module"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteModule(module.id)}
+                          className="p-1 text-red-600 hover:text-red-800"
+                          title="Delete Module"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {/* Submodules List */}
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
+                      {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
+                        <ul className="list-disc list-inside space-y-1">
+                          {module.submodules.map((sub: any) => (
+                            <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
+                              <span>{sub.name}</span>
+                              <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  className="p-1 hover:text-blue-600"
+                                  title="Edit Submodule"
+                                  onClick={() => {
+                                    setCurrentModuleIdForSubmodule(module.id);
+                                    setIsAddSubmoduleModalOpen(true);
+                                    setSubmoduleForm({ name: sub.name });
+                                    setIsEditingSubmodule(true);
+                                    setEditingSubmoduleId(sub.id);
+                                  }}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="p-1 hover:text-red-600"
+                                  title="Delete Submodule"
+                                  onClick={async () => {
+                                    if (window.confirm('Are you sure you want to delete this submodule?')) {
+                                      try {
+                                        const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
+                                        if (response.data && response.data.success) {
+                                          setModulesByProjectId(prev =>
+                                            prev.map(m =>
+                                              m.id === module.id
+                                                ? {
+                                                  ...m,
+                                                  submodules: m.submodules.filter((s: any) => s.id !== sub.id)
+                                                }
+                                                : m
+                                            )
+                                          );
+                                          alert("Submodule deleted successfully.");
+                                        } else {
+                                          alert("Failed to delete submodule. Please try again.");
+                                        }
+                                      } catch (error: any) {
+                                        if (error.response && error.response.data) {
+                                          alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
+                                        } else {
+                                          alert("Failed to delete submodule. Please try again.");
+                                        }
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="italic text-gray-400 text-sm">No Submodules</div>
+                      )}
+                    </div>
+                    <div className="flex justify-end mt-4">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          setCurrentModuleIdForSubmodule(module.id);
+                          setIsAddSubmoduleModalOpen(true);
+                          setSubmoduleForm({ name: "" });
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> Add Submodule
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Add Module Modal */}
       <Modal
@@ -754,46 +655,6 @@ export const ModuleManagement: React.FC = () => {
               placeholder="Enter module name"
             />
           </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Submodules
-              </label>
-              <Button
-                type="button"
-                onClick={handleAddSubmodule}
-                className="flex items-center space-x-1 text-sm"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Submodule</span>
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {moduleForm.submodules.map((submodule, index) => (
-                <div key={index} className="flex space-x-2">
-                  <Input
-                    value={submodule.name}
-                    onChange={(e) =>
-                      handleSubmoduleChange(index, e.target.value)
-                    }
-                    placeholder={`Submodule ${index + 1}`}
-                  />
-                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemoveSubmodule(index)}
-                      className="px-3"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -877,7 +738,7 @@ export const ModuleManagement: React.FC = () => {
         onClose={() => {
           setIsEditModuleModalOpen(false);
           setEditingModule(null);
-          setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+          setModuleForm({ name: "" });
         }}
         title="Edit Module"
         size="xl"
@@ -896,57 +757,20 @@ export const ModuleManagement: React.FC = () => {
             />
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Submodules
-              </label>
-              <Button
-                type="button"
-                onClick={handleAddSubmodule}
-                className="flex items-center space-x-1 text-sm"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Add Submodule</span>
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {moduleForm.submodules.map((submodule, index) => (
-                <div key={index} className="flex space-x-2">
-                  <Input
-                    value={submodule.name}
-                    onChange={(e) =>
-                      handleSubmoduleChange(index, e.target.value)
-                    }
-                    placeholder={`Submodule ${index + 1}`}
-                  />
-                  {moduleForm.submodules.length > 1 && !isEditModuleModalOpen && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemoveSubmodule(index)}
-                      className="px-3"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
               onClick={() => {
                 setIsEditModuleModalOpen(false);
                 setEditingModule(null);
-                setModuleForm({ name: "", submodules: [{ id: "", name: "" }] });
+                setModuleForm({ name: "" });
               }}
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateModule}>Update Module</Button>
+            <Button onClick={handleUpdateModule} disabled={isUpdatingModule}>
+              {isUpdatingModule ? 'Updating...' : 'Update Module'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -1043,6 +867,113 @@ export const ModuleManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Add Submodule Modal */}
+      <Modal
+        isOpen={isAddSubmoduleModalOpen}
+        onClose={() => {
+          setIsAddSubmoduleModalOpen(false);
+          setIsEditingSubmodule(false);
+          setEditingSubmoduleId(null);
+        }}
+        title="Add Submodule"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Submodule Name
+            </label>
+            <Input
+              value={submoduleForm.name}
+              onChange={(e) => setSubmoduleForm({ name: e.target.value })}
+              placeholder="Enter submodule name"
+            />
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => setIsAddSubmoduleModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!submoduleForm.name.trim() || !currentModuleIdForSubmodule) return;
+                if (isEditingSubmodule && editingSubmoduleId) {
+                  // Edit mode: update submodule name via API
+                  try {
+                    const response = await axios.put(
+                      `http://34.57.197.188:8087/api/v1/subModule/${editingSubmoduleId}`,
+                      { subModuleName: submoduleForm.name }
+                    );
+                    if (response.data && response.data.success) {
+                      setModulesByProjectId(prev =>
+                        prev.map(module =>
+                          module.id === currentModuleIdForSubmodule
+                            ? {
+                              ...module,
+                              submodules: module.submodules.map((sub: any) =>
+                                sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                              )
+                            }
+                            : module
+                        )
+                      );
+                      alert("Submodule updated successfully.");
+                    } else {
+                      alert("Failed to update submodule. Please try again.");
+                    }
+                  } catch (error: any) {
+                    if (error.response && error.response.data) {
+                      alert("Failed to update submodule: " + JSON.stringify(error.response.data));
+                    } else {
+                      alert("Failed to update submodule. Please try again.");
+                    }
+                  }
+                } else {
+                  // Add mode: call API to create submodule
+                  try {
+                    const response = await createSubmodule({
+                      subModuleName: submoduleForm.name,
+                      moduleId: Number(currentModuleIdForSubmodule),
+                    });
+                    if (response.success && response.submodule) {
+                      setModulesByProjectId(prev =>
+                        prev.map(module =>
+                          module.id === currentModuleIdForSubmodule
+                            ? {
+                              ...module,
+                              submodules: [
+                                ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                response.submodule,
+                              ],
+                            }
+                            : module
+                        )
+                      );
+                    } else {
+                      alert("Failed to add submodule. Please try again.");
+                    }
+                  } catch (error: any) {
+                    if (error.response && error.response.data) {
+                      alert("Failed to add submodule: " + JSON.stringify(error.response.data));
+                    } else {
+                      alert("Failed to add submodule. Please try again.");
+                    }
+                  }
+                }
+                setIsAddSubmoduleModalOpen(false);
+                setIsEditingSubmodule(false);
+                setEditingSubmoduleId(null);
+              }}
+            >
+              {isEditingSubmodule ? 'Update Submodule' : 'Add Submodule'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Fixed Quick Add Button */}
       <div
         style={{
@@ -1055,7 +986,7 @@ export const ModuleManagement: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect />
       </div>
     </div>

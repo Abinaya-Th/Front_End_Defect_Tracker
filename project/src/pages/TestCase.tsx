@@ -20,49 +20,63 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
-import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
+import { getTestCasesByProjectAndSubmodule, deleteTestCase as apiDeleteTestCase } from "../api/testCase/testCaseApi";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { searchTestCases } from "../api/testCase/searchTestCase";
 import { updateTestCase } from "../api/testCase/updateTestCase";
+import { getModulesByProjectId } from "../api/module/getModule";
+import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
+import { createTestCase } from "../api/testCase/createTestcase";
 // const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // --- MOCK DATA for projects/modules/submodules ---
-const mockProjects = [
-  { id: "PROJ001", name: "Project Alpha" },
-  { id: "PROJ002", name: "Project Beta" },
-];
+// const mockProjects = [
+//   { id: "PROJ001", name: "Project Alpha" },
+//   { id: "PROJ002", name: "Project Beta" },
+// ];
 // --- MOCK DATA for modules/submodules by projectId (numeric IDs matching DB) ---
-const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
-  "1": [
-    {
-      id: "2",
-      name: "Module 2",
-      submodules: [
-        { id: "2", name: "Submodule 2" },
-        { id: "3", name: "Submodule 3" }
-      ]
-    },
-    {
-      id: "3",
-      name: "Module 3",
-      submodules: [
-        { id: "3", name: "Submodule 3" }
-      ]
-    }
-  ]
-};
-
+// const mockModulesByProject: Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]> = {
+//   "1": [ ... ]
+// };
 
 export const TestCase: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  // --- State for projects/modules/submodules (mock) ---
-  const [projects] = useState(mockProjects);
+  // --- State for projects/modules/submodules (real backend) ---
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
   const [testCases, setTestCases] = useState<TestCaseType[]>([]);
+
+  // Add state for modules by project
+  const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
+
+  // Fetch real projects from backend on mount
+  useEffect(() => {
+    getAllProjects().then(res => setProjects(res));
+  }, []);
+
+  // Fetch modules when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    getModulesByProjectId(selectedProjectId).then((res) => {
+      // Transform API data to expected format
+      const modules = (res.data || []).map((mod: any) => ({
+        id: String(mod.id), // Always use backend module ID
+        name: mod.moduleName || mod.name,
+        submodules: (mod.submodules || []).map((sm: any) => ({
+          id: String(sm.id),
+          name: sm.subModuleName || sm.name,
+        })),
+      }));
+      setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
+    });
+  }, [selectedProjectId]);
+
+  // Use fetched modules for the selected project
+  const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
 
   // ... keep other UI state as before ...
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
@@ -117,10 +131,34 @@ export const TestCase: React.FC = () => {
   // Add after state declarations
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get modules for selected project
-  const projectModules = selectedProjectId ? mockModulesByProject[selectedProjectId] || [] : [];
-  // Get submodules for selected module
-  const submodules = selectedModuleId !== null ? (projectModules.find(m => m.id === selectedModuleId)?.submodules || []) : [];
+  // Add state for submodules
+  const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [submoduleError, setSubmoduleError] = useState<string>("");
+
+  // Fetch submodules when selectedModuleId changes
+  useEffect(() => {
+    if (!selectedModuleId) {
+      setSubmodules([]);
+      setSubmoduleError("");
+      return;
+    }
+    getSubmodulesByModuleId(selectedModuleId)
+      .then((res) => {
+        setSubmodules(res.data || []);
+        setSubmoduleError("");
+      })
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setSubmodules([]);
+          setSubmoduleError("No submodules found for this module.");
+        } else {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        }
+      });
+  }, [selectedModuleId]);
+  console.log("Submodules fetched:", submodules);
+  
 
   // Add state for severities and defect types
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
@@ -131,16 +169,16 @@ export const TestCase: React.FC = () => {
     if (!selectedProjectId || selectedSubmoduleId === null) return;
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
       // Map moduleId/subModuleId to names for display
-      const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
-      const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
+      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
       setTestCases(
-        data.map(tc => ({
+        (data as any[]).map((tc: any) => ({
           ...tc,
           module: moduleMap[tc.moduleId] || tc.moduleId,
           subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-          severity: severities.find(s => s.id === tc.severityId)?.name || "",
-          type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
-        }))
+          severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+          type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+        })) as TestCaseType[]
       );
     });
   }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
@@ -149,6 +187,7 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
+    
   }, []);
 
   // If no selectedProjectId, show a message or redirect
@@ -226,6 +265,8 @@ export const TestCase: React.FC = () => {
 
   // Handle submodule selection (just highlight, no fetch)
   const handleSubmoduleSelect = (submoduleId: string | null) => {
+    console.log("Submodule selected:", submoduleId);
+    
     setSelectedSubmoduleId(submoduleId);
     setSelectedTestCases([]);
     setSearchResults(null);
@@ -333,6 +374,32 @@ export const TestCase: React.FC = () => {
   };
 
   const handleSubmitAll = async (e?: React.FormEvent) => {
+ if (e) e.preventDefault();
+    for (const { formData } of modals) {
+      console.log("Submitting form data:", formData);
+      
+      //  const moduleObj = projectModules.find(m => m.name === formData.module);
+      //   const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+    const payload = {
+  
+          description: formData.description,
+          steps: formData.steps,
+          subModuleId: Number(selectedSubmoduleId),
+          moduleId:  Number(selectedModuleId) ,
+          projectId:(formData.projectId) ,
+          severityId: severities.find(s => s.name === formData.severity)?.id,
+          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id
+    };
+    try {
+      const response = await createTestCase(payload);
+      console.log("Test case created successfully:", response);
+    } catch (error) {
+      console.error("Error creating test case:", error);
+    }
+     
+  }
+ 
+
     if (e) e.preventDefault();
     for (const { formData } of modals) {
       if (formData.id) {
@@ -340,28 +407,28 @@ export const TestCase: React.FC = () => {
         const moduleObj = projectModules.find(m => m.name === formData.module);
         const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
         await updateTestCase(formData.id, {
-          testcaseId: Number(formData.id),
+          testcaseId: String(formData.id),
           testcase: formData.description, // Use description as the title/name
           description: formData.description,
           steps: formData.steps,
-          subModuleId: submoduleObj ? Number(submoduleObj.id) : undefined,
-          moduleId: moduleObj ? Number(moduleObj.id) : undefined,
-          projectId: formData.projectId ? Number(formData.projectId) : undefined,
-          severityId: severities.find(s => s.name === formData.severity)?.id,
-          typeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
-          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id,
+          submoduleId: submoduleObj ? String(submoduleObj.id) : undefined,
+          moduleId: moduleObj ? String(moduleObj.id) : undefined,
+          projectId: formData.projectId ? String(formData.projectId) : undefined,
+          severityId: (() => { const id = severities.find(s => s.name === formData.severity)?.id; return id !== undefined ? String(id) : undefined; })(),
+          typeId: (() => { const id = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
+          defectTypeId: (() => { const id = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
         });
       } else {
         // Add mode
-        addTestCase({
-          ...formData,
-          id: `TC-${formData.module
-            .substring(0, 3)
-            .toUpperCase()}-${formData.subModule
-              .substring(0, 3)
-              .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-          projectId: selectedProjectId,
-        });
+        // addTestCase({
+        //   ...formData,
+        //   id: `TC-${formData.module
+        //     .substring(0, 3)
+        //     .toUpperCase()}-${formData.subModule
+        //       .substring(0, 3)
+        //       .toUpperCase()}-${Date.now().toString().slice(-4)}`,
+        //   projectId: selectedProjectId,
+        // });
       }
     }
     setSuccess(true);
@@ -386,16 +453,16 @@ export const TestCase: React.FC = () => {
       // Refresh test cases after update
       if (selectedProjectId && selectedSubmoduleId !== null) {
         getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-          const moduleMap = Object.fromEntries(projectModules.map(m => [m.id, m.name]));
-          const submoduleMap = Object.fromEntries(projectModules.flatMap(m => m.submodules.map(sm => [sm.id, sm.name])));
+          const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+          const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
           setTestCases(
-            data.map(tc => ({
+            (data as any[]).map((tc: any) => ({
               ...tc,
               module: moduleMap[tc.moduleId] || tc.moduleId,
               subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-              severity: severities.find(s => s.id === tc.severityId)?.name || "",
-              type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
-            }))
+              severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+              type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+            })) as TestCaseType[]
           );
         });
       }
@@ -470,6 +537,32 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+console.log("----------",selectedSubmoduleId);
+console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName);
+
+  // Add state to track submodules for each modal
+  const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
+
+  // Add a useEffect to fetch submodules for the selected module in the current modal
+  useEffect(() => {
+    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const moduleObj = projectModules.find((m: any) => m.name === currentModuleName);
+    if (moduleObj && moduleObj.id) {
+      getSubmodulesByModuleId(moduleObj.id).then(res => {
+        setModalSubmodules(prev => {
+          const copy = [...prev];
+          copy[currentModalIdx] = res.data || [];
+          return copy;
+        });
+      });
+    } else {
+      setModalSubmodules(prev => {
+        const copy = [...prev];
+        copy[currentModalIdx] = [];
+        return copy;
+      });
+    }
+  }, [modals[currentModalIdx]?.formData.module, projectModules, currentModalIdx]);
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -480,7 +573,7 @@ export const TestCase: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
             <p className="text-sm text-gray-500">
               {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.projectName || ''}`
+                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.name || ''}`
                 : "Select a project to begin"}
             </p>
           </div>
@@ -523,6 +616,9 @@ export const TestCase: React.FC = () => {
                     Submodule Selection
                   </h2>
                 </div>
+                {submoduleError && (
+                  <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+                )}
                 <div className="relative flex items-center">
                   <button
                     onClick={() => {
@@ -543,25 +639,25 @@ export const TestCase: React.FC = () => {
                       maxWidth: "100%",
                     }}
                   >
-                    {projectModules.map((module: any) => {
+                    {submodules.map((module: any) => {
                       const submoduleTestCases = testCases.filter(
                         (tc: TestCaseType) =>
                           tc.projectId === selectedProjectId &&
-                          tc.module === module.name
+                          tc.module === module.subModuleName
                       );
                       return (
-                        <div key={module.id} className="flex items-center">
+                        <div key={module.subModuleId} className="flex items-center">
                           <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
                             <Button
                               variant={
-                                selectedSubmoduleId === module.id
+                                selectedSubmoduleId === module.subModuleId
                                   ? "primary"
                                   : "secondary"
                               }
-                              onClick={() => handleSubmoduleSelect(module.id)}
+                              onClick={() => handleSubmoduleSelect(module.subModuleId)}
                               className="whitespace-nowrap border-0 m-2"
                             >
-                              {module.name}
+                              {module.subModuleName}
                               <Badge variant="info" className="ml-2">
                                 {submoduleTestCases.length}
                               </Badge>
@@ -576,8 +672,8 @@ export const TestCase: React.FC = () => {
                                     {
                                       open: true,
                                       formData: {
-                                        module: module.name,
-                                        subModule: "",
+                                        module: module.moduleName,
+                                        subModule: submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName || "",
                                         description: "",
                                         steps: "",
                                         type: "functional",
@@ -624,8 +720,24 @@ export const TestCase: React.FC = () => {
                       `Are you sure you want to delete ${selectedTestCases.length} test case(s)?`
                     )
                   ) {
-                    selectedTestCases.forEach((id) => deleteTestCase(id));
-                    setSelectedTestCases([]);
+                    Promise.all(selectedTestCases.map((id) => apiDeleteTestCase(id))).then(() => {
+                      setSelectedTestCases([]);
+                      if (selectedProjectId && selectedSubmoduleId !== null) {
+                        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                          const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                          const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                          setTestCases(
+                            (data as any[]).map((tc: any) => ({
+                              ...tc,
+                              module: moduleMap[tc.moduleId] || tc.moduleId,
+                              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                              severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                              type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                            })) as TestCaseType[]
+                          );
+                        });
+                      }
+                    });
                   }
                 }}
                 className="flex items-center space-x-2 bg-red-600 hover:bg-red-700"
@@ -704,7 +816,7 @@ export const TestCase: React.FC = () => {
                       if (searchFilters.typeId) params.typeId = Number(searchFilters.typeId);
                       if (searchFilters.severityId) params.severityId = Number(searchFilters.severityId);
                       const res = await searchTestCases(params);
-                      const normalized = (res.data || []).map(tc => ({
+                      const normalized = (res.data || []).map((tc: any) => ({
                         ...tc,
                         type: defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
                         severity: severities.find(s => s.id === tc.severityId)?.name || "",
@@ -889,7 +1001,25 @@ export const TestCase: React.FC = () => {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => deleteTestCase(testCase.id)}
+                              onClick={() => {
+                                apiDeleteTestCase(testCase.id).then(() => {
+                                  if (selectedProjectId && selectedSubmoduleId !== null) {
+                                    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                                      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                                      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                                      setTestCases(
+                                        (data as any[]).map((tc: any) => ({
+                                          ...tc,
+                                          module: moduleMap[tc.moduleId] || tc.moduleId,
+                                          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                                          severity: (severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                                          type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                                        })) as TestCaseType[]
+                                      );
+                                    });
+                                  }
+                                });
+                              }}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
                             >
@@ -1048,15 +1178,14 @@ export const TestCase: React.FC = () => {
                           handleInputChange(idx, "subModule", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {(projectModules.find(m => m.name === modal.formData.module)?.submodules.length === 0
+                          {(modalSubmodules[currentModalIdx]?.length === 0
                             ? "No submodules"
                             : "Select Sub Module (optional)")}
                         </option>
-                        {projectModules.find(m => m.name === modal.formData.module)?.submodules.map((submodule: any) => (
+                        {modalSubmodules[currentModalIdx]?.map((submodule: any) => (
                           <option key={submodule.id} value={submodule.name}>
                             {submodule.name}
                           </option>
@@ -1314,7 +1443,7 @@ export const TestCase: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProjectId} />
         <QuickAddDefect />
       </div>
     </div>

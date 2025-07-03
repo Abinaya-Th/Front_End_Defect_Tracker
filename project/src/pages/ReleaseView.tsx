@@ -817,7 +817,9 @@ export const ReleaseView: React.FC = () => {
       releaseName: releaseFormData.name,
       releaseDate: releaseFormData.releaseDate,
       releaseType: releaseFormData.releaseType,
-      projectId: selectedProject,
+      projectId: Number(selectedProject),
+      description: "Description: ",
+      releaseStatus: releaseFormData.releaseType,
     };
 
     try {
@@ -871,6 +873,8 @@ export const ReleaseView: React.FC = () => {
     if (!currentRelease) {
       return <div className="p-8 text-center text-red-500">Release not found</div>;
     }
+
+    
 
     return (
       <div className="max-w-6xl mx-auto py-8">
@@ -1289,7 +1293,7 @@ export const ReleaseView: React.FC = () => {
           {searchError && (
             <div className="text-center text-red-500 mb-4">{searchError}</div>
           )}
-          {effectiveReleases.length === 0 ? (
+          {releases.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-gray-500">
@@ -1299,7 +1303,7 @@ export const ReleaseView: React.FC = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {effectiveReleases.map((release: any) => {
+              {releases.map((release: any) => {
                 const releaseTestCases = effectiveTestCases.filter(
                   (tc: any) =>
                     tc.projectId === selectedProject &&
@@ -1324,10 +1328,10 @@ export const ReleaseView: React.FC = () => {
                       {/* Header */}
                       <div className="mb-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {release.name || release.releaseName}
+                          { release.releaseName}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          v{release.version || release.releaseId}
+                          v{release.releaseId}
                         </p>
                       </div>
 
@@ -1494,7 +1498,7 @@ export const ReleaseView: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProject || ""} />
         <QuickAddDefect />
       </div>
     </div>

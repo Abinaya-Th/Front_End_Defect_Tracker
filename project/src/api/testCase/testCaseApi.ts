@@ -11,4 +11,20 @@ export async function getTestCasesByProjectAndSubmodule(projectId: string, submo
     headers: { "Content-Type": "application/json" },
   });
   return response.data.data || [];
+}
+
+export async function deleteTestCase(testCaseId: string) {
+  let BASE_URL = import.meta.env.VITE_BASE_URL || "";
+  if (BASE_URL.endsWith("/")) {
+    BASE_URL = BASE_URL.slice(0, -1);
+  }
+  const response = await axios.delete(`${BASE_URL}/api/v1/testcase/${testCaseId}`, {
+    headers: { "Content-Type": "application/json" },
+    data: {
+      request: {
+        id: testCaseId
+      }
+    }
+  });
+  return response.data;
 } 
