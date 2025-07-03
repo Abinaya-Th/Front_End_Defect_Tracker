@@ -33,6 +33,8 @@ import { FilteredDefect } from '../api/defect/filterDefectByProject';
 import { getModulesByProjectId } from '../api/module/getModule';
 import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
 import { filterDefects } from "../api/defect/filterDefectByProject";
+import axios from "axios";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Use Defect type from types/index.ts directly
 
@@ -459,7 +461,9 @@ export const Defects: React.FC = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await importDefects(formData);
+      const response = await axios.post(`${BASE_URL}defect/import`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       if (response && response.data && Array.isArray(response.data)) {
         response.data.forEach((row: any) => addDefect(row));
         alert("Imported defects successfully.");
@@ -470,31 +474,40 @@ export const Defects: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
-  const handleExportExcel = () => {
-    const exportData = filteredDefects.map((d) => ({
-      id: d.id,
-      title: d.title,
-      description: d.description,
-      module: d.module,
-      subModule: d.subModule,
-      type: d.type,
-      priority: d.priority,
-      severity: d.severity,
-      status: d.status,
-      assignedTo: d.assignedTo,
-      reportedBy: d.reportedBy,
-      releaseId: d.releaseId,
-      testCaseId: d.testCaseId,
-      rejectionComment: d.rejectionComment,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Defects");
-    XLSX.writeFile(wb, "defects_export.xlsx");
+
+  // Add exportDefects function
+  const exportDefects = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}defect/exportAsId`, {
+        responseType: "blob",
+      });
+      // Create a link to download the file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      // Try to get filename from content-disposition header, fallback to defects_export.csv
+      const contentDisposition = response.headers["content-disposition"];
+      let fileName = "defects_export.csv";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) fileName = match[1];
+      }
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Failed to export defects. Please try again.");
+    }
   };
 
+  // Update handleExportExcel to use exportDefects
+  const handleExportExcel = () => {
+    exportDefects();
+  };
+
+  
   const employeeMap = React.useMemo(() => Object.fromEntries(employees.map(e => [Number(e.id), `${e.firstName} ${e.lastName}`])), [employees]);
   const releaseMap = React.useMemo(() => Object.fromEntries(releases.map(r => [Number(r.id), r.name])), [releases]);
 
@@ -756,7 +769,7 @@ export const Defects: React.FC = () => {
           accept=".xlsx,.csv"
           onChange={handleImportExcel}
           ref={fileInputRef}
-          className="hidden"
+          className="hidden" 
         />
         <button
           type="button"
