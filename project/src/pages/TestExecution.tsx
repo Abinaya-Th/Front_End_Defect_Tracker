@@ -1484,7 +1484,7 @@ export const TestExecution: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProject || ""} />
         <QuickAddDefect />
       </div>
     </div>

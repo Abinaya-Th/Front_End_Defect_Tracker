@@ -540,6 +540,29 @@ export const TestCase: React.FC = () => {
 console.log("----------",selectedSubmoduleId);
 console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName);
 
+  // Add state to track submodules for each modal
+  const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
+
+  // Add a useEffect to fetch submodules for the selected module in the current modal
+  useEffect(() => {
+    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const moduleObj = projectModules.find((m: any) => m.name === currentModuleName);
+    if (moduleObj && moduleObj.id) {
+      getSubmodulesByModuleId(moduleObj.id).then(res => {
+        setModalSubmodules(prev => {
+          const copy = [...prev];
+          copy[currentModalIdx] = res.data || [];
+          return copy;
+        });
+      });
+    } else {
+      setModalSubmodules(prev => {
+        const copy = [...prev];
+        copy[currentModalIdx] = [];
+        return copy;
+      });
+    }
+  }, [modals[currentModalIdx]?.formData.module, projectModules, currentModalIdx]);
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -1155,21 +1178,18 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                           handleInputChange(idx, "subModule", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {(submodules.length === 0
+                          {(modalSubmodules[currentModalIdx]?.length === 0
                             ? "No submodules"
                             : "Select Sub Module (optional)")}
                         </option>
-                        {submodules
-                          .filter((submodule: any) => submodule.moduleName === modal.formData.module)
-                          .map((submodule: any) => (
-                            <option key={submodule.subModule} value={submodule.subModuleName}>
-                              {submodule.subModuleName}
-                            </option>
-                          ))}
+                        {modalSubmodules[currentModalIdx]?.map((submodule: any) => (
+                          <option key={submodule.id} value={submodule.name}>
+                            {submodule.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
