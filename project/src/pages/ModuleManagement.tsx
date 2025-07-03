@@ -964,7 +964,7 @@ export const ModuleManagement: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect />
       </div>
     </div>

@@ -1525,7 +1525,7 @@ export const Allocation: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase />
+        <QuickAddTestCase selectedProjectId={projectId || ""} />
         <QuickAddDefect />
       </div>
     </div>
