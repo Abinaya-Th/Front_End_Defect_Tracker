@@ -449,6 +449,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       testCaseId: "TC009",
       updatedAt: "2024-03-08T00:00:00Z",
     },
+    {
+      id: "D999",
+      title: "Demo: Feature not implemented as per requirements",
+      description: "The implemented feature does not match the requirements specified in the documentation.",
+      status: "rejected",
+      severity: "high",
+      priority: "medium",
+      projectId: "PR0001",
+      module: "Demo Module",
+      subModule: "Demo Submodule",
+      type: "bug",
+      reportedBy: "QA Team",
+      assignedTo: "John Doe",
+      createdAt: "2024-06-01T10:00:00Z",
+      updatedAt: "2024-06-01T12:00:00Z",
+      testCaseId: "TC999",
+      rejectionComment: "Feature does not meet the acceptance criteria. Please review the requirements and update the implementation.",
+      defectHistory: [
+        {
+          status: "new",
+          changedAt: "2024-06-01T10:00:00Z",
+        },
+        {
+          status: "rejected",
+          changedAt: "2024-06-01T12:00:00Z",
+          comment: "Feature does not meet the acceptance criteria. Please review the requirements and update the implementation."
+        }
+      ]
+    },
   ]);
 
   const [testCases, setTestCases] = useState<TestCase[]>([
@@ -991,11 +1020,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.map((s, i) =>
-                  i === submoduleIdx ? newName : s
-                ),
-              }
+              ...m,
+              submodules: m.submodules.map((s, i) =>
+                i === submoduleIdx ? newName : s
+              ),
+            }
             : m
         ) || [],
     }));
@@ -1012,9 +1041,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
-              }
+              ...m,
+              submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+            }
             : m
         ) || [],
     }));
