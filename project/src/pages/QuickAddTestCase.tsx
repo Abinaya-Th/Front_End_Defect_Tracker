@@ -9,6 +9,7 @@ import { importTestCases } from "../api/importTestCase";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { getModulesByProjectId } from "../api/module/getModule";
+import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -140,6 +141,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [modules, setModules] = useState<any[]>([]);
+  const [subModules, setSubModules] = useState<any[]>([]);
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -245,8 +247,20 @@ console.log("id",selectedProjectId);
     getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
-    
   }, [selectedProjectId ]);
+
+  // Fetch submodules for the selected module only
+  useEffect(() => {
+    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const selectedModuleObj = modules.find(
+      (m: any) => m.moduleName === currentModuleName
+    );
+    if (selectedModuleObj && selectedModuleObj.id) {
+      getSubmodulesByModuleId(selectedModuleObj.id).then(res => setSubModules(res.data || []));
+    } else {
+      setSubModules([]);
+    }
+  }, [modals[currentModalIdx]?.formData.module, modules]);
 
   return (
     <div>
@@ -442,23 +456,28 @@ console.log("id",selectedProjectId);
                       </label>
                       <select
                         value={modal.formData.subModule}
-                        onChange={(e) =>
-                          handleInputChange(idx, "subModule", e.target.value)
-                        }
+                        onChange={(e) => handleInputChange(idx, "subModule", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // Remove required, allow empty
                         disabled={!modal.formData.module}
                       >
                         <option value="">
-                          {submodules.length === 0
+                          {subModules.length === 0
                             ? "No submodules"
                             : "Select a submodule (optional)"}
                         </option>
-                        {submodules.map((submodule: string) => (
-                          <option key={submodule} value={submodule}>
-                            {submodule}
-                          </option>
-                        ))}
+                        {subModules
+                          .filter((submodule: any) => {
+                            return (
+                              submodule.moduleName === modal.formData.module ||
+                              submodule.name === modal.formData.subModule ||
+                              !submodule.moduleName // fallback for mock data
+                            );
+                          })
+                          .map((submodule: any) => (
+                            <option key={submodule.subModuleId || submodule.id || submodule.name} value={submodule.subModuleName || submodule.name}>
+                              {submodule.subModuleName || submodule.name}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div>

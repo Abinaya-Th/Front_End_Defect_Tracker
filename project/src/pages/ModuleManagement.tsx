@@ -19,7 +19,8 @@ import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi } from "../api/module/createModule";
-import { createSubmodule } from "../api/module/createModule";
+import { updateModule as updateModuleApi } from "../api/module/updateModule";
+import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
 import axios from "axios";
@@ -77,6 +78,7 @@ export const ModuleManagement: React.FC = () => {
   const [currentModuleIdForSubmodule, setCurrentModuleIdForSubmodule] = useState<string | null>(null);
   const [isEditingSubmodule, setIsEditingSubmodule] = useState(false);
   const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
+  const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -102,10 +104,10 @@ export const ModuleManagement: React.FC = () => {
       const payload = {
         moduleName: moduleForm.name,
         projectId: selectedProjectId,
-        
+
       }
-      console.log({payload});
-      
+      console.log({ payload });
+
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
@@ -163,23 +165,33 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleEditModule = (module: Module) => {
+    console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name,
+      name: module.name || '',
     });
     setIsEditModuleModalOpen(true);
   };
 
   const handleUpdateModule = async () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
-      // Directly update via context (no API wrapper)
-      updateModule(selectedProjectId, editingModule.id, {
-        ...editingModule,
-        name: moduleForm.name,
-      });
-      setModuleForm({ name: "" });
-      setEditingModule(null);
-      setIsEditModuleModalOpen(false);
+      setIsUpdatingModule(true);
+      try {
+        const response = await updateModuleApi(editingModule.id, {
+          moduleName: moduleForm.name,
+          projectId: Number(selectedProjectId),
+        });
+        if (response.success && response.module) {
+          updateModule(selectedProjectId, editingModule.id, response.module);
+        }
+        setModuleForm({ name: "" });
+        setEditingModule(null);
+        setIsEditModuleModalOpen(false);
+      } catch (error) {
+        alert("Failed to update module. Please try again.");
+      } finally {
+        setIsUpdatingModule(false);
+      }
     }
   };
 
@@ -190,8 +202,16 @@ export const ModuleManagement: React.FC = () => {
       )
     ) {
       if (selectedProjectId) {
-        // Directly update via context (no API wrapper)
-        deleteModule(selectedProjectId, moduleId);
+        try {
+          const response = await deleteModuleApi(moduleId);
+          if (response.success) {
+            deleteModule(selectedProjectId, moduleId);
+          } else {
+            alert(response.message || "Failed to delete module on server.");
+          }
+        } catch (error) {
+          alert("Failed to delete module on server.");
+        }
       }
     }
   };
@@ -381,13 +401,13 @@ export const ModuleManagement: React.FC = () => {
   const project = projects.find((p) => p.id === selectedProjectId);
 
   console.log(selectedProjectId);
-  
-   const fetchModules = async () => {
+
+  const fetchModules = async () => {
     if (!selectedProjectId) return;
     try {
       const response = await getModulesByProjectId(selectedProjectId);
       console.log("Fetched modules:", response); // Debug: log the response
-      
+
       setModulesByProjectId(response.data);
     } catch (error) {
       console.error("Error fetching modules:", error);
@@ -397,9 +417,9 @@ export const ModuleManagement: React.FC = () => {
   useEffect(() => {
 
     fetchModules();
-  }, [selectedProjectId ]);
+  }, [selectedProjectId]);
 
-console.log({modulesByProjectId});
+  console.log({ modulesByProjectId });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -490,7 +510,7 @@ console.log({modulesByProjectId});
             </div>
             {/* Modules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.isArray(modulesByProjectId) && modulesByProjectId.map((module) => (
+              {(modulesByProjectId || []).map((module) => (
                 <Card key={module.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
@@ -561,16 +581,14 @@ console.log({modulesByProjectId});
                                         const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
-                                            Array.isArray(prev)
-                                              ? prev.map(m =>
-                                                  m.id === module.id
-                                                    ? {
-                                                        ...m,
-                                                        submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                                      }
-                                                    : m
-                                                )
-                                              : prev
+                                            prev.map(m =>
+                                              m.id === module.id
+                                                ? {
+                                                  ...m,
+                                                  submodules: m.submodules.filter((s: any) => s.id !== sub.id)
+                                                }
+                                                : m
+                                            )
                                           );
                                           alert("Submodule deleted successfully.");
                                         } else {
@@ -750,7 +768,9 @@ console.log({modulesByProjectId});
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateModule}>Update Module</Button>
+            <Button onClick={handleUpdateModule} disabled={isUpdatingModule}>
+              {isUpdatingModule ? 'Updating...' : 'Update Module'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -889,18 +909,16 @@ console.log({modulesByProjectId});
                     );
                     if (response.data && response.data.success) {
                       setModulesByProjectId(prev =>
-                        Array.isArray(prev)
-                          ? prev.map(module =>
-                              module.id === currentModuleIdForSubmodule
-                                ? {
-                                    ...module,
-                                    submodules: module.submodules.map((sub: any) =>
-                                      sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                                    )
-                                  }
-                                : module
-                            )
-                          : prev
+                        prev.map(module =>
+                          module.id === currentModuleIdForSubmodule
+                            ? {
+                              ...module,
+                              submodules: module.submodules.map((sub: any) =>
+                                sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
+                              )
+                            }
+                            : module
+                        )
                       );
                       alert("Submodule updated successfully.");
                     } else {
@@ -922,19 +940,17 @@ console.log({modulesByProjectId});
                     });
                     if (response.success ) {
                       setModulesByProjectId(prev =>
-                        Array.isArray(prev)
-                          ? prev.map(module =>
-                              module.id === currentModuleIdForSubmodule
-                                ? {
-                                    ...module,
-                                    submodules: [
-                                      ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                      response.submodule,
-                                    ],
-                                  }
-                                : module
-                            )
-                          : prev
+                        prev.map(module =>
+                          module.id === currentModuleIdForSubmodule
+                            ? {
+                              ...module,
+                              submodules: [
+                                ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                response.submodule,
+                              ],
+                            }
+                            : module
+                        )
                       );
                     } else {
                       alert("Failed to add submodule. Please try again.");
