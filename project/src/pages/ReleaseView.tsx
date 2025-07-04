@@ -308,16 +308,41 @@ export const ReleaseView: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-3">
               Submodule Selection
             </h2>
-            <div className="flex space-x-2">
-              {submodules.map((submodule) => (
-                <Button
-                  key={submodule.subModuleId}
-                  variant={selectedSubmoduleId === String(submodule.subModuleId) ? "primary" : "secondary"}
-                  onClick={() => setSelectedSubmoduleId(String(submodule.subModuleId))}
-                >
-                  {submodule.subModuleName}
-                </Button>
-              ))}
+            <div className="relative flex items-center">
+              <button
+                onClick={() => {
+                  const container = document.getElementById("submodule-scroll");
+                  if (container) container.scrollLeft -= 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <div
+                id="submodule-scroll"
+                className="flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide scroll-smooth flex-1"
+                style={{ msOverflowStyle: "none", scrollbarWidth: "none" }}
+              >
+                {submodules.map((submodule) => (
+                  <Button
+                    key={submodule.subModuleId}
+                    variant={selectedSubmoduleId === String(submodule.subModuleId) ? "primary" : "secondary"}
+                    onClick={() => setSelectedSubmoduleId(String(submodule.subModuleId))}
+                    className="min-w-max whitespace-nowrap"
+                  >
+                    {submodule.subModuleName}
+                  </Button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const container = document.getElementById("submodule-scroll");
+                  if (container) container.scrollLeft += 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
           </CardContent>
         </Card>
