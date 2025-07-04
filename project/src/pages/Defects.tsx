@@ -89,6 +89,7 @@ export const Defects: React.FC = () => {
     typeId: '',
     assigntoId: '',
     assignbyId: '',
+    releaseId: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -268,6 +269,7 @@ export const Defects: React.FC = () => {
       typeId: defect.typeId?.toString() || '',
       assigntoId: defect.assigntoId?.toString() || '',
       assignbyId: defect.assignbyId?.toString() || '',
+      releaseId: '',
     });
     setIsModalOpen(true);
   };
@@ -288,6 +290,7 @@ export const Defects: React.FC = () => {
       typeId: '',
       assigntoId: '',
       assignbyId: '',
+      releaseId: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -571,6 +574,15 @@ export const Defects: React.FC = () => {
     });
   }, []);
 
+  // Compute releases for the selected project, with mock fallback
+  let projectReleases = selectedProjectId ? releases.filter(r => r.projectId === selectedProjectId) : [];
+  if (projectReleases.length === 0 && selectedProjectId) {
+    projectReleases = [
+      { id: 'REL-001', name: 'Release 1.0', projectId: selectedProjectId, status: 'planned', version: '1.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+      { id: 'REL-002', name: 'Release 2.0', projectId: selectedProjectId, status: 'planned', version: '2.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+    ];
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Project Selection Panel */}
@@ -704,11 +716,9 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {releases
-                .filter(r => r.projectId === projectId)
-                .map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
+              {projectReleases.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
             </select>
           </div>
           <div className="min-w-[120px] flex-shrink-0">
@@ -1075,6 +1085,22 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Release Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
+            <select
+              value={formData.releaseId || ''}
+              onChange={e => handleInputChange('releaseId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={!selectedProjectId || projectReleases.length === 0}
+            >
+              <option value="">Select release...</option>
+              {projectReleases.map(release => (
+                <option key={release.id} value={release.id}>{release.name}</option>
+              ))}
+            </select>
+          </div>
           {/* Brief Description */}
           <Input
             label="Brief Description"
@@ -1203,26 +1229,6 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select assignee</option>
-                {userList.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {/* Entered By Dropdown */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div></div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Entered By
-              </label>
-              <select
-                value={formData.assignbyId}
-                onChange={e => handleInputChange('assignbyId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select reporter</option>
                 {userList.map(user => (
                   <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
                 ))}
