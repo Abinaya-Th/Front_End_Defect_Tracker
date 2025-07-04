@@ -9,6 +9,7 @@ export interface Employee {
   id: string;
   firstName: string;
   lastName: string;
+  gender: 'Male' | 'Female' | 'Other';
   email: string;
   phone: string;
   designation: string;

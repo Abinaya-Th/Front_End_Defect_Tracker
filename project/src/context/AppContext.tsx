@@ -148,9 +148,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [employees, setEmployees] = useState<Employee[]>([
     {
-      id: "1",
+      id: "EMP001",
       firstName: "John",
       lastName: "Doe",
+      gender: "Male",
       email: "john.doe@company.com",
       phone: "+1-555-0123",
       designation: "Senior Developer",
@@ -168,9 +169,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       updatedAt: "2024-01-15T00:00:00Z",
     },
     {
-      id: "2",
+      id: "EMP002",
       firstName: "Sarah",
       lastName: "Wilson",
+      gender: "Female",
       email: "sarah.wilson@company.com",
       phone: "+1-555-0124",
       designation: "QA Engineer",
@@ -188,9 +190,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       updatedAt: "2024-01-15T00:00:00Z",
     },
     {
-      id: "3",
+      id: "EMP003",
       firstName: "Michael",
       lastName: "Brown",
+      gender: "Male",
       email: "michael.brown@company.com",
       phone: "+1-555-0125",
       designation: "UI/UX Designer",
@@ -992,11 +995,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.map((s, i) =>
-                  i === submoduleIdx ? newName : s
-                ),
-              }
+              ...m,
+              submodules: m.submodules.map((s, i) =>
+                i === submoduleIdx ? newName : s
+              ),
+            }
             : m
         ) || [],
     }));
@@ -1013,9 +1016,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
-              }
+              ...m,
+              submodules: m.submodules.filter((_, i) => i !== submoduleIdx),
+            }
             : m
         ) || [],
     }));
