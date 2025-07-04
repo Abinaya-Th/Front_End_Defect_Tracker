@@ -23,6 +23,7 @@ import { updateModule as updateModuleApi } from "../api/module/updateModule";
 import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
+import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
 
 type ModuleAssignment = {
@@ -581,7 +582,7 @@ export const ModuleManagement: React.FC = () => {
                                         const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
-                                            prev.map(m =>
+                                            (Array.isArray(prev) ? prev : []).map(m =>
                                               m.id === module.id
                                                 ? {
                                                   ...m,
@@ -909,7 +910,7 @@ export const ModuleManagement: React.FC = () => {
                     );
                     if (response.data && response.data.success) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
+                        (Array.isArray(prev) ? prev : []).map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
                               ...module,
@@ -938,20 +939,23 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    if (response.success ) {
+                    if (response.success && response.submodule) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
+                        (Array.isArray(prev) ? prev : []).map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
-                              ...module,
-                              submodules: [
-                                ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                response.submodule,
-                              ],
-                            }
+                                ...module,
+                                submodules: [
+                                  ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                  response.submodule,
+                                ],
+                              }
                             : module
                         )
                       );
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
                     } else {
                       alert("Failed to add submodule. Please try again.");
                     }
@@ -963,9 +967,6 @@ export const ModuleManagement: React.FC = () => {
                     }
                   }
                 }
-                setIsAddSubmoduleModalOpen(false);
-                setIsEditingSubmodule(false);
-                setEditingSubmoduleId(null);
               }}
             >
               {isEditingSubmodule ? 'Update Submodule' : 'Add Submodule'}
