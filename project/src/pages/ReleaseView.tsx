@@ -211,34 +211,34 @@ export const ReleaseView: React.FC = () => {
                 <Card
                   key={release.id}
                   hover
-                  className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === release.id ? 'border-4 border-blue-700 bg-blue-100 shadow-xl text-blue-900' : 'border border-gray-200 bg-white'}`}
+                  className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === release.id ? 'border-4 border-blue-700 bg-blue-600 text-white' : 'border border-gray-200 bg-white text-gray-900'}`}
                   onClick={() => handleReleaseSelect(release.id)}
                 >
-                  <CardContent className="p-6">
+                  <CardContent className={`p-6 ${selectedRelease === release.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-900'}`}>
                     <div className="mb-4">
-                      <h3 className={`text-lg font-semibold mb-1 ${selectedRelease === release.id ? 'text-blue-900' : 'text-gray-900'}`}>
+                      <h3 className={`text-lg font-semibold mb-1 ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}>
                         {release.releaseName}
                       </h3>
-                      <p className={`text-sm ${selectedRelease === release.id ? 'text-blue-700' : 'text-gray-500'}`}>
+                      <p className={`text-sm ${selectedRelease === release.id ? 'text-white' : 'text-gray-500'}`}>
                         v{release.releaseId}
                       </p>
                     </div>
-                    <p className={`text-sm mb-4 line-clamp-2 ${selectedRelease === release.id ? 'text-blue-800' : 'text-gray-600'}`}>
+                    <p className={`text-sm mb-4 line-clamp-2 ${selectedRelease === release.id ? 'text-white' : 'text-gray-600'}`}>
                       {release.description}
                     </p>
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2">
-                        <FileText className={`w-4 h-4 ${selectedRelease === release.id ? 'text-blue-500' : 'text-gray-400'}`} />
+                        <FileText className={`w-4 h-4 ${selectedRelease === release.id ? 'text-white' : 'text-gray-400'}`} />
                         <div>
-                          <p className={`text-xs ${selectedRelease === release.id ? 'text-blue-700' : 'text-gray-500'}`}>Test Cases</p>
-                          <p className={`text-sm font-medium ${selectedRelease === release.id ? 'text-blue-900' : 'text-gray-900'}`}></p>
+                          <p className={`text-xs ${selectedRelease === release.id ? 'text-white' : 'text-gray-500'}`}>Test Cases</p>
+                          <p className={`text-sm font-medium ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}></p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Calendar className={`w-4 h-4 ${selectedRelease === release.id ? 'text-blue-500' : 'text-gray-400'}`} />
+                        <Calendar className={`w-4 h-4 ${selectedRelease === release.id ? 'text-white' : 'text-gray-400'}`} />
                         <div>
-                          <p className={`text-xs ${selectedRelease === release.id ? 'text-blue-700' : 'text-gray-500'}`}>Release Date</p>
-                          <p className={`text-sm font-medium ${selectedRelease === release.id ? 'text-blue-900' : 'text-gray-900'}`}>
+                          <p className={`text-xs ${selectedRelease === release.id ? 'text-white' : 'text-gray-500'}`}>Release Date</p>
+                          <p className={`text-sm font-medium ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}>
                             {release.releaseDate
                               ? new Date(release.releaseDate).toLocaleDateString()
                               : "TBD"}
