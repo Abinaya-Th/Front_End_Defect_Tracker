@@ -169,7 +169,7 @@ export const ModuleManagement: React.FC = () => {
     console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name || '',
+      name: module.moduleName || '',
     });
     setIsEditModuleModalOpen(true);
   };
@@ -182,8 +182,21 @@ export const ModuleManagement: React.FC = () => {
           moduleName: moduleForm.name,
           projectId: Number(selectedProjectId),
         });
+        console.log('Update module API response:', response); // Debug log
         if (response.success && response.module) {
           updateModule(selectedProjectId, editingModule.id, response.module);
+          // Update modulesByProjectId so UI reflects the change immediately
+          setModulesByProjectId(prev => {
+            if (!prev) return prev;
+            return prev.map(m =>
+              m.id === editingModule.id && response.module
+                ? { ...m, ...response.module, moduleName: response.module.moduleName || response.module.name || m.moduleName }
+                : m
+            );
+          });
+        } else {
+          // Fallback: refetch modules if update did not succeed
+          fetchModules();
         }
         setModuleForm({ name: "" });
         setEditingModule(null);
@@ -399,9 +412,10 @@ export const ModuleManagement: React.FC = () => {
     setSelectedProjectId(id);
   };
 
-  const project = projects.find((p) => p.id === selectedProjectId);
-
-  console.log(selectedProjectId);
+  console.log('projects:', projects);
+  console.log('selectedProjectId:', selectedProjectId);
+  const project = projects.find((p) => String(p.id) === String(selectedProjectId));
+  console.log('found project:', project);
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
@@ -438,8 +452,8 @@ export const ModuleManagement: React.FC = () => {
                   Module Management
                 </h1>
                 <p className="text-sm text-gray-500">
-                  {selectedProjectId
-                    ? `Project: ${project?.name}`
+                  {selectedProjectId && project
+                    ? `Project: ${project.name}`
                     : "Select a project to begin"}
                 </p>
               </div>
