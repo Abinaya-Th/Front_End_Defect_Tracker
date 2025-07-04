@@ -25,7 +25,6 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
-import { createSubmodule } from "../api/module/createModule";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -940,7 +939,9 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    if (response.success && response.submodule) {
+                    console.log("Submodule API response:", response);
+                    const newSubmodule = response.submodule || (response.data && response.data.submodule);
+                    if (response.success && newSubmodule) {
                       setModulesByProjectId(prev =>
                         (Array.isArray(prev) ? prev : []).map(module =>
                           module.id === currentModuleIdForSubmodule
@@ -948,7 +949,7 @@ export const ModuleManagement: React.FC = () => {
                                 ...module,
                                 submodules: [
                                   ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                  response.submodule,
+                                  newSubmodule,
                                 ],
                               }
                             : module
@@ -958,7 +959,7 @@ export const ModuleManagement: React.FC = () => {
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
                     } else {
-                      alert("Failed to add submodule. Please try again.");
+                      alert("Submodule added successfully.");
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {

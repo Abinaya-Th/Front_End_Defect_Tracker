@@ -28,7 +28,8 @@ import { updateTestCase } from "../api/testCase/updateTestCase";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
-// const BASE_URL = import.meta.env.VITE_BASE_URL;
+const BASE_URL = import.meta.env.VITE_BASE_URL;
+
 
 // --- MOCK DATA for projects/modules/submodules ---
 // const mockProjects = [
@@ -380,16 +381,17 @@ export const TestCase: React.FC = () => {
       
       //  const moduleObj = projectModules.find(m => m.name === formData.module);
       //   const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
-    const payload = {
-  
-          description: formData.description,
-          steps: formData.steps,
-          subModuleId: Number(selectedSubmoduleId),
-          moduleId:  Number(selectedModuleId) ,
-          projectId:(formData.projectId) ,
-          severityId: severities.find(s => s.name === formData.severity)?.id,
-          defectTypeId: defectTypes.find(dt => dt.defectTypeName === formData.type)?.id
-    };
+      const payload: any = {
+        description: formData.description,
+        steps: formData.steps,
+        subModuleId: Number(selectedSubmoduleId),
+        moduleId: Number(selectedModuleId),
+        projectId: formData.projectId,
+      };
+      const severityId = severities.find(s => s.name === formData.severity)?.id;
+      if (typeof severityId === 'number') payload.severityId = severityId;
+      const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
+      if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
     try {
       const response = await createTestCase(payload);
       console.log("Test case created successfully:", response);
@@ -538,7 +540,7 @@ export const TestCase: React.FC = () => {
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 console.log("----------",selectedSubmoduleId);
-console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName);
+console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
@@ -563,6 +565,10 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
       });
     }
   }, [modals[currentModalIdx]?.formData.module, projectModules, currentModalIdx]);
+
+  // Helper to get module and submodule names by ID
+  const getModuleNameById = (id: string | null) => projectModules.find(m => m.id === id)?.name || "";
+  const getSubmoduleNameById = (id: string | null) => submodules.find(sm => sm.id === id)?.name || "";
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -643,7 +649,7 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                       const submoduleTestCases = testCases.filter(
                         (tc: TestCaseType) =>
                           tc.projectId === selectedProjectId &&
-                          tc.module === module.subModuleName
+                          tc.subModule === module.subModuleId
                       );
                       return (
                         <div key={module.subModuleId} className="flex items-center">
@@ -673,7 +679,7 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                                       open: true,
                                       formData: {
                                         module: module.moduleName,
-                                        subModule: submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?.subModuleName || "",
+                                        subModule: module.subModuleName || module.name || "",
                                         description: "",
                                         steps: "",
                                         type: "functional",
@@ -687,6 +693,7 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                                 });
                               }}
                               className="p-1 border-0 hover:bg-gray-50"
+                              disabled={selectedSubmoduleId !== module.subModuleId}
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
@@ -993,7 +1000,6 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                                   },
                                 ]);
                                 setCurrentModalIdx(0);
-                                // setIsModalOpen(true); // isModalOpen state is removed
                               }}
                               className="p-1 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
                               title="Edit"
@@ -1049,7 +1055,6 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                 if (modals.length === 1) {
                   setModals([{ ...modals[0], open: false }]);
                   setCurrentModalIdx(0);
-                  // setIsModalOpen(false); // isModalOpen state is removed
                 } else {
                   handleRemove(idx);
                 }
@@ -1137,60 +1142,22 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                   )}
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
-                  {modals.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemove(idx)}
-                      className="absolute top-2 right-2 px-2 py-1"
-                    >
-                      Remove
-                    </Button>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Module
                       </label>
-                      <select
-                        value={modal.formData.module}
-                        onChange={(e) =>
-                          handleInputChange(idx, "module", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Module</option>
-                        {projectModules.map((module: any) => (
-                          <option key={module.id} value={module.name}>
-                            {module.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="w-full px-3 py-2 rounded-lg bg-gray-100 text-gray-800 border border-gray-300">
+                        {modal.formData.module}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Sub Module
                       </label>
-                      <select
-                        value={modal.formData.subModule}
-                        onChange={(e) =>
-                          handleInputChange(idx, "subModule", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={!modal.formData.module}
-                      >
-                        <option value="">
-                          {(modalSubmodules[currentModalIdx]?.length === 0
-                            ? "No submodules"
-                            : "Select Sub Module (optional)")}
-                        </option>
-                        {modalSubmodules[currentModalIdx]?.map((submodule: any) => (
-                          <option key={submodule.id} value={submodule.name}>
-                            {submodule.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="w-full px-3 py-2 rounded-lg bg-gray-100 text-gray-800 border border-gray-300">
+                        {modal.formData.subModule}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1259,27 +1226,45 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4">
-                  {/* Only show Previous/Next in add mode */}
-                  {!isEditMode && (
-                    <div className="flex space-x-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCurrentModalIdx(idx - 1)}
-                        disabled={idx === 0}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCurrentModalIdx(idx + 1)}
-                        disabled={idx === modals.length - 1}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx - 1)}
+                      disabled={idx === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (idx === modals.length - 1) {
+                          setModals((prev) => [
+                            ...prev,
+                            {
+                              open: true,
+                              formData: {
+                                module: modal.formData.module,
+                                subModule: modal.formData.subModule,
+                                description: "",
+                                steps: "",
+                                type: "functional",
+                                severity: "medium",
+                                projectId: modal.formData.projectId,
+                              },
+                            },
+                          ]);
+                          setCurrentModalIdx(modals.length);
+                        } else {
+                          setCurrentModalIdx(idx + 1);
+                        }
+                      }}
+                      disabled={false}
+                    >
+                      Next
+                    </Button>
+                  </div>
                   <div className="flex space-x-3">
                     <Button
                       type="button"
@@ -1288,7 +1273,6 @@ console.log(submodules.find((sm:any) => sm.subModuleId === selectedSubmoduleId)?
                         if (modals.length === 1) {
                           setModals([{ ...modals[0], open: false }]);
                           setCurrentModalIdx(0);
-                          // setIsModalOpen(false); // isModalOpen state is removed
                         } else {
                           handleRemove(idx);
                         }
