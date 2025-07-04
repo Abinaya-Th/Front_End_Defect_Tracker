@@ -35,15 +35,11 @@ import { FilteredDefect } from '../api/defect/filterDefectByProject';
 import { getModulesByProjectId } from '../api/module/getModule';
 import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
 import { filterDefects } from "../api/defect/filterDefectByProject";
-<<<<<<< HEAD
+
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-// Use Defect type from types/index.ts directly
-=======
 
-// Use Defect type from types/index.ts directly 
->>>>>>> 6614d1c12ef17905026ff99e7eb98fc4cf22f6c4
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -1077,11 +1073,10 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="text-red-600 hover:text-red-900 flex items-center"
                             title="Delete Defect"
-<<<<<<< HEAD
-                            onClick={() => handleDelete(defect.id ? String(defect.id) : '')}
-=======
+
+
                             onClick={() => handleDelete(defect.defectId)}
->>>>>>> 6614d1c12ef17905026ff99e7eb98fc4cf22f6c4
+
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
