@@ -12,6 +12,13 @@ export interface TestCase {
   severity: string;
   projectId: string;
   releaseId?: string;
+  // Alternative field names that might be used by the backend
+  testCaseType?: string;
+  testCaseSeverity?: string;
+  testType?: string;
+  testSeverity?: string;
+  caseType?: string;
+  caseSeverity?: string;
 }
 
 export interface GetTestCasesByFilterResponse {
