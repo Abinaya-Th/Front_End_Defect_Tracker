@@ -803,7 +803,7 @@ export const Defects: React.FC = () => {
           accept=".xlsx,.csv"
           onChange={handleImportExcel}
           ref={fileInputRef}
-          className="hidden"
+          className="hidden" 
         />
         <button
           type="button"

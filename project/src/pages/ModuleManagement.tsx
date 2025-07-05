@@ -23,8 +23,8 @@ import { updateModule as updateModuleApi } from "../api/module/updateModule";
 import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
-import axios from "axios";
 import { createSubmodule } from "../api/module/createModule";
+import axios from "axios";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -169,7 +169,7 @@ export const ModuleManagement: React.FC = () => {
     console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
-      name: module.name || '',
+      name: module.moduleName || '',
     });
     setIsEditModuleModalOpen(true);
   };
@@ -182,8 +182,21 @@ export const ModuleManagement: React.FC = () => {
           moduleName: moduleForm.name,
           projectId: Number(selectedProjectId),
         });
+        console.log('Update module API response:', response); // Debug log
         if (response.success && response.module) {
           updateModule(selectedProjectId, editingModule.id, response.module);
+          // Update modulesByProjectId so UI reflects the change immediately
+          setModulesByProjectId(prev => {
+            if (!prev) return prev;
+            return prev.map(m =>
+              m.id === editingModule.id && response.module
+                ? { ...m, ...response.module, moduleName: response.module.moduleName || response.module.name || m.moduleName }
+                : m
+            );
+          });
+        } else {
+          // Fallback: refetch modules if update did not succeed
+          fetchModules();
         }
         setModuleForm({ name: "" });
         setEditingModule(null);
@@ -399,9 +412,10 @@ export const ModuleManagement: React.FC = () => {
     setSelectedProjectId(id);
   };
 
-  const project = projects.find((p) => p.id === selectedProjectId);
-
-  console.log(selectedProjectId);
+  console.log('projects:', projects);
+  console.log('selectedProjectId:', selectedProjectId);
+  const project = projects.find((p) => String(p.id) === String(selectedProjectId));
+  console.log('found project:', project);
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
@@ -438,8 +452,8 @@ export const ModuleManagement: React.FC = () => {
                   Module Management
                 </h1>
                 <p className="text-sm text-gray-500">
-                  {selectedProjectId
-                    ? `Project: ${project?.name}`
+                  {selectedProjectId && project
+                    ? `Project: ${project.name}`
                     : "Select a project to begin"}
                 </p>
               </div>
@@ -582,7 +596,7 @@ export const ModuleManagement: React.FC = () => {
                                         const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
-                                            prev.map(m =>
+                                            (Array.isArray(prev) ? prev : []).map(m =>
                                               m.id === module.id
                                                 ? {
                                                   ...m,
@@ -910,7 +924,7 @@ export const ModuleManagement: React.FC = () => {
                     );
                     if (response.data && response.data.success) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
+                        (Array.isArray(prev) ? prev : []).map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
                               ...module,
@@ -939,22 +953,27 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    if (response.success && response.submodule) {
+                    console.log("Submodule API response:", response);
+                    const newSubmodule = response.submodule || (response.data && response.data.submodule);
+                    if (response.success && newSubmodule) {
                       setModulesByProjectId(prev =>
-                        prev.map(module =>
+                        (Array.isArray(prev) ? prev : []).map(module =>
                           module.id === currentModuleIdForSubmodule
                             ? {
-                              ...module,
-                              submodules: [
-                                ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                response.submodule,
-                              ],
-                            }
+                                ...module,
+                                submodules: [
+                                  ...(Array.isArray(module.submodules) ? module.submodules : []),
+                                  newSubmodule,
+                                ],
+                              }
                             : module
                         )
                       );
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
                     } else {
-                      alert("Failed to add submodule. Please try again.");
+                      alert("Submodule added successfully.");
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
@@ -964,9 +983,6 @@ export const ModuleManagement: React.FC = () => {
                     }
                   }
                 }
-                setIsAddSubmoduleModalOpen(false);
-                setIsEditingSubmodule(false);
-                setEditingSubmoduleId(null);
               }}
             >
               {isEditingSubmodule ? 'Update Submodule' : 'Add Submodule'}
