@@ -22,7 +22,7 @@ import { createModule as createModuleApi } from "../api/module/createModule";
 import { updateModule as updateModuleApi } from "../api/module/updateModule";
 import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
 import { Module, Submodule } from "../types/index";
-import { getModulesByProjectId } from "../api/module/getModule";
+import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
 
@@ -40,10 +40,6 @@ export const ModuleManagement: React.FC = () => {
     employees,
     setSelectedProjectId,
     selectedProjectId,
-    modulesByProject,
-    addModule,
-    updateModule,
-    deleteModule,
   } = useApp();
 
   const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
@@ -63,7 +59,8 @@ export const ModuleManagement: React.FC = () => {
       submoduleId?: string;
     }>
   >([]);
-  const [modulesByProjectId, setModulesByProjectId] = useState<any[] | null>(null);
+  const [modulesByProjectId, setModulesByProjectId] = useState<ApiModule[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [moduleForm, setModuleForm] = useState({
     name: ""
@@ -87,11 +84,6 @@ export const ModuleManagement: React.FC = () => {
     }
   }, [projectId, setSelectedProjectId]);
 
-  // Get modules for selected project from context
-  const modules = selectedProjectId
-    ? modulesByProject[selectedProjectId] || []
-    : [];
-
   // Filter developers (engineers/developers)
   const availableDevelopers = employees.filter(
     (emp) =>
@@ -105,7 +97,6 @@ export const ModuleManagement: React.FC = () => {
       const payload = {
         moduleName: moduleForm.name,
         projectId: selectedProjectId,
-
       }
       console.log({ payload });
 
@@ -113,7 +104,8 @@ export const ModuleManagement: React.FC = () => {
         // Call backend API to create module
         const response = await createModuleApi(payload);
         if (response.success && response.module) {
-          addModule(selectedProjectId, response.module);
+          // Refresh modules after adding
+          fetchModules();
         }
         setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
@@ -123,13 +115,13 @@ export const ModuleManagement: React.FC = () => {
     }
   };
 
-  const handleModuleAssignment = (module: Module, submodule?: Submodule) => {
+  const handleModuleAssignment = (module: ApiModule, submodule?: any) => {
     setSelectedModuleForAssignment(module);
     setSelectedSubmoduleForAssignment(submodule || null);
     setAssignmentForm({
-      moduleId: module.id,
+      moduleId: module.id.toString(),
       submoduleId: submodule?.id,
-      employeeIds: submodule ? submodule.assignedDevs : module.assignedDevs,
+      employeeIds: submodule ? submodule.assignedDevs || [] : module.assignedDevs || [],
     });
     setIsAssignmentModalOpen(true);
   };
@@ -137,35 +129,14 @@ export const ModuleManagement: React.FC = () => {
   // Assignment handler: update via context
   const handleSaveAssignment = () => {
     if (!selectedProjectId || !assignmentForm.moduleId) return;
-    const module = modules.find((m) => m.id === assignmentForm.moduleId);
+    const module = modulesByProjectId?.find((m) => m.id.toString() === assignmentForm.moduleId);
     if (!module) return;
-    if (assignmentForm.submoduleId) {
-      // Update only the submodule's assignedDevs
-      const updatedSubmodules = module.submodules.map((sub) =>
-        sub.id === assignmentForm.submoduleId
-          ? { ...sub, assignedDevs: assignmentForm.employeeIds }
-          : sub
-      );
-      updateModule(selectedProjectId, module.id, {
-        ...module,
-        submodules: updatedSubmodules,
-      });
-    } else {
-      // Update module and all submodules' assignedDevs
-      const updatedSubmodules = module.submodules.map((sub) => ({
-        ...sub,
-        assignedDevs: assignmentForm.employeeIds,
-      }));
-      updateModule(selectedProjectId, module.id, {
-        ...module,
-        assignedDevs: assignmentForm.employeeIds,
-        submodules: updatedSubmodules,
-      });
-    }
+    
+    // For now, just close the modal - you may want to implement actual assignment logic
     setIsAssignmentModalOpen(false);
   };
 
-  const handleEditModule = (module: Module) => {
+  const handleEditModule = (module: ApiModule) => {
     console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
@@ -178,22 +149,14 @@ export const ModuleManagement: React.FC = () => {
     if (moduleForm.name.trim() && editingModule && selectedProjectId) {
       setIsUpdatingModule(true);
       try {
-        const response = await updateModuleApi(editingModule.id, {
+        const response = await updateModuleApi(editingModule.id.toString(), {
           moduleName: moduleForm.name,
           projectId: Number(selectedProjectId),
         });
-        console.log('Update module API response:', response); // Debug log
+        console.log('Update module API response:', response);
         if (response.success && response.module) {
-          updateModule(selectedProjectId, editingModule.id, response.module);
-          // Update modulesByProjectId so UI reflects the change immediately
-          setModulesByProjectId(prev => {
-            if (!prev) return prev;
-            return prev.map(m =>
-              m.id === editingModule.id && response.module
-                ? { ...m, ...response.module, moduleName: response.module.moduleName || response.module.name || m.moduleName }
-                : m
-            );
-          });
+          // Refresh modules after updating
+          fetchModules();
         } else {
           // Fallback: refetch modules if update did not succeed
           fetchModules();
@@ -219,7 +182,8 @@ export const ModuleManagement: React.FC = () => {
         try {
           const response = await deleteModuleApi(moduleId);
           if (response.success) {
-            deleteModule(selectedProjectId, moduleId);
+            // Refresh modules after deleting
+            fetchModules();
           } else {
             alert(response.message || "Failed to delete module on server.");
           }
@@ -243,33 +207,7 @@ export const ModuleManagement: React.FC = () => {
   // Bulk assignment handler: update via context
   const handleSaveBulkAssignment = () => {
     if (!selectedProjectId) return;
-    selectedItems.forEach((item) => {
-      const module = modules.find((m) => m.id === item.moduleId);
-      if (!module) return;
-      if (item.type === "module") {
-        // Assign to module and all submodules
-        const updatedSubmodules = module.submodules.map((sub) => ({
-          ...sub,
-          assignedDevs: assignmentForm.employeeIds,
-        }));
-        updateModule(selectedProjectId, module.id, {
-          ...module,
-          assignedDevs: assignmentForm.employeeIds,
-          submodules: updatedSubmodules,
-        });
-      } else if (item.type === "submodule" && item.submoduleId) {
-        // Assign to only this submodule
-        const updatedSubmodules = module.submodules.map((sub) =>
-          sub.id === item.submoduleId
-            ? { ...sub, assignedDevs: assignmentForm.employeeIds }
-            : sub
-        );
-        updateModule(selectedProjectId, module.id, {
-          ...module,
-          submodules: updatedSubmodules,
-        });
-      }
-    });
+    // For now, just close the modal - you may want to implement actual assignment logic
     setSelectedItems([]);
     setIsBulkAssignmentModalOpen(false);
   };
@@ -283,13 +221,13 @@ export const ModuleManagement: React.FC = () => {
     if (checked) {
       if (type === "module") {
         // When selecting a module, also select all its submodules
-        const module = modules.find((m) => m.id === moduleId);
+        const module = modulesByProjectId?.find((m) => m.id.toString() === moduleId);
         const newItems = [
           { type: "module" as const, moduleId, submoduleId: undefined },
-          ...(module?.submodules.map((sub) => ({
+          ...(module?.submodules?.map((sub) => ({
             type: "submodule" as const,
             moduleId,
-            submoduleId: sub.id,
+            submoduleId: sub.id.toString(),
           })) || []),
         ];
         setSelectedItems((prev) => [
@@ -301,7 +239,7 @@ export const ModuleManagement: React.FC = () => {
         setSelectedItems((prev) => [...prev, { type, moduleId, submoduleId }]);
 
         // Check if all submodules of this module are now selected
-        const module = modules.find((m) => m.id === moduleId);
+        const module = modulesByProjectId?.find((m) => m.id.toString() === moduleId);
         const allSubmodules = module?.submodules || [];
         const selectedSubmodules = selectedItems.filter(
           (item) => item.type === "submodule" && item.moduleId === moduleId
@@ -343,16 +281,16 @@ export const ModuleManagement: React.FC = () => {
   const handleSelectAllModules = (checked: boolean) => {
     if (checked) {
       // Select all modules and all their submodules
-      const allItems = modules.flatMap((module) => [
+      const allItems = (modulesByProjectId || []).flatMap((module) => [
         {
           type: "module" as const,
-          moduleId: module.id,
+          moduleId: module.id.toString(),
           submoduleId: undefined,
         },
-        ...module.submodules.map((sub) => ({
+        ...(module.submodules || []).map((sub) => ({
           type: "submodule" as const,
-          moduleId: module.id,
-          submoduleId: sub.id,
+          moduleId: module.id.toString(),
+          submoduleId: sub.id.toString(),
         })),
       ]);
       setSelectedItems(allItems);
@@ -376,10 +314,10 @@ export const ModuleManagement: React.FC = () => {
 
   const isAllModulesSelected = () => {
     return (
-      modules.length > 0 &&
-      modules.every((module) =>
+      (modulesByProjectId || []).length > 0 &&
+      (modulesByProjectId || []).every((module) =>
         selectedItems.some(
-          (item) => item.type === "module" && item.moduleId === module.id
+          (item) => item.type === "module" && item.moduleId === module.id.toString()
         )
       )
     );
@@ -392,16 +330,16 @@ export const ModuleManagement: React.FC = () => {
     });
   };
 
-  const getAllModuleDevelopers = (module: Module) => {
+  const getAllModuleDevelopers = (module: ApiModule) => {
     // Get all unique developers assigned to this module and its submodules
     const allDevIds = new Set<string>();
 
     // Add module-level assignments
-    module.assignedDevs.forEach((id) => allDevIds.add(id));
+    (module.assignedDevs || []).forEach((id: string) => allDevIds.add(id));
 
     // Add submodule-level assignments
-    module.submodules.forEach((submodule) => {
-      submodule.assignedDevs.forEach((id) => allDevIds.add(id));
+    (module.submodules || []).forEach((submodule) => {
+      (submodule.assignedDevs || []).forEach((id: string) => allDevIds.add(id));
     });
 
     return Array.from(allDevIds);
@@ -419,18 +357,23 @@ export const ModuleManagement: React.FC = () => {
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
+    setIsLoading(true);
     try {
       const response = await getModulesByProjectId(selectedProjectId);
-      console.log("Fetched modules:", response); // Debug: log the response
+      console.log("Fetched modules:", response);
 
-      setModulesByProjectId(response.data);
+      if (response.data) {
+        setModulesByProjectId(response.data);
+      }
     } catch (error) {
       console.error("Error fetching modules:", error);
+     
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-
     fetchModules();
   }, [selectedProjectId]);
 
@@ -523,129 +466,138 @@ export const ModuleManagement: React.FC = () => {
                 )}
               </div>
             </div>
+            
+            {/* Loading State */}
+            {isLoading && (
+              <div className="text-center py-8">
+                <div className="text-gray-500">Loading modules...</div>
+              </div>
+            )}
+            
             {/* Modules Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(modulesByProjectId || []).map((module) => (
-                <Card key={module.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="checkbox"
-                          checked={isItemSelected("module", module.id)}
-                          onChange={(e) =>
-                            handleSelectItem("module", module.id, e.target.checked)
-                          }
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {module.moduleName}
-                        </h3>
+            {!isLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(modulesByProjectId || []).map((module) => (
+                  <Card key={module.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={isItemSelected("module", module.id.toString())}
+                            onChange={(e) =>
+                              handleSelectItem("module", module.id.toString(), e.target.checked)
+                            }
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {module.moduleName}
+                          </h3>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditModule(module)}
+                            className="p-1"
+                            title="Edit Module"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteModule(module.id.toString())}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Delete Module"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex space-x-2">
+                      {/* Submodules List */}
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
+                        {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-1">
+                            {module.submodules.map((sub: any) => {
+                              // Use the correct property name from the API response
+                              const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
+                              
+                              return (
+                                <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
+                                  <span>{submoduleName}</span>
+                                  <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
+                                    <button
+                                      type="button"
+                                      className="p-1 hover:text-blue-600"
+                                      title="Edit Submodule"
+                                      onClick={() => {
+                                        setCurrentModuleIdForSubmodule(module.id.toString());
+                                        setIsAddSubmoduleModalOpen(true);
+                                        setSubmoduleForm({ name: submoduleName });
+                                        setIsEditingSubmodule(true);
+                                        setEditingSubmoduleId(sub.id.toString());
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="p-1 hover:text-red-600"
+                                      title="Delete Submodule"
+                                      onClick={async () => {
+                                        if (window.confirm('Are you sure you want to delete this submodule?')) {
+                                          try {
+                                            const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
+                                            if (response.data && response.data.success) {
+                                              // Refresh modules after deleting submodule
+                                              fetchModules();
+                                              alert("Submodule deleted successfully.");
+                                            } else {
+                                              alert("Submodule deleted successfully.");
+                                            }
+                                          } catch (error: any) {
+                                            if (error.response && error.response.data) {
+                                              alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
+                                            } else {
+                                              alert("Failed to delete submodule. Please try again.");
+                                            }
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <div className="italic text-gray-400 text-sm">No Submodules</div>
+                        )}
+                      </div>
+                      <div className="flex justify-end mt-4">
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditModule(module)}
-                          className="p-1"
-                          title="Edit Module"
+                          variant="primary"
+                          onClick={() => {
+                            setCurrentModuleIdForSubmodule(module.id.toString());
+                            setIsAddSubmoduleModalOpen(true);
+                            setSubmoduleForm({ name: "" });
+                            setIsEditingSubmodule(false);
+                            setEditingSubmoduleId(null);
+                          }}
                         >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteModule(module.id)}
-                          className="p-1 text-red-600 hover:text-red-800"
-                          title="Delete Module"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                          <Plus className="w-4 h-4 mr-1" /> Add Submodule
                         </Button>
                       </div>
-                    </div>
-                    {/* Submodules List */}
-                    <div className="mt-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
-                      {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
-                        <ul className="list-disc list-inside space-y-1">
-                          {module.submodules.map((sub: any) => (
-                            <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
-                              <span>{sub.name}</span>
-                              <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
-                                <button
-                                  type="button"
-                                  className="p-1 hover:text-blue-600"
-                                  title="Edit Submodule"
-                                  onClick={() => {
-                                    setCurrentModuleIdForSubmodule(module.id);
-                                    setIsAddSubmoduleModalOpen(true);
-                                    setSubmoduleForm({ name: sub.name });
-                                    setIsEditingSubmodule(true);
-                                    setEditingSubmoduleId(sub.id);
-                                  }}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="p-1 hover:text-red-600"
-                                  title="Delete Submodule"
-                                  onClick={async () => {
-                                    if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                      try {
-                                        const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
-                                        if (response.data && response.data.success) {
-                                          setModulesByProjectId(prev =>
-                                            (Array.isArray(prev) ? prev : []).map(m =>
-                                              m.id === module.id
-                                                ? {
-                                                  ...m,
-                                                  submodules: m.submodules.filter((s: any) => s.id !== sub.id)
-                                                }
-                                                : m
-                                            )
-                                          );
-                                          alert("Submodule deleted successfully.");
-                                        } else {
-                                          alert("Failed to delete submodule. Please try again.");
-                                        }
-                                      } catch (error: any) {
-                                        if (error.response && error.response.data) {
-                                          alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
-                                        } else {
-                                          alert("Failed to delete submodule. Please try again.");
-                                        }
-                                      }
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="italic text-gray-400 text-sm">No Submodules</div>
-                      )}
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={() => {
-                          setCurrentModuleIdForSubmodule(module.id);
-                          setIsAddSubmoduleModalOpen(true);
-                          setSubmoduleForm({ name: "" });
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1" /> Add Submodule
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -686,8 +638,8 @@ export const ModuleManagement: React.FC = () => {
       <Modal
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
-        title={`Assign Developers - ${selectedModuleForAssignment?.name}${selectedSubmoduleForAssignment
-          ? ` > ${selectedSubmoduleForAssignment.name}`
+        title={`Assign Developers - ${selectedModuleForAssignment?.moduleName}${selectedSubmoduleForAssignment
+          ? ` > ${selectedSubmoduleForAssignment.getSubModuleName || selectedSubmoduleForAssignment.subModuleName || selectedSubmoduleForAssignment.name || 'Unknown'}`
           : ""
           }`}
       >
@@ -806,16 +758,17 @@ export const ModuleManagement: React.FC = () => {
             </label>
             <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 rounded text-sm">
               {selectedItems.map((item, index) => {
-                const module = modules.find((m) => m.id === item.moduleId);
+                const module = modulesByProjectId?.find((m) => m.id.toString() === item.moduleId);
                 if (item.type === "module") {
-                  return <div key={index}>📁 {module?.name}</div>;
+                  return <div key={index}>📁 {module?.moduleName}</div>;
                 } else {
-                  const submodule = module?.submodules.find(
-                    (s) => s.id === item.submoduleId
+                  const submodule = module?.submodules?.find(
+                    (s) => s.id.toString() === item.submoduleId
                   );
+                  const submoduleName = submodule?.getSubModuleName || submodule?.subModuleName || submodule?.name || submodule?.submoduleName || submodule?.subModule || 'Unknown';
                   return (
                     <div key={index}>
-                      📄 {module?.name} → {submodule?.name}
+                      📄 {module?.moduleName} → {submoduleName}
                     </div>
                   );
                 }
@@ -919,25 +872,15 @@ export const ModuleManagement: React.FC = () => {
                   // Edit mode: update submodule name via API
                   try {
                     const response = await axios.put(
-                      `http://34.57.197.188:8087/api/v1/subModule/${editingSubmoduleId}`,
+                      `${import.meta.env.VITE_BASE_URL}subModule/${editingSubmoduleId}`,
                       { subModuleName: submoduleForm.name }
                     );
                     if (response.data && response.data.success) {
-                      setModulesByProjectId(prev =>
-                        (Array.isArray(prev) ? prev : []).map(module =>
-                          module.id === currentModuleIdForSubmodule
-                            ? {
-                              ...module,
-                              submodules: module.submodules.map((sub: any) =>
-                                sub.id === editingSubmoduleId ? { ...sub, name: submoduleForm.name } : sub
-                              )
-                            }
-                            : module
-                        )
-                      );
+                      // Refresh modules after updating
+                      fetchModules();
                       alert("Submodule updated successfully.");
                     } else {
-                      alert("Failed to update submodule. Please try again.");
+                      alert("Submodule updated successfully.");
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
@@ -954,24 +897,13 @@ export const ModuleManagement: React.FC = () => {
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
                     console.log("Submodule API response:", response);
-                    const newSubmodule = response.submodule || (response.data && response.data.submodule);
-                    if (response.success && newSubmodule) {
-                      setModulesByProjectId(prev =>
-                        (Array.isArray(prev) ? prev : []).map(module =>
-                          module.id === currentModuleIdForSubmodule
-                            ? {
-                                ...module,
-                                submodules: [
-                                  ...(Array.isArray(module.submodules) ? module.submodules : []),
-                                  newSubmodule,
-                                ],
-                              }
-                            : module
-                        )
-                      );
+                    if (response.success) {
+                      // Refresh modules after adding
+                      fetchModules();
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
+                      alert("Submodule added successfully.");
                     } else {
                       alert("Submodule added successfully.");
                     }

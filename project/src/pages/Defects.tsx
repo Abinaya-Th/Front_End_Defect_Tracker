@@ -515,7 +515,7 @@ export const Defects: React.FC = () => {
   // Add exportDefects function
   const exportDefects = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}defect/exportAsId`, {
+      const response = await axios.get(`${BASE_URL}defect/export`, {
         responseType: "blob",
       });
       // Create a link to download the file
