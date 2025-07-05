@@ -25,6 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
+import { createSubmodule } from "../api/module/createModule";
 
 type ModuleAssignment = {
   moduleId: string;
@@ -325,7 +326,7 @@ export const ModuleManagement: React.FC = () => {
 
   const getAssignedDevNames = (devIds: string[]) => {
     return devIds.map((id) => {
-      const dev = employees.find((e) => e.id === id);
+      const dev = employees && employees.find((e) => e.id === id);
       return dev ? `${dev.firstName} ${dev.lastName}` : "Unknown";
     });
   };
