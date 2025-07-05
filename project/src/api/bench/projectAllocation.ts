@@ -98,4 +98,38 @@ export async function getProjectAllocationsById(projectId: string | number) {
     console.error('Get project allocations error:', error);
     throw error;
   }
+}
+
+// Update a specific project allocation by allocationId
+export async function updateProjectAllocation(allocationId: string | number, payload: ProjectAllocationPayload) {
+  try {
+    const response = await axios.put(`${BASE_URL}/${allocationId}`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      withCredentials: false
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Update project allocation error:', error);
+    throw error;
+  }
+}
+
+// Delete a specific project allocation by allocationId
+export async function deleteProjectAllocation(allocationId: string | number) {
+  try {
+    const response = await axios.delete(`${BASE_URL}/${allocationId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      withCredentials: false
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Delete project allocation error:', error);
+    throw error;
+  }
 } 

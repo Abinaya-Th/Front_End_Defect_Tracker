@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { getBenchList } from '../api/bench/bench';
 import { Employee } from '../types/index';
-import { postProjectAllocations, getProjectAllocationsById } from '../api/bench/projectAllocation';
+import { postProjectAllocations, getProjectAllocationsById, updateProjectAllocation, deleteProjectAllocation } from '../api/bench/projectAllocation';
 import { getAllProjects } from '../api/projectget';
 import { Project } from '../types';
 import { ProjectSelector } from '../components/ui/ProjectSelector';
@@ -199,7 +199,6 @@ export default function BenchAllocate() {
         }
         setIsAllocating(true);
         try {
-            // --- API Integration ---
             const allocationErrors = [];
             for (const emp of updatedEmployees) {
                 const payload = {
@@ -211,29 +210,39 @@ export default function BenchAllocate() {
                     endDate: emp.allocationEndDate
                 };
                 try {
-                    await postProjectAllocations(payload);
+                    if (emp.allocationId || emp.idOnAllocationTable || emp.idOnAllocatedTable || emp.allocation_id || emp.idOnEdit) {
+                        // If editing, use the allocation's id
+                        const allocationId = emp.allocationId || emp.idOnAllocationTable || emp.idOnAllocatedTable || emp.allocation_id || emp.idOnEdit || emp.id;
+                        await updateProjectAllocation(allocationId, payload);
+                    } else {
+                        await postProjectAllocations(payload);
+                    }
                 } catch (error) {
                     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
                     allocationErrors.push(`${emp.firstName || emp.userFullName}: ${errorMsg}`);
                 }
             }
             if (allocationErrors.length > 0) {
-                const errorMessage = `Failed to allocate employees:\n${allocationErrors.join('\n')}`;
+                const errorMessage = `Failed to allocate/update employees:\n${allocationErrors.join('\n')}`;
                 console.error('All allocation attempts failed:', errorMessage);
                 throw new Error(errorMessage);
             }
-            // After successful POST, fetch latest allocations from backend
-            const data = await getProjectAllocationsById(selectedProjectId);
+            // After successful POST/PUT, fetch latest allocations and bench list
+            const [allocationsData, benchData] = await Promise.all([
+                getProjectAllocationsById(selectedProjectId),
+                getBenchList()
+            ]);
             setProjectAllocations(prev => ({
                 ...prev,
-                [selectedProjectId]: Array.isArray(data.data) ? data.data : [],
+                [selectedProjectId]: Array.isArray(allocationsData.data) ? allocationsData.data : [],
             }));
-        setSelectedBench([]);
-        setAllocationModal({ open: false, employees: [] });
-            alert('Allocation successful!');
+            setEmployees(Array.isArray(benchData) ? benchData : []);
+            setSelectedBench([]);
+            setAllocationModal({ open: false, employees: [] });
+            alert('Allocation updated successfully!');
         } catch (error) {
             console.error('Allocation failed:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to allocate employees.';
+            const errorMessage = error instanceof Error ? error.message : 'Failed to allocate/update employees.';
             alert(`Allocation failed: ${errorMessage}`);
         } finally {
             setIsAllocating(false);
@@ -241,14 +250,27 @@ export default function BenchAllocate() {
     };
     const handleDeallocate = async () => {
         if (!selectedProjectId || selectedProjectUsers.length === 0) return;
-        // Remove selected users from the allocations for the selected project
-        setProjectAllocations(prev => ({
-            ...prev,
-            [selectedProjectId]: (prev[selectedProjectId] || []).filter(
-                e => !selectedProjectUsers.includes(e.id)
-            ),
-        }));
-        setSelectedProjectUsers([]);
+        try {
+            // Call delete API for each selected allocation
+            await Promise.all(selectedProjectUsers.map(async (allocationId) => {
+                await deleteProjectAllocation(allocationId);
+            }));
+            // Refresh allocations and bench list
+            const [allocationsData, benchData] = await Promise.all([
+                getProjectAllocationsById(selectedProjectId),
+                getBenchList()
+            ]);
+            setProjectAllocations(prev => ({
+                ...prev,
+                [selectedProjectId]: Array.isArray(allocationsData.data) ? allocationsData.data : [],
+            }));
+            setEmployees(Array.isArray(benchData) ? benchData : []);
+            setSelectedProjectUsers([]);
+            alert('Deallocation successful!');
+        } catch (error) {
+            console.error('Deallocation failed:', error);
+            alert('Failed to deallocate selected users.');
+        }
     };
 
     // UI
@@ -437,25 +459,26 @@ export default function BenchAllocate() {
                                             <td>
                                                     <Button
                                                         size="sm"
-                                                    variant="primary"
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        // Map the selected allocation to the modal's expected employee object
-                                                        const mappedEmp = {
-                                                            id: emp.id,
-                                                            firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
-                                                            lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
-                                                            designation: emp.designation || '',
-                                                            roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
-                                                            roleName: emp.roleName || '',
-                                                            allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
-                                                            availability: emp.availability ?? emp.allocationPercentage ?? 0,
-                                                            allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : (emp.allocationStartDate || ''),
-                                                            allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : (emp.allocationEndDate || ''),
-                                                        };
-                                                        setAllocationModal({ open: true, employees: [mappedEmp] });
-                                                    }}
-                                                    title="Edit"
+                                                        variant="primary"
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            // Map the selected allocation to the modal's expected employee object
+                                                            const mappedEmp = {
+                                                                id: emp.id,
+                                                                allocationId: emp.id,
+                                                                firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
+                                                                lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
+                                                                designation: emp.designation || '',
+                                                                roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
+                                                                roleName: emp.roleName || '',
+                                                                allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
+                                                                availability: emp.availability ?? emp.allocationPercentage ?? 0,
+                                                                allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : (emp.allocationStartDate || ''),
+                                                                allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : (emp.allocationEndDate || ''),
+                                                            };
+                                                            setAllocationModal({ open: true, employees: [mappedEmp] });
+                                                        }}
+                                                        title="Edit"
                                                     >
                                                         Edit
                                                     </Button>
@@ -475,11 +498,11 @@ export default function BenchAllocate() {
                 isOpen={allocationModal.open}
                 onClose={() => setAllocationModal({ open: false, employees: [] })}
                 title="Allocation Preview"
-                size="lg"
+                size="2xl"
             >
-                <div className="bg-gray-50 rounded flex flex-col gap-6 p-8 max-w-5xl min-w-[1100px]" style={{ minWidth: 1100 }}>
+                <div className="flex flex-col gap-6 p-6 min-w-[900px]">
                     {allocationModal.employees.map((emp, index) => (
-                        <div key={emp.id} className="flex items-center gap-8 w-full">
+                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full">
                             {/* Name and Designation */}
                             <div className="flex flex-col min-w-[180px]">
                                 <span className="text-blue-600 font-semibold underline cursor-pointer text-base leading-tight">{emp.firstName} {emp.lastName}</span>
@@ -551,9 +574,6 @@ export default function BenchAllocate() {
                                         className="w-full border border-[#D1D5DB] rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 pr-10"
                                         style={{ minWidth: 120 }}
                                     />
-                                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                                    </span>
                                 </div>
                             </div>
                             {/* End Date */}
@@ -575,9 +595,6 @@ export default function BenchAllocate() {
                                         className="w-full border border-[#D1D5DB] rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 pr-10"
                                         style={{ minWidth: 120 }}
                                     />
-                                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                                    </span>
                                 </div>
                             </div>
                         </div>
