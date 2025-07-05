@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
       },
+      '/api/v1/projectAllocations': {
+        target: 'http://192.168.1.100:8090',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
