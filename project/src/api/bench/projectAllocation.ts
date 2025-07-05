@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// Use proxy during development to avoid CORS
-const BASE_URL = "/api/v1/projectAllocations";
+// Use VITE_BASE_URL from .env
+const BASE_URL = `${import.meta.env.VITE_BASE_URL}projectAllocations`;
 
 export interface ProjectAllocationPayload {
   projectId?: string | number;
