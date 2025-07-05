@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, Calendar, Award } from 'lucide-react';
+import { Plus, Edit, Eye, Mail, Phone, Calendar, Award } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
 import { useApp } from '../context/AppContext';
-import { Employee } from '../types';
+import { Employee } from '../types/index';
 
 export const Employees: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useApp();
@@ -16,8 +16,10 @@ export const Employees: React.FC = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
+    id: '',
     firstName: '',
     lastName: '',
+    gender: '',
     email: '',
     phone: '',
     designation: '',
@@ -29,6 +31,29 @@ export const Employees: React.FC = () => {
     availability: 100,
     status: 'active' as 'active' | 'inactive' | 'on-leave',
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 5;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
+  const [designationFilter, setDesignationFilter] = useState('');
+
+  // Get unique designations for the filter dropdown
+  const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation)));
+
+  // Filter and search logic
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
+      emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter ? emp.status === statusFilter : true;
+    const matchesGender = genderFilter ? emp.gender === genderFilter : true;
+    const matchesDesignation = designationFilter ? emp.designation === designationFilter : true;
+    return matchesSearch && matchesStatus && matchesGender && matchesDesignation;
+  });
+  const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage);
+  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +76,10 @@ export const Employees: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
+      id: '',
       firstName: '',
       lastName: '',
+      gender: '',
       email: '',
       phone: '',
       designation: '',
@@ -69,8 +96,10 @@ export const Employees: React.FC = () => {
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
     setFormData({
+      id: employee.id,
       firstName: employee.firstName,
       lastName: employee.lastName,
+      gender: employee.gender || '',
       email: employee.email,
       phone: employee.phone,
       designation: employee.designation,
@@ -106,26 +135,25 @@ export const Employees: React.FC = () => {
         return <Badge variant="success">Active</Badge>;
       case 'inactive':
         return <Badge variant="error">Inactive</Badge>;
-      case 'on-leave':
-        return <Badge variant="warning">On Leave</Badge>;
       default:
         return <Badge variant="default">{status}</Badge>;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="max-w-6xl mx-auto">
+      {/* Employee Management Heading */}
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
           <p className="text-gray-600 mt-1">Manage your team members and their information</p>
         </div>
-        <Button 
+        <Button
           onClick={() => {
             resetForm();
             setEditingEmployee(null);
             setIsModalOpen(true);
-          }} 
+          }}
           icon={Plus}
           className="shadow-lg hover:shadow-xl transition-shadow duration-200"
         >
@@ -133,53 +161,46 @@ export const Employees: React.FC = () => {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100">Total Employees</p>
-                <p className="text-3xl font-bold">{employees.length}</p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Award className="w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100">Active</p>
-                <p className="text-3xl font-bold">
-                  {employees.filter(emp => emp.status === 'active').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Award className="w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-yellow-100">On Leave</p>
-                <p className="text-3xl font-bold">
-                  {employees.filter(emp => emp.status === 'on-leave').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <Calendar className="w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 mt-4">
+        <input
+          type="text"
+          placeholder="Search by name or ID..."
+          value={searchTerm}
+          onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          className="border border-gray-300 rounded-lg px-3 py-2 w-full md:w-64"
+        />
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <select
+            value={genderFilter}
+            onChange={e => { setGenderFilter(e.target.value); setCurrentPage(1); }}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Genders</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+          <select
+            value={designationFilter}
+            onChange={e => { setDesignationFilter(e.target.value); setCurrentPage(1); }}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Designations</option>
+            {uniqueDesignations.map(designation => (
+              <option key={designation} value={designation}>{designation}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Employee Table */}
@@ -188,109 +209,89 @@ export const Employees: React.FC = () => {
           <h3 className="text-xl font-semibold text-gray-900">Employee Directory</h3>
         </CardHeader>
         <CardContent className="p-0">
-          {employees.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell header>Employee</TableCell>
-                  <TableCell header>Contact</TableCell>
-                  <TableCell header>Role</TableCell>
-                  <TableCell header>Department</TableCell>
-                  <TableCell header>Experience</TableCell>
-                  <TableCell header>Status</TableCell>
-                  <TableCell header>Actions</TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employees.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-semibold text-sm">
-                            {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {employee.firstName} {employee.lastName}
-                          </p>
-                          <p className="text-sm text-gray-500">ID: {employee.id}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Mail className="w-4 h-4 mr-2" />
-                          {employee.email}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Phone className="w-4 h-4 mr-2" />
-                          {employee.phone}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium text-gray-900">{employee.designation}</p>
-                      <p className="text-sm text-gray-500">
-                        Joined: {new Date(employee.joinedDate).toLocaleDateString()}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-gray-900">{employee.department}</p>
-                      {employee.manager && (
-                        <p className="text-sm text-gray-500">Manager: {employee.manager}</p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="info">{employee.experience} years</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(employee.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleView(employee)}
-                          className="p-2 hover:bg-blue-50 text-blue-600"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(employee)}
-                          className="p-2 hover:bg-yellow-50 text-yellow-600"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(employee.id)}
-                          className="p-2 hover:bg-red-50 text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="p-12 text-center">
-              <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No employees yet</h3>
-              <p className="text-gray-500 mb-4">Get started by adding your first employee</p>
-              <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-                Add Employee
-              </Button>
+          <div className="overflow-x-auto">
+
+            <div className="min-w-[1100px]">
+              {employees.length > 0 ? (
+                <table className="w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableCell header>Employee ID</TableCell>
+                      <TableCell header>First Name</TableCell>
+                      <TableCell header>Last Name</TableCell>
+                      <TableCell header>Gender</TableCell>
+                      <TableCell header>Designation</TableCell>
+                      <TableCell header>Contact Number</TableCell>
+                      <TableCell header>Email ID</TableCell>
+                      <TableCell header>Join Date</TableCell>
+                      <TableCell header>Status</TableCell>
+                      <TableCell header>Actions</TableCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEmployees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell>{employee.id}</TableCell>
+                        <TableCell>{employee.firstName}</TableCell>
+                        <TableCell>{employee.lastName}</TableCell>
+                        <TableCell>{employee.gender || '-'}</TableCell>
+                        <TableCell>{employee.designation}</TableCell>
+                        <TableCell>{employee.phone}</TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>{employee.joinedDate ? new Date(employee.joinedDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{getStatusBadge(employee.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(employee)}
+                              className="p-2 hover:bg-yellow-50 text-yellow-600"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </table>
+              ) : (
+                <div className="p-12 text-center">
+                  <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No employees yet</h3>
+                  <p className="text-gray-500 mb-4">Get started by adding your first employee</p>
+                  <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
+                    Add Employee
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+            {/* Pagination Controls */}
+            {employees.length > rowsPerPage && (
+              <div className="flex justify-end items-center gap-2 p-4">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Prev
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -303,130 +304,114 @@ export const Employees: React.FC = () => {
           resetForm();
         }}
         title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-        size="xl"
+        size="2xl"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <Input
+              label="Employee ID"
+              value={formData.id || ''}
+              onChange={(e) => handleInputChange('id', e.target.value)}
+              placeholder="Enter employee ID (ex: EMP001)"
+              required
+            />
+            <Input
               label="First Name"
               value={formData.firstName}
               onChange={(e) => handleInputChange('firstName', e.target.value)}
+              placeholder="Enter first name"
               required
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Last Name"
               value={formData.lastName}
               onChange={(e) => handleInputChange('lastName', e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              required
-            />
-            <Input
-              label="Phone"
-              value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Designation"
-              value={formData.designation}
-              onChange={(e) => handleInputChange('designation', e.target.value)}
-              required
-            />
-            <Input
-              label="Department"
-              value={formData.department}
-              onChange={(e) => handleInputChange('department', e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="Experience (Years)"
-              type="number"
-              value={formData.experience}
-              onChange={(e) => handleInputChange('experience', parseInt(e.target.value) || 0)}
-              required
-            />
-            <Input
-              label="Joined Date"
-              type="date"
-              value={formData.joinedDate}
-              onChange={(e) => handleInputChange('joinedDate', e.target.value)}
+              placeholder="Enter last name"
               required
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                value={formData.gender || ''}
+                onChange={(e) => handleInputChange('gender', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="" disabled>Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+              <select
+                value={formData.designation}
+                onChange={(e) => handleInputChange('designation', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="" disabled>Select designation</option>
+                {uniqueDesignations.map(designation => (
+                  <option key={designation} value={designation}>{designation}</option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="Email ID"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="Enter the Email ID"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Contact Number"
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="Enter the Contact number"
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="on-leave">On Leave</option>
               </select>
             </div>
           </div>
-          
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Manager"
-              value={formData.manager}
-              onChange={(e) => handleInputChange('manager', e.target.value)}
-            />
-            <Input
-              label="Availability (%)"
-              type="number"
-              min="0"
-              max="100"
-              value={formData.availability}
-              onChange={(e) => handleInputChange('availability', parseInt(e.target.value) || 0)}
+              label="Join date"
+              type="date"
+              value={formData.joinedDate}
+              onChange={(e) => handleInputChange('joinedDate', e.target.value)}
+              placeholder="Enter the date employee joined"
               required
             />
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Skills (comma-separated)
-            </label>
-            <textarea
-              value={formData.skills}
-              onChange={(e) => handleInputChange('skills', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={3}
-              placeholder="React, Node.js, TypeScript, etc."
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-start space-x-3 pt-4">
+            <Button type="submit">
+              Save Employee
+            </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={() => {
-                setIsModalOpen(false);
-                setEditingEmployee(null);
                 resetForm();
               }}
             >
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingEmployee ? 'Update Employee' : 'Add Employee'}
+              Clear
             </Button>
           </div>
         </form>
@@ -444,76 +429,21 @@ export const Employees: React.FC = () => {
       >
         {viewingEmployee && (
           <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xl">
-                  {viewingEmployee.firstName.charAt(0)}{viewingEmployee.lastName.charAt(0)}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {viewingEmployee.firstName} {viewingEmployee.lastName}
-                </h3>
-                <p className="text-gray-600">{viewingEmployee.designation}</p>
-                {getStatusBadge(viewingEmployee.status)}
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Contact Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {viewingEmployee.email}
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Phone className="w-4 h-4 mr-2" />
-                      {viewingEmployee.phone}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Work Information</h4>
+                  <h4 className="font-semibold text-gray-900 mb-2">Basic Information</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Department:</span> {viewingEmployee.department}</p>
-                    <p><span className="font-medium">Experience:</span> {viewingEmployee.experience} years</p>
-                    <p><span className="font-medium">Joined:</span> {new Date(viewingEmployee.joinedDate).toLocaleDateString()}</p>
-                    {viewingEmployee.manager && (
-                      <p><span className="font-medium">Manager:</span> {viewingEmployee.manager}</p>
-                    )}
-                    <p><span className="font-medium">Availability:</span> {viewingEmployee.availability}%</p>
+                    <p><span className="font-medium">Employee ID:</span> {viewingEmployee.id}</p>
+                    <p><span className="font-medium">First Name:</span> {viewingEmployee.firstName}</p>
+                    <p><span className="font-medium">Last Name:</span> {viewingEmployee.lastName}</p>
+                    <p><span className="font-medium">Gender:</span> {viewingEmployee.gender}</p>
+                    <p><span className="font-medium">Designation:</span> {viewingEmployee.designation}</p>
+                    <p><span className="font-medium">Contact Number:</span> {viewingEmployee.phone}</p>
+                    <p><span className="font-medium">Email ID:</span> {viewingEmployee.email}</p>
+                    <p><span className="font-medium">Join Date:</span> {new Date(viewingEmployee.joinedDate).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Status:</span> {getStatusBadge(viewingEmployee.status)}</p>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Skills</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingEmployee.skills.map((skill, index) => (
-                      <Badge key={index} variant="info" size="sm">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Current Projects</h4>
-                  {viewingEmployee.currentProjects.length > 0 ? (
-                    <div className="space-y-1">
-                      {viewingEmployee.currentProjects.map((project, index) => (
-                        <Badge key={index} variant="success" size="sm">
-                          {project}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No current projects</p>
-                  )}
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Search, User, Users, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -9,6 +9,8 @@ import { useApp } from '../context/AppContext';
 import { EmployeeDetailsCard } from '../components/ui/EmployeeDetailsCard';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
+import { getBenchList } from '../api/bench/bench';
+import { Employee } from '../types/index';
 
 const AVAILABILITY_COLORS = {
     100: '#10B981',
@@ -33,7 +35,7 @@ function getAvailabilityTag(availability: number) {
 }
 
 export default function BenchAllocate() {
-    const { projects, employees, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId, updateEmployee } = useApp();
+    const { projects, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId, updateEmployee } = useApp();
     const navigate = useNavigate();
     // Only show active projects
     const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
@@ -41,6 +43,7 @@ export default function BenchAllocate() {
     const [selectedProjectId, setSelectedProjectId] = typeof contextProjectId === 'string' && setContextProjectId
         ? [contextProjectId, setContextProjectId]
         : useState(availableProjects[0]?.id || '');
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [benchFilter, setBenchFilter] = useState('');
     const [designationFilter, setDesignationFilter] = useState('');
     const [availabilityFilter, setAvailabilityFilter] = useState<number[]>([]);
@@ -58,6 +61,18 @@ export default function BenchAllocate() {
             scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
         }
     };
+
+    useEffect(() => {
+        getBenchList()
+            .then((data) => {
+                if (Array.isArray(data)) {
+                    setEmployees(data);
+                } else {
+                    setEmployees([]);
+                }
+            })
+            .catch(() => setEmployees([]));
+    }, []);
 
     // Employees not allocated to the current project (or partially allocated)
     const benchEmployees = useMemo(() => {
@@ -250,7 +265,7 @@ export default function BenchAllocate() {
                                 {/* Available Period section */}
                                 <div className="flex flex-col items-end min-w-[150px]">
                                     <span className="text-xs text-gray-500 font-semibold">Available Period</span>
-                                    <span className="text-xs text-gray-600">{emp.startDate || '-'} to {emp.endDate || '-'}</span>
+                                    <span className="text-xs text-gray-600">{emp.joinedDate || '-'}</span>
                                 </div>
                                 <Button
                                     size="sm"

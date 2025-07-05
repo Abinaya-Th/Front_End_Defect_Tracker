@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { deleteDefectById } from '../api/defect/delete_defect';
+
 import {
   Plus,
   Edit2,
@@ -33,10 +35,11 @@ import { FilteredDefect } from '../api/defect/filterDefectByProject';
 import { getModulesByProjectId } from '../api/module/getModule';
 import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
 import { filterDefects } from "../api/defect/filterDefectByProject";
+
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-// Use Defect type from types/index.ts directly
+
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -89,6 +92,7 @@ export const Defects: React.FC = () => {
     typeId: '',
     assigntoId: '',
     assignbyId: '',
+    releaseId: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -199,30 +203,28 @@ export const Defects: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDefect) {
-      const { severityId, priorityId, typeId, ...restFormData } = formData;
-      let severityValue = severities && severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
-      let priorityValue = priorities && priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
-      let typeValue = defectTypes && defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
-      if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
       // Guard: Only update if id is a valid number
       if (typeof editingDefect.id !== 'number' || isNaN(editingDefect.id)) {
         alert('Defect ID is missing or invalid. Cannot update defect.');
         return;
       }
-      // Build payload matching backend API
+      // Build payload matching backend API (no defectId, match Postman input)
       const payload = {
-        ...editingDefect,
-        ...restFormData,
-        moduleId: formData.moduleId ? Number(formData.moduleId) : undefined,
-        subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
-        severityId: formData.severityId ? Number(formData.severityId) : undefined,
-        priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
-        typeId: formData.typeId ? Number(formData.typeId) : undefined,
-        assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
-        assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-        id: editingDefect.id, // always use the existing numeric id
+        description: formData.description,
+        projectId: editingDefect.projectId,
+        severityId: formData.severityId ? Number(formData.severityId) : null,
+        priorityId: formData.priorityId ? Number(formData.priorityId) : null,
+        defectStatusId: editingDefect.defectStatusId,
+        typeId: formData.typeId ? Number(formData.typeId) : null,
+        id: editingDefect.id, // numeric id for update
+        reOpenCount: editingDefect.reOpenCount ?? 0,
+        attachment: editingDefect.attachment ?? null,
+        steps: formData.steps,
+        subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
+        releaseTestCaseId: editingDefect.releaseTestCaseId ?? null,
+        assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null,
+        assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null,
+        moduleId: formData.moduleId ? Number(formData.moduleId) : null,
       };
       try {
         await updateDefectById(editingDefect.id, payload);
@@ -270,14 +272,38 @@ export const Defects: React.FC = () => {
       typeId: defect.typeId?.toString() || '',
       assigntoId: defect.assigntoId?.toString() || '',
       assignbyId: defect.assignbyId?.toString() || '',
+      releaseId: '',
     });
     setIsModalOpen(true);
   };
-  const handleDelete = (defectId: string) => {
+  const handleDelete = async (defectId: string) => {
+    console.log("Attempting to delete defect with ID:", defectId); // Log the defect ID
     if (window.confirm("Are you sure you want to delete this defect?")) {
-      deleteDefect(defectId);
+      try {
+        // Call the delete API
+        console.log("Calling delete API for defect ID:", defectId);
+        const response = await deleteDefectById(defectId);
+  
+        // Handle successful deletion
+        if (response.status === 'Success') {
+          console.log("Defect deleted successfully. Updating local state...");
+          // Filter out the deleted defect from the backendDefects state
+          setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
+          alert("Defect deleted successfully.");
+        } else {
+          console.error("Delete failed:", response.message);
+          alert("Delete failed. Please try again.");
+        }
+      } catch (error: any) {
+        console.error("Error occurred while deleting defect:", error);
+        alert("Error: " + (error.message || 'Failed to delete defect'));
+      }
+    } else {
+      console.log("Deletion was cancelled.");
     }
   };
+  
+  
   const resetForm = () => {
     setFormData({
       defectId: '',
@@ -290,6 +316,7 @@ export const Defects: React.FC = () => {
       typeId: '',
       assigntoId: '',
       assignbyId: '',
+      releaseId: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -363,19 +390,26 @@ export const Defects: React.FC = () => {
   // Fetch submodules when module changes in the form
   React.useEffect(() => {
     if (!formData.moduleId) {
+      console.log('No moduleId selected, submodule dropdown will be disabled.');
       setSubmodules([]);
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
+    console.log('Fetching submodules for moduleId:', formData.moduleId);
     getSubmodulesByModuleId(formData.moduleId)
       .then(res => {
+        console.log('Submodule API response:', res);
         const mapped = (res.data || []).map(sm => ({
-          id: sm.id?.toString(),
-          name: sm.name
+          id: sm.subModuleId?.toString(),
+          name: sm.subModuleName
         }));
+        console.log('Mapped submodules:', mapped);
         setSubmodules(mapped);
       })
-      .catch(() => setSubmodules([]));
+      .catch((err) => {
+        console.error('Failed to fetch submodules:', err);
+        setSubmodules([]);
+      });
   }, [formData.moduleId]);
 
   // Fetch submodules for filter when module filter changes
@@ -395,8 +429,8 @@ export const Defects: React.FC = () => {
       .then(res => {
         console.log('Fetched submodules for filter:', res.data, 'for module:', selectedModule.id, selectedModule.name);
         const mapped = (res.data || []).map(sm => ({
-          id: sm.id?.toString(),
-          name: sm.name
+          id: sm.subModuleId?.toString(),
+          name: sm.subModuleName
         }));
         setFilterSubmodules(mapped);
       })
@@ -507,7 +541,7 @@ export const Defects: React.FC = () => {
   // Add exportDefects function
   const exportDefects = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}defect/exportAsId`, {
+      const response = await axios.get(`${BASE_URL}defect/export`, {
         responseType: "blob",
       });
       // Create a link to download the file
@@ -553,6 +587,27 @@ export const Defects: React.FC = () => {
     );
     setEditingStatusId(null);
   };
+
+  // Add state for users for 'Assigned To' and 'Entered By'
+  const [userList, setUserList] = React.useState<{ id: number; firstName: string; lastName: string }[]>([]);
+
+  // Fetch users for 'Assigned To' and 'Entered By' on mount
+  React.useEffect(() => {
+    axios.get(`${BASE_URL}user`).then(res => {
+      if (res.data && Array.isArray(res.data.data)) {
+        setUserList(res.data.data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName })));
+      }
+    });
+  }, []);
+
+  // Compute releases for the selected project, with mock fallback
+  let projectReleases = selectedProjectId ? releases.filter(r => r.projectId === selectedProjectId) : [];
+  if (projectReleases.length === 0 && selectedProjectId) {
+    projectReleases = [
+      { id: 'REL-001', name: 'Release 1.0', projectId: selectedProjectId, status: 'planned', version: '1.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+      { id: 'REL-002', name: 'Release 2.0', projectId: selectedProjectId, status: 'planned', version: '2.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+    ];
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -687,11 +742,9 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {releases
-                .filter(r => r.projectId === projectId)
-                .map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
+              {projectReleases.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
             </select>
           </div>
           <div className="min-w-[120px] flex-shrink-0">
@@ -776,7 +829,7 @@ export const Defects: React.FC = () => {
           accept=".xlsx,.csv"
           onChange={handleImportExcel}
           ref={fileInputRef}
-          className="hidden"
+          className="hidden" 
         />
         <button
           type="button"
@@ -1020,7 +1073,10 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="text-red-600 hover:text-red-900 flex items-center"
                             title="Delete Defect"
-                            onClick={() => handleDelete(defect.id ? String(defect.id) : '')}
+
+
+                            onClick={() => handleDelete(defect.defectId)}
+
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1058,6 +1114,22 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Release Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
+            <select
+              value={formData.releaseId || ''}
+              onChange={e => handleInputChange('releaseId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={!selectedProjectId || projectReleases.length === 0}
+            >
+              <option value="">Select release...</option>
+              {projectReleases.map(release => (
+                <option key={release.id} value={release.id}>{release.name}</option>
+              ))}
+            </select>
+          </div>
           {/* Brief Description */}
           <Input
             label="Brief Description"
@@ -1186,8 +1258,8 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select assignee</option>
-                {employeeOptions.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.name}</option>
+                {userList.map(user => (
+                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
                 ))}
               </select>
             </div>
