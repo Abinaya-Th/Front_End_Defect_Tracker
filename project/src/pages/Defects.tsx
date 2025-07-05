@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { deleteDefectById } from '../api/defect/delete_defect';
+
 import {
   Plus,
   Edit2,
@@ -33,10 +35,11 @@ import { FilteredDefect } from '../api/defect/filterDefectByProject';
 import { getModulesByProjectId } from '../api/module/getModule';
 import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
 import { filterDefects } from "../api/defect/filterDefectByProject";
+
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-// Use Defect type from types/index.ts directly
+
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -273,11 +276,34 @@ export const Defects: React.FC = () => {
     });
     setIsModalOpen(true);
   };
-  const handleDelete = (defectId: string) => {
+  const handleDelete = async (defectId: string) => {
+    console.log("Attempting to delete defect with ID:", defectId); // Log the defect ID
     if (window.confirm("Are you sure you want to delete this defect?")) {
-      deleteDefect(defectId);
+      try {
+        // Call the delete API
+        console.log("Calling delete API for defect ID:", defectId);
+        const response = await deleteDefectById(defectId);
+  
+        // Handle successful deletion
+        if (response.status === 'Success') {
+          console.log("Defect deleted successfully. Updating local state...");
+          // Filter out the deleted defect from the backendDefects state
+          setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
+          alert("Defect deleted successfully.");
+        } else {
+          console.error("Delete failed:", response.message);
+          alert("Delete failed. Please try again.");
+        }
+      } catch (error: any) {
+        console.error("Error occurred while deleting defect:", error);
+        alert("Error: " + (error.message || 'Failed to delete defect'));
+      }
+    } else {
+      console.log("Deletion was cancelled.");
     }
   };
+  
+  
   const resetForm = () => {
     setFormData({
       defectId: '',
@@ -1047,7 +1073,10 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="text-red-600 hover:text-red-900 flex items-center"
                             title="Delete Defect"
-                            onClick={() => handleDelete(defect.id ? String(defect.id) : '')}
+
+
+                            onClick={() => handleDelete(defect.defectId)}
+
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
