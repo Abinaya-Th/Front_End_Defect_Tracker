@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { UserCheck, Calendar, Percent, ArrowRight, Eye, User, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,11 +8,13 @@ import { Table, TableHeader, TableBody, TableRow, TableCell } from '../component
 import { Badge } from '../components/ui/Badge';
 import { DonutChart } from '../components/ui/DonutChart';
 import { useApp } from '../context/AppContext';
-import { Employee } from '../types';
+import { Employee } from '../types/index';
 import { useNavigate } from 'react-router-dom';
+import { getBenchList } from '../api/bench/bench';
 
 export const Bench: React.FC = () => {
-  const { employees, projects, allocateEmployee } = useApp();
+  const { projects, allocateEmployee } = useApp();
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -33,6 +35,18 @@ export const Bench: React.FC = () => {
   });
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getBenchList()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setEmployees(data);
+        } else {
+          setEmployees([]);
+        }
+      })
+      .catch(() => setEmployees([]));
+  }, []);
 
   // Filter employees based on criteria
   const filteredEmployees = useMemo(() => {
@@ -204,7 +218,7 @@ export const Bench: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((employee) => {
+                {filteredEmployees.map((employee: Employee) => {
                   const availabilityStatus = getAvailabilityStatus(employee.availability);
                   return (
                     <TableRow key={employee.id}>
@@ -252,7 +266,7 @@ export const Bench: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <Calendar className="w-4 h-4" />
                             <span>
-                              {new Date(employee.joinedDate).toLocaleDateString()} - Present
+                              {employee.joinedDate || 'N/A'}
                             </span>
                           </div>
                         </div>
@@ -260,7 +274,7 @@ export const Bench: React.FC = () => {
                       <TableCell>
                         {employee.currentProjects.length > 0 ? (
                           <div className="space-y-1">
-                            {employee.currentProjects.slice(0, 2).map((project, index) => (
+                            {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
                               <Badge key={index} variant="info" size="sm">
                                 {project}
                               </Badge>
@@ -493,7 +507,7 @@ export const Bench: React.FC = () => {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">Skills & Expertise</h4>
                   <div className="flex flex-wrap gap-2">
-                    {viewingEmployee.skills.map((skill, index) => (
+                    {viewingEmployee.skills.map((skill: string, index: number) => (
                       <Badge key={index} variant="info">
                         {skill}
                       </Badge>
@@ -507,7 +521,7 @@ export const Bench: React.FC = () => {
                   <h4 className="font-semibold text-gray-900 mb-3">Current Projects</h4>
                   {viewingEmployee.currentProjects.length > 0 ? (
                     <div className="space-y-2">
-                      {viewingEmployee.currentProjects.map((projectName, index) => {
+                      {viewingEmployee.currentProjects.map((projectName: string, index: number) => {
                         const project = projects.find(p => p.name === projectName);
                         return (
                           <div key={index} className="bg-green-50 p-3 rounded-lg border border-green-200">

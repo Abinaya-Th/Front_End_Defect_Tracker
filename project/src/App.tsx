@@ -18,6 +18,7 @@ import { TestCase } from "./pages/TestCase";
 import { TestExecution } from "./pages/TestExecution";
 import { ModuleManagement } from "./pages/ModuleManagement";
 import { ProjectManagement } from "./pages/ProjectManagement";
+import ProjectAllocationHistory from "./pages/projectAllocationHistory";
 import { Releases } from "./pages/release";
 import { Allocation } from "./pages/allocation";
 import { ReleaseView } from "./pages/ReleaseView";
@@ -161,6 +162,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute>
               <ProjectManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/allocation-history"
+          element={
+            <ProtectedRoute>
+              <ProjectAllocationHistory />
             </ProtectedRoute>
           }
         />
