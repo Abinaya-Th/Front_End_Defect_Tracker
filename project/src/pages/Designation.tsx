@@ -117,7 +117,7 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.delete(`/api/v1/designation/${deletingDesignation.id}`);
+      await axios.delete(`${baseUrl}designation/${deletingDesignation.id}`);
       setDesignations(
         designations.filter((designation) => designation.id !== deletingDesignation.id)
       );
