@@ -593,7 +593,7 @@ export const ModuleManagement: React.FC = () => {
                                   onClick={async () => {
                                     if (window.confirm('Are you sure you want to delete this submodule?')) {
                                       try {
-                                        const response = await axios.delete(`http://34.57.197.188:8087/api/v1/subModule/${sub.id}`);
+                                        const response = await axios.delete(`http://192.168.1.100:8090/api/v1/subModule/${sub.id}`);
                                         if (response.data && response.data.success) {
                                           setModulesByProjectId(prev =>
                                             (Array.isArray(prev) ? prev : []).map(m =>
@@ -919,7 +919,7 @@ export const ModuleManagement: React.FC = () => {
                   // Edit mode: update submodule name via API
                   try {
                     const response = await axios.put(
-                      `http://34.57.197.188:8087/api/v1/subModule/${editingSubmoduleId}`,
+                      `http://192.168.1.100:8090/api/v1/subModule/${editingSubmoduleId}`,
                       { subModuleName: submoduleForm.name }
                     );
                     if (response.data && response.data.success) {

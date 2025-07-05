@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ProjectFormData } from '../../types';
 
-const API_URL = 'http://34.57.197.188:8087/v1/projects';
+const API_URL = 'http://192.168.1.100:8090/v1/projects';
 
 export async function createProject(projectData: ProjectFormData) {
     try {
