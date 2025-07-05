@@ -248,7 +248,7 @@ const StatusWorkflow: React.FC = () => {
         position,
         data: { 
           label: type,
-          color: statusTypes.find(s => s.name === type)?.color || '#94a3b8'
+          color: statusTypes && statusTypes.find(s => s.name === type)?.color || '#94a3b8'
         },
       };
 
@@ -330,7 +330,7 @@ const StatusWorkflow: React.FC = () => {
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        const status = statusTypes.find((s) => s.name === node.data.label);
+        const status = statusTypes && statusTypes.find((s) => s.name === node.data.label);
         if (status) {
           return {
             ...node,

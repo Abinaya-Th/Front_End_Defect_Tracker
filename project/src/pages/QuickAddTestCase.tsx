@@ -239,7 +239,7 @@ console.log("id",selectedProjectId);
   const projectModules = selectedProjectId
     ? modulesByProject[selectedProjectId] || []
     : [];
-  const selectedProject = projects.find(
+  const selectedProject = projects && projects.find(
     (p: { id: string }) => p.id === selectedProjectId
   );
 
@@ -252,7 +252,7 @@ console.log("id",selectedProjectId);
   // Fetch submodules for the selected module only
   useEffect(() => {
     const currentModuleName = modals[currentModalIdx]?.formData.module;
-    const selectedModuleObj = modules.find(
+    const selectedModuleObj = modules && modules.find(
       (m: any) => m.moduleName === currentModuleName
     );
     if (selectedModuleObj && selectedModuleObj.id) {
@@ -350,7 +350,7 @@ console.log("id",selectedProjectId);
           const modal = modals[idx];
           const submodules: string[] =
             projectModules
-              .find((m: { name: string }) => m.name === modal.formData.module)
+              && projectModules.find((m: { name: string }) => m.name === modal.formData.module)
               ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal

@@ -723,7 +723,7 @@ export const Allocation: React.FC = () => {
   const SubmoduleSelectionPanel = () => {
     const submodules =
       selectedModule
-        ? (effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
+        ? (effectiveModules && effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
         : [];
     return (
       <Card className="mb-4">
@@ -1007,7 +1007,7 @@ export const Allocation: React.FC = () => {
     // Only one release can be selected for QA allocation at a time
     let allocatedRelease: any = null;
     if (selectedReleaseForQA) {
-      allocatedRelease = effectiveProjectRelease.find((release: any) => 
+      allocatedRelease = effectiveProjectRelease && effectiveProjectRelease.find((release: any) => 
         (release.releaseId || release.id) === selectedReleaseForQA
       );
     }
@@ -1139,7 +1139,7 @@ export const Allocation: React.FC = () => {
                   <div className="text-sm font-medium text-green-900 mb-3">
                     Ready to allocate {selectedTestCasesForQA[selectedReleaseForQA]?.length ?? 0} test case(s) to{' '}
                     <span className="font-semibold">
-                      {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.firstName} {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.lastName}
+                      {effectiveQAEngineers && effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.firstName} {effectiveQAEngineers.find((emp: any) => emp.id === selectedQA)?.lastName}
                     </span>
                   </div>
                   <div className="flex gap-3">
@@ -1275,7 +1275,7 @@ export const Allocation: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {allocatedTestCases.map((tcId) => {
-                                const testCase = effectiveTestCases.find((tc: any) => tc.id === tcId);
+                                const testCase = effectiveTestCases && effectiveTestCases.find((tc: any) => tc.id === tcId);
                                 return (
                                   <div key={tcId} className="flex items-center justify-between text-xs bg-white p-2 rounded border">
                                     <span className="truncate font-mono text-gray-700">{testCase?.id || tcId}</span>

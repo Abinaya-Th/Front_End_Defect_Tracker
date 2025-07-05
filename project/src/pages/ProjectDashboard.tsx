@@ -23,7 +23,7 @@ export const ProjectDashboard: React.FC = () => {
     return <div className="p-8 text-center text-gray-500">No project selected.</div>;
   }
 
-  const project = projects.find((p) => p.id === projectId);
+  const project = projects && projects.find((p) => p.id === projectId);
   const projectDefects = defects.filter((d) => d.projectId === projectId);
 
   // Get modules for the selected project from mockModules

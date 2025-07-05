@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Eye, ChevronLeft, Settings } from 'lucide-react';
+import { Eye, ChevronLeft, Settings, Users } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
 // import { useApp } from '../context/AppContext';
 import QuickAddDefect from './QuickAddDefect';
@@ -57,6 +57,18 @@ export const ProjectManagement: React.FC = () => {
             <Settings className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Module Management</h2>
             <p className="text-gray-600 text-center">Manage project modules and developer assignments.</p>
+          </CardContent>
+        </Card>
+        {/* Project Allocation History Card */}
+        <Card
+          hover
+          className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
+          onClick={() => navigate(`/projects/${projectId}/allocation-history`)}
+        >
+          <CardContent className="flex flex-col items-center justify-center p-8">
+            <Users className="w-12 h-12 text-green-500 mb-4 group-hover:text-green-700 transition-colors" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Allocation History</h2>
+            <p className="text-gray-600 text-center">View project allocation history and team assignments.</p>
           </CardContent>
         </Card>
       </div>

@@ -300,10 +300,10 @@ const Privileges: React.FC = () => {
   };
 
   const handleSelectAllGroup = (roleId: string, module: string) => {
-    const group = privilegeGroups.find(g => g.module === module);
+    const group = privilegeGroups && privilegeGroups.find(g => g.module === module);
     if (!group) return;
 
-    const rolePriv = rolePrivileges.find(rp => rp.roleId === roleId);
+    const rolePriv = rolePrivileges && rolePrivileges.find(rp => rp.roleId === roleId);
     if (!rolePriv) return;
 
     const groupPrivilegeIds = group.privileges.map(p => p.id);
@@ -340,10 +340,10 @@ const Privileges: React.FC = () => {
   };
 
   const isGroupSelected = (roleId: string, module: string) => {
-    const group = privilegeGroups.find(g => g.module === module);
+    const group = privilegeGroups && privilegeGroups.find(g => g.module === module);
     if (!group) return false;
 
-    const rolePriv = rolePrivileges.find(rp => rp.roleId === roleId);
+    const rolePriv = rolePrivileges && rolePrivileges.find(rp => rp.roleId === roleId);
     if (!rolePriv) return false;
 
     const groupPrivilegeIds = group.privileges.map(p => p.id);
@@ -351,10 +351,10 @@ const Privileges: React.FC = () => {
   };
 
   const isGroupPartiallySelected = (roleId: string, module: string) => {
-    const group = privilegeGroups.find(g => g.module === module);
+    const group = privilegeGroups && privilegeGroups.find(g => g.module === module);
     if (!group) return false;
 
-    const rolePriv = rolePrivileges.find(rp => rp.roleId === roleId);
+    const rolePriv = rolePrivileges && rolePrivileges.find(rp => rp.roleId === roleId);
     if (!rolePriv) return false;
 
     const groupPrivilegeIds = group.privileges.map(p => p.id);
@@ -475,7 +475,7 @@ const Privileges: React.FC = () => {
                         </div>
                       </TableCell>
                       {roles.map(role => {
-                        const rolePriv = rolePrivileges.find(rp => rp.roleId === role.id);
+                        const rolePriv = rolePrivileges && rolePrivileges.find(rp => rp.roleId === role.id);
                         const hasPrivilege = rolePriv?.privileges.includes(privilege.id) || false;
 
                         return (

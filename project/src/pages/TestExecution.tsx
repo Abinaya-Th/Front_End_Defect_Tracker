@@ -348,7 +348,7 @@ export const TestExecution: React.FC = () => {
     for (const [qaId, ids] of Object.entries(allocations)) {
       if ((ids as string[]).includes(testCaseId)) {
         // Find the QA name from the QA ID
-        const qa = effectiveQA.find((q: any) => q.id === qaId);
+        const qa = effectiveQA && effectiveQA.find((q: any) => q.id === qaId);
         return qa ? qa.name : qaId;
       }
     }
@@ -449,7 +449,7 @@ export const TestExecution: React.FC = () => {
   const mockModules: any[] = storedMockModules || fallbackMockModules;
 
   // Get submodules for selected module
-  const selectedModuleObj = mockModules.find((m: any) => m.name === selectedModule);
+  const selectedModuleObj = mockModules && mockModules.find((m: any) => m.name === selectedModule);
   const submodules = selectedModuleObj ? selectedModuleObj.submodules || [] : [];
 
   // Read mockTestCases and mockQA from localStorage if available
@@ -470,7 +470,7 @@ export const TestExecution: React.FC = () => {
   if (qaAllocationsMap && Array.isArray(qaAllocationsMap.allocations)) {
     qaAllocationsMap.allocations.forEach((alloc: any) => {
       alloc.testCaseIds.forEach((tcId: string) => {
-        const qa = effectiveQA.find((q: any) => q.id === alloc.qaId || q.name === alloc.qaName);
+        const qa = effectiveQA && effectiveQA.find((q: any) => q.id === alloc.qaId || q.name === alloc.qaName);
         testCaseIdToQA[tcId] = qa ? qa.name : (alloc.qaName || alloc.qaId);
       });
     });
@@ -693,8 +693,8 @@ export const TestExecution: React.FC = () => {
 
   // If we're in detailed execution view (release selected)
   if (selectedRelease) {
-    const currentRelease = releases.find((r) => r.id === selectedRelease);
-    const currentProject = projects.find((p) => p.id === selectedProject);
+    const currentRelease = releases && releases.find((r) => r.id === selectedRelease);
+    const currentProject = projects && projects.find((p) => p.id === selectedProject);
 
     // Only show test cases allocated to this release, with module/submodule filtering
     const allocatedIds = allocatedTestCasesMap[selectedRelease || ''] || [];
@@ -814,7 +814,7 @@ export const TestExecution: React.FC = () => {
                     maxWidth: "100%",
                   }}
                 >
-                  {mockModules
+                  { mockModules && mockModules
                     .find((m) => m.name === selectedModule)
                     ?.submodules.map((submodule: any) => {
                       const submoduleTestCases = allocatedTestCases.filter(
@@ -1343,7 +1343,7 @@ export const TestExecution: React.FC = () => {
                     tc.releaseId === (release.releaseId)
                 );
                 const totalTestCases = releaseTestCases.length;
-                const currentProject = projects.find(
+                const currentProject = projects && projects.find(
                   (p: any) => p.id === selectedProject
                 );
                 const isActive = activeReleaseId === ( release.releaseId);

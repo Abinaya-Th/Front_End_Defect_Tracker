@@ -5,20 +5,20 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 export interface FilteredDefect {
   defectId: string;
   description: string;
-  projectId: number;
-  severityId: number;
-  priorityId: number;
-  defectStatusId: number;
-  typeId: number;
-  id: string | null;
   reOpenCount: number;
   attachment: string | null;
   steps: string;
-  subModuleId: number;
-  releaseTestCaseId: number | null;
-  assignbyId: number;
-  assigntoId: number;
-  moduleId: number;
+  project_name: string;
+  severity_name: string;
+  priority_name: string;
+  priority: string;
+  defect_status_name: string;
+  release_test_case_description: string;
+  assigned_by_name: string;
+  assigned_to_name: string;
+  defect_type_name: string;
+  module_name: string;
+  sub_module_name: string;
 }
 
 /**
