@@ -25,7 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
-import { createSubmodule } from "../api/module/createModule";
+
 
 type ModuleAssignment = {
   moduleId: string;
