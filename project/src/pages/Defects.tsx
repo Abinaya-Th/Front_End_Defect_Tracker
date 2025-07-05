@@ -156,10 +156,10 @@ export const Defects: React.FC = () => {
     // Prepare backend-supported filters
     const backendFilters = {
       projectId: selectedProjectId,
-      typeId: filters.type ? defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
-      severityId: filters.severity ? severities.find(s => s.name === filters.severity)?.id : undefined,
-      priorityId: filters.priority ? priorities.find(p => p.priority === filters.priority)?.id : undefined,
-      defectStatusId: filters.status ? defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
+      typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
+      severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
+      priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
+      defectStatusId: filters.status ?  defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
       releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
     };
     filterDefects(backendFilters).then(setBackendDefects);
@@ -212,11 +212,11 @@ export const Defects: React.FC = () => {
     } else {
       // For new defects, we'll use the existing addDefect function
       const { severityId, priorityId, typeId, ...restFormData } = formData;
-      let severityValue = severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
+      let severityValue = severities && severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
       if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
-      let priorityValue = priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
+      let priorityValue = priorities && priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
       if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
-      let typeValue = defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
+      let typeValue = defectTypes && defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
       if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
 
       // Create a new defect object that matches the expected structure
@@ -418,7 +418,7 @@ export const Defects: React.FC = () => {
       setFilterSubmodules([]);
       return;
     }
-    const selectedModule = modules.find(m => m.name === filters.module);
+    const selectedModule = modules && modules.find(m => m.name === filters.module);
     console.log('Filter submodule fetch - selectedModule:', selectedModule);
     if (!selectedModule || !selectedModule.id) {
       setFilterSubmodules([]);

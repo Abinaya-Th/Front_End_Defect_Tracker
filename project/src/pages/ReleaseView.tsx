@@ -26,6 +26,8 @@ import { searchRelease } from "../api/searchRelease/SearchRelease";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getTestCasesByFilter } from "../api/releasetestcase";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
 import axios from 'axios';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -39,6 +41,13 @@ interface TestCase {
   severity: string;
   projectId: string;
   releaseId?: string;
+  // Alternative field names that might be used by the backend
+  testCaseType?: string;
+  testCaseSeverity?: string;
+  testType?: string;
+  testSeverity?: string;
+  caseType?: string;
+  caseSeverity?: string;
 }
 
 interface Module {
@@ -82,6 +91,10 @@ export const ReleaseView: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [submodules, setSubmodules] = useState<any[]>([]);
   const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
+  
+  // Add state for severities and defect types (like TestCase page)
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
 
   // Fetch modules when project changes
   useEffect(() => {
@@ -102,19 +115,51 @@ export const ReleaseView: React.FC = () => {
     }
   }, [selectedProject]);
 
+  // Fetch severities and defect types on mount (like TestCase page)
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
   // Fetch test cases when all filters are selected
   useEffect(() => {
     if (selectedProject && selectedModule && selectedSubmoduleId && selectedRelease) {
       setLoadingTestCases(true);
       setTestCaseError(null);
+      
+      console.log('Fetching test cases with filters:', {
+        projectId: selectedProject,
+        moduleId: selectedModule,
+        submoduleId: selectedSubmoduleId,
+        releaseId: selectedRelease
+      });
+      
       getTestCasesByFilter(selectedProject, selectedModule, selectedSubmoduleId, selectedRelease)
-        .then((res) => setFilteredTestCases(res.data || []))
-        .catch((err) => setTestCaseError(err.message || "Failed to load test cases"))
+        .then((res) => {
+          console.log('API Response:', res);
+          console.log('Test Cases Data:', res.data);
+          if (res.data && res.data.length > 0) {
+            console.log('First Test Case:', res.data[0]);
+          }
+          
+          // Map the test cases like TestCase page does
+          const mappedTestCases = (res.data || []).map((tc: any) => ({
+            ...tc,
+            severity: (severities.find(s => s.id === tc.severityId)?.name || "") as string,
+            type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as string,
+          }));
+          
+          setFilteredTestCases(mappedTestCases);
+        })
+        .catch((err) => {
+          console.error('API Error:', err);
+          setTestCaseError(err.message || "Failed to load test cases");
+        })
         .finally(() => setLoadingTestCases(false));
     } else {
       setFilteredTestCases([]);
     }
-  }, [selectedProject, selectedModule, selectedSubmoduleId, selectedRelease]);
+  }, [selectedProject, selectedModule, selectedSubmoduleId, selectedRelease, severities, defectTypes]);
 
   // Fetch releases for the selected project
   const getReleaseCardView = async () => {
@@ -156,7 +201,9 @@ export const ReleaseView: React.FC = () => {
 
   // UI helpers
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
+    if (!severity) return "bg-gray-100 text-gray-800";
+    
+    switch (severity.toLowerCase()) {
       case "critical":
         return "bg-red-100 text-red-800";
       case "high":
@@ -169,6 +216,8 @@ export const ReleaseView: React.FC = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Helper functions removed - now using proper mapping like TestCase page
 
   // Render
     return (
@@ -375,9 +424,6 @@ export const ReleaseView: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Severity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -398,25 +444,13 @@ export const ReleaseView: React.FC = () => {
                             <span>View</span>
                           </button>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.type}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity)}`}>
-                            {testCase.severity}
-                          </span>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex space-x-2">
-                            <button
-                            onClick={() => {
-                              setViewingTestCase(testCase);
-                              setIsViewTestCaseModalOpen(true);
-                            }}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {testCase.type || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || 'low')}`}>
+                            {testCase.severity || 'N/A'}
+                          </span>
                         </td>
                       </tr>
                   ))}
@@ -494,10 +528,10 @@ export const ReleaseView: React.FC = () => {
                 <h3 className="text-sm font-medium text-gray-500">Severity</h3>
                   <span
                     className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                      viewingTestCase.severity
+                      viewingTestCase.severity || 'low'
                     )}`}
                   >
-                    {viewingTestCase.severity}
+                    {viewingTestCase.severity || 'N/A'}
                   </span>
                 </div>
                 <div>
