@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Eye, Mail, Phone, Calendar, Award } from 'lucide-react';
+import { Plus, Edit, Eye, Mail, Phone, Calendar, Award, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -249,6 +249,14 @@ export const Employees: React.FC = () => {
                               className="p-2 hover:bg-yellow-50 text-yellow-600"
                             >
                               <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(employee.id)}
+                              className="p-2 hover:bg-red-50 text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>

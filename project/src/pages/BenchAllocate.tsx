@@ -11,6 +11,11 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { getBenchList } from '../api/bench/bench';
 import { Employee } from '../types/index';
+import { postProjectAllocations, getProjectAllocationsById, updateProjectAllocation, deleteProjectAllocation } from '../api/bench/projectAllocation';
+import { getAllProjects } from '../api/projectget';
+import { Project } from '../types';
+import { ProjectSelector } from '../components/ui/ProjectSelector';
+import { getAllRoles } from '../api/role/viewrole';
 
 const AVAILABILITY_COLORS = {
     100: '#10B981',
@@ -35,14 +40,17 @@ function getAvailabilityTag(availability: number) {
 }
 
 export default function BenchAllocate() {
-    const { projects, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId, updateEmployee } = useApp();
+    const { selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId, updateEmployee } = useApp();
     const navigate = useNavigate();
-    // Only show active projects
-    const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
-    // Use context projectId if available, else fallback to first project
-    const [selectedProjectId, setSelectedProjectId] = typeof contextProjectId === 'string' && setContextProjectId
-        ? [contextProjectId, setContextProjectId]
-        : useState(availableProjects[0]?.id || '');
+    
+    // State for projects from API
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
+    
+    // Always call useState - don't use conditional logic
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(contextProjectId || null);
+    
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [benchFilter, setBenchFilter] = useState('');
     const [designationFilter, setDesignationFilter] = useState('');
@@ -55,12 +63,51 @@ export default function BenchAllocate() {
     const [hoveredEmployee, setHoveredEmployee] = useState<any | null>(null);
     const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
     const [viewInfoEmployee, setViewInfoEmployee] = useState<any | null>(null);
+    const [isAllocating, setIsAllocating] = useState(false);
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const scrollBy = (offset: number) => {
         if (scrollRef.current) {
             scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
         }
     };
+
+    const [roles, setRoles] = useState<{ id: number; roleName: string }[]>([]);
+
+    // Update selectedProjectId when contextProjectId changes
+    useEffect(() => {
+        if (contextProjectId && contextProjectId !== selectedProjectId) {
+            setSelectedProjectId(contextProjectId);
+        }
+    }, [contextProjectId, selectedProjectId]);
+
+    // Fetch projects from API
+    useEffect(() => {
+        setProjectsLoading(true);
+        getAllProjects()
+            .then((data: any) => {
+                console.log("Fetched projects for BenchAllocate:", data);
+                let projectsArray = Array.isArray(data)
+                    ? data
+                    : (data && Array.isArray(data.data))
+                        ? data.data
+                        : [];
+                setProjects(projectsArray);
+                setProjectsError(null);
+                
+                // Set selected project if none is selected
+                if (!selectedProjectId && projectsArray.length > 0) {
+                    const firstActiveProject = projectsArray.find((p: Project) => p.status === 'active');
+                    if (firstActiveProject) {
+                        setSelectedProjectId(firstActiveProject.id);
+                    }
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to fetch projects:", err);
+                setProjectsError(err.message);
+            })
+            .finally(() => setProjectsLoading(false));
+    }, []);
 
     useEffect(() => {
         getBenchList()
@@ -74,10 +121,53 @@ export default function BenchAllocate() {
             .catch(() => setEmployees([]));
     }, []);
 
+    // Fetch project allocations when selectedProjectId changes
+    useEffect(() => {
+        if (selectedProjectId) {
+            console.log('Fetching allocations for project:', selectedProjectId);
+            getProjectAllocationsById(selectedProjectId)
+                .then((data) => {
+                    console.log('Allocations GET response:', data);
+                    setProjectAllocations(prev => ({
+                        ...prev,
+                        [selectedProjectId]: Array.isArray(data.data) ? data.data : [],
+                    }));
+                })
+                .catch((error) => {
+                    console.error('Failed to fetch project allocations:', error);
+                    setProjectAllocations(prev => ({
+                        ...prev,
+                        [selectedProjectId]: [],
+                    }));
+                });
+        }
+    }, [selectedProjectId]);
+
+    // Fetch roles on mount
+    useEffect(() => {
+      getAllRoles()
+        .then((response) => {
+          // Try to support both array and object response
+          const rolesArray = Array.isArray(response.data) ? response.data : response.data?.data || [];
+          setRoles(rolesArray);
+        })
+        .catch(() => setRoles([]));
+    }, []);
+
+    // Project selection handler
+    const handleProjectSelect = (id: string) => {
+        setSelectedProjectId(id);
+        setContextProjectId?.(id); // If provided by context
+    };
+
+    // Only show active projects
+    const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
+    const currentProject = useMemo(() => availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
+
     // Employees not allocated to the current project (or partially allocated)
     const benchEmployees = useMemo(() => {
         // Get all allocations for this project
-        const allocations = projectAllocations[selectedProjectId] || [];
+        const allocations = selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [];
         // For each employee, calculate remaining availability after allocations
         return employees.map(e => {
             const allocated = allocations
@@ -85,51 +175,102 @@ export default function BenchAllocate() {
                 .reduce((sum: number, emp: any) => sum + (emp.allocationAvailability || emp.availability), 0);
             const remaining = e.availability - allocated;
             return remaining > 0 ? { ...e, availability: remaining } : null;
-        }).filter(Boolean);
+        }).filter((e): e is Employee & { availability: number } => e !== null);
     }, [employees, projectAllocations, selectedProjectId]);
+
     const filteredBench = useMemo(() => benchEmployees.filter(e => {
         const matchesSearch = `${e.firstName} ${e.lastName}`.toLowerCase().includes(benchFilter.toLowerCase());
         const matchesDesignation = !designationFilter || e.designation === designationFilter;
         const matchesAvailability = availabilityFilter.length === 0 || availabilityFilter.some(val => e.availability >= val);
         return matchesSearch && matchesDesignation && matchesAvailability;
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
-    const currentProject = useMemo(() => availableProjects && availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
-    const allocatedEmployees = useMemo(() => projectAllocations[selectedProjectId] || [], [projectAllocations, selectedProjectId]);
+    
+    const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
 
     // Handlers
     const handleAllocate = () => {
         const toAllocate = benchEmployees.filter(e => selectedBench.includes(e.id));
         setAllocationModal({ open: true, employees: toAllocate });
     };
-    const handleConfirmAllocation = (updatedEmployees: any[]) => {
-        // If editing, update the allocation for the employee in the current project
-        setProjectAllocations(prev => {
-            const current = prev[selectedProjectId] || [];
-            // For each updated employee, replace their allocation in the current project
-            let updated = [...current];
-            updatedEmployees.forEach(emp => {
-                const idx = updated.findIndex(e => e.id === emp.id);
-                if (idx !== -1) {
-                    // Update allocation percentage and dates
-                    updated[idx] = { ...updated[idx], ...emp };
-                } else {
-                    updated.push(emp);
+    const handleConfirmAllocation = async (updatedEmployees: any[]) => {
+        if (!selectedProjectId) {
+            alert('Please select a project first');
+            return;
+        }
+        setIsAllocating(true);
+        try {
+            const allocationErrors = [];
+            for (const emp of updatedEmployees) {
+                const payload = {
+                    userId: Number(emp.id),
+                    projectId: Number(selectedProjectId),
+                    roleId: Number(emp.roleId),
+                    allocationPercentage: Number(emp.allocationAvailability ?? emp.availability),
+                    startDate: emp.allocationStartDate,
+                    endDate: emp.allocationEndDate
+                };
+                try {
+                    if (emp.allocationId || emp.idOnAllocationTable || emp.idOnAllocatedTable || emp.allocation_id || emp.idOnEdit) {
+                        // If editing, use the allocation's id
+                        const allocationId = emp.allocationId || emp.idOnAllocationTable || emp.idOnAllocatedTable || emp.allocation_id || emp.idOnEdit || emp.id;
+                        await updateProjectAllocation(allocationId, payload);
+                    } else {
+                        await postProjectAllocations(payload);
+                    }
+                } catch (error) {
+                    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                    allocationErrors.push(`${emp.firstName || emp.userFullName}: ${errorMsg}`);
                 }
-            });
-            return {
+            }
+            if (allocationErrors.length > 0) {
+                const errorMessage = `Failed to allocate/update employees:\n${allocationErrors.join('\n')}`;
+                console.error('All allocation attempts failed:', errorMessage);
+                throw new Error(errorMessage);
+            }
+            // After successful POST/PUT, fetch latest allocations and bench list
+            const [allocationsData, benchData] = await Promise.all([
+                getProjectAllocationsById(selectedProjectId),
+                getBenchList()
+            ]);
+            setProjectAllocations(prev => ({
                 ...prev,
-                [selectedProjectId]: updated,
-            };
-        });
-        setSelectedBench([]);
-        setAllocationModal({ open: false, employees: [] });
+                [selectedProjectId]: Array.isArray(allocationsData.data) ? allocationsData.data : [],
+            }));
+            setEmployees(Array.isArray(benchData) ? benchData : []);
+            setSelectedBench([]);
+            setAllocationModal({ open: false, employees: [] });
+            alert('Allocation updated successfully!');
+        } catch (error) {
+            console.error('Allocation failed:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to allocate/update employees.';
+            alert(`Allocation failed: ${errorMessage}`);
+        } finally {
+            setIsAllocating(false);
+        }
     };
-    const handleDeallocate = () => {
-        setProjectAllocations(prev => ({
-            ...prev,
-            [selectedProjectId]: allocatedEmployees.filter(e => !selectedProjectUsers.includes(e.id)),
-        }));
-        setSelectedProjectUsers([]);
+    const handleDeallocate = async () => {
+        if (!selectedProjectId || selectedProjectUsers.length === 0) return;
+        try {
+            // Call delete API for each selected allocation
+            await Promise.all(selectedProjectUsers.map(async (allocationId) => {
+                await deleteProjectAllocation(allocationId);
+            }));
+            // Refresh allocations and bench list
+            const [allocationsData, benchData] = await Promise.all([
+                getProjectAllocationsById(selectedProjectId),
+                getBenchList()
+            ]);
+            setProjectAllocations(prev => ({
+                ...prev,
+                [selectedProjectId]: Array.isArray(allocationsData.data) ? allocationsData.data : [],
+            }));
+            setEmployees(Array.isArray(benchData) ? benchData : []);
+            setSelectedProjectUsers([]);
+            alert('Deallocation successful!');
+        } catch (error) {
+            console.error('Deallocation failed:', error);
+            alert('Failed to deallocate selected users.');
+        }
     };
 
     // UI
@@ -160,43 +301,15 @@ export default function BenchAllocate() {
                     <ChevronLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
             </div>
-            {/* Top Bar */}
-            <div className="mb-4">
-                <div className="bg-white rounded-2xl border border-gray-200 p-4">
-                    <div className="font-semibold text-xl mb-2">Project Selection</div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-100"
-                            onClick={() => scrollBy(-200)}
-                            type="button"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <div
-                            ref={scrollRef}
-                            className="flex gap-3 overflow-x-auto scrollbar-hide py-2 px-1"
-                            style={{ scrollBehavior: 'smooth', minWidth: 0, maxWidth: '1120px' }}
-                        >
-                            {availableProjects.map(project => (
-                                <button
-                                    key={project.id}
-                                    className={`px-6 py-2 rounded-xl font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff] ${selectedProjectId === project.id ? 'bg-blue-600 text-white' : 'bg-[#f5f6f7] text-gray-800'}`}
-                                    onClick={() => setSelectedProjectId(project.id)}
-                                >
-                                    {project.name}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-100"
-                            onClick={() => scrollBy(200)}
-                            type="button"
-                        >
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-            </div>
+            
+            {/* Project Selection Panel */}
+            <ProjectSelector
+                projects={projects}
+                selectedProjectId={selectedProjectId}
+                onSelect={handleProjectSelect}
+                className="mb-4"
+            />
+
             {/* Filters */}
             <div className="flex gap-4 mb-4">
                 <Input
@@ -234,12 +347,12 @@ export default function BenchAllocate() {
                         <div className="font-semibold text-lg flex items-center gap-2"><Users className="w-5 h-5" /> Employee Bench</div>
                         <div className="flex gap-2">
                             <Button
-                                variant="secondary"
+                                variant="primary"
                                 className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
                                 onClick={() => setSelectedBench(filteredBench.map(e => e.id))}
                             >Select All</Button>
                             <Button
-                                variant="secondary"
+                                variant="primary"
                                 className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
                                 onClick={() => setSelectedBench([])}
                             >Clear</Button>
@@ -299,17 +412,17 @@ export default function BenchAllocate() {
                 </div>
                 {/* Right: Project Allocations */}
                 <div className="flex-1 bg-white rounded-lg border border-[#D1D5DB] p-4 flex flex-col shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
-                    <div className="flex items-center justify-between mb-2 bg-[#e3f0fa] rounded-xl px-6 py-3 shadow-[0_2px_8px_0_rgba(0,0,0,0.04)] whitespace-nowrap">
-                        <div className="font-semibold text-lg flex items-center gap-2 whitespace-nowrap"><User className="w-5 h-5" /> {currentProject?.name}</div>
-                        <div className="flex gap-2 whitespace-nowrap">
+                    <div className="flex items-center bg-blue-50 rounded-t-lg px-4 py-2">
+                        <User className="w-5 h-5 mr-2" />
+                        <span className="font-semibold text-lg">{currentProject?.name}</span>
+                        <div className="flex gap-2 ml-auto">
                             <Button
-                                variant="secondary"
-                                className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
+                                variant="primary"
+                                className="mr-2"
                                 onClick={() => setSelectedProjectUsers(allocatedEmployees.map(e => e.id))}
                             >Select All</Button>
                             <Button
-                                variant="secondary"
-                                className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
+                                variant="primary"
                                 onClick={() => setSelectedProjectUsers([])}
                             >Clear</Button>
                         </div>
@@ -330,168 +443,192 @@ export default function BenchAllocate() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {allocatedEmployees.map(emp => {
-                                        // Find the allocation for this employee in the current project
-                                        const allocation = allocatedEmployees && allocatedEmployees.find(e => e.id === emp.id);
-                                        const allocatedPercent = allocation?.allocationAvailability || allocation?.availability || 0;
-                                        return (
-                                            <tr
-                                                key={emp.id}
-                                                className={`hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8]' : ''}`}
-                                                onClick={() => setSelectedProjectUsers(sel => sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id])}
-                                                draggable
-                                                onDragStart={e => { e.dataTransfer.setData('projectEmployeeId', emp.id); }}
-                                            >
-                                                <td className="py-2 font-medium text-center">{emp.firstName} {emp.lastName}</td>
-                                                <td className="text-center">{emp.designation}</td>
-                                                <td className="text-center px-4 whitespace-nowrap min-w-[130px]">{allocatedPercent}%</td>
-                                                <td className="text-center px-4 whitespace-nowrap min-w-[110px]">{emp.allocationStartDate || '-'}</td>
-                                                <td className="text-center px-4 whitespace-nowrap min-w-[110px]">{emp.allocationEndDate || '-'}</td>
-                                                <td className="text-center flex gap-2 justify-center items-center">
+                                    {allocatedEmployees.map((emp: any) => (
+                                        <tr
+                                            key={emp.id}
+                                            className={`border-b border-[#D1D5DB] hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8] border-[#2563EB]' : ''}`}
+                                            onClick={() => setSelectedProjectUsers(sel =>
+                                                sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id]
+                                            )}
+                                        >
+                                            <td>{emp.userFullName}</td>
+                                            <td>{emp.roleName}</td>
+                                            <td>{emp.allocationPercentage}%</td>
+                                            <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
+                                            <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
+                                            <td>
                                                     <Button
                                                         size="sm"
-                                                        variant="secondary"
-                                                        className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
-                                                        onClick={e => { e.stopPropagation(); setAllocationModal({ open: true, employees: [emp] }); }}
+                                                        variant="primary"
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            // Map the selected allocation to the modal's expected employee object
+                                                            const mappedEmp = {
+                                                                id: emp.id,
+                                                                allocationId: emp.id,
+                                                                firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
+                                                                lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
+                                                                designation: emp.designation || '',
+                                                                roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
+                                                                roleName: emp.roleName || '',
+                                                                allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
+                                                                availability: emp.availability ?? emp.allocationPercentage ?? 0,
+                                                                allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : (emp.allocationStartDate || ''),
+                                                                allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : (emp.allocationEndDate || ''),
+                                                            };
+                                                            setAllocationModal({ open: true, employees: [mappedEmp] });
+                                                        }}
+                                                        title="Edit"
                                                     >
                                                         Edit
                                                     </Button>
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
+                                    ))}
                                 </tbody>
                             </table>
                         )}
                     </div>
                 </div>
             </div>
+
             {/* Allocation Modal */}
+            {allocationModal.open && (
             <Modal
                 isOpen={allocationModal.open}
                 onClose={() => setAllocationModal({ open: false, employees: [] })}
                 title="Allocation Preview"
                 size="2xl"
             >
-                <form
-                    onSubmit={e => {
-                        e.preventDefault();
-                        handleConfirmAllocation(allocationModal.employees);
-                    }}
-                >
-                    <div className="space-y-4">
-                        {allocationModal.employees.map((emp, idx) => {
-                            const minDate = emp.startDate || '';
-                            const maxDate = emp.endDate || '';
-                            const isStartValid = emp.allocationStartDate && (!minDate || emp.allocationStartDate >= minDate);
-                            const isEndValid = emp.allocationEndDate && (!maxDate || emp.allocationEndDate <= maxDate);
-                            const isRangeValid = isStartValid && isEndValid && emp.allocationStartDate <= emp.allocationEndDate;
-                            return (
-                                <div key={emp.id} className="bg-[#F9FAFB] border border-[#D1D5DB] rounded-lg p-4 mb-2 flex gap-4 items-center">
-                                    <div className="flex flex-col w-48">
-                                        <span
-                                            className="text-[#2563EB] font-semibold text-base leading-tight cursor-pointer hover:underline"
-                                            onMouseEnter={() => setHoveredEmployee(emp)}
-                                            onMouseLeave={() => { setHoveredEmployee(null); setPopupPosition(null); }}
-                                            onClick={() => { setHoveredEmployee(null); setPopupPosition(null); }}
-                                        >
-                                            {emp.firstName} {emp.lastName}
-                                        </span>
-                                        <span className="text-gray-500 text-sm mt-1">{emp.designation}</span>
-                                    </div>
-                                    <div className="flex flex-col w-40">
-                                        <label className="text-sm font-medium mb-1">Role</label>
-                                        <select
-                                            value={emp.role || ''}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setAllocationModal(modal => ({ ...modal, employees: modal.employees.map((em, i) => i === idx ? { ...em, role: val } : em) }));
-                                            }}
-                                            className="border border-[#D1D5DB] rounded px-2 py-1 text-sm h-8"
-                                            required
-                                        >
-                                            <option value="">Select Role</option>
-                                            <option value="Admin">Admin</option>
-                                            <option value="Project Manager">Project Manager</option>
-                                            <option value="QA Engineer">QA Engineer</option>
-                                            <option value="Developer">Developer</option>
-                                            <option value="Tester">Tester</option>
-                                            <option value="Viewer">Viewer</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex flex-col w-36">
-                                        <label className="text-sm font-medium mb-1">Availability</label>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                max={emp.availability}
-                                                value={emp.allocationAvailability !== undefined ? emp.allocationAvailability : emp.availability}
-                                                onChange={e => {
-                                                    let num = parseInt(e.target.value, 10);
-                                                    if (isNaN(num)) num = 0;
-                                                    if (num > emp.availability) num = emp.availability;
-                                                    setAllocationModal(modal => ({
-                                                        ...modal,
-                                                        employees: modal.employees.map((em, i) => i === idx ? { ...em, allocationAvailability: num } : em)
-                                                    }));
-                                                }}
-                                                className="w-full border border-[#D1D5DB] rounded px-2 py-1 text-sm h-8"
-                                            />
-                                            <span className="text-xs text-gray-400 whitespace-nowrap">{emp.allocationAvailability !== undefined ? emp.allocationAvailability : emp.availability}% (Max: {emp.availability}%)</span>
-                                        </div>
-                                    </div>
-                                    <Input
-                                        label="Start Date"
-                                        type="date"
-                                        min={emp.startDate || ''}
-                                        max={emp.endDate || ''}
-                                        value={emp.allocationStartDate || ''}
+                <div className="flex flex-col gap-6 p-6 min-w-[900px]">
+                    {allocationModal.employees.map((emp, index) => (
+                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full">
+                            {/* Name and Designation */}
+                            <div className="flex flex-col min-w-[180px]">
+                                <span className="text-blue-600 font-semibold underline cursor-pointer text-base leading-tight">{emp.firstName} {emp.lastName}</span>
+                                <span className="text-gray-500 text-sm leading-tight">{emp.designation}</span>
+                            </div>
+                            {/* Role */}
+                            <div className="flex flex-col min-w-[140px]">
+                                <label className="text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select
+                                    value={emp.roleId || ''}
+                                    onChange={e => {
+                                        const selectedRoleId = Number(e.target.value);
+                                        const selectedRole = roles.find(r => r.id === selectedRoleId);
+                                        setAllocationModal(modal => ({
+                                            ...modal,
+                                            employees: modal.employees.map((employee, i) =>
+                                                i === index ? { ...employee, roleId: selectedRoleId, role: selectedRole?.roleName } : employee
+                                            )
+                                        }));
+                                    }}
+                                    className="border border-[#D1D5DB] rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                    style={{ minWidth: 120 }}
+                                >
+                                    <option value="">Select Role</option>
+                                    {roles.map(role => (
+                                        <option key={role.id} value={role.id}>{role.roleName}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {/* Availability */}
+                            <div className="flex flex-col min-w-[120px]">
+                                <label className="text-sm font-medium text-gray-700 mb-1">Availability</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={emp.availability}
+                                        value={emp.allocationAvailability ?? emp.availability}
                                         onChange={e => {
-                                            const val = e.target.value;
+                                            const value = parseInt(e.target.value) || 0;
                                             setAllocationModal(modal => ({
                                                 ...modal,
-                                                employees: modal.employees.map((em2, i) => i === idx ? { ...em2, allocationStartDate: val } : em2)
+                                                employees: modal.employees.map((employee, i) =>
+                                                    i === index ? { ...employee, allocationAvailability: value } : employee
+                                                )
                                             }));
                                         }}
-                                        className="w-36"
+                                        className="w-16 border border-[#D1D5DB] rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     />
-                                    <Input
-                                        label="End Date"
+                                    <span className="ml-2 text-xs text-gray-400">{emp.allocationAvailability ?? emp.availability}% (Max: {emp.availability}%)</span>
+                                </div>
+                            </div>
+                            {/* Start Date */}
+                            <div className="flex flex-col min-w-[150px] relative">
+                                <label className="text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                <div className="relative">
+                                    <input
                                         type="date"
-                                        min={emp.startDate || ''}
-                                        max={emp.endDate || ''}
-                                        value={emp.allocationEndDate || ''}
+                                        value={emp.allocationStartDate ? emp.allocationStartDate.split('T')[0] : ''}
+                                        placeholder="mm/dd/yyyy"
                                         onChange={e => {
-                                            const val = e.target.value;
                                             setAllocationModal(modal => ({
                                                 ...modal,
-                                                employees: modal.employees.map((em2, i) => i === idx ? { ...em2, allocationEndDate: val } : em2)
+                                                employees: modal.employees.map((employee, i) =>
+                                                    i === index ? { ...employee, allocationStartDate: e.target.value } : employee
+                                                )
                                             }));
                                         }}
-                                        className="w-36"
+                                        className="w-full border border-[#D1D5DB] rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 pr-10"
+                                        style={{ minWidth: 120 }}
                                     />
                                 </div>
-                            );
-                        })}
+                            </div>
+                            {/* End Date */}
+                            <div className="flex flex-col min-w-[150px] relative">
+                                <label className="text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={emp.allocationEndDate ? emp.allocationEndDate.split('T')[0] : ''}
+                                        placeholder="mm/dd/yyyy"
+                                        onChange={e => {
+                                            setAllocationModal(modal => ({
+                                                ...modal,
+                                                employees: modal.employees.map((employee, i) =>
+                                                    i === index ? { ...employee, allocationEndDate: e.target.value } : employee
+                                                )
+                                            }));
+                                        }}
+                                        className="w-full border border-[#D1D5DB] rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 pr-10"
+                                        style={{ minWidth: 120 }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button
+                            className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-medium hover:bg-gray-300"
+                            onClick={() => setAllocationModal({ open: false, employees: [] })}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="px-4 py-2 rounded bg-blue-600 text-white font-medium hover:bg-blue-700"
+                            onClick={() => handleConfirmAllocation(allocationModal.employees)}
+                            disabled={isAllocating}
+                        >
+                            {isAllocating ? 'Allocating...' : 'Confirm'}
+                        </button>
                     </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button type="button" variant="secondary" onClick={() => setAllocationModal({ open: false, employees: [] })}>Cancel</Button>
-                        <Button type="submit" className="bg-[#2563EB] text-white" disabled={!allocationModal.employees.every(emp => emp.allocationStartDate && emp.allocationEndDate && emp.allocationStartDate <= emp.allocationEndDate && (!emp.startDate || emp.allocationStartDate >= emp.startDate) && (!emp.endDate || emp.allocationEndDate <= emp.endDate))}>Confirm</Button>
-                    </div>
-                </form>
+                </div>
             </Modal>
-            {/* Central Modal for Employee Info */}
+            )}
+
+            {/* Employee Info Modal */}
+            {viewInfoEmployee && (
             <Modal
                 isOpen={!!viewInfoEmployee}
                 onClose={() => setViewInfoEmployee(null)}
-                title={undefined}
-                size="2xl"
+                    title="Employee Details"
+                    size="md"
             >
-                {viewInfoEmployee && (
-                    <EmployeeDetailsCard employee={viewInfoEmployee} onClose={() => setViewInfoEmployee(null)} />
+                    <EmployeeDetailsCard employee={viewInfoEmployee} />
+                </Modal>
                 )}
-            </Modal>
         </div>
     );
 } 
