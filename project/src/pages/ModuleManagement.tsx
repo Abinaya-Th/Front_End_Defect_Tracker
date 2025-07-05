@@ -105,11 +105,14 @@ export const ModuleManagement: React.FC = () => {
         const response = await createModuleApi(payload);
         if (response.success && response.module) {
           // Refresh modules after adding
-          fetchModules();
+          await fetchModules();
+          setModuleForm({ name: "" });
+          setIsAddModuleModalOpen(false);
+        } else {
+          alert("Failed to add module. Please try again.");
         }
-        setModuleForm({ name: "" });
-        setIsAddModuleModalOpen(false);
       } catch (error) {
+        console.error("Error adding module:", error);
         alert("Failed to add module. Please try again.");
       }
     }
@@ -156,15 +159,15 @@ export const ModuleManagement: React.FC = () => {
         console.log('Update module API response:', response);
         if (response.success && response.module) {
           // Refresh modules after updating
-          fetchModules();
+          await fetchModules();
+          setModuleForm({ name: "" });
+          setEditingModule(null);
+          setIsEditModuleModalOpen(false);
         } else {
-          // Fallback: refetch modules if update did not succeed
-          fetchModules();
+          alert("Failed to update module. Please try again.");
         }
-        setModuleForm({ name: "" });
-        setEditingModule(null);
-        setIsEditModuleModalOpen(false);
       } catch (error) {
+        console.error("Error updating module:", error);
         alert("Failed to update module. Please try again.");
       } finally {
         setIsUpdatingModule(false);
@@ -183,11 +186,12 @@ export const ModuleManagement: React.FC = () => {
           const response = await deleteModuleApi(moduleId);
           if (response.success) {
             // Refresh modules after deleting
-            fetchModules();
+            await fetchModules();
           } else {
             alert(response.message || "Failed to delete module on server.");
           }
         } catch (error) {
+          console.error("Error deleting module:", error);
           alert("Failed to delete module on server.");
         }
       }
@@ -552,12 +556,13 @@ export const ModuleManagement: React.FC = () => {
                                             const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
                                             if (response.data && response.data.success) {
                                               // Refresh modules after deleting submodule
-                                              fetchModules();
+                                              await fetchModules();
                                               alert("Submodule deleted successfully.");
                                             } else {
                                               alert("Submodule deleted successfully.");
                                             }
                                           } catch (error: any) {
+                                            console.error("Error deleting submodule:", error);
                                             if (error.response && error.response.data) {
                                               alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
                                             } else {
@@ -877,12 +882,16 @@ export const ModuleManagement: React.FC = () => {
                     );
                     if (response.data && response.data.success) {
                       // Refresh modules after updating
-                      fetchModules();
+                      await fetchModules();
                       alert("Submodule updated successfully.");
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
                     } else {
                       alert("Submodule updated successfully.");
                     }
                   } catch (error: any) {
+                    console.error("Error updating submodule:", error);
                     if (error.response && error.response.data) {
                       alert("Failed to update submodule: " + JSON.stringify(error.response.data));
                     } else {
@@ -899,7 +908,7 @@ export const ModuleManagement: React.FC = () => {
                     console.log("Submodule API response:", response);
                     if (response.success) {
                       // Refresh modules after adding
-                      fetchModules();
+                      await fetchModules();
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
@@ -908,6 +917,7 @@ export const ModuleManagement: React.FC = () => {
                       alert("Submodule added successfully.");
                     }
                   } catch (error: any) {
+                    console.error("Error adding submodule:", error);
                     if (error.response && error.response.data) {
                       alert("Failed to add submodule: " + JSON.stringify(error.response.data));
                     } else {
