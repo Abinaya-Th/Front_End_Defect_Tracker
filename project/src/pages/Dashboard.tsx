@@ -538,7 +538,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Project</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {projects.find(p => p.id === selectedProject)?.name || 'All Projects'}
+                      {projects && projects.find(p => p.id === selectedProject)?.name || 'All Projects'}
                     </p>
                   </div>
                 </div>
