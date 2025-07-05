@@ -328,7 +328,7 @@ export const ReleaseView: React.FC = () => {
                     key={submodule.subModuleId}
                     variant={selectedSubmoduleId === String(submodule.subModuleId) ? "primary" : "secondary"}
                     onClick={() => setSelectedSubmoduleId(String(submodule.subModuleId))}
-                    className="min-w-max whitespace-nowrap"
+                    className="min-w-max whitespace-nowrap m-2"
                   >
                     {submodule.subModuleName}
                   </Button>
