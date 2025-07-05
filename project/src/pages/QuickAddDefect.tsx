@@ -4,8 +4,6 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
-import { MdBugReport } from "react-icons/md";
-import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
 
 const QuickAddDefect: React.FC = () => {
@@ -23,6 +21,7 @@ const QuickAddDefect: React.FC = () => {
     status: "open",
     assignedTo: "",
     rejectionComment: "",
+    releaseId: "",
   });
   const [success, setSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -56,7 +55,7 @@ const QuickAddDefect: React.FC = () => {
   const modulesList = projectModules.map((m) => m.name);
   let submodulesList: string[] = [];
   if (formData.module) {
-    const found = projectModules.find((m) => m.name === formData.module);
+    const found = projectModules && projectModules.find((m) => m.name === formData.module);
     if (found) {
       // Always map to string[]
       submodulesList = (found.submodules || []).map((s: any) =>
@@ -64,8 +63,18 @@ const QuickAddDefect: React.FC = () => {
       );
     }
   }
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-  const activeRelease = selectedProjectId ? releases.find(r => r.projectId === selectedProjectId && r.status === 'active') : null;
+  const selectedProject = projects && projects.find((p) => p.id === selectedProjectId);
+  const activeRelease = selectedProjectId ? releases && releases.find(r => r.projectId === selectedProjectId && r.status === 'active') : null;
+
+  // Filter releases for the selected project
+  let projectReleases = selectedProjectId ? releases.filter(r => r.projectId === selectedProjectId) : [];
+  // Add mock releases if none exist for the selected project
+  if (projectReleases.length === 0 && selectedProjectId) {
+    projectReleases = [
+      { id: 'REL-001', name: 'Release 1.0', projectId: selectedProjectId, status: 'planned', version: '1.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+      { id: 'REL-002', name: 'Release 2.0', projectId: selectedProjectId, status: 'planned', version: '2.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+    ];
+  }
 
   // Helper to generate next defect ID in order (same as Defects.tsx)
   const getNextDefectId = () => {
@@ -114,6 +123,7 @@ const QuickAddDefect: React.FC = () => {
         status: "open",
         assignedTo: "",
         rejectionComment: "",
+        releaseId: "",
       });
     }, 1200);
   };
@@ -215,6 +225,22 @@ const QuickAddDefect: React.FC = () => {
               rows={3}
               required
             />
+          </div>
+          {/* Release Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
+            <select
+              value={formData.releaseId}
+              onChange={e => handleInputChange('releaseId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={!selectedProjectId || projectReleases.length === 0}
+            >
+              <option value="">Select release...</option>
+              {projectReleases.map(release => (
+                <option key={release.id} value={release.id}>{release.name}</option>
+              ))}
+            </select>
           </div>
           {/* Modules and Submodules */}
           <div className="grid grid-cols-2 gap-4">

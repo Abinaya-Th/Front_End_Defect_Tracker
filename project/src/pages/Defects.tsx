@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { deleteDefectById } from '../api/defect/delete_defect';
+
 import {
   Plus,
   Edit2,
@@ -33,10 +35,11 @@ import { FilteredDefect } from '../api/defect/filterDefectByProject';
 import { getModulesByProjectId } from '../api/module/getModule';
 import { getSubmodulesByModuleId } from '../api/submodule/submoduleget';
 import { filterDefects } from "../api/defect/filterDefectByProject";
+
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
-// Use Defect type from types/index.ts directly
+
 
 export const Defects: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -89,6 +92,7 @@ export const Defects: React.FC = () => {
     typeId: '',
     assigntoId: '',
     assignbyId: '',
+    releaseId: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -149,10 +153,10 @@ export const Defects: React.FC = () => {
     // Prepare backend-supported filters
     const backendFilters = {
       projectId: selectedProjectId,
-      typeId: filters.type ? defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
-      severityId: filters.severity ? severities.find(s => s.name === filters.severity)?.id : undefined,
-      priorityId: filters.priority ? priorities.find(p => p.priority === filters.priority)?.id : undefined,
-      defectStatusId: filters.status ? defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
+      typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
+      severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
+      priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
+      defectStatusId: filters.status ?  defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
       releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
     };
     filterDefects(backendFilters).then(setBackendDefects);
@@ -230,11 +234,11 @@ export const Defects: React.FC = () => {
       }
     } else {
       const { severityId, priorityId, typeId, ...restFormData } = formData;
-      let severityValue = severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
+      let severityValue = severities && severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
       if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
-      let priorityValue = priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
+      let priorityValue = priorities && priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
       if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
-      let typeValue = defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
+      let typeValue = defectTypes && defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
       if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
       // Do NOT include id or steps in the payload for new defects if not part of Defect type
       addDefect({
@@ -268,14 +272,38 @@ export const Defects: React.FC = () => {
       typeId: defect.typeId?.toString() || '',
       assigntoId: defect.assigntoId?.toString() || '',
       assignbyId: defect.assignbyId?.toString() || '',
+      releaseId: '',
     });
     setIsModalOpen(true);
   };
-  const handleDelete = (defectId: string) => {
+  const handleDelete = async (defectId: string) => {
+    console.log("Attempting to delete defect with ID:", defectId); // Log the defect ID
     if (window.confirm("Are you sure you want to delete this defect?")) {
-      deleteDefect(defectId);
+      try {
+        // Call the delete API
+        console.log("Calling delete API for defect ID:", defectId);
+        const response = await deleteDefectById(defectId);
+  
+        // Handle successful deletion
+        if (response.status === 'Success') {
+          console.log("Defect deleted successfully. Updating local state...");
+          // Filter out the deleted defect from the backendDefects state
+          setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
+          alert("Defect deleted successfully.");
+        } else {
+          console.error("Delete failed:", response.message);
+          alert("Delete failed. Please try again.");
+        }
+      } catch (error: any) {
+        console.error("Error occurred while deleting defect:", error);
+        alert("Error: " + (error.message || 'Failed to delete defect'));
+      }
+    } else {
+      console.log("Deletion was cancelled.");
     }
   };
+  
+  
   const resetForm = () => {
     setFormData({
       defectId: '',
@@ -288,6 +316,7 @@ export const Defects: React.FC = () => {
       typeId: '',
       assigntoId: '',
       assignbyId: '',
+      releaseId: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -389,7 +418,7 @@ export const Defects: React.FC = () => {
       setFilterSubmodules([]);
       return;
     }
-    const selectedModule = modules.find(m => m.name === filters.module);
+    const selectedModule = modules && modules.find(m => m.name === filters.module);
     console.log('Filter submodule fetch - selectedModule:', selectedModule);
     if (!selectedModule || !selectedModule.id) {
       setFilterSubmodules([]);
@@ -512,7 +541,7 @@ export const Defects: React.FC = () => {
   // Add exportDefects function
   const exportDefects = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}defect/exportAsId`, {
+      const response = await axios.get(`${BASE_URL}defect/export`, {
         responseType: "blob",
       });
       // Create a link to download the file
@@ -550,7 +579,7 @@ export const Defects: React.FC = () => {
         d.defectId === defect.defectId
           ? {
             ...d,
-            defectStatusId: defectStatuses.find(s => s.defectStatusName === newStatus)?.id || d.defectStatusId,
+            defectStatusId: defectStatuses && defectStatuses.find(s => s.defectStatusName === newStatus)?.id || d.defectStatusId,
             updatedAt: now,
           }
           : d
@@ -570,6 +599,15 @@ export const Defects: React.FC = () => {
       }
     });
   }, []);
+
+  // Compute releases for the selected project, with mock fallback
+  let projectReleases = selectedProjectId ? releases.filter(r => r.projectId === selectedProjectId) : [];
+  if (projectReleases.length === 0 && selectedProjectId) {
+    projectReleases = [
+      { id: 'REL-001', name: 'Release 1.0', projectId: selectedProjectId, status: 'planned', version: '1.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+      { id: 'REL-002', name: 'Release 2.0', projectId: selectedProjectId, status: 'planned', version: '2.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
+    ];
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -704,11 +742,9 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {releases
-                .filter(r => r.projectId === projectId)
-                .map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
+              {projectReleases.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
             </select>
           </div>
           <div className="min-w-[120px] flex-shrink-0">
@@ -793,7 +829,7 @@ export const Defects: React.FC = () => {
           accept=".xlsx,.csv"
           onChange={handleImportExcel}
           ref={fileInputRef}
-          className="hidden"
+          className="hidden" 
         />
         <button
           type="button"
@@ -1037,7 +1073,10 @@ export const Defects: React.FC = () => {
                             type="button"
                             className="text-red-600 hover:text-red-900 flex items-center"
                             title="Delete Defect"
-                            onClick={() => handleDelete(defect.id ? String(defect.id) : '')}
+
+
+                            onClick={() => handleDelete(defect.defectId)}
+
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1075,6 +1114,22 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Release Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
+            <select
+              value={formData.releaseId || ''}
+              onChange={e => handleInputChange('releaseId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+              disabled={!selectedProjectId || projectReleases.length === 0}
+            >
+              <option value="">Select release...</option>
+              {projectReleases.map(release => (
+                <option key={release.id} value={release.id}>{release.name}</option>
+              ))}
+            </select>
+          </div>
           {/* Brief Description */}
           <Input
             label="Brief Description"
@@ -1209,26 +1264,6 @@ export const Defects: React.FC = () => {
               </select>
             </div>
           </div>
-          {/* Entered By Dropdown */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div></div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Entered By
-              </label>
-              <select
-                value={formData.assignbyId}
-                onChange={e => handleInputChange('assignbyId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select reporter</option>
-                {userList.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="secondary" onClick={resetForm}>
               Cancel
@@ -1288,7 +1323,7 @@ export const Defects: React.FC = () => {
               onSubmit={e => {
                 e.preventDefault();
                 if (!editingStatusId) return setIsRejectionCommentModalOpen(false);
-                const defect = backendDefects.find(d => d.id === editingStatusId) as FilteredDefect;
+                const defect = backendDefects && backendDefects.find(d => d.id === editingStatusId) as FilteredDefect;
                 if (!defect) return setIsRejectionCommentModalOpen(false);
                 const now = new Date().toISOString();
                 updateDefect({
