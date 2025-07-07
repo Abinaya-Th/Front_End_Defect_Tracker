@@ -184,8 +184,8 @@ export default function BenchAllocate() {
         const matchesAvailability = availabilityFilter.length === 0 || availabilityFilter.some(val => e.availability >= val);
         return matchesSearch && matchesDesignation && matchesAvailability;
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
-    
-    const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
+    const currentProject = useMemo(() => availableProjects && availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
+    const allocatedEmployees = useMemo(() => projectAllocations[selectedProjectId] || [], [projectAllocations, selectedProjectId]);
 
     // Handlers
     const handleAllocate = () => {
@@ -421,20 +421,24 @@ export default function BenchAllocate() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {allocatedEmployees.map((emp: any) => (
-                                        <tr
-                                            key={emp.id}
-                                            className={`border-b border-[#D1D5DB] hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8] border-[#2563EB]' : ''}`}
-                                            onClick={() => setSelectedProjectUsers(sel =>
-                                                sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id]
-                                            )}
-                                        >
-                                            <td>{emp.userFullName}</td>
-                                            <td>{emp.roleName}</td>
-                                            <td>{emp.allocationPercentage}%</td>
-                                            <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
-                                            <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
-                                            <td>
+                                    {allocatedEmployees.map(emp => {
+                                        // Find the allocation for this employee in the current project
+                                        const allocation = allocatedEmployees && allocatedEmployees.find(e => e.id === emp.id);
+                                        const allocatedPercent = allocation?.allocationAvailability || allocation?.availability || 0;
+                                        return (
+                                            <tr
+                                                key={emp.id}
+                                                className={`hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8]' : ''}`}
+                                                onClick={() => setSelectedProjectUsers(sel => sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id])}
+                                                draggable
+                                                onDragStart={e => { e.dataTransfer.setData('projectEmployeeId', emp.id); }}
+                                            >
+                                                <td className="py-2 font-medium text-center">{emp.firstName} {emp.lastName}</td>
+                                                <td className="text-center">{emp.designation}</td>
+                                                <td className="text-center px-4 whitespace-nowrap min-w-[130px]">{allocatedPercent}%</td>
+                                                <td className="text-center px-4 whitespace-nowrap min-w-[110px]">{emp.allocationStartDate || '-'}</td>
+                                                <td className="text-center px-4 whitespace-nowrap min-w-[110px]">{emp.allocationEndDate || '-'}</td>
+                                                <td className="text-center flex gap-2 justify-center items-center">
                                                     <Button
                                                         size="sm"
                                                     variant="primary"
