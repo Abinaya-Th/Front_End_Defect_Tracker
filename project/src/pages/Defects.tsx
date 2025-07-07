@@ -96,6 +96,7 @@ export const Defects: React.FC = () => {
     release_test_case_description: '',
     attachment: '',
     statusId: '',
+    test_case_id: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -180,7 +181,8 @@ export const Defects: React.FC = () => {
       (!filters.type || d.defect_type_name === filters.type) &&
       (!filters.severity || d.severity_name === filters.severity) &&
       (!filters.priority || d.priority_name === filters.priority) &&
-      (!filters.status || d.defect_status_name === filters.status)
+      (!filters.status || d.defect_status_name === filters.status) &&
+      (!filters.releaseId || d.release_name === filters.releaseId)
     );
   });
 
@@ -270,6 +272,7 @@ export const Defects: React.FC = () => {
       release_test_case_description: defect.release_test_case_description || '',
       attachment: defect.attachment || '',
       statusId,
+      test_case_id: defect.test_case_id || '',
     });
     setIsModalOpen(true);
   };
@@ -317,6 +320,7 @@ export const Defects: React.FC = () => {
       release_test_case_description: '',
       attachment: '',
       statusId: '',
+      test_case_id: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -741,8 +745,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {projectReleases.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+              {[...new Set(backendDefects.map(d => d.release_name).filter(Boolean))].map(name => (
+                <option key={name} value={name}>{name}</option>
               ))}
             </select>
           </div>
@@ -863,7 +867,7 @@ export const Defects: React.FC = () => {
                     Defect ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Case Description
+                    Test Case ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brief Description
@@ -917,7 +921,7 @@ export const Defects: React.FC = () => {
                         {defect.defectId}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.release_test_case_description || "-"}
+                        {defect.test_case_id || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {defect.description}
@@ -1062,7 +1066,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.release_test_case_description || '-'}
+                        {defect.release_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1129,6 +1133,14 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Test Case ID */}
+          <Input
+            label="Test Case ID"
+            type="number"
+            value={formData.test_case_id || ''}
+            onChange={e => handleInputChange('test_case_id', e.target.value)}
+            required
+          />
           {/* Test Case Description */}
           <Input
             label="Test Case Description"
@@ -1310,22 +1322,6 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-          {/* Release Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
-            <select
-              value={formData.releaseId || ''}
-              onChange={e => handleInputChange('releaseId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={!selectedProjectId || projectReleases.length === 0}
-            >
-              <option value="">Select release...</option>
-              {projectReleases.map(release => (
-                <option key={release.id} value={release.id}>{release.name}</option>
-              ))}
-            </select>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="secondary" onClick={resetForm}>
