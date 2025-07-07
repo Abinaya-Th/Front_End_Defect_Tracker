@@ -64,17 +64,17 @@ export async function postProjectAllocations(payload: ProjectAllocationPayload) 
       console.error('Response data:', error.response?.data);
       console.error('Response status:', error.response?.status);
       console.error('Response headers:', error.response?.headers);
-      
+
       if (error.code === 'ERR_NETWORK') {
         throw new Error('Network error - please check if the server is running');
       }
       if (error.response?.status === 0) {
         throw new Error('CORS error - server needs to allow cross-origin requests');
       }
-      
+
       // Include the actual backend error message if available
       const backendMessage = error.response?.data?.message || error.response?.data?.error || error.response?.data;
-      
+
       // Log the full error response for debugging
       console.error('Full error response:', {
         status: error.response?.status,
@@ -82,7 +82,7 @@ export async function postProjectAllocations(payload: ProjectAllocationPayload) 
         data: error.response?.data,
         headers: error.response?.headers
       });
-      
+
       throw new Error(`Server error: ${error.response?.status} - ${backendMessage || error.message}`);
     }
     throw error;
@@ -92,7 +92,7 @@ export async function postProjectAllocations(payload: ProjectAllocationPayload) 
 // New: GET project allocations by ID
 export async function getProjectAllocationsById(projectId: string | number) {
   try {
-    const response = await axios.get(`/api/v1/projectAllocations/project/${projectId}`);
+    const response = await axios.get(`${BASE_URL}/project/${projectId}`);
     return response.data;
   } catch (error) {
     console.error('Get project allocations error:', error);
