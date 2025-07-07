@@ -20,6 +20,11 @@ export default defineConfig({
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
       },
+      '/api/v1/projectAllocations': {
+        target: 'http://192.168.1.100:8090',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
