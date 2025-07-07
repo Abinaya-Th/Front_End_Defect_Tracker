@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { ProjectFormData } from '../../types';
 
-const API_URL = 'http://34.57.197.188:8087/v1/projects';
+const BASE_URL = import.meta.env.VITE_BASE_URL;
+const API_URL = `${BASE_URL}projects`;
 
 export async function createProject(projectData: ProjectFormData) {
     try {

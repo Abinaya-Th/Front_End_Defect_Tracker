@@ -1,6 +1,6 @@
-
 import axios from "axios";
 import { CreateModuleRequest, CreateModuleResponse } from "../../types/index";
+import { createSubmodule } from "../api/module/createModule";
 
 // Create a local axios instance for API calls
 const apiClient = axios.create({

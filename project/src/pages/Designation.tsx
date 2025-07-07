@@ -364,4 +364,4 @@ const Designation: React.FC = () => {
   );
 };
 
-export default Designation; 
+export default Designation;
