@@ -20,6 +20,11 @@ export default defineConfig({
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
       },
+      '/api/v1/projectAllocations': {
+        target: 'http://34.57.197.188:8087',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
