@@ -20,7 +20,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
-import { getTestCasesByProjectAndSubmodule, deleteTestCase as apiDeleteTestCase } from "../api/testCase/testCaseApi";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { searchTestCases } from "../api/testCase/searchTestCase";
@@ -28,6 +28,7 @@ import { updateTestCase } from "../api/testCase/updateTestCase";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
+import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -570,6 +571,12 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
   const getModuleNameById = (id: string | null) => projectModules.find(m => m.id === id)?.name || "";
   const getSubmoduleNameById = (id: string | null) => submodules.find(sm => sm.id === id)?.name || "";
 
+  // Replace all usages of apiDeleteTestCase with this function
+  const deleteTestCaseById = async (testCaseId: string) => {
+    const url = `http://34.57.197.188:8087/api/v1/testcase/${testCaseId}`;
+    return axios.delete(url);
+  };
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -727,7 +734,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                       `Are you sure you want to delete ${selectedTestCases.length} test case(s)?`
                     )
                   ) {
-                    Promise.all(selectedTestCases.map((id) => apiDeleteTestCase(id))).then(() => {
+                    Promise.all(selectedTestCases.map((id) => deleteTestCaseById(id))).then(() => {
                       setSelectedTestCases([]);
                       if (selectedProjectId && selectedSubmoduleId !== null) {
                         getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
@@ -1008,7 +1015,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                             </button>
                             <button
                               onClick={() => {
-                                apiDeleteTestCase(testCase.id).then(() => {
+                                deleteTestCaseById(testCase.id).then(() => {
                                   if (selectedProjectId && selectedSubmoduleId !== null) {
                                     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
                                       const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
