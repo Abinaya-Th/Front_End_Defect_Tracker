@@ -10,6 +10,7 @@ import { EmployeeDetailsCard } from '../components/ui/EmployeeDetailsCard';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { getBenchList } from '../api/bench/bench';
+import { searchBenchEmployees, BenchSearchParams } from '../api/bench/filterbench';
 import { Employee } from '../types/index';
 
 const AVAILABILITY_COLORS = {
@@ -47,6 +48,7 @@ export default function BenchAllocate() {
     const [benchFilter, setBenchFilter] = useState('');
     const [designationFilter, setDesignationFilter] = useState('');
     const [availabilityFilter, setAvailabilityFilter] = useState<number[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     const [selectedBench, setSelectedBench] = useState<string[]>([]);
     const [selectedProjectUsers, setSelectedProjectUsers] = useState<string[]>([]);
     const [allocationModal, setAllocationModal] = useState<{ open: boolean, employees: any[] }>({ open: false, employees: [] });
@@ -74,31 +76,79 @@ export default function BenchAllocate() {
             .catch(() => setEmployees([]));
     }, []);
 
+    // Search functions
+    const performSearch = async (searchParams: BenchSearchParams) => {
+        setIsSearching(true);
+        try {
+            const searchResults = await searchBenchEmployees(searchParams);
+            setEmployees(searchResults);
+        } catch (error) {
+            console.error('Error searching bench employees:', error);
+            // Fallback to local filtering if API fails
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const loadAllEmployees = async () => {
+        try {
+            const data = await getBenchList();
+            if (Array.isArray(data)) {
+                setEmployees(data);
+            } else {
+                setEmployees([]);
+            }
+        } catch (error) {
+            console.error('Error loading bench employees:', error);
+            setEmployees([]);
+        }
+    };
+
+    // Updated filter handlers
+    const handleSearchChange = (value: string) => {
+        setBenchFilter(value);
+        // Do not trigger search here
+    };
+    const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            if (benchFilter.trim()) {
+                await performSearch({ firstName: benchFilter });
+            } else {
+                await loadAllEmployees();
+            }
+        }
+    };
+
+    const handleDesignationChange = async (value: string) => {
+        setDesignationFilter(value);
+        if (value) {
+            await performSearch({ designation: value });
+        } else {
+            await loadAllEmployees();
+        }
+    };
+
+    const handleAvailabilityChange = async (value: number | null) => {
+        const newFilter = value ? [value] : [];
+        setAvailabilityFilter(newFilter);
+        if (value) {
+            await performSearch({ availability: value });
+        } else {
+            await loadAllEmployees();
+        }
+    };
+
     // Employees not allocated to the current project (or partially allocated)
-    const benchEmployees = useMemo(() => {
-        // Get all allocations for this project
-        const allocations = projectAllocations[selectedProjectId] || [];
-        // For each employee, calculate remaining availability after allocations
-        return employees.map(e => {
-            const allocated = allocations
-                .filter((emp: any) => emp.id === e.id)
-                .reduce((sum: number, emp: any) => sum + (emp.allocationAvailability || emp.availability), 0);
-            const remaining = e.availability - allocated;
-            return remaining > 0 ? { ...e, availability: remaining } : null;
-        }).filter(Boolean);
-    }, [employees, projectAllocations, selectedProjectId]);
-    const filteredBench = useMemo(() => benchEmployees.filter(e => {
-        const matchesSearch = `${e.firstName} ${e.lastName}`.toLowerCase().includes(benchFilter.toLowerCase());
-        const matchesDesignation = !designationFilter || e.designation === designationFilter;
-        const matchesAvailability = availabilityFilter.length === 0 || availabilityFilter.some(val => e.availability >= val);
-        return matchesSearch && matchesDesignation && matchesAvailability;
-    }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
+    // const benchEmployees = useMemo(() => { ... }); // REMOVE
+    // const filteredBench = useMemo(() => benchEmployees.filter(...)); // REMOVE
+    // Instead, use employees array directly from API
     const currentProject = useMemo(() => availableProjects && availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
     const allocatedEmployees = useMemo(() => projectAllocations[selectedProjectId] || [], [projectAllocations, selectedProjectId]);
 
     // Handlers
     const handleAllocate = () => {
-        const toAllocate = benchEmployees.filter(e => selectedBench.includes(e.id));
+        const toAllocate = employees.filter(e => selectedBench.includes(e.id));
         setAllocationModal({ open: true, employees: toAllocate });
     };
     const handleConfirmAllocation = (updatedEmployees: any[]) => {
@@ -200,15 +250,18 @@ export default function BenchAllocate() {
             {/* Filters */}
             <div className="flex gap-4 mb-4">
                 <Input
-                    placeholder="Search employees..."
+                    placeholder="Search employees... (Press Enter/Tab to search)"
                     value={benchFilter}
-                    onChange={e => setBenchFilter(e.target.value)}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
                     className="w-64"
+                    disabled={isSearching}
                 />
                 <select
                     value={designationFilter}
-                    onChange={e => setDesignationFilter(e.target.value)}
+                    onChange={e => handleDesignationChange(e.target.value)}
                     className="border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10 w-64"
+                    disabled={isSearching}
                 >
                     <option value="">All Designations</option>
                     {[...new Set(employees.map(e => e.designation))].map(d => (
@@ -217,14 +270,28 @@ export default function BenchAllocate() {
                 </select>
                 <select
                     value={availabilityFilter[0] ? String(availabilityFilter[0]) : ''}
-                    onChange={e => setAvailabilityFilter(e.target.value ? [parseInt(e.target.value)] : [])}
+                    onChange={e => handleAvailabilityChange(e.target.value ? parseInt(e.target.value) : null)}
                     className="border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10 w-64"
+                    disabled={isSearching}
                 >
                     <option value="">All Availability</option>
                     <option value={100}>100% Available</option>
                     <option value={75}>75% and above</option>
                     <option value={50}>50% and above</option>
                 </select>
+                <Button
+                    variant="secondary"
+                    onClick={() => {
+                        setBenchFilter('');
+                        setDesignationFilter('');
+                        setAvailabilityFilter([]);
+                        loadAllEmployees();
+                    }}
+                    disabled={isSearching}
+                    className="px-4 py-2"
+                >
+                    Clear Filters
+                </Button>
             </div>
             {/* Main Panels */}
             <div className="flex flex-1 gap-6">
@@ -236,7 +303,7 @@ export default function BenchAllocate() {
                             <Button
                                 variant="secondary"
                                 className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
-                                onClick={() => setSelectedBench(filteredBench.map(e => e.id))}
+                                onClick={() => setSelectedBench(employees.map(e => e.id))}
                             >Select All</Button>
                             <Button
                                 variant="secondary"
@@ -246,7 +313,13 @@ export default function BenchAllocate() {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {filteredBench.map(emp => (
+                        {isSearching ? (
+                            <div className="text-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                <p className="text-gray-500">Searching employees...</p>
+                            </div>
+                        ) : employees.length > 0 ? (
+                            employees.map(emp => (
                             <div
                                 key={emp.id}
                                 className={`flex items-center gap-4 p-2 rounded cursor-pointer border ${selectedBench.includes(emp.id) ? 'border-[#2563EB] bg-[#f6fff8]' : 'border-transparent'} hover:bg-[#f6fff8]`}
@@ -277,7 +350,12 @@ export default function BenchAllocate() {
                                     View Info
                                 </Button>
                             </div>
-                        ))}
+                        ))
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500">No employees found</p>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {/* Arrows */}
@@ -485,7 +563,7 @@ export default function BenchAllocate() {
             <Modal
                 isOpen={!!viewInfoEmployee}
                 onClose={() => setViewInfoEmployee(null)}
-                title={undefined}
+                title=""
                 size="2xl"
             >
                 {viewInfoEmployee && (

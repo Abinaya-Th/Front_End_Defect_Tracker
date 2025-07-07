@@ -11,10 +11,12 @@ import { useApp } from '../context/AppContext';
 import { Employee } from '../types/index';
 import { useNavigate } from 'react-router-dom';
 import { getBenchList } from '../api/bench/bench';
+import { searchBenchEmployees, BenchSearchParams } from '../api/bench/filterbench';
 
 export const Bench: React.FC = () => {
   const { projects, allocateEmployee } = useApp();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allDesignations, setAllDesignations] = useState<string[]>([]);
   const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -26,6 +28,7 @@ export const Bench: React.FC = () => {
     fromDate: '',
     toDate: '',
   });
+  const [isSearching, setIsSearching] = useState(false);
   const [allocationData, setAllocationData] = useState({
     projectId: '',
     allocationPercentage: 50,
@@ -37,42 +40,117 @@ export const Bench: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getBenchList()
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setEmployees(data);
-        } else {
-          setEmployees([]);
-        }
-      })
-      .catch(() => setEmployees([]));
+    loadAllBenchEmployees();
   }, []);
 
-  // Filter employees based on criteria
+  // Filter employees based on criteria (now handled by API, but keeping local filtering as fallback)
   const filteredEmployees = useMemo(() => {
     return employees
       .filter(emp => emp.availability > 0) // Only show employees with availability > 0
-      .filter(emp => {
-        const matchesSearch = emp.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
-          emp.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
-          emp.designation.toLowerCase().includes(filters.search.toLowerCase());
-        const matchesDesignation = !filters.designation || emp.designation === filters.designation;
-        const matchesAvailability = !filters.availability || emp.availability >= parseInt(filters.availability);
-        const matchesDateRange = (!filters.fromDate || new Date(emp.joinedDate) >= new Date(filters.fromDate)) &&
-          (!filters.toDate || new Date(emp.joinedDate) <= new Date(filters.toDate));
-
-        return matchesSearch && matchesDesignation && matchesAvailability && matchesDateRange;
-      })
       .sort((a, b) => b.availability - a.availability);
-  }, [employees, filters]);
+  }, [employees]);
 
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
-    return Array.from(new Set(employees.map(emp => emp.designation)));
-  }, [employees]);
+    return allDesignations;
+  }, [allDesignations]);
 
-  const handleFilterChange = (field: string, value: string) => {
+  const handleFilterChange = async (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
+    
+    // For search field, don't trigger API call immediately
+    if (field === 'search') {
+      return;
+    }
+    
+    // For other filters, perform search immediately
+    const newFilters = { ...filters, [field]: value };
+    const hasActiveFilters = Object.values(newFilters).some(filter => filter !== '');
+    
+    if (hasActiveFilters) {
+      await performSearch(newFilters);
+    } else {
+      // If no filters, load all bench employees
+      loadAllBenchEmployees();
+    }
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+    
+    if (hasActiveFilters) {
+      await performSearch(filters);
+    } else {
+      loadAllBenchEmployees();
+    }
+  };
+
+  const handleSearchKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+      
+      if (hasActiveFilters) {
+        await performSearch(filters);
+      } else {
+        loadAllBenchEmployees();
+      }
+    }
+  };
+
+  const performSearch = async (searchFilters: typeof filters) => {
+    setIsSearching(true);
+    try {
+      const searchParams: BenchSearchParams = {};
+      
+      if (searchFilters.search) {
+        searchParams.firstName = searchFilters.search;
+      }
+      if (searchFilters.designation) {
+        searchParams.designation = searchFilters.designation;
+      }
+      if (searchFilters.availability) {
+        searchParams.availability = parseInt(searchFilters.availability);
+      }
+      if (searchFilters.fromDate) {
+        searchParams.startDate = searchFilters.fromDate;
+      }
+
+      console.log('Search params:', searchParams);
+      const searchResults = await searchBenchEmployees(searchParams);
+      console.log('Search results:', searchResults);
+      
+      setEmployees(searchResults);
+      
+      // If no results found and we have active filters, show a message
+      if (searchResults.length === 0 && Object.values(searchFilters).some(filter => filter !== '')) {
+        console.log('No employees found with current filters');
+      }
+    } catch (error) {
+      console.error('Error searching bench employees:', error);
+      // Fallback to local filtering if API fails
+      setEmployees(prev => prev);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const loadAllBenchEmployees = async () => {
+    try {
+      const data = await getBenchList();
+      if (Array.isArray(data)) {
+        setEmployees(data);
+        setAllDesignations(Array.from(new Set(data.map(emp => emp.designation))));
+      } else {
+        setEmployees([]);
+        setAllDesignations([]);
+      }
+    } catch (error) {
+      console.error('Error loading bench employees:', error);
+      setEmployees([]);
+      setAllDesignations([]);
+    }
   };
 
   const handleAllocate = (employee: Employee) => {
@@ -136,30 +214,43 @@ export const Bench: React.FC = () => {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search employees..."
+                placeholder="Search employees... (Press Enter/Tab to search)"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="pl-10"
+                disabled={isSearching}
               />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              )}
             </div>
 
             <select
               value={filters.designation}
               onChange={(e) => handleFilterChange('designation', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
+              disabled={isSearching}
             >
               <option value="">All Designations</option>
-              {designations.map((designation) => (
-                <option key={designation} value={designation}>
-                  {designation}
-                </option>
-              ))}
+              {designations.length > 0 ? (
+                designations.map((designation) => (
+                  <option key={designation} value={designation}>
+                    {designation}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Loading designations...</option>
+              )}
             </select>
 
             <select
               value={filters.availability}
               onChange={(e) => handleFilterChange('availability', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
+              disabled={isSearching}
             >
               <option value="">All Availability</option>
               <option value="80">80% and above</option>
@@ -175,6 +266,7 @@ export const Bench: React.FC = () => {
                 onChange={(e) => handleFilterChange('fromDate', e.target.value)}
                 placeholder="From Date"
                 className="flex-1"
+                disabled={isSearching}
               />
               <Input
                 type="date"
@@ -182,8 +274,27 @@ export const Bench: React.FC = () => {
                 onChange={(e) => handleFilterChange('toDate', e.target.value)}
                 placeholder="To Date"
                 className="flex-1"
+                disabled={isSearching}
               />
             </div>
+
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilters({
+                  search: '',
+                  designation: '',
+                  availability: '',
+                  fromDate: '',
+                  toDate: '',
+                });
+                loadAllBenchEmployees();
+              }}
+              disabled={isSearching}
+              className="px-4 py-2"
+            >
+              Clear Filters
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -206,7 +317,12 @@ export const Bench: React.FC = () => {
           <p className="text-gray-600">Click on employee names to view detailed information</p>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredEmployees.length > 0 ? (
+          {isSearching ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-500">Searching employees...</p>
+            </div>
+          ) : filteredEmployees.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -298,7 +414,11 @@ export const Bench: React.FC = () => {
             <div className="p-12 text-center">
               <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
-              <p className="text-gray-500">Try adjusting your filters or add employees to the bench</p>
+              <p className="text-gray-500">
+                {Object.values(filters).some(filter => filter !== '') 
+                  ? 'Try adjusting your search filters' 
+                  : 'Try adjusting your filters or add employees to the bench'}
+              </p>
             </div>
           )}
         </CardContent>
