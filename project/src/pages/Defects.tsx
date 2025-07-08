@@ -159,7 +159,7 @@ export const Defects: React.FC = () => {
       typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
       severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
       priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
-      defectStatusId: filters.status ?  defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
+      defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
       releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
     };
     filterDefects(backendFilters).then(setBackendDefects);
@@ -231,7 +231,7 @@ export const Defects: React.FC = () => {
         type: typeValue as 'bug' | 'test-failure' | 'enhancement',
         assignedTo: formData.assigntoId || '',
         reportedBy: formData.assignbyId || '',
-        status: 'open' as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
+        status: 'new' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
         projectId: selectedProjectId || '',
         releaseId: '',
         createdAt: new Date().toISOString(),
@@ -1256,22 +1256,25 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.statusId || ''}
-                onChange={e => handleInputChange('statusId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select status</option>
-                {defectStatuses.map((s) => (
-                  <option key={s.id} value={s.id}>{s.defectStatusName}</option>
-                ))}
-              </select>
-            </div>
+            {/* Only show Status dropdown in Edit mode */}
+            {editingDefect && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={formData.statusId || ''}
+                  onChange={e => handleInputChange('statusId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select status</option>
+                  {defectStatuses.map((s) => (
+                    <option key={s.id} value={s.id}>{s.defectStatusName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           {/* Assigned To and Entered By */}
           <div className="grid grid-cols-2 gap-4">
