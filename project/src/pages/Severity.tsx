@@ -4,9 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Table, TableBody, TableCell, TableRow } from '../components/ui/Table';
 import { Modal } from '../components/ui/Modal';
-import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSeverities, createSeverity as apiCreateSeverity, updateSeverity as apiUpdateSeverity, deleteSeverity as apiDeleteSeverity, Severity as SeverityType, ErrorResponse } from '../api/severity';
+import { getSeverities, createSeverity as apiCreateSeverity, updateSeverity as apiUpdateSeverity, deleteSeverity as apiDeleteSeverity, Severity as SeverityType } from '../api/severity';
+import { Toast } from '../components/ui/Toast';
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
@@ -17,10 +18,6 @@ const Severity: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [successMessage, setSuccessMessage] = useState<string>('');
   const [editingSeverity, setEditingSeverity] = useState<SeverityType | null>(null);
   const [deletingSeverity, setDeletingSeverity] = useState<SeverityType | null>(null);
   const [formData, setFormData] = useState({
@@ -28,11 +25,25 @@ const Severity: React.FC = () => {
     color: '#000000',
   });
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isOpen: boolean }>({
+    message: '',
+    type: 'success',
+    isOpen: false,
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
       color: '#000000',
     });
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type, isOpen: true });
+  };
+
+  const closeToast = () => {
+    setToast((prev) => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -51,79 +62,28 @@ const Severity: React.FC = () => {
     fetchSeverities();
   }, []);
 
-  // Debug useEffect for success modal
-  useEffect(() => {
-    console.log('Success modal state changed:', isSuccessModalOpen);
-    console.log('Success message:', successMessage);
-  }, [isSuccessModalOpen, successMessage]);
-
-  const validateSeverity = (name: string, color: string, excludeId?: number): string | null => {
-    const existingSeverity = severities.find(severity => 
-      (severity.name.toLowerCase() === name.toLowerCase() || severity.color.toLowerCase() === color.toLowerCase()) &&
-      severity.id !== excludeId
-    );
-
-    if (existingSeverity) {
-      if (existingSeverity.name.toLowerCase() === name.toLowerCase() && existingSeverity.color.toLowerCase() === color.toLowerCase()) {
-        return "Severity name and color already exist";
-      } else if (existingSeverity.name.toLowerCase() === name.toLowerCase()) {
-        return "Severity name already exists";
-      } else {
-        return "Severity color already exists";
-      }
-    }
-    return null;
-  };
-
   const handleCreate = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Validate for duplicates
-      const validationError = validateSeverity(formData.name, formData.color);
-      if (validationError) {
-        setErrorMessage(validationError);
-        setIsErrorModalOpen(true);
-        return;
-      }
-
       const res = await apiCreateSeverity(formData);
-      console.log('API Response:', res);
-      
-      // Check for success based on statusCode 2000 (as per API documentation)
-      if (res.statusCode === 2000) {
-        // Close the create modal and reset form FIRST
+      if (res.data) {
+        setSeverities([...severities, res.data]);
         setIsCreateModalOpen(false);
         resetForm();
-
-        // Update severities list
-        if (res.data) {
-          setSeverities([...severities, res.data]);
-        } else {
-          const updatedSeverities = await getSeverities();
-          setSeverities(updatedSeverities.data);
-        }
-
-        // Show success modal
-        setSuccessMessage("Severity created successfully");
-        setIsSuccessModalOpen(true);
-        // Auto-close the success modal after 2 seconds
-        setTimeout(() => setIsSuccessModalOpen(false), 2000);
+        showToast('Severity created successfully!', 'success');
       } else {
-        // Handle unexpected response
-        setErrorMessage(res.message || 'Unexpected response from server');
-        setIsErrorModalOpen(true);
+        showToast('Failed to create severity: No data returned', 'error');
       }
     } catch (err: any) {
-      console.error('Error in handleCreate:', err);
-      const errorData = err as ErrorResponse;
-      if (errorData.statusCode === 4000) {
-        setErrorMessage(errorData.message);
-        setIsErrorModalOpen(true);
-      } else {
-        setError('Failed to create severity');
+      let msg = 'Failed to create severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err?.message) {
+        msg = err.message;
       }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -134,51 +94,28 @@ const Severity: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Validate for duplicates (excluding current severity)
-      const validationError = validateSeverity(formData.name, formData.color, editingSeverity.id);
-      if (validationError) {
-        setErrorMessage(validationError);
-        setIsErrorModalOpen(true);
-        return;
-      }
-
       const res = await apiUpdateSeverity(editingSeverity.id, formData);
-      console.log('Update API Response:', res);
-      
-      // Check for success based on statusCode 2000
-      if (res.statusCode === 2000) {
-        // If the API returns the updated severity in response, use it
-        if (res.data) {
-          const updatedSeverities = severities.map(severity =>
-            severity.id === editingSeverity.id ? res.data! : severity
-          );
-          setSeverities(updatedSeverities);
-        } else {
-          // If no data in response, refetch the list to get updated data
-          const updatedSeverities = await getSeverities();
-          setSeverities(updatedSeverities.data);
-        }
-        
+      if (res.data) {
+        const updatedSeverities = severities.map((severity): SeverityType =>
+          severity.id === editingSeverity.id ? res.data as SeverityType : severity
+        );
+        setSeverities(updatedSeverities);
         setIsEditModalOpen(false);
         setEditingSeverity(null);
         resetForm();
-        setSuccessMessage("Severity updated successfully");
-        setIsSuccessModalOpen(true);
+        showToast('Severity updated successfully!', 'success');
       } else {
-        // Handle unexpected response
-        setErrorMessage(res.message || 'Unexpected response from server');
-        setIsErrorModalOpen(true);
+        showToast('Failed to update severity: No data returned', 'error');
       }
     } catch (err: any) {
-      console.error('Error in handleEdit:', err);
-      const errorData = err as ErrorResponse;
-      if (errorData.statusCode === 4000) {
-        setErrorMessage(errorData.message);
-        setIsErrorModalOpen(true);
-      } else {
-        setError('Failed to update severity');
+      let msg = 'Failed to update severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err?.message) {
+        msg = err.message;
       }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -189,27 +126,21 @@ const Severity: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiDeleteSeverity(deletingSeverity.id);
-      console.log('Delete API Response:', res);
-      
-      // Check for success based on statusCode 2000
-      if (res.statusCode === 2000) {
-        const updatedSeverities = severities.filter(
-          severity => severity.id !== deletingSeverity.id
-        );
-        setSeverities(updatedSeverities);
-        setIsDeleteModalOpen(false);
-        setDeletingSeverity(null);
-        setSuccessMessage("Severity deleted successfully");
-        setIsSuccessModalOpen(true);
-      } else {
-        // Handle unexpected response
-        setErrorMessage(res.message || 'Unexpected response from server');
-        setIsErrorModalOpen(true);
-      }
+      await apiDeleteSeverity(deletingSeverity.id);
+      const updatedSeverities = severities.filter(
+        severity => severity.id !== deletingSeverity.id
+      );
+      setSeverities(updatedSeverities);
+      setIsDeleteModalOpen(false);
+      setDeletingSeverity(null);
+      showToast('Severity deleted successfully!', 'success');
     } catch (err: any) {
-      console.error('Error in handleDelete:', err);
-      setError('Failed to delete severity');
+      let msg = 'Failed to delete severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -462,54 +393,13 @@ const Severity: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Error Modal */}
-      <Modal
-        isOpen={isErrorModalOpen}
-        onClose={() => setIsErrorModalOpen(false)}
-        title="Validation Error"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
-            <p className="text-red-700">{errorMessage}</p>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={() => setIsErrorModalOpen(false)}
-            >
-              OK
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Success Modal */}
-      <Modal
-        isOpen={isSuccessModalOpen}
-        onClose={() => {
-          setIsSuccessModalOpen(false);
-        }}
-        title="Success"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-            <p className="text-green-700">{successMessage}</p>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={() => setIsSuccessModalOpen(false)}
-            >
-              OK
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {error && <div className="text-red-600 mb-4">{error}</div>}
       {loading && <div className="text-gray-600 mb-4">Loading...</div>}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={closeToast}
+      />
     </div>
   );
 };
