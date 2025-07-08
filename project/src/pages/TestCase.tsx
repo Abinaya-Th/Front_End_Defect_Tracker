@@ -378,60 +378,30 @@ export const TestCase: React.FC = () => {
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     for (const { formData } of modals) {
-      console.log("Submitting form data:", formData);
-
-      //  const moduleObj = projectModules.find(m => m.name === formData.module);
-      //   const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+      // Prepare payload for both create and update
       const payload: any = {
         description: formData.description,
         steps: formData.steps,
         subModuleId: Number(selectedSubmoduleId),
         moduleId: Number(selectedModuleId),
-        projectId: formData.projectId,
+        projectId: Number(formData.projectId),
       };
       const severityId = severities.find(s => s.name === formData.severity)?.id;
       if (typeof severityId === 'number') payload.severityId = severityId;
       const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
       if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
-    try {
-      const response = await createTestCase(payload);
-      console.log("Test case created successfully:", response);
-    } catch (error) {
-      console.error("Error creating test case:", error);
-    }
-     
-  }
- 
-
-    if (e) e.preventDefault();
-    for (const { formData } of modals) {
-      if (formData.id) {
-        // Map module and submodule names to IDs
-        const moduleObj = projectModules && projectModules.find(m => m.name === formData.module);
-        const submoduleObj = moduleObj?.submodules && moduleObj?.submodules.find(sm => sm.name === formData.subModule);
-        await updateTestCase(formData.id, {
-          testcaseId: String(formData.id),
-          testcase: formData.description, // Use description as the title/name
-          description: formData.description,
-          steps: formData.steps,
-          submoduleId: submoduleObj ? String(submoduleObj.id) : undefined,
-          moduleId: moduleObj ? String(moduleObj.id) : undefined,
-          projectId: formData.projectId ? String(formData.projectId) : undefined,
-          severityId: (() => { const id = severities && severities.find(s => s.name === formData.severity)?.id; return id !== undefined ? String(id) : undefined; })(),
-          typeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
-          defectTypeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
-        });
-      } else {
-        // Add mode
-        // addTestCase({
-        //   ...formData,
-        //   id: `TC-${formData.module
-        //     .substring(0, 3)
-        //     .toUpperCase()}-${formData.subModule
-        //       .substring(0, 3)
-        //       .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        //   projectId: selectedProjectId,
-        // });
+      try {
+        if (formData.id) {
+          // Edit mode: update existing test case
+          await updateTestCase(formData.id, payload);
+          console.log("Test case updated successfully");
+        } else {
+          // Add mode: create new test case
+          const response = await createTestCase(payload);
+          console.log("Test case created successfully:", response);
+        }
+      } catch (error) {
+        console.error("Error saving test case:", error);
       }
     }
     setSuccess(true);
@@ -548,7 +518,12 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
 
   // Add a useEffect to fetch submodules for the selected module in the current modal
   useEffect(() => {
-    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const currentModal = modals[currentModalIdx];
+    // Skip fetching submodules if we're in edit mode (formData.id exists)
+    if (currentModal?.formData.id) {
+      return;
+    }
+    const currentModuleName = currentModal?.formData.module;
     const moduleObj = projectModules && projectModules.find((m: any) => m.name === currentModuleName);
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id).then(res => {
@@ -1015,23 +990,25 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                             </button>
                             <button
                               onClick={() => {
-                                deleteTestCaseById(testCase.id).then(() => {
-                                  if (selectedProjectId && selectedSubmoduleId !== null) {
-                                    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                                      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                                      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                                      setTestCases(
-                                        (data as any[]).map((tc: any) => ({
-                                          ...tc,
-                                          module: moduleMap[tc.moduleId] || tc.moduleId,
-                                          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                                          severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                          type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                                        })) as TestCaseType[]
-                                      );
-                                    });
-                                  }
-                                });
+                                if (window.confirm("Are you sure you want to delete this test case?")) {
+                                  deleteTestCaseById(testCase.id).then(() => {
+                                    if (selectedProjectId && selectedSubmoduleId !== null) {
+                                      getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                                        const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                                        const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                                        setTestCases(
+                                          (data as any[]).map((tc: any) => ({
+                                            ...tc,
+                                            module: moduleMap[tc.moduleId] || tc.moduleId,
+                                            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                                            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                                            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                                          })) as TestCaseType[]
+                                        );
+                                      });
+                                    }
+                                  });
+                                }
                               }}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
