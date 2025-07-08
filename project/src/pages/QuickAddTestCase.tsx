@@ -575,8 +575,28 @@ console.log("id",selectedProjectId);
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx + 1)}
-                      disabled={idx === modals.length - 1}
+                      onClick={() => {
+                        if (idx === modals.length - 1) {
+                          setModals((prev) => [
+                            ...prev,
+                            {
+                              open: true,
+                              formData: {
+                                module: modal.formData.module,
+                                subModule: modal.formData.subModule,
+                                description: "",
+                                steps: "",
+                                type: "functional",
+                                severity: "medium",
+                              },
+                            },
+                          ]);
+                          setCurrentModalIdx(modals.length);
+                        } else {
+                          setCurrentModalIdx(idx + 1);
+                        }
+                      }}
+                      disabled={false}
                     >
                       Next
                     </Button>
