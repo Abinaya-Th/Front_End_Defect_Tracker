@@ -1255,43 +1255,47 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                 </div>
                 <div className="flex justify-between items-center pt-4">
                   <div className="flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx - 1)}
-                      disabled={idx === 0}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        if (idx === modals.length - 1) {
-                          setModals((prev) => [
-                            ...prev,
-                            {
-                              open: true,
-                              formData: {
-                                module: modal.formData.module,
-                                subModule: modal.formData.subModule,
-                                description: "",
-                                steps: "",
-                                type: "functional",
-                                severity: "medium",
-                                projectId: modal.formData.projectId,
-                              },
-                            },
-                          ]);
-                          setCurrentModalIdx(modals.length);
-                        } else {
-                          setCurrentModalIdx(idx + 1);
-                        }
-                      }}
-                      disabled={false}
-                    >
-                      Next
-                    </Button>
+                    {!isEditMode && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setCurrentModalIdx(idx - 1)}
+                          disabled={idx === 0}
+                          style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            if (idx === modals.length - 1) {
+                              setModals((prev) => [
+                                ...prev,
+                                {
+                                  open: true,
+                                  formData: {
+                                    module: modal.formData.module,
+                                    subModule: modal.formData.subModule,
+                                    description: "",
+                                    steps: "",
+                                    type: "functional",
+                                    severity: "medium",
+                                    projectId: modal.formData.projectId,
+                                  },
+                                },
+                              ]);
+                              setCurrentModalIdx(modals.length);
+                            } else {
+                              setCurrentModalIdx(idx + 1);
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
+                      </>
+                    )}
                   </div>
                   <div className="flex space-x-3">
                     <Button
