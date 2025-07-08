@@ -552,6 +552,21 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
     return axios.delete(url);
   };
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Compute paginated test cases (works for both searchResults and filteredTestCases)
+  const tableData = searchResults !== null ? searchResults : filteredTestCases;
+  const totalRows = tableData.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+  const paginatedTestCases = tableData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset to first page if data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchResults, filteredTestCases, rowsPerPage]);
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -912,7 +927,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {(searchResults !== null ? searchResults : filteredTestCases).map((testCase: TestCaseType) => (
+                    {paginatedTestCases.map((testCase: TestCaseType) => (
                       <tr key={testCase.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
@@ -1021,6 +1036,45 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                     ))}
                   </tbody>
                 </table>
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700">Rows per page:</span>
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-sm"
+                      value={rowsPerPage}
+                      onChange={e => setRowsPerPage(Number(e.target.value))}
+                    >
+                      {[5, 10, 20, 50, 100].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {totalRows === 0
+                      ? 'No test cases'
+                      : `Showing ${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, totalRows)} of ${totalRows}`}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1285,7 +1339,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
       >
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-gray-700 whitespace-pre-line">
+            <p className="text-gray-700 whitespace-pre-wrap break-words">
               {viewingTestCase?.steps}
             </p>
           </div>
