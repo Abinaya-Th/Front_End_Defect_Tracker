@@ -10,6 +10,7 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
+import { createTestCase } from "../api/testCase/createTestcase";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -202,19 +203,34 @@ console.log("id",selectedProjectId);
     }
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module
-          .substring(0, 3)
-          .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: selectedProjectId,
-      });
-    });
+    let allSuccess = true;
+    for (const { formData } of modals) {
+      // Map names to IDs
+      const selectedModule = modules.find((m: any) => m.moduleName === formData.module);
+      const selectedSubModule = subModules.find((s: any) => (s.subModuleName || s.name) === formData.subModule);
+      const selectedSeverity = severities.find((sev) => sev.name === formData.severity);
+      const selectedDefectType = defectTypes.find((dt) => dt.defectTypeName === formData.type);
+      if (!selectedModule || !selectedSeverity || !selectedDefectType) {
+        allSuccess = false;
+        continue;
+      }
+      const payload = {
+        subModuleId: selectedSubModule ? (selectedSubModule.subModuleId || selectedSubModule.id) : 0,
+        moduleId: selectedModule.id,
+        steps: formData.steps,
+        severityId: selectedSeverity.id,
+        projectId: Number(selectedProjectId),
+        description: formData.description,
+        defectTypeId: selectedDefectType.id,
+      };
+      try {
+        await createTestCase(payload);
+      } catch (error) {
+        allSuccess = false;
+      }
+    }
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);
@@ -233,6 +249,9 @@ console.log("id",selectedProjectId);
       ]);
       setCurrentModalIdx(0);
     }, 1200);
+    if (!allSuccess) {
+      alert("Some test cases could not be added. Please check your input.");
+    }
   };
 
   // Use modulesByProject from context instead of mockModules
@@ -406,13 +425,6 @@ console.log("id",selectedProjectId);
                     ref={fileInputRef}
                     className="hidden"
                   />
-                  <Button
-                    type="button"
-                    onClick={handleAddAnother}
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                  >
-                    + Add Another Test Case
-                  </Button>
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   {modals.length > 1 && (
