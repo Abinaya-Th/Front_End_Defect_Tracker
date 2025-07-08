@@ -231,7 +231,7 @@ export const Defects: React.FC = () => {
         type: typeValue as 'bug' | 'test-failure' | 'enhancement',
         assignedTo: formData.assigntoId || '',
         reportedBy: formData.assignbyId || '',
-        status: 'new' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
+        status: 'open' as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
         projectId: selectedProjectId || '',
         releaseId: '',
         createdAt: new Date().toISOString(),
@@ -519,15 +519,20 @@ export const Defects: React.FC = () => {
     fetchStatuses();
   }, []);
 
+  // Update import API call to use the provided endpoint and projectId
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !selectedProjectId) return;
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await axios.post(`${BASE_URL}defect/import/{projectId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await axios.post(
+        `${BASE_URL}defect/import/${selectedProjectId}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       if (response && response.data && Array.isArray(response.data)) {
         response.data.forEach((row: any) => addDefect(row));
         alert("Imported defects successfully.");
@@ -538,11 +543,20 @@ export const Defects: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
-  // Add exportDefects function
-  const exportDefects/import  try {
-      const response = await axios.get(`${BASE_URL}defect/export/, {
-        responseType: "blob",
-      });
+
+  // Update export API call to use the provided endpoint and projectId
+  const exportDefects = async () => {
+    if (!selectedProjectId) {
+      alert("Please select a project to export defects.");
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `${BASE_URL}defect/export/${selectedProjectId}`,
+        {
+          responseType: "blob",
+        }
+      );
       // Create a link to download the file
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
