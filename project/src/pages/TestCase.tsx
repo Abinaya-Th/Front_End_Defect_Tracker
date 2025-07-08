@@ -1114,16 +1114,6 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                       Import from Excel/CSV
                     </button>
                   )}
-                  {/* Only show Add Another button in add mode */}
-                  {!isEditMode && (
-                    <Button
-                      type="button"
-                      onClick={handleAddAnother}
-                      className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                    >
-                      + Add Another Test Case
-                    </Button>
-                  )}
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   <div className="grid grid-cols-2 gap-4">
