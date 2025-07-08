@@ -425,13 +425,6 @@ console.log("id",selectedProjectId);
                     ref={fileInputRef}
                     className="hidden"
                   />
-                  <Button
-                    type="button"
-                    onClick={handleAddAnother}
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                  >
-                    + Add Another Test Case
-                  </Button>
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   {modals.length > 1 && (
