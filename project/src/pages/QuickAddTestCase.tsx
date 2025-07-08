@@ -427,16 +427,6 @@ console.log("id",selectedProjectId);
                   />
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
-                  {modals.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemove(idx)}
-                      className="absolute top-2 right-2 px-2 py-1"
-                    >
-                      Remove
-                    </Button>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
