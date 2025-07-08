@@ -23,7 +23,7 @@ export interface FilteredDefect {
 
 /**
  * Fetches defects filtered by projectId and optional filters from the backend API.
- * @param filters An object with projectId (mandatory) and optional typeId, severityId, priorityId, defectStatusId, releaseTestCaseId.
+ * @param filters An object with projectId (mandatory) and optional typeId, severityId, priorityId, defectStatusId, releaseTestCaseId, moduleId, subModuleId, assignToId, assignById.
  * @returns Promise<FilteredDefect[]>
  */
 export async function filterDefects(filters: {
@@ -33,6 +33,10 @@ export async function filterDefects(filters: {
   priorityId?: number;
   defectStatusId?: number;
   releaseTestCaseId?: number;
+  moduleId?: number;
+  subModuleId?: number;
+  assignToId?: number;
+  assignById?: number;
 }): Promise<FilteredDefect[]> {
   const params: any = { projectId: filters.projectId };
   if (filters.typeId) params.typeId = filters.typeId;
@@ -40,6 +44,10 @@ export async function filterDefects(filters: {
   if (filters.priorityId) params.priorityId = filters.priorityId;
   if (filters.defectStatusId) params.defectstatusId = filters.defectStatusId;
   if (filters.releaseTestCaseId) params.ReleaseTestCaseId = filters.releaseTestCaseId;
+  if (filters.moduleId) params.moduleId = filters.moduleId;
+  if (filters.subModuleId) params.subModuleId = filters.subModuleId;
+  if (filters.assignToId) params.assignToId = filters.assignToId;
+  if (filters.assignById) params.assignById = filters.assignById;
   const response = await axios.get(`${baseUrl}defect/filter`, {
     params,
     headers: { 'Content-Type': 'application/json' },
