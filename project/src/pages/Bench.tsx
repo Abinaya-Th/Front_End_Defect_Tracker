@@ -22,7 +22,8 @@ export const Bench: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [filters, setFilters] = useState({
-    search: '',
+    firstName: '',
+    lastName: '',
     designation: '',
     availability: '',
     fromDate: '',
@@ -59,7 +60,7 @@ export const Bench: React.FC = () => {
     setFilters(prev => ({ ...prev, [field]: value }));
     
     // For search field, don't trigger API call immediately
-    if (field === 'search') {
+    if (field === 'firstName' || field === 'lastName') {
       return;
     }
     
@@ -103,9 +104,11 @@ export const Bench: React.FC = () => {
     setIsSearching(true);
     try {
       const searchParams: BenchSearchParams = {};
-      
-      if (searchFilters.search) {
-        searchParams.firstName = searchFilters.search;
+      if (searchFilters.firstName) {
+        searchParams.firstName = searchFilters.firstName;
+      }
+      if (searchFilters.lastName) {
+        searchParams.lastName = searchFilters.lastName;
       }
       if (searchFilters.designation) {
         searchParams.designation = searchFilters.designation;
@@ -116,21 +119,23 @@ export const Bench: React.FC = () => {
       if (searchFilters.fromDate) {
         searchParams.startDate = searchFilters.fromDate;
       }
+      if (searchFilters.toDate) {
+        searchParams.endDate = searchFilters.toDate;
+      }
 
       console.log('Search params:', searchParams);
       const searchResults = await searchBenchEmployees(searchParams);
       console.log('Search results:', searchResults);
       
-      setEmployees(searchResults);
-      
-      // If no results found and we have active filters, show a message
-      if (searchResults.length === 0 && Object.values(searchFilters).some(filter => filter !== '')) {
-        console.log('No employees found with current filters');
+      // If searchResults is not an array or is empty, clear employees
+      if (Array.isArray(searchResults) && searchResults.length > 0) {
+        setEmployees(searchResults);
+      } else {
+        setEmployees([]); // Clear the table if no results
       }
     } catch (error) {
       console.error('Error searching bench employees:', error);
-      // Fallback to local filtering if API fails
-      setEmployees(prev => prev);
+      setEmployees([]); // Also clear on error
     } finally {
       setIsSearching(false);
     }
@@ -211,21 +216,27 @@ export const Bench: React.FC = () => {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search employees... (Press Enter/Tab to search)"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
+                placeholder="First Name"
+                value={filters.firstName}
+                onChange={(e) => handleFilterChange('firstName', e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 className="pl-10"
                 disabled={isSearching}
               />
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                </div>
-              )}
+            </div>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Last Name"
+                value={filters.lastName}
+                onChange={(e) => handleFilterChange('lastName', e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-10"
+                disabled={isSearching}
+              />
             </div>
 
             <select
@@ -282,7 +293,8 @@ export const Bench: React.FC = () => {
               variant="secondary"
               onClick={() => {
                 setFilters({
-                  search: '',
+                  firstName: '',
+                  lastName: '',
                   designation: '',
                   availability: '',
                   fromDate: '',
@@ -413,7 +425,11 @@ export const Bench: React.FC = () => {
           ) : (
             <div className="p-12 text-center">
               <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {Object.values(filters).some(filter => filter !== '')
+                  ? 'User not found'
+                  : 'No employees found'}
+              </h3>
               <p className="text-gray-500">
                 {Object.values(filters).some(filter => filter !== '') 
                   ? 'Try adjusting your search filters' 

@@ -5,8 +5,10 @@ const API_BASE_URL = 'http://34.57.197.188:8087/api/v1';
 
 export interface BenchSearchParams {
   startDate?: string;
+  endDate?: string;
   designation?: string;
   firstName?: string;
+  lastName?: string;
   availability?: number;
 }
 
@@ -18,11 +20,17 @@ export const searchBenchEmployees = async (params: BenchSearchParams): Promise<E
     if (params.startDate) {
       queryParams.append('startDate', params.startDate);
     }
+    if (params.endDate) {
+      queryParams.append('endDate', params.endDate);
+    }
     if (params.designation) {
       queryParams.append('designation', params.designation);
     }
     if (params.firstName) {
       queryParams.append('firstName', params.firstName);
+    }
+    if (params.lastName) {
+      queryParams.append('lastName', params.lastName);
     }
     if (params.availability) {
       queryParams.append('availability', params.availability.toString());

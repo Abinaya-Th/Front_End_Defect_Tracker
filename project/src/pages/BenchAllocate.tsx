@@ -45,7 +45,8 @@ export default function BenchAllocate() {
         ? [contextProjectId, setContextProjectId]
         : useState(availableProjects[0]?.id || '');
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [benchFilter, setBenchFilter] = useState('');
+    const [benchFirstName, setBenchFirstName] = useState('');
+    const [benchLastName, setBenchLastName] = useState('');
     const [designationFilter, setDesignationFilter] = useState('');
     const [availabilityFilter, setAvailabilityFilter] = useState<number[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -81,10 +82,14 @@ export default function BenchAllocate() {
         setIsSearching(true);
         try {
             const searchResults = await searchBenchEmployees(searchParams);
-            setEmployees(searchResults);
+            if (Array.isArray(searchResults) && searchResults.length > 0) {
+                setEmployees(searchResults);
+            } else {
+                setEmployees([]); // Clear the table if no results
+            }
         } catch (error) {
             console.error('Error searching bench employees:', error);
-            // Fallback to local filtering if API fails
+            setEmployees([]); // Also clear on error
         } finally {
             setIsSearching(false);
         }
@@ -105,15 +110,19 @@ export default function BenchAllocate() {
     };
 
     // Updated filter handlers
-    const handleSearchChange = (value: string) => {
-        setBenchFilter(value);
+    const handleFirstNameChange = (value: string) => {
+        setBenchFirstName(value);
+        // Do not trigger search here
+    };
+    const handleLastNameChange = (value: string) => {
+        setBenchLastName(value);
         // Do not trigger search here
     };
     const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
-            if (benchFilter.trim()) {
-                await performSearch({ firstName: benchFilter });
+            if (benchFirstName.trim() || benchLastName.trim()) {
+                await performSearch({ firstName: benchFirstName, lastName: benchLastName });
             } else {
                 await loadAllEmployees();
             }
@@ -250,11 +259,19 @@ export default function BenchAllocate() {
             {/* Filters */}
             <div className="flex gap-4 mb-4">
                 <Input
-                    placeholder="Search employees... (Press Enter/Tab to search)"
-                    value={benchFilter}
-                    onChange={e => handleSearchChange(e.target.value)}
+                    placeholder="First Name"
+                    value={benchFirstName}
+                    onChange={e => handleFirstNameChange(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-64"
+                    className="w-48"
+                    disabled={isSearching}
+                />
+                <Input
+                    placeholder="Last Name"
+                    value={benchLastName}
+                    onChange={e => handleLastNameChange(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    className="w-48"
                     disabled={isSearching}
                 />
                 <select
@@ -282,7 +299,8 @@ export default function BenchAllocate() {
                 <Button
                     variant="secondary"
                     onClick={() => {
-                        setBenchFilter('');
+                        setBenchFirstName('');
+                        setBenchLastName('');
                         setDesignationFilter('');
                         setAvailabilityFilter([]);
                         loadAllEmployees();
@@ -353,7 +371,11 @@ export default function BenchAllocate() {
                         ))
                         ) : (
                             <div className="text-center py-8">
-                                <p className="text-gray-500">No employees found</p>
+                                <p className="text-gray-500">
+                                    {(benchFirstName.trim() || benchLastName.trim() || designationFilter || availabilityFilter.length > 0)
+                                        ? 'No user found'
+                                        : 'No employees found'}
+                                </p>
                             </div>
                         )}
                     </div>

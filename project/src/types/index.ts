@@ -188,3 +188,12 @@ export interface CreateModuleResponse {
 export interface GetModulesResponse {
   modules: Module[];
 }
+
+export interface BenchSearchParams {
+  startDate?: string;
+  endDate?: string;
+  designation?: string;
+  firstName?: string;
+  lastName?: string;
+  availability?: number;
+}
