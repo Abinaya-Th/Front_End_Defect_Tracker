@@ -261,7 +261,7 @@ export const ReleaseView: React.FC = () => {
                   key={release.id}
                   hover
                   className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === release.id ? 'border-4 border-blue-700 bg-blue-600 text-white' : 'border border-gray-200 bg-white text-gray-900'}`}
-                  onClick={() => handleReleaseSelect(release.id)}
+                  onClick={() => navigate(`/projects/${selectedProject}/releases/${release.id}/details`)}
                 >
                   <CardContent className={`p-6 ${selectedRelease === release.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-900'}`}>
                     <div className="mb-4">
