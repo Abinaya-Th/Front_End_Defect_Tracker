@@ -525,7 +525,7 @@ export const Defects: React.FC = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await axios.post(`${BASE_URL}defect/import`, formData, {
+      const response = await axios.post(`${BASE_URL}defect/import/{projectId}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (response && response.data && Array.isArray(response.data)) {
@@ -541,7 +541,7 @@ export const Defects: React.FC = () => {
   // Add exportDefects function
   const exportDefects = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}defect/export`, {
+      const response = await axios.get(`${BASE_URL}defect/export/{projectId}`, {
         responseType: "blob",
       });
       // Create a link to download the file
