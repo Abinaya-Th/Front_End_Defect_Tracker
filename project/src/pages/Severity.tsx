@@ -7,6 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSeverities, createSeverity as apiCreateSeverity, updateSeverity as apiUpdateSeverity, deleteSeverity as apiDeleteSeverity, Severity as SeverityType } from '../api/severity';
+import { Toast } from '../components/ui/Toast';
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
@@ -24,11 +25,25 @@ const Severity: React.FC = () => {
     color: '#000000',
   });
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isOpen: boolean }>({
+    message: '',
+    type: 'success',
+    isOpen: false,
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
       color: '#000000',
     });
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type, isOpen: true });
+  };
+
+  const closeToast = () => {
+    setToast((prev) => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -52,11 +67,23 @@ const Severity: React.FC = () => {
       setLoading(true);
       setError(null);
       const res = await apiCreateSeverity(formData);
-      setSeverities([...severities, res.data]);
-      setIsCreateModalOpen(false);
-      resetForm();
+      if (res.data) {
+        setSeverities([...severities, res.data]);
+        setIsCreateModalOpen(false);
+        resetForm();
+        showToast('Severity created successfully!', 'success');
+      } else {
+        showToast('Failed to create severity: No data returned', 'error');
+      }
     } catch (err: any) {
-      setError('Failed to create severity');
+      let msg = 'Failed to create severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -68,15 +95,27 @@ const Severity: React.FC = () => {
       setLoading(true);
       setError(null);
       const res = await apiUpdateSeverity(editingSeverity.id, formData);
-      const updatedSeverities = severities.map(severity =>
-        severity.id === editingSeverity.id ? res.data : severity
-      );
-      setSeverities(updatedSeverities);
-      setIsEditModalOpen(false);
-      setEditingSeverity(null);
-      resetForm();
+      if (res.data) {
+        const updatedSeverities = severities.map((severity): SeverityType =>
+          severity.id === editingSeverity.id ? res.data as SeverityType : severity
+        );
+        setSeverities(updatedSeverities);
+        setIsEditModalOpen(false);
+        setEditingSeverity(null);
+        resetForm();
+        showToast('Severity updated successfully!', 'success');
+      } else {
+        showToast('Failed to update severity: No data returned', 'error');
+      }
     } catch (err: any) {
-      setError('Failed to update severity');
+      let msg = 'Failed to update severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -94,8 +133,14 @@ const Severity: React.FC = () => {
       setSeverities(updatedSeverities);
       setIsDeleteModalOpen(false);
       setDeletingSeverity(null);
+      showToast('Severity deleted successfully!', 'success');
     } catch (err: any) {
-      setError('Failed to delete severity');
+      let msg = 'Failed to delete severity';
+      if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -348,8 +393,13 @@ const Severity: React.FC = () => {
         </div>
       </Modal>
 
-      {error && <div className="text-red-600 mb-4">{error}</div>}
       {loading && <div className="text-gray-600 mb-4">Loading...</div>}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={closeToast}
+      />
     </div>
   );
 };
