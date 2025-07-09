@@ -90,7 +90,7 @@ export const Defects: React.FC = () => {
 
   React.useEffect(() => {
     if (projectId) setSelectedProjectIdLocal(projectId);
-  }, [projectId]);
+  }, [projectId,setSelectedProjectId]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<FilteredDefect | null>(null);
@@ -104,7 +104,6 @@ export const Defects: React.FC = () => {
     priorityId: '',
     typeId: '',
     assigntoId: '',
-    assignbyId: '',
     releaseId: '',
     release_test_case_description: '',
     attachment: '',

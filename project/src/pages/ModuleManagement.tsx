@@ -97,7 +97,7 @@ export const ModuleManagement: React.FC = () => {
     if (moduleForm.name.trim() && selectedProjectId) {
       const payload = {
         moduleName: moduleForm.name,
-        projectId: selectedProjectId,
+        projectId: Number(selectedProjectId),
       }
       console.log({ payload });
 
@@ -481,7 +481,7 @@ export const ModuleManagement: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {(modulesByProjectId || []).map((module) => (
                   <Card key={module.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
+                    <CardContent className="p-6 min-h-[220px] flex flex-col justify-between">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center space-x-3">
                           <input
@@ -518,14 +518,12 @@ export const ModuleManagement: React.FC = () => {
                         </div>
                       </div>
                       {/* Submodules List */}
-                      <div className="mt-4">
+                      <div className="mt-4 border rounded-lg bg-gray-50 p-3">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
                         {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
                           <ul className="list-disc list-inside space-y-1">
                             {module.submodules.map((sub: any) => {
-                              // Use the correct property name from the API response
                               const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
-                              
                               return (
                                 <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
                                   <span>{submoduleName}</span>
@@ -553,7 +551,6 @@ export const ModuleManagement: React.FC = () => {
                                           try {
                                             const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
                                             if (response.data && response.data.success) {
-                                              // Refresh modules after deleting submodule
                                               fetchModules();
                                               alert("Submodule deleted successfully.");
                                             } else {
@@ -579,21 +576,21 @@ export const ModuleManagement: React.FC = () => {
                         ) : (
                           <div className="italic text-gray-400 text-sm">No Submodules</div>
                         )}
-                      </div>
-                      <div className="flex justify-end mt-4">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => {
-                            setCurrentModuleIdForSubmodule(module.id.toString());
-                            setIsAddSubmoduleModalOpen(true);
-                            setSubmoduleForm({ name: "" });
-                            setIsEditingSubmodule(false);
-                            setEditingSubmoduleId(null);
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-1" /> Add Submodule
-                        </Button>
+                        <div className="flex justify-end mt-4">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => {
+                              setCurrentModuleIdForSubmodule(module.id.toString());
+                              setIsAddSubmoduleModalOpen(true);
+                              setSubmoduleForm({ name: "" });
+                              setIsEditingSubmodule(false);
+                              setEditingSubmoduleId(null);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-1" /> Add Submodule
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

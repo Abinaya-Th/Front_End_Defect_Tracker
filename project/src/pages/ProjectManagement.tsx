@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Eye, ChevronLeft, Settings, Users } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
-// import { useApp } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import QuickAddDefect from './QuickAddDefect';
 import QuickAddTestCase from './QuickAddTestCase';
 // import { ProjectSelector } from '../components/ui/ProjectSelector';
@@ -12,6 +12,12 @@ import QuickAddTestCase from './QuickAddTestCase';
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const { setSelectedProjectId } = useApp();
+  useEffect(() => {
+    if (projectId) {
+      setSelectedProjectId(projectId);
+    }
+  }, [projectId, setSelectedProjectId]);
   const [showModuleManagement, setShowModuleManagement] = useState(false);
 
   if (showModuleManagement) {
