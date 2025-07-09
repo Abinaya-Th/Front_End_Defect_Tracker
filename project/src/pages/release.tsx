@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Rocket, ListChecks } from 'lucide-react';
 import QuickAddTestCase from './QuickAddTestCase';
 import QuickAddDefect from './QuickAddDefect';
+import { useApp } from "../context/AppContext";
 
 export const Releases: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const { setSelectedProjectId } = useApp();
+
+  useEffect(() => {
+    if (projectId) {
+      setSelectedProjectId(projectId);
+    }
+  }, [projectId, setSelectedProjectId]);
 
   return (
     <div className="max-w-6xl mx-auto">

@@ -174,6 +174,13 @@ export const ReleaseView: React.FC = () => {
     getReleaseCardView();
   }, [selectedProject]);
 
+  // Set selected project ID from URL param on mount
+  useEffect(() => {
+    if (projectId) {
+      setSelectedProjectId(projectId);
+    }
+  }, [projectId, setSelectedProjectId]);
+
   // Project selection
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
