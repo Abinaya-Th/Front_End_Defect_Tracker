@@ -706,30 +706,27 @@ console.log("Selected Submodule:", selectedTestCases);
               }}
             >
               {submodules.map((submodule: any) => {
+                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.name)
-                  : selectedSubmodule === submodule.name;
-                  const select = submodule.subModuleId === submodule.id;
+                  ? selectedSubmodules.includes(submodule.subModuleId)
+                  : selectedSubmodule === submodule.subModuleId;
                 return (
                   <Button
-                    key={submodule.id}
-                    variant={select ? "primary" : "secondary"}
+                    key={submodule.subModuleId}
+                    variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
-
-                        handleSelectSubModule( submodule.subModuleId);
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.name)
-                            ? prev.filter((s) => s !== submodule.name)
-                            : [...prev, submodule.name]
+                          prev.includes(submodule.subModuleId)
+                            ? prev.filter((s) => s !== submodule.subModuleId)
+                            : [...prev, submodule.subModuleId]
                         );
                       } else {
-                        setSelectedSubmodule(submodule.name);
-                        setSelectedTestCases([]);
+                        handleSelectSubModule(submodule.subModuleId);
+                        setSelectedSubmodule(submodule.subModuleId);
                       }
                     }}
-                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                      }`}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                   >
                     {submodule.name}
                   </Button>
