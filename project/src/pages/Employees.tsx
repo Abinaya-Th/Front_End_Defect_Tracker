@@ -28,6 +28,12 @@ export const Employees: React.FC = () => {
   // Modal form state (disabled for now)
   const [formData] = useState({});
 
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+
   useEffect(() => {
     async function fetchUsers() {
       try {
@@ -40,6 +46,39 @@ export const Employees: React.FC = () => {
     }
     fetchUsers();
   }, [currentPage]);
+
+  // Get unique designations for the filter dropdown
+  const uniqueDesignations = Array.from(
+    new Set(users.map((user) => user.designationName).filter(Boolean))
+  );
+
+  // Filter and search logic (client-side)
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.userId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter ? user.userStatus === statusFilter : true;
+    const matchesGender = genderFilter ? user.userGender === genderFilter : true;
+    const matchesDesignation = designationFilter
+      ? user.designationName === designationFilter
+      : true;
+    return (
+      matchesSearch && matchesStatus && matchesGender && matchesDesignation
+    );
+  });
+
+  // Pagination for filtered users
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+  const filteredTotalPages = Math.ceil(filteredUsers.length / rowsPerPage) || 1;
+
+  // Reset to page 1 on filter/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, genderFilter, designationFilter]);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -62,6 +101,49 @@ export const Employees: React.FC = () => {
         </Button>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 mt-4">
+        <input
+          type="text"
+          placeholder="Search by name or ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 w-full md:w-64"
+        />
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          <select
+            value={genderFilter}
+            onChange={(e) => setGenderFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Genders</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+          <select
+            value={designationFilter}
+            onChange={(e) => setDesignationFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2"
+          >
+            <option value="">All Designations</option>
+            {uniqueDesignations.map((designation) => (
+              <option key={designation} value={designation}>
+                {designation}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Employee Table */}
       <Card className="shadow-lg">
         <CardHeader>
@@ -72,7 +154,7 @@ export const Employees: React.FC = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="min-w-[1100px]">
-              {users.length > 0 ? (
+              {paginatedUsers.length > 0 ? (
                 <table className="w-full">
                   <TableHeader>
                     <TableRow>
@@ -89,7 +171,7 @@ export const Employees: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {paginatedUsers.map((user) => (
                       <TableRow key={user.userId}>
                         <TableCell>{user.userId}</TableCell>
                         <TableCell>{user.firstName}</TableCell>
@@ -148,7 +230,7 @@ export const Employees: React.FC = () => {
               )}
             </div>
             {/* Pagination Controls */}
-            {users.length > 0 && (
+            {filteredUsers.length > 0 && (
               <div className="flex justify-end items-center gap-2 p-4">
                 <Button
                   variant="secondary"
@@ -159,13 +241,13 @@ export const Employees: React.FC = () => {
                   Prev
                 </Button>
                 <span className="text-sm">
-                  Page {currentPage} of {totalPages}
+                  Page {currentPage} of {filteredTotalPages}
                 </span>
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(filteredTotalPages, p + 1))}
+                  disabled={currentPage === filteredTotalPages}
                 >
                   Next
                 </Button>
@@ -218,7 +300,6 @@ export const Employees: React.FC = () => {
                 </option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                <option value="Other">Other</option>
               </select>
             </div>
           </div>
