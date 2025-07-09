@@ -34,7 +34,11 @@ export const createSubmodule = async (data: { subModuleName: string; moduleId: n
   try {
     // Use full URL since the endpoint is external
     const response = await apiClient.post(
+<<<<<<< HEAD
       "http://192.168.1.100:8080/api/v1/subModule",
+=======
+      "http://34.171.115.156:8087/api/v1/subModule",
+>>>>>>> 40d12a7035a0ddbcbada12cb02c88c18186b0573
       data
     );
     return response.data;
