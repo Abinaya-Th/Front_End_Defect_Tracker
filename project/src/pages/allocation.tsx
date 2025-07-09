@@ -18,6 +18,8 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -27,184 +29,43 @@ const TABS = [
   { key: "qa", label: "QA Allocation" },
 ];
 
-// --- MOCK DATA SECTION (for modules, submodules, testcases, QA, releases) ---
+// --- MOCK DATA SECTION (for modules, testcases, QA, releases) ---
 
-// Mock Modules and Submodules
+// Mock Modules
 const mockModules = [
   {
     id: "auth",
     name: "Authentication",
-    submodules: [
-      { id: "auth-bio", name: "Biometric Login" },
-      { id: "auth-pin", name: "PIN Login" },
-      { id: "auth-pass", name: "Password Reset" },
-      { id: "auth-session", name: "Session Management" },
-    ],
   },
   {
     id: "acc",
     name: "Account Management",
-    submodules: [
-      { id: "acc-overview", name: "Account Overview" },
-      { id: "acc-history", name: "Transaction History" },
-      { id: "acc-statements", name: "Account Statements" },
-      { id: "acc-settings", name: "Account Settings" },
-    ],
   },
   {
     id: "payment",
     name: "Payment",
-    submodules: [
-      { id: "pay-gateway", name: "Gateway Integration" },
-      { id: "pay-methods", name: "Payment Methods" },
-      { id: "pay-security", name: "Payment Security" },
-      { id: "pay-processing", name: "Payment Processing" },
-    ],
   },
   {
     id: "cart",
     name: "Shopping Cart",
-    submodules: [
-      { id: "cart-management", name: "Cart Management" },
-      { id: "cart-checkout", name: "Checkout Process" },
-      { id: "cart-discounts", name: "Discounts & Coupons" },
-      { id: "cart-inventory", name: "Inventory Check" },
-    ],
   },
   {
     id: "user",
     name: "User Management",
-    submodules: [
-      { id: "user-dashboard", name: "Dashboard" },
-      { id: "user-profile", name: "Profile Management" },
-      { id: "user-preferences", name: "User Preferences" },
-      { id: "user-security", name: "Security Settings" },
-    ],
   },
   {
     id: "analytics",
     name: "Analytics",
-    submodules: [
-      { id: "analytics-realtime", name: "Real-time Data" },
-      { id: "analytics-trends", name: "Trend Analysis" },
-      { id: "analytics-metrics", name: "Key Metrics" },
-      { id: "analytics-insights", name: "Data Insights" },
-    ],
   },
   {
     id: "reporting",
     name: "Reporting",
-    submodules: [
-      { id: "reports-custom", name: "Custom Reports" },
-      { id: "reports-scheduled", name: "Scheduled Reports" },
-      { id: "reports-export", name: "Data Export" },
-      { id: "reports-sharing", name: "Report Sharing" },
-    ],
   },
   {
     id: "visualization",
     name: "Visualization",
-    submodules: [
-      { id: "visual-charts", name: "Charts" },
-      { id: "visual-graphs", name: "Graphs" },
-      { id: "visual-dashboards", name: "Dashboards" },
-      { id: "visual-widgets", name: "Widgets" },
-    ],
   },
   // ...add more modules as needed
-];
-
-// Mock Test Cases
-const mockTestCases = [
-  {
-    id: "TC-AUT-BIO-0001",
-    module: "Authentication",
-    subModule: "Biometric Login",
-    description: "Verify that users can log in using biometric authentication",
-    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-AUT-PIN-0001",
-    module: "Authentication",
-    subModule: "PIN Login",
-    description: "Test PIN login security features",
-    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
-    type: "functional",
-    severity: "critical",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-PAY-001",
-    module: "Payment",
-    subModule: "Gateway Integration",
-    description: "Test new payment gateway integration",
-    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
-    type: "integration",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-CART-002",
-    module: "Shopping Cart",
-    subModule: "Cart Management",
-    description: "Test enhanced cart functionality",
-    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-USER-003",
-    module: "User Management",
-    subModule: "Dashboard",
-    description: "Test new user dashboard features",
-    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-ANALYTICS-001",
-    module: "Analytics",
-    subModule: "Real-time Data",
-    description: "Test real-time analytics data display",
-    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-REPORTS-002",
-    module: "Reporting",
-    subModule: "Custom Reports",
-    description: "Test custom report generation",
-    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-VISUAL-003",
-    module: "Visualization",
-    subModule: "Charts",
-    description: "Test data visualization components",
-    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
-    type: "functional",
-    severity: "low",
-    status: "active",
-    projectId: "PR0002",
-  },
-  // ...add more test cases as needed
 ];
 
 // Mock QA (engineers/teams)
@@ -342,14 +203,6 @@ const mockReleases = [
 // --- END MOCK DATA SECTION ---
 
 // Helper: Use mock data if API/server is not working
-function useMockOrApiData(apiData: any, mockData: any): any {
-  // If API data is empty or null, use mock data
-  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
-    return mockData;
-  }
-  return apiData;
-}
-
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -358,22 +211,23 @@ export const Allocation: React.FC = () => {
     releases,
     employees,
     testCases,
-    setSelectedProjectId,
     modulesByProject,
   } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
   const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
-  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
+  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState<boolean>(false);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
+  const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [submoduleError, setSubmoduleError] = useState<string>("");
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -384,6 +238,8 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
+
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
@@ -396,6 +252,9 @@ export const Allocation: React.FC = () => {
       console.error("Error fetching release card view:", error);
     }
   };
+
+  
+  
 
   const loadExistingQAAllocations = async () => {
     if (!selectedProject || !effectiveProjectRelease.length) return;
@@ -429,9 +288,9 @@ export const Allocation: React.FC = () => {
   const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Use mock data if API/server is not working
-  const effectiveProjectRelease = useMockOrApiData(projectRelease, mockReleases.filter((r: any) => !projectId || r.projectId === projectId));
-  const effectiveTestCases = useMockOrApiData(testCases, mockTestCases.filter((tc: any) => !projectId || tc.projectId === projectId));
-  const effectiveModules = useMockOrApiData(projectModules, mockModules);
+  const effectiveProjectRelease = projectRelease;
+  const effectiveTestCases = projectTestCases;
+  const effectiveModules = projectModules;
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -439,6 +298,41 @@ export const Allocation: React.FC = () => {
       loadExistingQAAllocations();
     }
   }, [effectiveProjectRelease, selectedProject]);
+
+  // Fetch submodules when selectedModule changes
+  useEffect(() => {
+    if (!selectedModule) {
+      setSubmodules([]);
+      setSubmoduleError("");
+      return;
+    }
+    // Find the module ID from effectiveModules
+    const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+    if (moduleObj && moduleObj.id) {
+      getSubmodulesByModuleId(moduleObj.id)
+        .then((res) => {
+          if (res.status !== 'success' || !Array.isArray(res.data) || res.data.length === 0) {
+            setSubmodules([]);
+            setSubmoduleError(res.message || "No submodules found for this module.");
+            return;
+          }
+          // Normalize submodule name property for UI
+          const normalized = (res.data || []).map((sm: any) => ({
+            ...sm,
+            name: sm.name || sm.subModuleName || sm.submoduleName || "Unnamed"
+          }));
+          setSubmodules(normalized);
+          setSubmoduleError("");
+        })
+        .catch((err) => {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        });
+    } else {
+      setSubmodules([]);
+      setSubmoduleError("Module not found.");
+    }
+  }, [selectedModule, effectiveModules]);
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -474,7 +368,23 @@ export const Allocation: React.FC = () => {
     activeTab,
     selectedReleaseIds,
   ]);
-
+  // useEffect(() => {
+  //   if (!selectedProjectId || selectedSubmoduleId === null) return;
+  //   getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+  //     // Map moduleId/subModuleId to names for display
+  //     const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+  //     const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+  //     setTestCases(
+  //       (data as any[]).map((tc: any) => ({
+  //         ...tc,
+  //         module: moduleMap[tc.moduleId] || tc.moduleId,
+  //         subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+  //         severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+  //         type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+  //       })) as TestCaseType[]
+  //     );
+  //   });
+  // }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
   // --- Filtered test cases for table ---
   let filteredTestCases = effectiveTestCases;
   if (activeTab === "qa") {
@@ -555,6 +465,8 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
+    console.log(id);
+    
     setSelectedProjectId(id);
     setSelectedProject(id);
     setSelectedModule("");
@@ -562,16 +474,23 @@ export const Allocation: React.FC = () => {
     setSelectedTestCases([]);
   };
 
+
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
     <ProjectSelector
       projects={projects}
-      selectedProjectId={projectId || null}
-      onSelect={handleProjectSelect}
+      selectedProjectId={selectedProjectId || null}
+      onSelect={
+        (id:string)=>{ 
+          setSelectedProjectId(id),
+          handleProjectSelect(id)
+      }
+      
+    }
       className="mb-4"
     />
   );
-
+ 
   // In ReleaseCardsPanel, on Allocate:
   // For each selected release, store the selected test cases
   const handleAllocate = () => {
@@ -584,6 +503,29 @@ export const Allocation: React.FC = () => {
     });
     setActiveTab("qa");
   };
+  const handleSelectSubModule = ( selectedSubmoduleId: string)=>{
+    console.log("--------------",selectedSubmoduleId );
+    console.log('++++++++++++++++++', selectedProjectId);
+    getTestCasesByProjectAndSubmodule(selectedProjectId,selectedSubmoduleId)
+      .then((data) => {
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setSelectedSubmodule(selectedSubmoduleId);
+        setSelectedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (tc.severityName || "low") as string,
+            type: (tc.defectTypeName || "functional") as string,
+          })) as string[]
+        );
+      });
+      
+    
+  }
+console.log("Selected Submodule:", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
@@ -721,10 +663,6 @@ export const Allocation: React.FC = () => {
   );
 
   const SubmoduleSelectionPanel = () => {
-    const submodules =
-      selectedModule
-        ? (effectiveModules && effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
-        : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
@@ -745,6 +683,9 @@ export const Allocation: React.FC = () => {
               </Button>
             )}
           </div>
+          {submoduleError && (
+            <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+          )}
           <div className="relative flex items-center">
             <button
               onClick={() => {
@@ -765,27 +706,27 @@ export const Allocation: React.FC = () => {
               }}
             >
               {submodules.map((submodule: any) => {
+                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.name)
-                  : selectedSubmodule === submodule.name;
+                  ? selectedSubmodules.includes(submodule.subModuleId)
+                  : selectedSubmodule === submodule.subModuleId;
                 return (
                   <Button
-                    key={submodule.id}
+                    key={submodule.subModuleId}
                     variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.name)
-                            ? prev.filter((s) => s !== submodule.name)
-                            : [...prev, submodule.name]
+                          prev.includes(submodule.subModuleId)
+                            ? prev.filter((s) => s !== submodule.subModuleId)
+                            : [...prev, submodule.subModuleId]
                         );
                       } else {
-                        setSelectedSubmodule(submodule.name);
-                        setSelectedTestCases([]);
+                        handleSelectSubModule(submodule.subModuleId);
+                        setSelectedSubmodule(submodule.subModuleId);
                       }
                     }}
-                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                      }`}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                   >
                     {submodule.name}
                   </Button>
@@ -910,7 +851,7 @@ export const Allocation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredTestCases.map((tc: any) => (
+            {selectedTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
@@ -1331,8 +1272,7 @@ export const Allocation: React.FC = () => {
 
   // Save mock test cases and mock QA to localStorage on mount (for cross-page use)
   useEffect(() => {
-    localStorage.setItem('mockTestCases', JSON.stringify(mockTestCases));
-    localStorage.setItem('mockQA', JSON.stringify(mockQA));
+    // No mock test case storage
   }, []);
 
   // Save allocations to localStorage whenever they change
@@ -1408,14 +1348,14 @@ export const Allocation: React.FC = () => {
         <>
           <ReleaseCardsPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
+          {selectedModule && <SubmoduleSelectionPanel />}
           <TestCaseTable />
         </>
       ) : (
         <>
           <QASelectionPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
+          {selectedModule && <SubmoduleSelectionPanel />}
           <TestCaseTable />
         </>
       )}
