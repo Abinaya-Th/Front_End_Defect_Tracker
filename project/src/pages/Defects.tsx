@@ -41,6 +41,7 @@ import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
 import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { addDefects } from "../api/defect/addNewDefect";
+import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -97,7 +98,7 @@ export const Defects: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<FilteredDefect | null>(null);
-  const [releasesData , setReleasesData] = useState<ProjectRelease[]>([]);
+  const [releasesData, setReleasesData] = useState<ProjectRelease[]>([]);
   const [formData, setFormData] = useState({
     defectId: '',
     description: '',
@@ -194,18 +195,19 @@ export const Defects: React.FC = () => {
       (d.steps && d.steps.toLowerCase().includes(search));
     return matchesSearch;
   });
-  const fetchReleaseData = async(selectedProject: string | null) => {
+  const fetchReleaseData = async (selectedProject: string | null) => {
     try {
       const response = await projectReleaseCardView(selectedProject);
       setReleasesData(response.data || []);
     } catch (error) {
-      console.error("Failed to fetch releases:", error);}
+      console.error("Failed to fetch releases:", error);
+    }
   };
   useEffect(() => {
-     
-      fetchReleaseData(selectedProjectId);
+
+    fetchReleaseData(selectedProjectId);
   }, [selectedProjectId]);
-console.log(releasesData, "Release Data");
+  console.log(releasesData, "Release Data");
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -225,7 +227,7 @@ console.log(releasesData, "Release Data");
     return `DEF-${nextNum.toString().padStart(4, "0")}`;
   };
 
-   const defectAdd= async () => {
+  const defectAdd = async () => {
     const payload = {
       description: formData.description,
       severityId: Number(formData.severityId),
@@ -530,7 +532,7 @@ console.log(releasesData, "Release Data");
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [statusEditValue, setStatusEditValue] = useState<string>('new');
   const [statusEditComment, setStatusEditComment] = useState<string>('');
-  const [viewingDefectHistory, setViewingDefectHistory] = useState<DefectHistoryEntry[]>([]);
+  const [viewingDefectHistory, setViewingDefectHistory] = useState<RealDefectHistoryEntry[]>([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEditingRejectionComment, setIsEditingRejectionComment] = useState(false);
 
@@ -665,41 +667,28 @@ console.log(releasesData, "Release Data");
     ];
   }
 
-  // Extend DefectHistoryEntry for mock/demo purposes
+  // Add state for loading and error
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
-  type DemoDefectHistoryEntry = DefectHistoryEntry & {
-    enteredBy?: string;
-    assignedTo?: string;
-  };
-
-  // Add mock data for defect history when the modal is opened and no real history is present
-  React.useEffect(() => {
-    if (isHistoryModalOpen && viewingDefectHistory.length === 0) {
-      setViewingDefectHistory([
-        {
-          enteredBy: 'Alice Johnson',
-          assignedTo: 'Bob Smith',
-          status: 'open',
-          changedAt: new Date().toISOString(),
-          comment: 'Defect created',
-        },
-        {
-          enteredBy: 'Alice Johnson',
-          assignedTo: 'Charlie Brown',
-          status: 'in-progress',
-          changedAt: new Date(Date.now() + 3600000).toISOString(),
-          comment: 'Reassigned to Charlie',
-        },
-        {
-          enteredBy: 'Alice Johnson',
-          assignedTo: 'Charlie Brown',
-          status: 'resolved',
-          changedAt: new Date(Date.now() + 7200000).toISOString(),
-          comment: 'Defect resolved',
-        },
-      ] as DemoDefectHistoryEntry[]);
+  // Update handler to fetch real defect history
+  const handleOpenDefectHistory = async (defectId: string) => {
+    setIsHistoryModalOpen(true);
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      // Extract numeric part from defectId (e.g., DF00002 -> 2)
+      const numericIdMatch = defectId.match(/(\d+)$/);
+      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : defectId;
+      const data = await getDefectHistoryByDefectId(numericId);
+      setViewingDefectHistory(data);
+    } catch (err: any) {
+      setViewingDefectHistory([]);
+      setHistoryError(err.message || 'Failed to fetch defect history');
+    } finally {
+      setIsHistoryLoading(false);
     }
-  }, [isHistoryModalOpen, viewingDefectHistory.length]);
+  };
 
   // Add state for comments by defect
   const [commentsByDefectId, setCommentsByDefectId] = useState<Record<string, { text: string; timestamp: string }[]>>({});
@@ -1151,10 +1140,7 @@ console.log(releasesData, "Release Data");
                           type="button"
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="View defect history"
-                          onClick={() => {
-                            setViewingDefectHistory([]);
-                            setIsHistoryModalOpen(true);
-                          }}
+                          onClick={() => handleOpenDefectHistory(defect.defectId)}
                         >
                           <History className="h-5 w-5 inline" />
                         </button>
@@ -1328,7 +1314,7 @@ console.log(releasesData, "Release Data");
                 onChange={e => handleInputChange('typeId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
-                //nilux
+              //nilux
               >
                 <option value="">Select type</option>
                 {defectTypes.map((t) => (
@@ -1353,8 +1339,8 @@ console.log(releasesData, "Release Data");
               </select>
             </div>
             {/* Found in Release and Priority side by side */}
-              
-           
+
+
 
 
             <div>
@@ -1548,25 +1534,35 @@ console.log(releasesData, "Release Data");
         size="xl"
       >
         <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
-          {viewingDefectHistory.length === 0 ? (
+          {isHistoryLoading ? (
+            <div className="text-gray-500">Loading history...</div>
+          ) : historyError ? (
+            <div className="text-red-500">{historyError}</div>
+          ) : !Array.isArray(viewingDefectHistory) || viewingDefectHistory.length === 0 ? (
             <div className="text-gray-500">No history available.</div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Entered By</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Assigned By</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Changed At</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previous Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Current Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Release</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {(viewingDefectHistory as DemoDefectHistoryEntry[]).map((entry, idx) => (
+                {Array.isArray(viewingDefectHistory) && viewingDefectHistory.map((entry, idx) => (
                   <tr key={idx}>
-                    <td className="px-4 py-2 text-sm text-gray-700">{entry.enteredBy || '-'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{entry.assignedTo || '-'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{entry.status}</td>
-                    <td className="px-4 py-2 text-xs text-gray-400">{new Date(entry.changedAt).toLocaleString()}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.assignedByName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.assignedToName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectDate}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectTime}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.previousStatus}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectStatus}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.releaseName}</td>
                   </tr>
                 ))}
               </tbody>
