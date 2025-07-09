@@ -548,7 +548,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
 
   // Replace all usages of apiDeleteTestCase with this function
   const deleteTestCaseById = async (testCaseId: string) => {
-    const url = `http://192.168.1.110:8080/api/v1/testcase/${testCaseId}`;
+    const url = `http://192.168.1.100:8080/api/v1/testcase/${testCaseId}`;
     return axios.delete(url);
   };
 

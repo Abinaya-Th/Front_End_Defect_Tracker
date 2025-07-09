@@ -5,6 +5,9 @@ import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import { importDefects } from "../api/importTestCase";
+import { getAllPriorities, Priority } from "../api/priority";
+import { getSeverities, Severity } from "../api/severity";
+import { getDefectTypes, ApiDefectType } from "../api/defectType";
 
 const QuickAddDefect: React.FC = () => {
   const { selectedProjectId, projects, defects, addDefect, modulesByProject, releases } =
@@ -32,6 +35,21 @@ const QuickAddDefect: React.FC = () => {
     },
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [priorities, setPriorities] = React.useState<Priority[]>([]);
+  const [severities, setSeverities] = React.useState<Severity[]>([]);
+  const [defectTypes, setDefectTypes] = React.useState<ApiDefectType[]>([]);
+
+  React.useEffect(() => {
+    getAllPriorities().then((res) => {
+      setPriorities(res.data || []);
+    });
+    getSeverities().then((res) => {
+      setSeverities(res.data || []);
+    });
+    getDefectTypes().then((res) => {
+      setDefectTypes(res.data || []);
+    });
+  }, []);
 
   const mockModules = [
     {
@@ -298,10 +316,11 @@ const QuickAddDefect: React.FC = () => {
                 required
               >
                 <option value="">Select severity</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                {severities.map((severity) => (
+                  <option key={severity.id} value={severity.name}>
+                    {severity.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -315,10 +334,11 @@ const QuickAddDefect: React.FC = () => {
                 required
               >
                 <option value="">Select priority</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                {priorities.map((priority) => (
+                  <option key={priority.id} value={priority.priority}>
+                    {priority.priority}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -335,9 +355,11 @@ const QuickAddDefect: React.FC = () => {
                 required
               >
                 <option value="">Select type</option>
-                <option value="bug">Bug</option>
-                <option value="test-failure">Test Failure</option>
-                <option value="enhancement">Enhancement</option>
+                {defectTypes.map((defectType) => (
+                  <option key={defectType.id} value={defectType.defectTypeName}>
+                    {defectType.defectTypeName}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
