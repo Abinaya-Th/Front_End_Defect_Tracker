@@ -25,7 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
-import { getDevelopersWithRolesByProjectId } from "../api/bench/projectAllocation";
+import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
 
 
 type ModuleAssignment = {
@@ -82,6 +82,9 @@ export const ModuleManagement: React.FC = () => {
 
   // New state for developers with roles
   const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ name: string; role: string; projectAllocationId: number }>>([]);
+
+  // New state for selected developer in bulk assignment
+  const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -229,16 +232,37 @@ export const ModuleManagement: React.FC = () => {
         moduleId: "",
         employeeIds: [],
       });
+      setSelectedDeveloperProjectAllocationId(null); // Reset on open
       setIsBulkAssignmentModalOpen(true);
     }
   };
 
-  // Bulk assignment handler: update via context
-  const handleSaveBulkAssignment = () => {
-    if (!selectedProjectId) return;
-    // For now, just close the modal - you may want to implement actual assignment logic
-    setSelectedItems([]);
-    setIsBulkAssignmentModalOpen(false);
+  // Bulk assignment handler: assign developer to all selected modules/submodules
+  const handleSaveBulkAssignment = async () => {
+    if (!selectedDeveloperProjectAllocationId) {
+      alert("Please select a developer to assign.");
+      return;
+    }
+    try {
+      for (const item of selectedItems) {
+        if (item.type === "module") {
+          await allocateDeveloperToModule(Number(item.moduleId), selectedDeveloperProjectAllocationId);
+        } else if (item.type === "submodule" && item.submoduleId) {
+          await allocateDeveloperToSubModule(
+            Number(item.moduleId),
+            selectedDeveloperProjectAllocationId,
+            Number(item.submoduleId)
+          );
+        }
+      }
+      alert("Assignment successful!");
+      setSelectedItems([]);
+      setIsBulkAssignmentModalOpen(false);
+      fetchModules(); // Refresh module assignments
+    } catch (error) {
+      alert("Assignment failed. Please try again.");
+      console.error(error);
+    }
   };
 
   const handleSelectItem = (
@@ -743,6 +767,7 @@ export const ModuleManagement: React.FC = () => {
         onClose={() => {
           setIsBulkAssignmentModalOpen(false);
           setSelectedItems([]);
+          setSelectedDeveloperProjectAllocationId(null); // Reset on close
         }}
         title={`Assign Developers`}
         size="xl"
@@ -813,7 +838,8 @@ export const ModuleManagement: React.FC = () => {
                     <input
                       type="radio"
                       name="bulk-assign-developer"
-
+                      checked={selectedDeveloperProjectAllocationId === dev.projectAllocationId}
+                      onChange={() => setSelectedDeveloperProjectAllocationId(dev.projectAllocationId)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
@@ -839,6 +865,7 @@ export const ModuleManagement: React.FC = () => {
             onClick={() => {
               setIsBulkAssignmentModalOpen(false);
               setSelectedItems([]);
+              setSelectedDeveloperProjectAllocationId(null);
             }}
           >
             Cancel

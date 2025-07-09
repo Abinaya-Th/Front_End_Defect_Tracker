@@ -143,4 +143,45 @@ export async function getDevelopersWithRolesByProjectId(projectId: number) {
     console.error('Get developers with roles error:', error);
     throw error;
   }
+}
+
+// Allocate developer to a module
+export async function allocateDeveloperToModule(moduleId: number, projectAllocationId: number) {
+  try {
+    const response = await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule`, {
+      moduleId,
+      projectAllocationId
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      withCredentials: false
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Allocate developer to module error:', error);
+    throw error;
+  }
+}
+
+// Allocate developer to a submodule
+export async function allocateDeveloperToSubModule(moduleId: number, projectAllocationId: number, subModuleId: number) {
+  try {
+    const response = await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule/subModule`, {
+      moduleId,
+      projectAllocationId,
+      subModuleId
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      withCredentials: false
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Allocate developer to submodule error:', error);
+    throw error;
+  }
 } 
