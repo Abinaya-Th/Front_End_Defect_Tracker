@@ -19,7 +19,6 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
-import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -29,184 +28,43 @@ const TABS = [
   { key: "qa", label: "QA Allocation" },
 ];
 
-// --- MOCK DATA SECTION (for modules, submodules, testcases, QA, releases) ---
+// --- MOCK DATA SECTION (for modules, testcases, QA, releases) ---
 
-// Mock Modules and Submodules
+// Mock Modules
 const mockModules = [
   {
     id: "auth",
     name: "Authentication",
-    submodules: [
-      { id: "auth-bio", name: "Biometric Login" },
-      { id: "auth-pin", name: "PIN Login" },
-      { id: "auth-pass", name: "Password Reset" },
-      { id: "auth-session", name: "Session Management" },
-    ],
   },
   {
     id: "acc",
     name: "Account Management",
-    submodules: [
-      { id: "acc-overview", name: "Account Overview" },
-      { id: "acc-history", name: "Transaction History" },
-      { id: "acc-statements", name: "Account Statements" },
-      { id: "acc-settings", name: "Account Settings" },
-    ],
   },
   {
     id: "payment",
     name: "Payment",
-    submodules: [
-      { id: "pay-gateway", name: "Gateway Integration" },
-      { id: "pay-methods", name: "Payment Methods" },
-      { id: "pay-security", name: "Payment Security" },
-      { id: "pay-processing", name: "Payment Processing" },
-    ],
   },
   {
     id: "cart",
     name: "Shopping Cart",
-    submodules: [
-      { id: "cart-management", name: "Cart Management" },
-      { id: "cart-checkout", name: "Checkout Process" },
-      { id: "cart-discounts", name: "Discounts & Coupons" },
-      { id: "cart-inventory", name: "Inventory Check" },
-    ],
   },
   {
     id: "user",
     name: "User Management",
-    submodules: [
-      { id: "user-dashboard", name: "Dashboard" },
-      { id: "user-profile", name: "Profile Management" },
-      { id: "user-preferences", name: "User Preferences" },
-      { id: "user-security", name: "Security Settings" },
-    ],
   },
   {
     id: "analytics",
     name: "Analytics",
-    submodules: [
-      { id: "analytics-realtime", name: "Real-time Data" },
-      { id: "analytics-trends", name: "Trend Analysis" },
-      { id: "analytics-metrics", name: "Key Metrics" },
-      { id: "analytics-insights", name: "Data Insights" },
-    ],
   },
   {
     id: "reporting",
     name: "Reporting",
-    submodules: [
-      { id: "reports-custom", name: "Custom Reports" },
-      { id: "reports-scheduled", name: "Scheduled Reports" },
-      { id: "reports-export", name: "Data Export" },
-      { id: "reports-sharing", name: "Report Sharing" },
-    ],
   },
   {
     id: "visualization",
     name: "Visualization",
-    submodules: [
-      { id: "visual-charts", name: "Charts" },
-      { id: "visual-graphs", name: "Graphs" },
-      { id: "visual-dashboards", name: "Dashboards" },
-      { id: "visual-widgets", name: "Widgets" },
-    ],
   },
   // ...add more modules as needed
-];
-
-// Mock Test Cases
-const mockTestCases = [
-  {
-    id: "TC-AUT-BIO-0001",
-    module: "Authentication",
-    subModule: "Biometric Login",
-    description: "Verify that users can log in using biometric authentication",
-    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-AUT-PIN-0001",
-    module: "Authentication",
-    subModule: "PIN Login",
-    description: "Test PIN login security features",
-    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
-    type: "functional",
-    severity: "critical",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-PAY-001",
-    module: "Payment",
-    subModule: "Gateway Integration",
-    description: "Test new payment gateway integration",
-    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
-    type: "integration",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-CART-002",
-    module: "Shopping Cart",
-    subModule: "Cart Management",
-    description: "Test enhanced cart functionality",
-    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-USER-003",
-    module: "User Management",
-    subModule: "Dashboard",
-    description: "Test new user dashboard features",
-    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-ANALYTICS-001",
-    module: "Analytics",
-    subModule: "Real-time Data",
-    description: "Test real-time analytics data display",
-    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-REPORTS-002",
-    module: "Reporting",
-    subModule: "Custom Reports",
-    description: "Test custom report generation",
-    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-VISUAL-003",
-    module: "Visualization",
-    subModule: "Charts",
-    description: "Test data visualization components",
-    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
-    type: "functional",
-    severity: "low",
-    status: "active",
-    projectId: "PR0002",
-  },
-  // ...add more test cases as needed
 ];
 
 // Mock QA (engineers/teams)
@@ -344,14 +202,6 @@ const mockReleases = [
 // --- END MOCK DATA SECTION ---
 
 // Helper: Use mock data if API/server is not working
-function useMockOrApiData(apiData: any, mockData: any): any {
-  // If API data is empty or null, use mock data
-  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
-    return mockData;
-  }
-  return apiData;
-}
-
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -373,6 +223,11 @@ export const Allocation: React.FC = () => {
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
   const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
+  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
+  const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
+  const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [submoduleError, setSubmoduleError] = useState<string>("");
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -433,7 +288,7 @@ export const Allocation: React.FC = () => {
   const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Use mock data if API/server is not working
-  const effectiveProjectRelease = projectReleases;
+  const effectiveProjectRelease = projectRelease;
   const effectiveTestCases = projectTestCases;
   const effectiveModules = projectModules;
 
@@ -447,38 +302,37 @@ export const Allocation: React.FC = () => {
   // Fetch submodules when selectedModule changes
   useEffect(() => {
     if (!selectedModule) {
-      setFetchedSubmodules([]);
-      setSubmoduleError(null);
+      setSubmodules([]);
+      setSubmoduleError("");
       return;
     }
-    // Find the module id for the selected module name
+    // Find the module ID from effectiveModules
     const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
-    if (!moduleObj || !moduleObj.id) {
-      setFetchedSubmodules([]);
-      setSubmoduleError("Module ID not found.");
-      return;
+    if (moduleObj && moduleObj.id) {
+      getSubmodulesByModuleId(moduleObj.id)
+        .then((res) => {
+          if (res.status !== 'success' || !Array.isArray(res.data) || res.data.length === 0) {
+            setSubmodules([]);
+            setSubmoduleError(res.message || "No submodules found for this module.");
+            return;
+          }
+          // Normalize submodule name property for UI
+          const normalized = (res.data || []).map((sm: any) => ({
+            ...sm,
+            name: sm.name || sm.subModuleName || sm.submoduleName || "Unnamed"
+          }));
+          setSubmodules(normalized);
+          setSubmoduleError("");
+        })
+        .catch((err) => {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        });
+    } else {
+      setSubmodules([]);
+      setSubmoduleError("Module not found.");
     }
-    setSubmoduleLoading(true);
-    setSubmoduleError(null);
-    getSubmodulesByModuleId(moduleObj.id)
-      .then((res) => {
-        setFetchedSubmodules(res.data || []);
-        setSubmoduleError(null);
-      })
-      .catch((err) => {
-        setFetchedSubmodules([]);
-        setSubmoduleError("Failed to fetch submodules.");
-      })
-      .finally(() => setSubmoduleLoading(false));
   }, [selectedModule, effectiveModules]);
-
-  // Fetch test cases when selectedProjectId and selectedSubmodule change
-  useEffect(() => {
-    if (!projectId || !selectedSubmodule) return;
-    getTestCasesByProjectAndSubmodule(projectId, selectedSubmodule).then((data) => {
-      setAllocationTestCases(data || []);
-    });
-  }, [projectId, selectedSubmodule]);
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -767,14 +621,8 @@ export const Allocation: React.FC = () => {
               </Button>
             )}
           </div>
-          {submoduleLoading && (
-            <div className="text-blue-600 text-sm mb-2">Loading submodules...</div>
-          )}
           {submoduleError && (
-            <div className="text-red-600 text-sm mb-2">{submoduleError}</div>
-          )}
-          {!submoduleLoading && !submoduleError && selectedModule && fetchedSubmodules.length === 0 && (
-            <div className="text-gray-500 text-sm mb-2">No submodules found for this module.</div>
+            <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
           )}
           <div className="relative flex items-center">
             <button
@@ -1352,8 +1200,7 @@ export const Allocation: React.FC = () => {
 
   // Save mock test cases and mock QA to localStorage on mount (for cross-page use)
   useEffect(() => {
-    // localStorage.setItem('mockTestCases', JSON.stringify(mockTestCases));
-    // localStorage.setItem('mockQA', JSON.stringify(mockQA));
+    // No mock test case storage
   }, []);
 
   // Save allocations to localStorage whenever they change
@@ -1429,14 +1276,14 @@ export const Allocation: React.FC = () => {
         <>
           <ReleaseCardsPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
+          {selectedModule && <SubmoduleSelectionPanel />}
           <TestCaseTable />
         </>
       ) : (
         <>
           <QASelectionPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
+          {selectedModule && <SubmoduleSelectionPanel />}
           <TestCaseTable />
         </>
       )}
