@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Employee } from "../../types/index";
 
-const BASE_URL = "http://192.168.1.110:8080/api/v1/bench/search?list";
+const BASE_URL = "http://192.168.1.100:8080/api/v1/bench/search?list";
 
 export async function getBenchList(): Promise<Employee[]> {
   const response = await axios.get(BASE_URL, {
