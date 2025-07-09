@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export async function getTestCasesByProjectAndSubmodule(projectId: string, submoduleId: string) {
+export async function getTestCasesByProjectAndSubmodule(projectId: string | undefined, submoduleId: string) {
   let BASE_URL = import.meta.env.VITE_BASE_URL || "";
   // Remove trailing slash if present to avoid double slashes
   if (BASE_URL.endsWith("/")) {
