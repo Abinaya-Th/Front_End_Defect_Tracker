@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { deleteDefectById } from '../api/defect/delete_defect';
 
 import {
@@ -39,6 +39,8 @@ import { filterDefects } from "../api/defect/filterDefectByProject";
 
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
+import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { addDefects } from "../api/defect/addNewDefect";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -95,6 +97,7 @@ export const Defects: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<FilteredDefect | null>(null);
+  const [releasesData , setReleasesData] = useState<ProjectRelease[]>([]);
   const [formData, setFormData] = useState({
     defectId: '',
     description: '',
@@ -192,6 +195,18 @@ export const Defects: React.FC = () => {
       (d.steps && d.steps.toLowerCase().includes(search));
     return matchesSearch;
   });
+  const fetchReleaseData = async(selectedProject: string | null) => {
+    try {
+      const response = await projectReleaseCardView(selectedProject);
+      setReleasesData(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch releases:", error);}
+  };
+  useEffect(() => {
+     
+      fetchReleaseData(selectedProjectId);
+  }, [selectedProjectId]);
+console.log(releasesData, "Release Data");
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -211,8 +226,40 @@ export const Defects: React.FC = () => {
     return `DEF-${nextNum.toString().padStart(4, "0")}`;
   };
 
+   const defectAdd= async () => {
+    const payload = {
+      description: formData.description,
+      severityId: Number(formData.severityId),
+      priorityId: Number(formData.priorityId),
+      typeId: Number(formData.typeId),
+      assignToId: formData.assigntoId,
+      attachment: formData.attachment,
+      assignById: formData.assignbyId,
+      // releaseTestcaseId: formData.releaseId ? formData.releaseId.toString() : undefined,
+      // defectStatusId: (formData.defectStatusId),
+      steps: formData.steps,
+      projectId: selectedProjectId,
+      moduleId: formData.moduleId,
+      subModuleId: formData.subModuleId,
+      releaseId: formData.releaseId,
+    };
+    try {
+      const response = await addDefects(payload as any);
+      if (response.status === "success") {
+        // Handle successful defect addition
+        console.log("Defect added successfully:", response.data);
+      } else {
+        // Handle error in defect addition
+        console.error("Failed to add defect:", response.message);
+      }
+    } catch (error) {
+      console.error("Error adding defect:", error);
+    }
+  };
+
   // CRUD handlers
   const handleSubmit = async (e: React.FormEvent) => {
+    defectAdd();
     e.preventDefault();
     if (editingDefect) {
       // For editing, we need to use the backend API
@@ -1282,6 +1329,7 @@ export const Defects: React.FC = () => {
                 onChange={e => handleInputChange('typeId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
+                //nilux
               >
                 <option value="">Select type</option>
                 {defectTypes.map((t) => (
@@ -1306,6 +1354,10 @@ export const Defects: React.FC = () => {
               </select>
             </div>
             {/* Found in Release and Priority side by side */}
+              
+           
+
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Found in Release
@@ -1317,8 +1369,8 @@ export const Defects: React.FC = () => {
                 required
               >
                 <option value="">Select release</option>
-                {projectReleases.map(release => (
-                  <option key={release.id} value={release.id}>{release.name}</option>
+                {releasesData.map(release => (
+                  <option key={release.id} value={release.id}>{release.releaseName}</option>
                 ))}
               </select>
             </div>
