@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://34.57.197.188:8087',
+        target: 'http://192.168.1.100:8080',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
@@ -21,7 +21,7 @@ export default defineConfig({
         },
       },
       '/api/v1/projectAllocations': {
-        target: 'http://34.57.197.188:8087',
+        target: 'http://192.168.1.100:8080',
         changeOrigin: true,
         secure: false,
       },
