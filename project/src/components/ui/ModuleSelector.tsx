@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent } from "./Card";
 import { Button } from "./Button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 interface Module {
   id: string;
@@ -14,6 +14,7 @@ interface ModuleSelectorProps {
   onSelect: (id: string) => void;
   className?: string;
   label?: string;
+  onAdd?: (module: Module) => void; // New prop for add action
 }
 
 export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
@@ -22,6 +23,7 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   onSelect,
   className = "",
   label = "Module Selection",
+  onAdd,
 }) => {
   return (
     <Card className={className}>
@@ -48,16 +50,29 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({
             }}
           >
             {modules.map((module) => (
-              <Button
-                key={module.id}
-                variant={
-                  selectedModuleId === module.id ? "primary" : "secondary"
-                }
-                onClick={() => onSelect(module.id)}
-                className="whitespace-nowrap m-2"
-              >
-                {module.name}
-              </Button>
+              <div key={module.id} className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors mr-2 min-w-[200px] max-w-xs">
+                <Button
+                  variant={
+                    selectedModuleId === module.id ? "primary" : "secondary"
+                  }
+                  onClick={() => onSelect(module.id)}
+                  className="whitespace-nowrap border-0 px-4 py-2 font-medium text-gray-900 flex-1"
+                >
+                  {module.name}
+                </Button>
+                {onAdd && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAdd(module)}
+                    className="p-1 border-0 hover:bg-gray-50 ml-2"
+                    disabled={selectedModuleId !== module.id}
+                    type="button"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             ))}
           </div>
           <button
