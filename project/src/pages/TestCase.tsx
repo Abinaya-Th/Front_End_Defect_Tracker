@@ -585,6 +585,16 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
     return axios.delete(url);
   };
 
+  const handleDeleteTestCase = async (testCaseId: string) => {
+    if (!window.confirm("Are you sure you want to delete this test case?")) return;
+    try {
+      await deleteTestCaseById(testCaseId);
+      setTestCases(prev => prev.filter(tc => tc.id !== testCaseId));
+    } catch (err) {
+      alert("Failed to delete test case.");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -1096,25 +1106,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => {
-                                deleteTestCaseById(testCase.id).then(() => {
-                                  if (selectedProjectId && selectedSubmoduleId !== null) {
-                                    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                                      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                                      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                                      setTestCases(
-                                        (data as any[]).map((tc: any) => ({
-                                          ...tc,
-                                          module: moduleMap[tc.moduleId] || tc.moduleId,
-                                          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                                          severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                          type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                                        })) as TestCaseType[]
-                                      );
-                                    });
-                                  }
-                                });
-                              }}
+                              onClick={() => handleDeleteTestCase(testCase.id)}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
                             >

@@ -227,7 +227,7 @@ export const Allocation: React.FC = () => {
   const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
   const [submodules, setSubmodules] = useState<Submodule[]>([]);
-  const [submoduleError, setSubmoduleError] = useState<string>("");
+  const [submoduleError, setSubmoduleError] = useState<string | null>(null);
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -238,10 +238,8 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
-  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [fetchedSubmodules, setFetchedSubmodules] = useState<Submodule[]>([]);
   const [submoduleLoading, setSubmoduleLoading] = useState(false);
-  const [submoduleError, setSubmoduleError] = useState<string | null>(null);
   const [allocationTestCases, setAllocationTestCases] = useState<any[]>([]);
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
@@ -886,7 +884,7 @@ export const Allocation: React.FC = () => {
       id: emp.id,
       firstName: emp.firstName,
       lastName: emp.lastName,
-      designation: emp.role,
+      designation: emp.designation,
       email: emp.email,
       department: emp.department,
       status: emp.status
