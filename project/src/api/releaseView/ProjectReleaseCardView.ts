@@ -20,7 +20,7 @@ export interface ProjectReleaseProps {
     statusCode: string;
 }
 
-export const projectReleaseCardView = (projectId: string | null): Promise<ProjectReleaseProps> => {
+export const projectReleaseCardView =  (projectId: string | null): Promise<ProjectReleaseProps> => {
     return axios
         .get<ProjectReleaseProps>(`${BASE_URL}releases/project/${projectId}`)
         .then(({ data }) => data);

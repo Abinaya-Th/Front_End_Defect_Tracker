@@ -21,7 +21,7 @@ export default defineConfig({
         },
       },
       '/api/v1/projectAllocations': {
-        target: 'http://192.168.1.100:8080',
+        target: 'http://34.171.115.156:8087',
         changeOrigin: true,
         secure: false,
       },
