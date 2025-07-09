@@ -18,6 +18,8 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -364,16 +366,13 @@ export const Allocation: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
   const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
-  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -384,6 +383,11 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
+  const [fetchedSubmodules, setFetchedSubmodules] = useState<Submodule[]>([]);
+  const [submoduleLoading, setSubmoduleLoading] = useState(false);
+  const [submoduleError, setSubmoduleError] = useState<string | null>(null);
+  const [allocationTestCases, setAllocationTestCases] = useState<any[]>([]);
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
@@ -429,9 +433,9 @@ export const Allocation: React.FC = () => {
   const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Use mock data if API/server is not working
-  const effectiveProjectRelease = useMockOrApiData(projectRelease, mockReleases.filter((r: any) => !projectId || r.projectId === projectId));
-  const effectiveTestCases = useMockOrApiData(testCases, mockTestCases.filter((tc: any) => !projectId || tc.projectId === projectId));
-  const effectiveModules = useMockOrApiData(projectModules, mockModules);
+  const effectiveProjectRelease = projectReleases;
+  const effectiveTestCases = projectTestCases;
+  const effectiveModules = projectModules;
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -440,12 +444,48 @@ export const Allocation: React.FC = () => {
     }
   }, [effectiveProjectRelease, selectedProject]);
 
+  // Fetch submodules when selectedModule changes
+  useEffect(() => {
+    if (!selectedModule) {
+      setFetchedSubmodules([]);
+      setSubmoduleError(null);
+      return;
+    }
+    // Find the module id for the selected module name
+    const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+    if (!moduleObj || !moduleObj.id) {
+      setFetchedSubmodules([]);
+      setSubmoduleError("Module ID not found.");
+      return;
+    }
+    setSubmoduleLoading(true);
+    setSubmoduleError(null);
+    getSubmodulesByModuleId(moduleObj.id)
+      .then((res) => {
+        setFetchedSubmodules(res.data || []);
+        setSubmoduleError(null);
+      })
+      .catch((err) => {
+        setFetchedSubmodules([]);
+        setSubmoduleError("Failed to fetch submodules.");
+      })
+      .finally(() => setSubmoduleLoading(false));
+  }, [selectedModule, effectiveModules]);
+
+  // Fetch test cases when selectedProjectId and selectedSubmodule change
+  useEffect(() => {
+    if (!projectId || !selectedSubmodule) return;
+    getTestCasesByProjectAndSubmodule(projectId, selectedSubmodule).then((data) => {
+      setAllocationTestCases(data || []);
+    });
+  }, [projectId, selectedSubmodule]);
+
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
     if (
       activeTab === "release" &&
       selectedReleaseIds.length > 0 &&
-      (bulkModuleSelect || bulkSubmoduleSelect)
+      (bulkModuleSelect)
     ) {
       let ids: string[] = [];
       if (bulkModuleSelect && selectedModules.length > 0) {
@@ -455,21 +495,12 @@ export const Allocation: React.FC = () => {
             .filter((tc: any) => selectedModules.includes(tc.module))
             .map((tc: any) => tc.id),
         ];
-      } else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
-        ids = [
-          ...ids,
-          ...effectiveTestCases
-            .filter((tc: any) => selectedSubmodules.includes(tc.subModule))
-            .map((tc: any) => tc.id),
-        ];
       }
       setSelectedTestCases(Array.from(new Set(ids)));
     }
   }, [
     bulkModuleSelect,
-    bulkSubmoduleSelect,
     selectedModules,
-    selectedSubmodules,
     effectiveTestCases,
     activeTab,
     selectedReleaseIds,
@@ -477,7 +508,9 @@ export const Allocation: React.FC = () => {
 
   // --- Filtered test cases for table ---
   let filteredTestCases = effectiveTestCases;
-  if (activeTab === "qa") {
+  if (selectedSubmodule) {
+    filteredTestCases = allocationTestCases;
+  } else if (activeTab === "qa") {
     if (selectedReleaseForQA) {
       // Only show test cases allocated to this release and not yet assigned to any QA
       const allocatedTestCases = qaAllocatedTestCases[selectedReleaseForQA] || [];
@@ -492,7 +525,7 @@ export const Allocation: React.FC = () => {
   } else if (
     activeTab === "release" &&
     selectedReleaseIds.length > 0 &&
-    (bulkModuleSelect || bulkSubmoduleSelect)
+    (bulkModuleSelect)
   ) {
     let ids: Set<string> = new Set();
     if (bulkModuleSelect && selectedModules.length > 0) {
@@ -500,17 +533,10 @@ export const Allocation: React.FC = () => {
         if (selectedModules.includes(tc.module)) ids.add(tc.id);
       });
     }
-    if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
-      effectiveTestCases.forEach((tc: any) => {
-        if (selectedSubmodules.includes(tc.subModule)) ids.add(tc.id);
-      });
-    }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
   } else if (selectedModule) {
     filteredTestCases = effectiveTestCases.filter(
-      (tc: any) =>
-        tc.module === selectedModule &&
-        (!selectedSubmodule || tc.subModule === selectedSubmodule)
+      (tc: any) => tc.module === selectedModule
     );
   }
 
@@ -558,7 +584,6 @@ export const Allocation: React.FC = () => {
     setSelectedProjectId(id);
     setSelectedProject(id);
     setSelectedModule("");
-    setSelectedSubmodule("");
     setSelectedTestCases([]);
   };
 
@@ -694,7 +719,6 @@ export const Allocation: React.FC = () => {
                       );
                     } else {
                       setSelectedModule(module.name);
-                      setSelectedSubmodule("");
                       setSelectedTestCases([]);
                     }
                   }}
@@ -720,11 +744,8 @@ export const Allocation: React.FC = () => {
     </Card>
   );
 
+  // Submodule Selection Panel
   const SubmoduleSelectionPanel = () => {
-    const submodules =
-      selectedModule
-        ? (effectiveModules && effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
-        : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
@@ -732,19 +753,29 @@ export const Allocation: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900">
               Submodule Selection
             </h2>
-            {activeTab === "release" && selectedReleaseIds.length > 0 && (
+            {selectedSubmodule && (
               <Button
+                variant="secondary"
                 size="sm"
-                variant={bulkSubmoduleSelect ? "primary" : "secondary"}
                 onClick={() => {
-                  setBulkSubmoduleSelect((v) => !v);
-                  setSelectedSubmodules([]);
+                  setSelectedSubmodule("");
+                  setSelectedTestCases([]);
                 }}
+                className="ml-4"
               >
-                {bulkSubmoduleSelect ? "Cancel Bulk" : "Bulk Select"}
+                Clear Selection
               </Button>
             )}
           </div>
+          {submoduleLoading && (
+            <div className="text-blue-600 text-sm mb-2">Loading submodules...</div>
+          )}
+          {submoduleError && (
+            <div className="text-red-600 text-sm mb-2">{submoduleError}</div>
+          )}
+          {!submoduleLoading && !submoduleError && selectedModule && fetchedSubmodules.length === 0 && (
+            <div className="text-gray-500 text-sm mb-2">No submodules found for this module.</div>
+          )}
           <div className="relative flex items-center">
             <button
               onClick={() => {
@@ -764,30 +795,20 @@ export const Allocation: React.FC = () => {
                 maxWidth: "100%",
               }}
             >
-              {submodules.map((submodule: any) => {
-                const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.name)
-                  : selectedSubmodule === submodule.name;
+              {fetchedSubmodules.map((submodule: any) => {
+                const label = submodule.subModuleName || submodule.name || submodule.label || submodule.id;
+                // Remove isSelected logic and always use secondary variant
                 return (
                   <Button
                     key={submodule.id}
-                    variant={isSelected ? "primary" : "secondary"}
+                    variant="secondary"
                     onClick={() => {
-                      if (bulkSubmoduleSelect) {
-                        setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.name)
-                            ? prev.filter((s) => s !== submodule.name)
-                            : [...prev, submodule.name]
-                        );
-                      } else {
-                        setSelectedSubmodule(submodule.name);
-                        setSelectedTestCases([]);
-                      }
+                      setSelectedSubmodule(submodule.id);
+                      setSelectedTestCases([]);
                     }}
-                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                      }`}
+                    className="whitespace-nowrap m-2"
                   >
-                    {submodule.name}
+                    {label}
                   </Button>
                 );
               })}
@@ -1013,14 +1034,14 @@ export const Allocation: React.FC = () => {
     }
 
     // Get all QA engineers
-    const effectiveQAEngineers = mockQA.map(qa => ({
-      id: qa.id,
-      firstName: qa.name.split(' ')[0],
-      lastName: qa.name.split(' ').slice(1).join(' '),
-      designation: qa.role,
-      email: qa.email,
-      department: qa.department,
-      status: qa.status
+    const effectiveQAEngineers = employees.map(emp => ({
+      id: emp.id,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      designation: emp.role,
+      email: emp.email,
+      department: emp.department,
+      status: emp.status
     }));
 
     // State for summary modal
@@ -1331,8 +1352,8 @@ export const Allocation: React.FC = () => {
 
   // Save mock test cases and mock QA to localStorage on mount (for cross-page use)
   useEffect(() => {
-    localStorage.setItem('mockTestCases', JSON.stringify(mockTestCases));
-    localStorage.setItem('mockQA', JSON.stringify(mockQA));
+    // localStorage.setItem('mockTestCases', JSON.stringify(mockTestCases));
+    // localStorage.setItem('mockQA', JSON.stringify(mockQA));
   }, []);
 
   // Save allocations to localStorage whenever they change
@@ -1494,7 +1515,7 @@ export const Allocation: React.FC = () => {
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Module</h3>
                 <p className="mt-1 text-sm text-gray-900">
-                  {viewingTestCase.module} / {viewingTestCase.subModule}
+                  {viewingTestCase.module}
                 </p>
               </div>
             </div>
