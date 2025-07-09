@@ -104,7 +104,8 @@ export const ModuleManagement: React.FC = () => {
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
-        if (response.success && response.module) {
+        console.log({ response });
+        if (response.status === "success") {
           // Refresh modules after adding
           fetchModules();
         }
@@ -181,8 +182,8 @@ export const ModuleManagement: React.FC = () => {
     ) {
       if (selectedProjectId) {
         try {
-          const response = await deleteModuleApi(moduleId);
-          if (response.success) {
+          const response = await deleteModuleApi(Number(moduleId));
+          if (response.status === "success") {
             // Refresh modules after deleting
             fetchModules();
           } else {

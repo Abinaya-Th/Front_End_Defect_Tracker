@@ -68,8 +68,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
           >
             {backendProjects.map((project) => {
-              const isSelected = selectedProjectId === project?.id;
-              console.log(`Project ${project?.projectName || project?.name}: id=${project?.id}, selectedProjectId=${selectedProjectId}, isSelected=${isSelected}`);
+              const isSelected = Number(selectedProjectId) === (Number(project?.id));
               return (
                 <Button
                   key={project.id}

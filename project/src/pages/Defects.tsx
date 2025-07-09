@@ -69,6 +69,19 @@ export const Defects: React.FC = () => {
   const [moduleMap, setModuleMap] = React.useState<Record<number, string>>({});
   const [submoduleMap, setSubmoduleMap] = React.useState<Record<string, string>>({});
 
+  // Move these state hooks to the top
+  const [modules, setModules] = React.useState<{ id: string; name: string }[]>([]);
+  const [submodules, setSubmodules] = React.useState<{ id: string; name: string }[]>([]);
+  const [submoduleError, setSubmoduleError] = React.useState<string>("");
+  const [filterSubmodules, setFilterSubmodules] = React.useState<{ id: string; name: string }[]>([]);
+  const [userList, setUserList] = React.useState<{ id: number; firstName: string; lastName: string }[]>([]);
+  const [defectTypes, setDefectTypes] = React.useState<{ id: number; defectTypeName: string }[]>([]);
+  const [severities, setSeverities] = React.useState<{ id: number; name: string; color: string }[]>([]);
+  const [priorities, setPriorities] = React.useState<Priority[]>([]);
+  const [defectStatuses, setDefectStatuses] = React.useState<DefectStatus[]>([]);
+  const [isStatusLoading, setIsStatusLoading] = React.useState(false);
+  const [statusError, setStatusError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     getAllProjects().then((data) => {
       setProjects(Array.isArray(data) ? data : []);
@@ -96,6 +109,7 @@ export const Defects: React.FC = () => {
     release_test_case_description: '',
     attachment: '',
     statusId: '',
+    test_case_id: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -161,9 +175,13 @@ export const Defects: React.FC = () => {
       priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
       defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
       releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
+      moduleId: filters.module ? (() => { const id = modules && modules.find(m => m.name === filters.module)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
+      subModuleId: filters.subModule ? (() => { const id = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
+      assignToId: filters.assignedTo ? userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id : undefined,
+      assignById: filters.reportedBy ? userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id : undefined,
     };
     filterDefects(backendFilters).then(setBackendDefects);
-  }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.releaseId]);
+  }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.releaseId, filters.module, filters.subModule, filters.assignedTo, filters.reportedBy, modules, filterSubmodules, userList, defectTypes, severities, priorities, defectStatuses]);
 
   // Filtered defects based on filters
   const filteredDefects = backendDefects.filter((d) => {
@@ -173,15 +191,7 @@ export const Defects: React.FC = () => {
       (d.description && d.description.toLowerCase().includes(search)) ||
       (d.defectId && d.defectId.toLowerCase().includes(search)) ||
       (d.steps && d.steps.toLowerCase().includes(search));
-    return (
-      matchesSearch &&
-      (!filters.module || d.module_name === filters.module) &&
-      (!filters.subModule || d.sub_module_name === filters.subModule) &&
-      (!filters.type || d.defect_type_name === filters.type) &&
-      (!filters.severity || d.severity_name === filters.severity) &&
-      (!filters.priority || d.priority_name === filters.priority) &&
-      (!filters.status || d.defect_status_name === filters.status)
-    );
+    return matchesSearch;
   });
 
   // Project selection handler
@@ -231,7 +241,7 @@ export const Defects: React.FC = () => {
         type: typeValue as 'bug' | 'test-failure' | 'enhancement',
         assignedTo: formData.assigntoId || '',
         reportedBy: formData.assignbyId || '',
-        status: 'new' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
+        status: 'open' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
         projectId: selectedProjectId || '',
         releaseId: '',
         createdAt: new Date().toISOString(),
@@ -270,6 +280,7 @@ export const Defects: React.FC = () => {
       release_test_case_description: defect.release_test_case_description || '',
       attachment: defect.attachment || '',
       statusId,
+      test_case_id: defect.test_case_id || '',
     });
     setIsModalOpen(true);
   };
@@ -317,6 +328,7 @@ export const Defects: React.FC = () => {
       release_test_case_description: '',
       attachment: '',
       statusId: '',
+      test_case_id: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -370,14 +382,6 @@ export const Defects: React.FC = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
-
-  // Add state for modules and submodules
-  const [modules, setModules] = React.useState<{ id: string; name: string }[]>([]);
-  const [submodules, setSubmodules] = React.useState<{ id: string; name: string }[]>([]);
-  const [submoduleError, setSubmoduleError] = React.useState<string>("");
-
-  // Separate state for filter submodules
-  const [filterSubmodules, setFilterSubmodules] = React.useState<{ id: string; name: string }[]>([]);
 
   // Fetch modules when project changes
   React.useEffect(() => {
@@ -464,17 +468,7 @@ export const Defects: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEditingRejectionComment, setIsEditingRejectionComment] = useState(false);
 
-  const [priorities, setPriorities] = useState<Priority[]>([]);
-
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const [defectStatuses, setDefectStatuses] = useState<DefectStatus[]>([]);
-  const [isStatusLoading, setIsStatusLoading] = useState(false);
-  const [statusError, setStatusError] = useState<string | null>(null);
-
-  // Add state for severities and defect types
-  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
-  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
 
   // Fetch severities and defect types on mount
   React.useEffect(() => {
@@ -587,9 +581,6 @@ export const Defects: React.FC = () => {
     setEditingStatusId(null);
   };
 
-  // Add state for users for 'Assigned To' and 'Entered By'
-  const [userList, setUserList] = React.useState<{ id: number; firstName: string; lastName: string }[]>([]);
-
   // Fetch users for 'Assigned To' and 'Entered By' on mount
   React.useEffect(() => {
     axios.get(`${BASE_URL}user`).then(res => {
@@ -628,17 +619,6 @@ export const Defects: React.FC = () => {
       {/* Filter Row - compact, scrollable, and responsive design */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 mb-6">
         <div className="flex flex-nowrap overflow-x-auto gap-2 hide-scrollbar">
-          <div className="min-w-[160px] flex-shrink-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Search
-            </label>
-            <Input
-              placeholder="Search..."
-              value={filters.search}
-              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-              className="w-full h-8 text-xs"
-            />
-          </div>
           <div className="min-w-[140px] flex-shrink-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Module
@@ -741,8 +721,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {projectReleases.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+              {[...new Set(backendDefects.map(d => d.release_name).filter(Boolean))].map(name => (
+                <option key={name} value={name}>{name}</option>
               ))}
             </select>
           </div>
@@ -863,7 +843,7 @@ export const Defects: React.FC = () => {
                     Defect ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Case Description
+                    Test Case ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brief Description
@@ -917,7 +897,7 @@ export const Defects: React.FC = () => {
                         {defect.defectId}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.release_test_case_description || "-"}
+                        {(defect.test_case_id ?? defect.testCaseId) || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {defect.description}
@@ -1062,7 +1042,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.release_test_case_description || '-'}
+                        {(defect.release_name ?? defect.release_test_case_description) || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1129,6 +1109,14 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Test Case ID */}
+          <Input
+            label="Test Case ID"
+            type="number"
+            value={formData.test_case_id || ''}
+            onChange={e => handleInputChange('test_case_id', e.target.value)}
+            required
+          />
           {/* Test Case Description */}
           <Input
             label="Test Case Description"
@@ -1310,22 +1298,6 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-          {/* Release Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
-            <select
-              value={formData.releaseId || ''}
-              onChange={e => handleInputChange('releaseId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={!selectedProjectId || projectReleases.length === 0}
-            >
-              <option value="">Select release...</option>
-              {projectReleases.map(release => (
-                <option key={release.id} value={release.id}>{release.name}</option>
-              ))}
-            </select>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="secondary" onClick={resetForm}>

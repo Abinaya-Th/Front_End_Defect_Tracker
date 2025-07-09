@@ -36,7 +36,9 @@ export const Modal: React.FC<ModalProps> = ({
         <div className={`inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full ${sizes[size]}`}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-            <Button variant="ghost" size="sm" onClick={onClose} icon={X} className="p-1" />
+            <Button variant="ghost" size="sm" onClick={onClose} className="p-1">
+              <X className="w-4 h-4" />
+            </Button>
           </div>
           <div className="px-6 py-4">{children}</div>
         </div>

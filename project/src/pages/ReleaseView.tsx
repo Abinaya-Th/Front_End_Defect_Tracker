@@ -91,7 +91,7 @@ export const ReleaseView: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [submodules, setSubmodules] = useState<any[]>([]);
   const [selectedSubmoduleId, setSelectedSubmoduleId] = useState<string | null>(null);
-  
+
   // Add state for severities and defect types (like TestCase page)
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
@@ -126,14 +126,14 @@ export const ReleaseView: React.FC = () => {
     if (selectedProject && selectedModule && selectedSubmoduleId && selectedRelease) {
       setLoadingTestCases(true);
       setTestCaseError(null);
-      
+
       console.log('Fetching test cases with filters:', {
         projectId: selectedProject,
         moduleId: selectedModule,
         submoduleId: selectedSubmoduleId,
         releaseId: selectedRelease
       });
-      
+
       getTestCasesByFilter(selectedProject, selectedModule, selectedSubmoduleId, selectedRelease)
         .then((res) => {
           console.log('API Response:', res);
@@ -141,14 +141,14 @@ export const ReleaseView: React.FC = () => {
           if (res.data && res.data.length > 0) {
             console.log('First Test Case:', res.data[0]);
           }
-          
+
           // Map the test cases like TestCase page does
           const mappedTestCases = (res.data || []).map((tc: any) => ({
             ...tc,
             severity: (severities.find(s => s.id === tc.severityId)?.name || "") as string,
             type: (defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as string,
           }));
-          
+
           setFilteredTestCases(mappedTestCases);
         })
         .catch((err) => {
@@ -202,7 +202,7 @@ export const ReleaseView: React.FC = () => {
   // UI helpers
   const getSeverityColor = (severity: string) => {
     if (!severity) return "bg-gray-100 text-gray-800";
-    
+
     switch (severity.toLowerCase()) {
       case "critical":
         return "bg-red-100 text-red-800";
@@ -220,8 +220,8 @@ export const ReleaseView: React.FC = () => {
   // Helper functions removed - now using proper mapping like TestCase page
 
   // Render
-    return (
-      <div className="max-w-6xl mx-auto py-8">
+  return (
+    <div className="max-w-6xl mx-auto py-8">
       {/* Project Selection Panel */}
       <ProjectSelector
         projects={projects}
@@ -237,15 +237,15 @@ export const ReleaseView: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900">
               Release Overview
             </h2>
-              <Button
+            <Button
               onClick={() => setIsCreateReleaseModalOpen(true)}
-                className="flex items-center space-x-2"
+              className="flex items-center space-x-2"
               disabled={!selectedProject}
-              >
+            >
               <Plus className="w-4 h-4" />
               <span>Create Release</span>
-              </Button>
-            </div>
+            </Button>
+          </div>
           {releases.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
@@ -261,7 +261,7 @@ export const ReleaseView: React.FC = () => {
                   key={release.id}
                   hover
                   className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === release.id ? 'border-4 border-blue-700 bg-blue-600 text-white' : 'border border-gray-200 bg-white text-gray-900'}`}
-                  onClick={() => handleReleaseSelect(release.id)}
+                  onClick={() => navigate(`/projects/${selectedProject}/releases/${release.id}/details`)}
                 >
                   <CardContent className={`p-6 ${selectedRelease === release.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-900'}`}>
                     <div className="mb-4">
@@ -303,51 +303,51 @@ export const ReleaseView: React.FC = () => {
         </div>
       )}
 
-          {/* Module Selection Panel */}
+      {/* Module Selection Panel */}
       {selectedRelease && (
-          <Card className="mb-4">
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Module Selection
-              </h2>
-              <div className="relative flex items-center">
-                <button
-                  onClick={() => {
-                    const container = document.getElementById("module-scroll");
-                    if (container) container.scrollLeft -= 200;
-                  }}
-                  className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <div
-                  id="module-scroll"
-                  className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                >
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Module Selection
+            </h2>
+            <div className="relative flex items-center">
+              <button
+                onClick={() => {
+                  const container = document.getElementById("module-scroll");
+                  if (container) container.scrollLeft -= 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <div
+                id="module-scroll"
+                className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
                 {projectModules.map((module: Module) => (
-                      <Button
-                        key={module.id}
+                  <Button
+                    key={module.id}
                     variant={selectedModule === module.id ? "primary" : "secondary"}
-                        onClick={() => handleModuleSelect(module.id)}
-                        className="whitespace-nowrap m-2"
-                      >
-                        {module.name}
-                      </Button>
+                    onClick={() => handleModuleSelect(module.id)}
+                    className="whitespace-nowrap m-2"
+                  >
+                    {module.name}
+                  </Button>
                 ))}
-                </div>
-                <button
-                  onClick={() => {
-                    const container = document.getElementById("module-scroll");
-                    if (container) container.scrollLeft += 200;
-                  }}
-                  className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-                >
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
-                </button>
               </div>
-            </CardContent>
-          </Card>
+              <button
+                onClick={() => {
+                  const container = document.getElementById("module-scroll");
+                  if (container) container.scrollLeft += 200;
+                }}
+                className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Submodule Selection Panel */}
@@ -399,8 +399,8 @@ export const ReleaseView: React.FC = () => {
 
       {/* Test Cases Table */}
       {selectedRelease && selectedModule && (
-          <Card>
-            <CardContent className="p-0">
+        <Card>
+          <CardContent className="p-0">
             {loadingTestCases ? (
               <div className="p-8 text-center">Loading test cases...</div>
             ) : testCaseError ? (
@@ -428,60 +428,125 @@ export const ReleaseView: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredTestCases.map((testCase: TestCase) => (
-                      <tr key={testCase.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{testCase.description}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          <button
+                    <tr key={testCase.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{testCase.description}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        <button
                           onClick={() => {
                             setViewingTestCase(testCase);
                             setIsViewStepsModalOpen(true);
                           }}
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                            title="View Steps"
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span>View</span>
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.type || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || 'low')}`}>
-                            {testCase.severity || 'N/A'}
-                          </span>
-                        </td>
-                      </tr>
+                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                          title="View Steps"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {testCase.type || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || 'low')}`}>
+                          {testCase.severity || 'N/A'}
+                        </span>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
       )}
 
-        {/* View Steps Modal */}
-        <Modal
-          isOpen={isViewStepsModalOpen}
-          onClose={() => {
-            setIsViewStepsModalOpen(false);
-            setViewingTestCase(null);
-          }}
-          title={`Test Steps - ${viewingTestCase?.id}`}
-        >
-          <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-gray-700 whitespace-pre-line">
-                {viewingTestCase?.steps}
-              </p>
+      {/* View Steps Modal */}
+      <Modal
+        isOpen={isViewStepsModalOpen}
+        onClose={() => {
+          setIsViewStepsModalOpen(false);
+          setViewingTestCase(null);
+        }}
+        title={`Test Steps - ${viewingTestCase?.id}`}
+      >
+        <div className="space-y-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-gray-700 whitespace-pre-line">
+              {viewingTestCase?.steps}
+            </p>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsViewStepsModalOpen(false);
+                setViewingTestCase(null);
+              }}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* View Test Case Modal */}
+      <Modal
+        isOpen={isViewTestCaseModalOpen}
+        onClose={() => {
+          setIsViewTestCaseModalOpen(false);
+          setViewingTestCase(null);
+        }}
+        title={`Test Case Details - ${viewingTestCase?.id}`}
+        size="xl"
+      >
+        {viewingTestCase && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Description
+                </h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {viewingTestCase.description}
+                </p>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                Test Steps
+              </h3>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-gray-700 whitespace-pre-line">
+                  {viewingTestCase.steps}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Severity</h3>
+                <span
+                  className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
+                    viewingTestCase.severity || 'low'
+                  )}`}
+                >
+                  {viewingTestCase.severity || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Module</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {viewingTestCase.module} / {viewingTestCase.subModule}
+                </p>
+              </div>
             </div>
             <div className="flex justify-end pt-4">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  setIsViewStepsModalOpen(false);
+                  setIsViewTestCaseModalOpen(false);
                   setViewingTestCase(null);
                 }}
               >
@@ -489,73 +554,8 @@ export const ReleaseView: React.FC = () => {
               </Button>
             </div>
           </div>
-        </Modal>
-
-        {/* View Test Case Modal */}
-        <Modal
-          isOpen={isViewTestCaseModalOpen}
-          onClose={() => {
-            setIsViewTestCaseModalOpen(false);
-            setViewingTestCase(null);
-          }}
-          title={`Test Case Details - ${viewingTestCase?.id}`}
-          size="xl"
-        >
-          {viewingTestCase && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Description
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {viewingTestCase.description}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">
-                  Test Steps
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 whitespace-pre-line">
-                    {viewingTestCase.steps}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                <h3 className="text-sm font-medium text-gray-500">Severity</h3>
-                  <span
-                    className={`mt-1 inline-flex px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(
-                      viewingTestCase.severity || 'low'
-                    )}`}
-                  >
-                    {viewingTestCase.severity || 'N/A'}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Module</h3>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {viewingTestCase.module} / {viewingTestCase.subModule}
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setIsViewTestCaseModalOpen(false);
-                    setViewingTestCase(null);
-                  }}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </Modal>
+        )}
+      </Modal>
 
       {/* Create Release Modal */}
       <Modal
