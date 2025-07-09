@@ -132,4 +132,15 @@ export async function deleteProjectAllocation(allocationId: string | number) {
     console.error('Delete project allocation error:', error);
     throw error;
   }
+}
+
+// Fetch developers with roles for a given projectId
+export async function getDevelopersWithRolesByProjectId(projectId: number) {
+  try {
+    const response = await axios.get(`${BASE_URL}/developers/${projectId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Get developers with roles error:', error);
+    throw error;
+  }
 } 
