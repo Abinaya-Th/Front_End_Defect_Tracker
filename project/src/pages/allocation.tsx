@@ -19,6 +19,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -210,7 +211,6 @@ export const Allocation: React.FC = () => {
     releases,
     employees,
     testCases,
-    setSelectedProjectId,
     modulesByProject,
   } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
@@ -224,7 +224,7 @@ export const Allocation: React.FC = () => {
   const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
-  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
+  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState<boolean>(false);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
   const [submodules, setSubmodules] = useState<Submodule[]>([]);
   const [submoduleError, setSubmoduleError] = useState<string>("");
@@ -238,6 +238,8 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
+
   React.useEffect(() => {
     if (projectId) setSelectedProjectId(projectId);
   }, [projectId, setSelectedProjectId]);
@@ -250,6 +252,9 @@ export const Allocation: React.FC = () => {
       console.error("Error fetching release card view:", error);
     }
   };
+
+  
+  
 
   const loadExistingQAAllocations = async () => {
     if (!selectedProject || !effectiveProjectRelease.length) return;
@@ -363,7 +368,23 @@ export const Allocation: React.FC = () => {
     activeTab,
     selectedReleaseIds,
   ]);
-
+  // useEffect(() => {
+  //   if (!selectedProjectId || selectedSubmoduleId === null) return;
+  //   getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+  //     // Map moduleId/subModuleId to names for display
+  //     const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+  //     const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+  //     setTestCases(
+  //       (data as any[]).map((tc: any) => ({
+  //         ...tc,
+  //         module: moduleMap[tc.moduleId] || tc.moduleId,
+  //         subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+  //         severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+  //         type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+  //       })) as TestCaseType[]
+  //     );
+  //   });
+  // }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
   // --- Filtered test cases for table ---
   let filteredTestCases = effectiveTestCases;
   if (activeTab === "qa") {
@@ -444,6 +465,8 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
+    console.log(id);
+    
     setSelectedProjectId(id);
     setSelectedProject(id);
     setSelectedModule("");
@@ -451,16 +474,23 @@ export const Allocation: React.FC = () => {
     setSelectedTestCases([]);
   };
 
+
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
     <ProjectSelector
       projects={projects}
-      selectedProjectId={projectId || null}
-      onSelect={handleProjectSelect}
+      selectedProjectId={selectedProjectId || null}
+      onSelect={
+        (id:string)=>{ 
+          setSelectedProjectId(id),
+          handleProjectSelect(id)
+      }
+      
+    }
       className="mb-4"
     />
   );
-
+ 
   // In ReleaseCardsPanel, on Allocate:
   // For each selected release, store the selected test cases
   const handleAllocate = () => {
@@ -473,6 +503,29 @@ export const Allocation: React.FC = () => {
     });
     setActiveTab("qa");
   };
+  const handleSelectSubModule = ( selectedSubmoduleId: string)=>{
+    console.log("--------------",selectedSubmoduleId );
+    console.log('++++++++++++++++++', selectedProjectId);
+    getTestCasesByProjectAndSubmodule(selectedProjectId,selectedSubmoduleId)
+      .then((data) => {
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setSelectedSubmodule(selectedSubmoduleId);
+        setSelectedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (tc.severityName || "low") as string,
+            type: (tc.defectTypeName || "functional") as string,
+          })) as string[]
+        );
+      });
+      
+    
+  }
+console.log("Selected Submodule:", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
@@ -653,27 +706,27 @@ export const Allocation: React.FC = () => {
               }}
             >
               {submodules.map((submodule: any) => {
+                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.name)
-                  : selectedSubmodule === submodule.name;
+                  ? selectedSubmodules.includes(submodule.subModuleId)
+                  : selectedSubmodule === submodule.subModuleId;
                 return (
                   <Button
-                    key={submodule.id}
+                    key={submodule.subModuleId}
                     variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.name)
-                            ? prev.filter((s) => s !== submodule.name)
-                            : [...prev, submodule.name]
+                          prev.includes(submodule.subModuleId)
+                            ? prev.filter((s) => s !== submodule.subModuleId)
+                            : [...prev, submodule.subModuleId]
                         );
                       } else {
-                        setSelectedSubmodule(submodule.name);
-                        setSelectedTestCases([]);
+                        handleSelectSubModule(submodule.subModuleId);
+                        setSelectedSubmodule(submodule.subModuleId);
                       }
                     }}
-                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                      }`}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                   >
                     {submodule.name}
                   </Button>
@@ -798,7 +851,7 @@ export const Allocation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredTestCases.map((tc: any) => (
+            {selectedTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
