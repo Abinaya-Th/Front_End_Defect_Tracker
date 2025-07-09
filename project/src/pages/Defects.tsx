@@ -233,7 +233,6 @@ console.log(releasesData, "Release Data");
       typeId: Number(formData.typeId),
       assignToId: formData.assigntoId,
       attachment: formData.attachment,
-      assignById: formData.assignbyId,
       // releaseTestcaseId: formData.releaseId ? formData.releaseId.toString() : undefined,
       // defectStatusId: (formData.defectStatusId),
       steps: formData.steps,
@@ -293,7 +292,7 @@ console.log(releasesData, "Release Data");
         updatedAt: new Date().toISOString(),
         history: [
           {
-            enteredBy: userList.find(u => u.id.toString() === formData.assignbyId)?.firstName + ' ' + userList.find(u => u.id.toString() === formData.assignbyId)?.lastName || '-',
+            enteredBy: '-', // assignbyId removed
             assignedTo: userList.find(u => u.id.toString() === formData.assigntoId)?.firstName + ' ' + userList.find(u => u.id.toString() === formData.assigntoId)?.lastName || '-',
             status: 'open',
             changedAt: new Date().toISOString(),
@@ -313,7 +312,7 @@ console.log(releasesData, "Release Data");
     const priorityId = priorities.find(p => p.priority === defect.priority_name)?.id?.toString() || '';
     const typeId = defectTypes.find(t => t.defectTypeName === defect.defect_type_name)?.id?.toString() || '';
     const assigntoId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_to_name)?.id?.toString() || '';
-    const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
+    // const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
     const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
 
@@ -329,7 +328,7 @@ console.log(releasesData, "Release Data");
       priorityId,
       typeId,
       assigntoId,
-      assignbyId,
+      // assignbyId, // removed
       releaseId,
       attachment: defect.attachment || '',
       statusId,
@@ -391,7 +390,6 @@ console.log(releasesData, "Release Data");
       priorityId: '',
       typeId: '',
       assigntoId: '',
-      assignbyId: '',
       releaseId: '',
       attachment: '',
       statusId: '',
@@ -706,26 +704,62 @@ console.log(releasesData, "Release Data");
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
   const [activeCommentsDefectId, setActiveCommentsDefectId] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
 
-  const handleOpenCommentsModal = (defectId: string) => {
+  const handleOpenCommentsModal = async (defectId: string) => {
     setActiveCommentsDefectId(defectId);
     setIsCommentsModalOpen(true);
     setNewCommentText('');
+    setCommentsLoading(true);
+    setCommentsError(null);
+    try {
+      const response = await axios.get(`http://34.171.115.156:8087/api/v1/comment/defect/${defectId}`);
+      if (response.status === 200 && Array.isArray(response.data)) {
+        setCommentsByDefectId(prev => ({
+          ...prev,
+          [defectId]: response.data.map((c: any) => ({
+            text: c.comment,
+            timestamp: c.createdAt || new Date().toISOString(),
+          })),
+        }));
+      } else {
+        setCommentsByDefectId(prev => ({ ...prev, [defectId]: [] }));
+      }
+    } catch (error) {
+      setCommentsError("Failed to load comments.");
+      setCommentsByDefectId(prev => ({ ...prev, [defectId]: [] }));
+    } finally {
+      setCommentsLoading(false);
+    }
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (activeCommentsDefectId && newCommentText.trim()) {
-      setCommentsByDefectId(prev => {
-        const prevComments = prev[activeCommentsDefectId] || [];
-        return {
-          ...prev,
-          [activeCommentsDefectId]: [
-            ...prevComments,
-            { text: newCommentText, timestamp: new Date().toISOString() },
-          ],
-        };
-      });
-      setNewCommentText('');
+      try {
+        const response = await axios.post("http://34.171.115.156:8087/api/v1/comment", {
+          defectId: activeCommentsDefectId,
+          comment: newCommentText.trim(),
+        });
+        if (response.status === 200 || response.status === 201) {
+          setCommentsByDefectId(prev => {
+            const prevComments = prev[activeCommentsDefectId] || [];
+            return {
+              ...prev,
+              [activeCommentsDefectId]: [
+                ...prevComments,
+                { text: newCommentText, timestamp: new Date().toISOString() },
+              ],
+            };
+          });
+          setNewCommentText("");
+          alert("Comment added successfully.");
+        } else {
+          alert("Failed to add comment. Please try again.");
+        }
+      } catch (error) {
+        alert("Failed to add comment. Please try again.");
+      }
     }
   };
 
@@ -1604,7 +1638,11 @@ console.log(releasesData, "Release Data");
               Add Comment
             </Button>
           </div>
-          {activeCommentsDefectId && (commentsByDefectId[activeCommentsDefectId]?.length > 0) ? (
+          {commentsLoading ? (
+            <div className="text-gray-500">Loading comments...</div>
+          ) : commentsError ? (
+            <div className="text-red-500">{commentsError}</div>
+          ) : activeCommentsDefectId && (commentsByDefectId[activeCommentsDefectId]?.length > 0) ? (
             <ul className="space-y-2">
               {commentsByDefectId[activeCommentsDefectId].map((c, idx) => (
                 <li key={idx} className="border-b pb-2">
