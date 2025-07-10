@@ -267,7 +267,9 @@ export const Defects: React.FC = () => {
       projectId: Number(selectedProjectId),
       modulesId: Number(formData.moduleId),
       subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
-      defectStatusId: formData.statusId ? Number(formData.statusId) : null,
+      defectStatusId: formData.statusId
+        ? Number(formData.statusId)
+        : (defectStatuses.find(s => s.defectStatusName.toLowerCase().startsWith("new"))?.id ?? null),
       reOpenCount: 0, // Default value as per API sample
     };
     try {
