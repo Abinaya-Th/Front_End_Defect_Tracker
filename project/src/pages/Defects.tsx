@@ -42,6 +42,7 @@ import axios from "axios";
 import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { addDefects } from "../api/defect/addNewDefect";
 import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
+import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -154,20 +155,49 @@ export const Defects: React.FC = () => {
     });
   }, [selectedProjectId]);
 
-  // Fetch defects when project changes
+  // Fetch defects when project changes or filters change
+  const fetchData = () => {
+    const hasFilters =
+      filters.type ||
+      filters.severity ||
+      filters.priority ||
+      filters.status ||
+      filters.module ||
+      filters.subModule;
+    if (!hasFilters) {
+      // No filters: use the new project endpoint
+      axios
+        .get(`http://192.168.1.110:8080/api/v1/defect/project/${selectedProjectId}`)
+        .then((res) => {
+          setBackendDefects(res.data.data || []);
+        })
+        .catch((err) => {
+          setBackendDefects([]);
+          console.error('Failed to fetch defects for project:', err);
+        });
+    } else {
+      // Filters applied: use the filter API
+      const backendFilters = {
+        projectId: Number(selectedProjectId),
+        typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
+        severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
+        priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
+        defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
+        releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
+      };
+      filterDefects(backendFilters).then(setBackendDefects);
+    }
+  }
+
+
   React.useEffect(() => {
     if (!selectedProjectId) return;
-    // Prepare backend-supported filters
-    const backendFilters = {
-      projectId: Number(selectedProjectId),
-      typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
-      severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
-      priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
-      defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
-      releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
-    };
-    filterDefects(backendFilters).then(setBackendDefects);
-  }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.releaseId]);
+    fetchData();
+    // Check if any filters (other than projectId) are applied
+
+
+
+  }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.module, filters.subModule, filters.releaseId]);
 
   // Filtered defects based on filters
   const filteredDefects = backendDefects.filter((d) => {
@@ -228,9 +258,9 @@ export const Defects: React.FC = () => {
       severityId: Number(formData.severityId),
       priorityId: Number(formData.priorityId),
       typeId: Number(formData.typeId),
-      assigntoId: formData.assigntoId || null,
+      assigntoId: Number(formData.assigntoId) || null, // Ensure number or null
       attachment: formData.attachment || undefined,
-      assignbyId: formData.assignbyId || null,
+      assignbyId: Number(formData.assignbyId) || null, // Ensure number or null
       steps: formData.steps || undefined,
       projectId: Number(selectedProjectId),
       modulesId: Number(formData.moduleId),
@@ -243,10 +273,11 @@ export const Defects: React.FC = () => {
       console.log("API Response:", response); // Debug log
 
       // Check for success - API returns "Success" (uppercase) or statusCode 2000
-      if (response.status === "Success" || response.status === "success" || response.statusCode === 2000) {
+      if (response.status === "Success" || response.statusCode === 200) {
         // Handle successful defect addition
         console.log("Defect added successfully:", response.data);
         alert("Defect added successfully!");
+        fetchData();
         // Refresh the defects list
         if (selectedProjectId) {
           const backendFilters = {
@@ -666,7 +697,7 @@ export const Defects: React.FC = () => {
   const handleExportExcel = () => {
     exportDefects();
   };
-  
+
   const releaseMap = React.useMemo(() => Object.fromEntries(releases.map(r => [Number(r.id), r.name])), [releases]);
 
   const handleStatusSave = (defect: FilteredDefect, newStatus: string, comment: string) => {
@@ -693,7 +724,7 @@ export const Defects: React.FC = () => {
     console.log('BASE_URL for user fetch:', BASE_URL); // Debug log
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
+    const userApiUrl = 'http://192.168.1.110:8080/api/v1/user';
     console.log('Trying user API at:', userApiUrl);
 
     axios.get(userApiUrl).then(res => {
@@ -773,6 +804,49 @@ export const Defects: React.FC = () => {
       setNewCommentText('');
     }
   };
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const defectsPerPage = 10;
+  const totalPages = Math.ceil(filteredDefects.length / defectsPerPage);
+
+  // Reset to page 1 when filters or project change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedProjectId, filters]);
+
+  // Paginated defects
+  const paginatedDefects = filteredDefects.slice(
+    (currentPage - 1) * defectsPerPage,
+    currentPage * defectsPerPage
+  );
+
+  // Add state for allocated users for the selected module
+  const [allocatedUsers, setAllocatedUsers] = useState<{ userId: number; userName: string }[]>([]);
+  const [isAllocatedUsersLoading, setIsAllocatedUsersLoading] = useState(false);
+
+  // Fetch allocated users when moduleId changes in the form
+  useEffect(() => {
+    if (!formData.moduleId) {
+      setAllocatedUsers([]);
+      return;
+    }
+    setIsAllocatedUsersLoading(true);
+    getAllocatedUsersByModuleId(formData.moduleId)
+      .then((data) => {
+        // The API returns an array of allocations, may have duplicate users for submodules
+        // We'll deduplicate by userId
+        const uniqueUsers: { [id: number]: string } = {};
+        (Array.isArray(data) ? data : []).forEach((item: any) => {
+          if (item.userId && item.userName) {
+            uniqueUsers[item.userId] = item.userName;
+          }
+        });
+        setAllocatedUsers(Object.entries(uniqueUsers).map(([userId, userName]) => ({ userId: Number(userId), userName })));
+      })
+      .catch(() => setAllocatedUsers([]))
+      .finally(() => setIsAllocatedUsersLoading(false));
+  }, [formData.moduleId]);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1066,7 +1140,7 @@ export const Defects: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredDefects.length > 0 ? (
-                  filteredDefects.map((defect) => (
+                  paginatedDefects.map((defect) => (
                     <tr
                       key={defect.defectId}
                       ref={
@@ -1120,19 +1194,19 @@ export const Defects: React.FC = () => {
                         {defect.defect_type_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(defect.severity_name.toLowerCase())}`}>
-                          {defect.severity_name}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor((defect.severity_name || '').toLowerCase())}`}>
+                          {defect.severity_name || '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(defect.priority_name.toLowerCase())}`}>
-                          {defect.priority_name}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor((defect.priority_name || '').toLowerCase())}`}>
+                          {defect.priority_name || '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap w-32">
                         <div className="flex flex-col items-center gap-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(defect.defect_status_name.toLowerCase())}`}>
-                            {defect.defect_status_name}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor((defect.defect_status_name || '').toLowerCase())}`}>
+                            {defect.defect_status_name || '-'}
                           </span>
                           {editingStatusId === defect.defectId ? (
                             <form
@@ -1219,7 +1293,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {releaseMap[(defect as any).releaseId || ''] || '-'}
+                        {defect.release_name || releaseMap[(defect as any).releaseId || ''] || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1288,6 +1362,30 @@ export const Defects: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 py-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1452,17 +1550,17 @@ export const Defects: React.FC = () => {
                   value={formData.assigntoId}
                   onChange={e => handleInputChange('assigntoId', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isUsersLoading}
+                  disabled={isAllocatedUsersLoading || !formData.moduleId}
                 >
                   <option value="">
-                    {isUsersLoading ? "Loading users..." : userList.length === 0 ? "No users available - will assign later" : "Select assignee (optional)"}
+                    {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee (optional)"}
                   </option>
-                  {userList.map(user => (
-                    <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
+                  {allocatedUsers.map(user => (
+                    <option key={user.userId} value={user.userId.toString()}>{user.userName}</option>
                   ))}
                 </select>
-                {userList.length === 0 && !isUsersLoading && (
-                  <p className="text-blue-500 text-xs mt-1">You can assign the defect later when users are available.</p>
+                {allocatedUsers.length === 0 && !isAllocatedUsersLoading && (
+                  <p className="text-blue-500 text-xs mt-1">No users allocated to this module. You can assign the defect later.</p>
                 )}
               </div>
             )}
@@ -1492,17 +1590,17 @@ export const Defects: React.FC = () => {
                     value={formData.assigntoId}
                     onChange={e => handleInputChange('assigntoId', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isUsersLoading}
+                    disabled={isAllocatedUsersLoading || !formData.moduleId}
                   >
                     <option value="">
-                      {isUsersLoading ? "Loading users..." : userList.length === 0 ? "No users available - will assign later" : "Select assignee (optional)"}
+                      {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee (optional)"}
                     </option>
-                    {userList.map(user => (
-                      <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
+                    {allocatedUsers.map(user => (
+                      <option key={user.userId} value={user.userId.toString()}>{user.userName}</option>
                     ))}
                   </select>
-                  {userList.length === 0 && !isUsersLoading && (
-                    <p className="text-blue-500 text-xs mt-1">You can assign the defect later when users are available.</p>
+                  {allocatedUsers.length === 0 && !isAllocatedUsersLoading && (
+                    <p className="text-blue-500 text-xs mt-1">No users allocated to this module. You can assign the defect later.</p>
                   )}
                 </div>
                 <div>
@@ -1705,7 +1803,7 @@ export const Defects: React.FC = () => {
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} />
       </div>
     </div>
   );
