@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bug, Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -13,8 +13,12 @@ import { getAllPriorities } from "../api/priority";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import axios from "axios";
 
-const QuickAddDefect: React.FC = () => {
-  const { selectedProjectId, projects, defects, addDefect, releases } = useApp();
+interface QuickAddDefectProps {
+  projectModules: { id: string; name: string; submodules: { id: string; name: string }[] }[];
+}
+
+const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules }) => {
+  const { selectedProjectId, projects, addDefect } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     description: "",
@@ -101,6 +105,9 @@ const QuickAddDefect: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(true);
+    // Map priorityId and severityId to their names
+    const priorityName = priorities.find(p => String(p.id) === formData.priorityId)?.priority || "medium";
+    const severityName = severities.find(s => String(s.id) === formData.severityId)?.name || "medium";
     // Add defect to main defect table
     addDefect({
       ...formData,
@@ -109,6 +116,10 @@ const QuickAddDefect: React.FC = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: "open",
+      title: formData.description || "Untitled Defect",
+      priority: priorityName as "low" | "medium" | "high" | "critical",
+      severity: severityName as "low" | "medium" | "high" | "critical",
+      reportedBy: "system", // Placeholder, update as needed
     });
     setTimeout(() => {
       setSuccess(false);
@@ -149,6 +160,32 @@ const QuickAddDefect: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
+
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getAllPriorities().then(res => setPriorities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+    if (selectedProjectId) {
+      projectReleaseCardView(selectedProjectId).then(res => {
+        setReleasesData(res.data || []);
+      });
+    } else {
+      setReleasesData([]);
+    }
+    // Fetch submodules when module changes
+    if (formData.moduleId) {
+      const selectedModuleObj = projectModules.find((m: any) => m.id === formData.moduleId);
+      if (selectedModuleObj && 'id' in selectedModuleObj && selectedModuleObj.id) {
+        getSubmodulesByModuleId(selectedModuleObj.id).then(res => {
+          setSubmodules(res.data || []);
+        }).catch(() => setSubmodules([]));
+      } else {
+        setSubmodules([]);
+      }
+    } else {
+      setSubmodules([]);
+    }
+  }, [selectedProjectId, formData.moduleId, projectModules]);
 
   return (
     <div>
@@ -212,6 +249,7 @@ const QuickAddDefect: React.FC = () => {
             required
           />
           {/* Steps */}
+          {/* Steps */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Steps
@@ -236,6 +274,7 @@ const QuickAddDefect: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Modules
+                Modules
               </label>
               <select
                 value={formData.moduleId}
@@ -251,6 +290,7 @@ const QuickAddDefect: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Submodules
                 Submodules
               </label>
               <select

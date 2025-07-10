@@ -26,6 +26,7 @@ import { Employee } from "../types/index";
 import { createUser } from "../api/users/createUser";
 import { Designations, getDesignations } from "../api/designation/designation";
 import { useParams } from "react-router-dom";
+import { getAllUsers, User as BackendUser } from "../api/users/getallusers";
 
 export const Employees: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useApp();
@@ -49,6 +50,8 @@ export const Employees: React.FC = () => {
     availability: 100,
     status: true,
   });
+  const [users, setUsers] = useState<BackendUser[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,11 +80,6 @@ export const Employees: React.FC = () => {
       matchesSearch && matchesStatus && matchesGender && matchesDesignation
     );
   });
-  const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage);
-  const paginatedEmployees = filteredEmployees.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
   const name=useParams().name;
     const fetchDesignations = async () => {
   
@@ -108,52 +106,69 @@ export const Employees: React.FC = () => {
     return password;
   }
   const fetchCreate = async () => {
+    // Find the designation ID
+    const selectedDesignation = designations.find((d) => d.name === formData.designation);
+    const designationId = selectedDesignation ? Number(selectedDesignation.id) : null;
+    
+    // Validate required fields
+    if (!designationId) {
+      alert("Please select a valid designation");
+      return;
+    }
+    
+    // Format joinDate as ISO string with timezone
+    const joinDateISO = formData.joinedDate ? new Date(formData.joinedDate + 'T00:00:00.000+05:30').toISOString() : '';
+    
     const payload = {
-      // userId: formData.id,
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
       password: generateRandomPassword(),
       phoneNo: formData.phone,
-      joinDate: formData.joinedDate,
-      userGender: formData.gender,
-      userStatus: formData.status === true ? "active" : "inactive",
-      designationId: designations && Number(designations.find((d) => d.name === formData.designation)?.id),
+      joinDate: joinDateISO,
+      userGender: formData.gender as "Male" | "Female",
+      userStatus: formData.status ? "Active" : "Inactive", // Convert boolean to string
+      designationId: designationId,
     };
-try {
-   const response = await createUser(payload);
-    if (response.statusCode === 201) {
-      setUserData(response.data);
-      alert("User created successfully!");
+    
+    console.log("Sending payload:", payload); // Debug log
+    
+    try {
+      const response = await createUser(payload);
+      if (response.statusCode === 201) {
+        setUserData(response.data);
+        alert("User created successfully!");
+        // Refresh the user list after successful creation
+        const res = await getAllUsers(currentPage - 1, rowsPerPage);
+        setUsers(res.data.content);
+        setTotalPages(res.data.totalPages);
+      }
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to create user";
+      alert(`Failed to create user: ${errorMessage}`);
     }
-} catch (error) {
-  console.error("Error creating user:", error);
-}
-   
-
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    console.log("Form Data:", formData);
-    
-    fetchCreate();
     e.preventDefault();
     const employeeData = {
       ...formData,
+      gender: formData.gender as "Male" | "Female",
+      status: (formData.status ? "active" : "inactive") as "active" | "inactive",
       skills: formData.skills
         .split(",")
         .map((skill) => skill.trim())
         .filter(Boolean),
       currentProjects: [],
     };
-
     if (editingEmployee) {
       updateEmployee(editingEmployee.id, employeeData);
       setEditingEmployee(null);
     } else {
-      addEmployee(employeeData);
+      addEmployee(employeeData as Omit<Employee, "id" | "createdAt" | "updatedAt">);
     }
-
+    fetchCreate();
     resetForm();
     setIsModalOpen(false);
   };
@@ -210,19 +225,38 @@ try {
   };
 
   const handleInputChange = (field: string, value: string | boolean | undefined) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const getStatusBadge = (status: boolean | undefined) => {
-    switch (status) {
-      case true:
-        return <Badge variant="success">Active</Badge>;
-      case false:
-        return <Badge variant="error">Inactive</Badge>;
-      default:
-        return <Badge variant="default">{status}</Badge>;
+    if (field === "gender") {
+      setFormData((prev) => ({ ...prev, [field]: value as "Male" | "Female" }));
+    } else if (field === "status") {
+      setFormData((prev) => ({ ...prev, [field]: value as boolean }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
     }
   };
+
+  const getStatusBadge = (status: string | boolean | undefined) => {
+    if (typeof status === "string") {
+      if (status.toLowerCase() === "active") return <Badge variant="success">Active</Badge>;
+      if (status.toLowerCase() === "inactive") return <Badge variant="error">Inactive</Badge>;
+      return <Badge variant="default">{status}</Badge>;
+    }
+    if (status === true) return <Badge variant="success">Active</Badge>;
+    if (status === false) return <Badge variant="error">Inactive</Badge>;
+    return <Badge variant="default">{String(status)}</Badge>;
+  };
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const res = await getAllUsers(currentPage - 1, rowsPerPage);
+        setUsers(res.data.content);
+        setTotalPages(res.data.totalPages);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    }
+    fetchUsers();
+  }, [currentPage]);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -285,7 +319,6 @@ try {
             <option value="">All Genders</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
-            <option value="Other">Other</option>
           </select>
           <select
             value={designationFilter}
@@ -315,7 +348,7 @@ try {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="min-w-[1100px]">
-              {employees.length > 0 ? (
+              {users.length > 0 ? (
                 <table className="w-full">
                   <TableHeader>
                     <TableRow>
@@ -332,43 +365,65 @@ try {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedEmployees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>{employee.id}</TableCell>
-                        <TableCell>{employee.firstName}</TableCell>
-                        <TableCell>{employee.lastName}</TableCell>
-                        <TableCell>{employee.gender || "-"}</TableCell>
-                        <TableCell>{employee.designation}</TableCell>
-                        <TableCell>{employee.phone}</TableCell>
-                        <TableCell>{employee.email}</TableCell>
-                        <TableCell>
-                          {employee.joinedDate
-                            ? new Date(employee.joinedDate).toLocaleDateString()
-                            : "-"}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(employee.status)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(employee)}
-                              className="p-2 hover:bg-yellow-50 text-yellow-600"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(employee.id)}
-                              className="p-2 hover:bg-red-50 text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {users.map((user) => {
+                      // Map backend user to Employee shape for edit/delete
+                      const mappedEmployee = {
+                        id: user.userId,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        gender: (user.userGender as "Male" | "Female") || "Male",
+                        email: user.email,
+                        phone: user.phoneNo,
+                        designation: user.designationName,
+                        experience: 0,
+                        joinedDate: user.joinDate,
+                        skills: [],
+                        department: "",
+                        manager: "",
+                        availability: 100,
+                        status: (user.userStatus.toLowerCase() === "active" ? "active" : "inactive") as "active" | "inactive",
+                        currentProjects: [],
+                        createdAt: "",
+                        updatedAt: "",
+                      } as Employee;
+                      return (
+                        <TableRow key={user.userId}>
+                          <TableCell>{user.userId}</TableCell>
+                          <TableCell>{user.firstName}</TableCell>
+                          <TableCell>{user.lastName}</TableCell>
+                          <TableCell>{user.userGender || "-"}</TableCell>
+                          <TableCell>{user.designationName || "-"}</TableCell>
+                          <TableCell>{user.phoneNo || "-"}</TableCell>
+                          <TableCell>{user.email || "-"}</TableCell>
+                          <TableCell>
+                            {user.joinDate
+                              ? new Date(user.joinDate).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(user.userStatus)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(mappedEmployee)}
+                                className="p-2 hover:bg-yellow-50 text-yellow-600"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(user.userId)}
+                                className="p-2 hover:bg-red-50 text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </table>
               ) : (
@@ -387,7 +442,7 @@ try {
               )}
             </div>
             {/* Pagination Controls */}
-            {employees.length > rowsPerPage && (
+            {users.length > 0 && (
               <div className="flex justify-end items-center gap-2 p-4">
                 <Button
                   variant="secondary"
@@ -403,9 +458,7 @@ try {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
                   Next
@@ -467,7 +520,6 @@ try {
                 </option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                <option value="Other">Other</option>
               </select>
             </div>
           </div>
@@ -515,8 +567,8 @@ try {
                 Status
               </label>
               <select
-                value={formData.status}
-                onChange={(e) => handleInputChange("status", e.target.value)}
+                value={formData.status ? "true" : "false"}
+                onChange={(e) => handleInputChange("status", e.target.value === "true")}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >

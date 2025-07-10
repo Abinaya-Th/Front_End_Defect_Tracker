@@ -20,6 +20,10 @@ import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { TestCase as TestCaseType } from "../types/index";
+import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases } from "../api/releasetestcase";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -239,22 +243,37 @@ export const Allocation: React.FC = () => {
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
+  const [loadingReleases, setLoadingReleases] = useState(false);
+  const [allocatedTestCases, setAllocatedTestCases] = useState<TestCaseType[]>([]);
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationSuccess, setAllocationSuccess] = useState<string | null>(null);
+  const [allocationError, setAllocationError] = useState<string | null>(null);
+  const [allocationProgress, setAllocationProgress] = useState<{ current: number; total: number } | null>(null);
+  const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk">("one-to-one");
 
   React.useEffect(() => {
-    if (projectId) setSelectedProjectId(projectId);
-  }, [projectId, setSelectedProjectId]);
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      setSelectedProject(projectId);
+    }
+  }, [projectId]);
 
   const getReleaseCardView = async () => {
+    if (!selectedProject) return;
+    
+    setLoadingReleases(true);
     try {
       const response = await projectReleaseCardView(selectedProject);
       setProjectRelease(response.data || []);
     } catch (error) {
       console.error("Error fetching release card view:", error);
+      setProjectRelease([]);
+    } finally {
+      setLoadingReleases(false);
     }
   };
-
-  
-  
 
   const loadExistingQAAllocations = async () => {
     if (!selectedProject || !effectiveProjectRelease.length) return;
@@ -271,10 +290,31 @@ export const Allocation: React.FC = () => {
     }
   };
 
+  // Fetch releases when selectedProject changes
   useEffect(() => {
-    getReleaseCardView();
-    getReleaseCardView();
+    if (selectedProject) {
+      getReleaseCardView();
+    }
   }, [selectedProject]);
+
+  // Fetch severities and defect types on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
+  // Refetch test cases when severities or defect types change to ensure proper mapping
+  useEffect(() => {
+    if (selectedProjectId && selectedSubmodule && (severities.length > 0 || defectTypes.length > 0)) {
+      handleSelectSubModule(selectedSubmodule);
+    }
+  }, [severities, defectTypes]);
+
+  // Clear allocation messages when tab changes
+  useEffect(() => {
+    setAllocationSuccess(null);
+    setAllocationError(null);
+  }, [activeTab]);
 
   console.log("Project Release Data:", projectRelease);
 
@@ -289,7 +329,7 @@ export const Allocation: React.FC = () => {
 
   // Use mock data if API/server is not working
   const effectiveProjectRelease = projectRelease;
-  const effectiveTestCases = projectTestCases;
+  const effectiveTestCases = allocatedTestCases.length > 0 ? allocatedTestCases : projectTestCases;
   const effectiveModules = projectModules;
 
   // Load existing QA allocations when releases are loaded
@@ -390,12 +430,15 @@ export const Allocation: React.FC = () => {
   if (activeTab === "qa") {
     if (selectedReleaseForQA) {
       // Only show test cases allocated to this release and not yet assigned to any QA
-      const allocatedTestCases = qaAllocatedTestCases[selectedReleaseForQA] || [];
+      const allocatedTestCaseIds = qaAllocatedTestCases[selectedReleaseForQA] || [];
       const alreadyAllocatedTestCaseIds = Object.values(qaAllocations[selectedReleaseForQA] || {}).flat();
-      const unallocatedTestCaseIds = allocatedTestCases.filter(
+      const unallocatedTestCaseIds = allocatedTestCaseIds.filter(
         id => !alreadyAllocatedTestCaseIds.includes(id)
       );
-      filteredTestCases = effectiveTestCases.filter((tc: any) => unallocatedTestCaseIds.includes(tc.id));
+      
+      // Get the full test case objects for the allocated test cases
+      const allocatedTestCases = effectiveTestCases.filter((tc: any) => allocatedTestCaseIds.includes(tc.id));
+      filteredTestCases = allocatedTestCases.filter((tc: any) => unallocatedTestCaseIds.includes(tc.id));
     } else {
       filteredTestCases = [];
     }
@@ -472,6 +515,7 @@ export const Allocation: React.FC = () => {
     setSelectedModule("");
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    setAllocatedTestCases([]);
   };
 
 
@@ -493,38 +537,145 @@ export const Allocation: React.FC = () => {
  
   // In ReleaseCardsPanel, on Allocate:
   // For each selected release, store the selected test cases
-  const handleAllocate = () => {
-    setQaAllocatedTestCases(prev => {
-      const updated = { ...prev };
-      selectedReleaseIds.forEach(id => {
-        updated[id] = selectedTestCases;
+  const handleAllocate = async () => {
+    if (selectedReleaseIds.length === 0 || selectedTestCases.length === 0) {
+      setAllocationError("Please select at least one release and test case.");
+      return;
+    }
+
+    setAllocationLoading(true);
+    setAllocationError(null);
+    setAllocationSuccess(null);
+    setAllocationProgress(null);
+
+    try {
+      if (allocationMode === "bulk") {
+        // Bulk allocation: allocate all selected test cases to all selected releases in one API call
+        setAllocationProgress({ current: 0, total: 1 });
+        try {
+          await bulkAllocateTestCasesToReleases(selectedReleaseIds, selectedTestCases);
+          setAllocationProgress({ current: 1, total: 1 });
+        } catch (allocationError: any) {
+          console.error("Bulk allocation failed:", allocationError);
+          setAllocationError("Bulk allocation failed. " + (allocationError?.message || ""));
+          setAllocationProgress({ current: 1, total: 1 });
+        }
+      } else if (allocationMode === "one-to-many") {
+        // One-to-many allocation: allocate each test case to all selected releases in one API call
+        const totalAllocations = selectedTestCases.length;
+        let completedAllocations = 0;
+
+        for (const testCaseId of selectedTestCases) {
+          console.log(`Allocating test case ${testCaseId} to ${selectedReleaseIds.length} releases`);
+          
+          try {
+            await allocateTestCaseToMultipleReleases(testCaseId, selectedReleaseIds);
+            completedAllocations++;
+            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+          } catch (allocationError: any) {
+            console.error(`Failed to allocate test case ${testCaseId} to multiple releases:`, allocationError);
+            // Continue with other test cases even if one fails
+            completedAllocations++;
+            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+          }
+        }
+      } else {
+        // One-to-one allocation: allocate each test case to each selected release individually
+        const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
+        let completedAllocations = 0;
+
+        for (const releaseId of selectedReleaseIds) {
+          for (const testCaseId of selectedTestCases) {
+            console.log(`Allocating test case ${testCaseId} to release ${releaseId}`);
+            
+            try {
+              await allocateTestCaseToRelease(releaseId, testCaseId);
+              completedAllocations++;
+              setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+            } catch (allocationError: any) {
+              console.error(`Failed to allocate test case ${testCaseId} to release ${releaseId}:`, allocationError);
+              // Continue with other allocations even if one fails
+              completedAllocations++;
+              setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+            }
+          }
+        }
+      }
+
+      // Store the selected test cases for each selected release (for QA allocation)
+      setQaAllocatedTestCases(prev => {
+        const updated = { ...prev };
+        selectedReleaseIds.forEach(releaseId => {
+          // Each release gets the currently selected test cases
+          updated[releaseId] = [...selectedTestCases];
+        });
+        return updated;
       });
-      return updated;
-    });
-    setActiveTab("qa");
+
+      // Show success message
+      const totalProcessed = allocationMode === "one-to-many" 
+        ? selectedTestCases.length 
+        : selectedReleaseIds.length * selectedTestCases.length;
+      setAllocationSuccess(`Allocation process completed. ${totalProcessed} ${allocationMode === "one-to-many" ? "test cases" : "individual allocations"} processed.`);
+
+      // Clear the current selections and switch to QA tab after a delay
+      setTimeout(() => {
+        setSelectedTestCases([]);
+        setSelectedReleaseIds([]);
+        setActiveTab("qa");
+        setAllocationSuccess(null);
+        setAllocationProgress(null);
+      }, 2000);
+
+    } catch (error: any) {
+      console.error("Error allocating test cases to releases:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error response status:", error.response?.status);
+      
+      // Try to get more specific error information
+      let errorMessage = "Failed to allocate test cases to releases. Please try again.";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data) {
+        errorMessage = typeof error.response.data === 'string' 
+          ? error.response.data 
+          : JSON.stringify(error.response.data);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setAllocationError(errorMessage);
+    } finally {
+      setAllocationLoading(false);
+    }
   };
-  const handleSelectSubModule = ( selectedSubmoduleId: string)=>{
-    console.log("--------------",selectedSubmoduleId );
+  const handleSelectSubModule = (selectedSubmoduleId: string) => {
+    console.log("--------------", selectedSubmoduleId);
     console.log('++++++++++++++++++', selectedProjectId);
-    getTestCasesByProjectAndSubmodule(selectedProjectId,selectedSubmoduleId)
+    setSelectedSubmodule(selectedSubmoduleId);
+    setSelectedTestCases([]);
+    
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId)
       .then((data) => {
         // Map moduleId/subModuleId to names for display
         const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
         const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-        setSelectedSubmodule(selectedSubmoduleId);
-        setSelectedTestCases(
+        
+        setAllocatedTestCases(
           (data as any[]).map((tc: any) => ({
             ...tc,
             module: moduleMap[tc.moduleId] || tc.moduleId,
             subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-            severity: (tc.severityName || "low") as string,
-            type: (tc.defectTypeName || "functional") as string,
-          })) as string[]
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
         );
+      })
+      .catch((error) => {
+        console.error("Error fetching test cases:", error);
+        setAllocatedTestCases([]);
       });
-      
-    
-  }
+  };
 console.log("Selected Submodule:", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
@@ -553,12 +704,15 @@ console.log("Selected Submodule:", selectedTestCases);
                 variant={isSelected ? "primary" : "secondary"}
                 className="w-full"
                 onClick={() => {
-                  setSelectedReleaseIds((prev) =>
-                    isSelected
-                      ? prev.filter((id) => id !== releaseId)
-                      : [...prev, releaseId]
-                  );
+                  if (allocationMode === "one-to-one") {
+                    setSelectedReleaseIds(isSelected ? [] : [releaseId]);
+                  } else {
+                    setSelectedReleaseIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                    );
+                  }
                 }}
+                disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
               >
                 {isSelected ? "Selected" : "Select"}
               </Button>
@@ -566,18 +720,6 @@ console.log("Selected Submodule:", selectedTestCases);
           );
         })}
       </div>
-      {/* Allocate button appears if at least one release is selected */}
-      {selectedReleaseIds.length > 0 && (
-        <div className="mt-4 flex justify-end">
-          <Button
-            variant="primary"
-            disabled={selectedTestCases.length === 0}
-            onClick={handleAllocate}
-          >
-            Allocate
-          </Button>
-        </div>
-      )}
     </div>
   );
 
@@ -638,6 +780,7 @@ console.log("Selected Submodule:", selectedTestCases);
                       setSelectedModule(module.name);
                       setSelectedSubmodule("");
                       setSelectedTestCases([]);
+                      setAllocatedTestCases([]);
                     }
                   }}
                   className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
@@ -851,7 +994,7 @@ console.log("Selected Submodule:", selectedTestCases);
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {selectedTestCases.map((tc: any) => (
+            {filteredTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
@@ -860,6 +1003,10 @@ console.log("Selected Submodule:", selectedTestCases);
                       activeTab === "qa" 
                         ? (selectedReleaseForQA ? (selectedTestCasesForQA[selectedReleaseForQA]?.includes(tc.id) ?? false) : false)
                         : selectedTestCases.includes(tc.id)
+                    }
+                    disabled={
+                      (allocationMode === "one-to-one" && !selectedTestCases.includes(tc.id) && selectedTestCases.length >= 1) ||
+                      (allocationMode === "one-to-many" && !selectedTestCases.includes(tc.id) && selectedTestCases.length >= 1)
                     }
                     onChange={(e) =>
                       handleSelectTestCase(tc.id, e.target.checked)
@@ -938,9 +1085,12 @@ console.log("Selected Submodule:", selectedTestCases);
     </Card>
   );
 
-  // Only show releases that were selected in the Release Allocation tab
+  // Only show releases that have test cases allocated for QA
   const releasesForQAAllocation = effectiveProjectRelease.filter(
-    (release: any) => selectedReleaseIds.includes(release.id || release.releaseId)
+    (release: any) => {
+      const releaseId = release.releaseId || release.id;
+      return qaAllocatedTestCases[releaseId] && qaAllocatedTestCases[releaseId].length > 0;
+    }
   );
 
   // --- QA Allocation Panel ---
@@ -969,6 +1119,43 @@ console.log("Selected Submodule:", selectedTestCases);
 
     return (
       <div className="space-y-6">
+        {/* Overall Progress Summary */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                📊
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Overall QA Allocation Progress</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="text-2xl font-bold text-blue-600">
+                  {releasesForQAAllocation.length}
+                </div>
+                <div className="text-sm text-blue-700">Releases with Test Cases</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="text-2xl font-bold text-green-600">
+                  {releasesForQAAllocation.filter((r: any) => {
+                    const releaseId = r.releaseId || r.id;
+                    const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
+                    const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
+                    return allocatedToQA === allocatedTestCases.length;
+                  }).length}
+                </div>
+                <div className="text-sm text-green-700">Releases Completed</div>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <div className="text-2xl font-bold text-orange-600">
+                  {Object.values(qaAllocatedTestCases).flat().length - Object.values(qaAllocations).flatMap(Object.values).flat().length}
+                </div>
+                <div className="text-sm text-orange-700">Test Cases Remaining</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Step 1: Release Selection */}
         <Card>
           <CardContent className="p-6">
@@ -978,14 +1165,19 @@ console.log("Selected Submodule:", selectedTestCases);
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Select Release for QA Allocation</h3>
             </div>
-            <div className="flex space-x-2 overflow-x-auto">
-              {releasesForQAAllocation.map((release: any) => {
+            {releasesForQAAllocation.length > 0 ? (
+              <div className="flex space-x-2 overflow-x-auto">
+                {releasesForQAAllocation.map((release: any) => {
                 const releaseId = release.releaseId || release.id;
                 const isSelected = selectedReleaseForQA === releaseId;
+                const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
+                const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
+                const remainingTestCases = allocatedTestCases.length - allocatedToQA;
+                
                 return (
                   <div
                     key={releaseId}
-                    className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
+                    className={`min-w-[180px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                       ${
                         isSelected
                           ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
@@ -996,26 +1188,40 @@ console.log("Selected Submodule:", selectedTestCases);
                     }}
                   >
                     <div className="truncate font-semibold mb-1">{release.releaseName || release.name}</div>
-                    <div className="text-xs text-gray-500 mb-2">Version: {release.version}</div>
+                    <div className="text-xs text-gray-500 mb-1">Version: {release.version}</div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      {allocatedTestCases.length} test cases allocated
+                    </div>
+                    <div className="text-xs text-green-600 mb-2">
+                      {allocatedToQA} assigned to QA • {remainingTestCases} remaining
+                    </div>
                     <Button
                       size="sm"
                       variant={isSelected ? "primary" : "secondary"}
                       className="w-full"
                       onClick={() => {
-                        if (isSelected) {
-                          setSelectedReleaseForQA(null);
-                          setQaAllocations({});
+                        if (allocationMode === "one-to-one") {
+                          setSelectedReleaseIds(isSelected ? [] : [releaseId]);
                         } else {
-                          setSelectedReleaseForQA(releaseId);
+                          setSelectedReleaseIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                          );
                         }
                       }}
+                      disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
                     >
-                      {isSelected ? "Allocated" : "Select for QA"}
+                      {isSelected ? "Selected" : "Select"}
                     </Button>
                   </div>
                 );
               })}
-            </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-sm text-gray-500 mb-2">No releases have test cases allocated for QA.</div>
+                <div className="text-xs text-gray-400">Please go back to the Release Allocation tab and allocate test cases to releases first.</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1051,8 +1257,11 @@ console.log("Selected Submodule:", selectedTestCases);
                   <div className="text-lg font-semibold text-blue-700 mb-1">
                     {allocatedRelease.releaseName || allocatedRelease.name} (v{allocatedRelease.version})
                   </div>
-                  <div className="text-sm text-blue-600">
-                    {qaAllocatedTestCases[selectedReleaseForQA].length} test cases available for allocation
+                  <div className="text-sm text-blue-600 mb-2">
+                    {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated to this release
+                  </div>
+                  <div className="text-sm text-green-600">
+                    {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} already assigned to QA • {qaAllocatedTestCases[selectedReleaseForQA].length - Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} remaining for allocation
                   </div>
                 </div>
               )}
@@ -1112,7 +1321,7 @@ console.log("Selected Submodule:", selectedTestCases);
           </Card>
         )}
 
-        {/* Step 3: Overall Progress (only show if all test cases are allocated) */}
+        {/* Step 3: Release Complete (only show if all test cases for current release are allocated) */}
         {selectedReleaseForQA && Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length === qaAllocatedTestCases[selectedReleaseForQA].length && (
           <Card>
             <CardContent className="p-6">
@@ -1120,27 +1329,44 @@ console.log("Selected Submodule:", selectedTestCases);
                 <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-semibold">
                   ✓
                 </div>
-                <h3 className="text-lg font-semibold text-green-900">Allocation Complete!</h3>
+                <h3 className="text-lg font-semibold text-green-900">Release Allocation Complete!</h3>
               </div>
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-sm font-medium text-green-900 mb-2">
-                  All test cases have been allocated successfully!
+                  All test cases for "{allocatedRelease?.releaseName || allocatedRelease?.name}" have been allocated successfully!
                 </div>
                 <div className="text-sm text-green-700 mb-4">
                   {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} of {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated
                 </div>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    const currentProjectId = selectedProject || projectId;
-                    if (!currentProjectId) return;
-                    // Save mock modules to localStorage for TestExecution page
-                    localStorage.setItem("mockModules", JSON.stringify(effectiveModules));
-                    navigate(`/projects/${currentProjectId}/releases/test-execution`);
-                  }}
-                >
-                  Proceed to Test Execution
-                </Button>
+                <div className="flex gap-3">
+                  {releasesForQAAllocation.find((r: any) => (r.releaseId || r.id) !== selectedReleaseForQA) ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const nextRelease = releasesForQAAllocation.find((r: any) => (r.releaseId || r.id) !== selectedReleaseForQA);
+                        if (nextRelease) {
+                          setSelectedReleaseForQA(nextRelease.releaseId || nextRelease.id);
+                          setSelectedQA(null);
+                        }
+                      }}
+                    >
+                      Next Release
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const currentProjectId = selectedProject || projectId;
+                        if (!currentProjectId) return;
+                        // Save mock modules to localStorage for TestExecution page
+                        localStorage.setItem("mockModules", JSON.stringify(effectiveModules));
+                        navigate(`/projects/${currentProjectId}/releases/test-execution`);
+                      }}
+                    >
+                      Proceed to Test Execution
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1285,6 +1511,24 @@ console.log("Selected Submodule:", selectedTestCases);
     localStorage.setItem('qaAllocations', JSON.stringify(qaAllocations));
   }, [qaAllocations]);
 
+  // Add useEffect to enforce selection restrictions
+  useEffect(() => {
+    if (allocationMode === "one-to-one") {
+      if (selectedTestCases.length > 1) {
+        setSelectedTestCases([selectedTestCases[0]]);
+      }
+      if (selectedReleaseIds.length > 1) {
+        setSelectedReleaseIds([selectedReleaseIds[0]]);
+      }
+    } else if (allocationMode === "one-to-many") {
+      if (selectedTestCases.length > 1) {
+        setSelectedTestCases([selectedTestCases[0]]);
+      }
+      // Allow multiple releases
+    }
+    // Bulk: allow all
+  }, [allocationMode, selectedTestCases, selectedReleaseIds]);
+
   return (
     <div className="max-w-5xl mx-auto py-8">
       {/* Back Button at the top right */}
@@ -1298,6 +1542,144 @@ console.log("Selected Submodule:", selectedTestCases);
         </Button>
       </div>
       {ProjectSelectionPanel()}
+      
+      {/* Show releases at the top when project is selected (only for Release Allocation tab) */}
+      {selectedProject && activeTab === "release" && (
+        <div className="mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Available Releases
+              </h2>
+              {loadingReleases ? (
+                <div className="text-center py-8">
+                  <div className="text-sm text-gray-500">Loading releases...</div>
+                </div>
+              ) : effectiveProjectRelease.length > 0 ? (
+                <>
+                  <ReleaseCardsPanel />
+                  {/* Allocate button appears if at least one release is selected */}
+                  {selectedReleaseIds.length > 0 && (
+                    <div className="mt-4 flex flex-col space-y-3">
+                      {/* Allocation Mode Selection */}
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm font-medium text-gray-700">Allocation Mode:</span>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "one-to-one" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("one-to-one")}
+                            disabled={allocationLoading}
+                          >
+                            One-to-One
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "one-to-many" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("one-to-many")}
+                            disabled={allocationLoading}
+                          >
+                            One-to-Many
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "bulk" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("bulk")}
+                            disabled={allocationLoading}
+                          >
+                            Bulk
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Mode Description */}
+                      <div className="text-xs text-gray-500">
+                        {allocationMode === "one-to-one" 
+                          ? `Each test case will be allocated to each release individually (${selectedTestCases.length} × ${selectedReleaseIds.length} = ${selectedTestCases.length * selectedReleaseIds.length} API calls)`
+                          : allocationMode === "one-to-many"
+                          ? `Each test case will be allocated to all selected releases in one API call (${selectedTestCases.length} API calls)`
+                          : `All selected test cases will be allocated to all selected releases in a single API call (1 API call)`}
+                      </div>
+
+                      {/* Allocate Button */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="primary"
+                          disabled={selectedTestCases.length === 0 || allocationLoading}
+                          onClick={handleAllocate}
+                        >
+                          {allocationLoading ? "Allocating..." : `Allocate Selected Releases (${allocationMode === "one-to-many" ? "One-to-Many" : "One-to-One"})`}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-sm text-gray-500">No releases found for this project.</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Success and Error Messages */}
+      {allocationSuccess && (
+        <div className="mb-4">
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-green-800">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{allocationSuccess}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {allocationError && (
+        <div className="mb-4">
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-red-800">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{allocationError}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Allocation Progress */}
+      {allocationProgress && (
+        <div className="mb-4">
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-blue-800 mb-2">
+                <svg className="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="font-medium">Allocating test cases to releases...</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${(allocationProgress.current / allocationProgress.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="text-sm text-blue-600 mt-1">
+                {allocationProgress.current} of {allocationProgress.total} {allocationMode === "bulk" ? "bulk allocations" : allocationMode === "one-to-many" ? "test cases" : "allocations"} completed
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Show release details if a single release is selected */}
       {activeTab === "release" && selectedReleaseIds.length === 1 && (
         <div className="mb-4">
@@ -1346,17 +1728,36 @@ console.log("Selected Submodule:", selectedTestCases);
       {/* Tab Content */}
       {activeTab === "release" ? (
         <>
-          <ReleaseCardsPanel />
           {ModuleSelectionPanel()}
           {selectedModule && <SubmoduleSelectionPanel />}
-          <TestCaseTable />
+          {filteredTestCases.length > 0 ? (
+            <TestCaseTable />
+          ) : (
+            selectedSubmodule && (
+              <Card className="mb-4">
+                <CardContent className="p-8 text-center">
+                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                </CardContent>
+              </Card>
+            )
+          )}
         </>
       ) : (
         <>
           <QASelectionPanel />
           {ModuleSelectionPanel()}
           {selectedModule && <SubmoduleSelectionPanel />}
-          <TestCaseTable />
+          {filteredTestCases.length > 0 ? (
+            <TestCaseTable />
+          ) : (
+            selectedSubmodule && (
+              <Card className="mb-4">
+                <CardContent className="p-8 text-center">
+                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                </CardContent>
+              </Card>
+            )
+          )}
         </>
       )}
       {/* View Steps Modal */}

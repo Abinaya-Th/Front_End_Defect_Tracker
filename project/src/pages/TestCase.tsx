@@ -1460,7 +1460,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={projectModules} />
       </div>
     </div>
   );
