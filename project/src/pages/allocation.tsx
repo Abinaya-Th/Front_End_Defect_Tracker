@@ -300,11 +300,13 @@ export const Allocation: React.FC = () => {
       });
     }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
+  } else if (selectedSubmodule) {
+    // If a submodule is selected, use allocatedTestCases directly
+    filteredTestCases = allocatedTestCases;
   } else if (selectedModule) {
+    // If only a module is selected, filter by module
     filteredTestCases = effectiveTestCases.filter(
-      (tc: any) =>
-        tc.module === selectedModule &&
-        (!selectedSubmodule || tc.subModule === selectedSubmodule)
+      (tc: any) => tc.module === selectedModule
     );
   }
 
@@ -508,9 +510,11 @@ export const Allocation: React.FC = () => {
     
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId)
       .then((data) => {
+        console.log("API returned test cases:", data);
         // Map moduleId/subModuleId to names for display
         const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
         const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        console.log("-----------+++++++++++++" ,data);
         
         setAllocatedTestCases(
           (data as any[]).map((tc: any) => ({
@@ -707,8 +711,8 @@ console.log("Selected Submodule:", selectedTestCases);
               {submodules.map((submodule: any) => {
                 // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.subModuleId)
-                  : selectedSubmodule === submodule.subModuleId;
+                  ? selectedSubmodules.includes(String(submodule.subModuleId))
+                  : selectedSubmodule === String(submodule.subModuleId);
                 return (
                   <Button
                     key={submodule.subModuleId}
@@ -716,13 +720,13 @@ console.log("Selected Submodule:", selectedTestCases);
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.subModuleId)
-                            ? prev.filter((s) => s !== submodule.subModuleId)
-                            : [...prev, submodule.subModuleId]
+                          prev.includes(String(submodule.subModuleId))
+                            ? prev.filter((s) => s !== String(submodule.subModuleId))
+                            : [...prev, String(submodule.subModuleId)]
                         );
                       } else {
-                        handleSelectSubModule(submodule.subModuleId);
-                        setSelectedSubmodule(submodule.subModuleId);
+                        handleSelectSubModule(String(submodule.subModuleId));
+                        setSelectedSubmodule(String(submodule.subModuleId));
                       }
                     }}
                     className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
@@ -850,7 +854,7 @@ console.log("Selected Submodule:", selectedTestCases);
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredTestCases.map((tc: any) => (
+            {allocatedTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
@@ -1370,9 +1374,7 @@ console.log("Selected Submodule:", selectedTestCases);
       if (selectedReleaseIds.length > 1) {
         setSelectedReleaseIds([selectedReleaseIds[0]]);
       }
-      if(selectedIds.length>1){
-        setSelectedIds(selectedIds[0]);
-      }
+    
     } else if (allocationMode === "one-to-many") {
       if (selectedTestCases.length > 1) {
         setSelectedTestCases([selectedTestCases[0]]);
@@ -1381,6 +1383,59 @@ console.log("Selected Submodule:", selectedTestCases);
     }
     // Bulk: allow all
   }, [allocationMode, selectedTestCases, selectedReleaseIds]);
+
+  // Add a useEffect to fetch test cases for all submodules when a module is selected and no submodule is selected
+  useEffect(() => {
+    if (selectedProjectId && selectedModule && !selectedSubmodule) {
+      // Find the module object
+      const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+      if (moduleObj && Array.isArray(moduleObj.submodules)) {
+        // Fetch test cases for all submodules in parallel
+        Promise.all(
+          moduleObj.submodules.map((sm: any) =>
+            getTestCasesByProjectAndSubmodule(selectedProjectId, String(sm.subModuleId))
+          )
+        ).then((results) => {
+          // Flatten and map all test cases
+          const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+          const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+          setAllocatedTestCases(
+            results.flat().map((tc: any) => ({
+              ...tc,
+              module: moduleMap[tc.moduleId] || tc.moduleId,
+              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+            })) as TestCaseType[]
+          );
+        }).catch(() => setAllocatedTestCases([]));
+      }
+    }
+  }, [selectedProjectId, selectedModule, effectiveModules, severities, defectTypes]);
+
+  // The existing useEffect for selectedSubmodule remains, so when a submodule is selected, only its test cases are fetched.
+  useEffect(() => {
+    if (!selectedProjectId || !selectedSubmodule) return;
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmodule)
+      .then((data) => {
+        console.log("API returned test cases:", data);
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setAllocatedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
+        );
+      })
+      .catch((error) => {
+        setAllocatedTestCases([]);
+      });
+  }, [selectedProjectId, selectedSubmodule, effectiveModules, severities, defectTypes]);
 
   return (
     <div className="max-w-5xl mx-auto py-8">
