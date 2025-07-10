@@ -693,7 +693,7 @@ export const Defects: React.FC = () => {
     console.log('BASE_URL for user fetch:', BASE_URL); // Debug log
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://192.168.1.100:8087/api/v1/user';
+    const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
     console.log('Trying user API at:', userApiUrl);
 
     axios.get(userApiUrl).then(res => {
