@@ -46,8 +46,9 @@ export const getTestCasesByFilter = async (
 };
 
 export interface AllocateTestCaseRequest {
-  releaseId: string | number;
-  testCaseId: string | number;
+  releaseId: number;
+  testCaseId:  number;
+
 }
 
 export interface AllocateTestCaseResponse {
@@ -58,13 +59,16 @@ export interface AllocateTestCaseResponse {
 }
 
 export const allocateTestCaseToRelease = async (
-  releaseId: string | number,
-  testCaseId: string | number
+
+  releaseId:  number,
+  testCaseId: number,
+
 ): Promise<AllocateTestCaseResponse> => {
   const payload: AllocateTestCaseRequest = {
-    releaseId,
-    testCaseId
-  };
+ 
+    testCaseId: testCaseId,
+    releaseId: releaseId,    
+   };
   
   const { data } = await axios.post<AllocateTestCaseResponse>(
     `${BASE_URL}releasetestcase/allocate`,
@@ -83,8 +87,8 @@ export const allocateTestCaseToMultipleReleases = async (
   releaseIds: (string | number)[]
 ): Promise<AllocateTestCaseResponse> => {
   const payload: AllocateOneToManyRequest = {
-    testCaseId,
-    releaseIds
+    testCaseId: String(testCaseId),
+    releaseIds: releaseIds.map(String)
   };
   
   const { data } = await axios.post<AllocateTestCaseResponse>(
@@ -94,19 +98,21 @@ export const allocateTestCaseToMultipleReleases = async (
   return data;
 };
 
-export interface BulkAllocateRequest {
-  releaseIds: (string | number)[];
-  testCaseIds: (string | number)[];
+
+export interface ReleaseTestCaseMappingRequest {
+  testCaseId: number;
+  releaseId: number;
 }
 
-export const bulkAllocateTestCasesToReleases = async (
-  releaseIds: (string | number)[],
-  testCaseIds: (string | number)[]
-): Promise<AllocateTestCaseResponse> => {
-  const payload: BulkAllocateRequest = { releaseIds, testCaseIds };
-  const { data } = await axios.post<AllocateTestCaseResponse>(
-    `${BASE_URL}releasetestcase/bulk-allocate`,
-    payload
-  );
-  return data;
+interface ReleaseTestCaseMappingResponse{
+  status:string;
+  message:string;
+  statusCode:number;
+  data:any[]
+}
+export const bulkAllocateTestCasesToReleases = (
+  payload: ReleaseTestCaseMappingRequest[]
+): Promise<any> => {
+  return axios.post(`${BASE_URL}releasetestcase/bulk-allocate`, payload)
+  .then(({ data }: { data: ReleaseTestCaseMappingResponse }) => data)
 };
