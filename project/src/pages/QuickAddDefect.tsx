@@ -1,10 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bug, Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
 import { importDefects } from "../api/importTestCase";
+import { getSeverities } from "../api/severity";
+import { getAllPriorities } from "../api/priority";
+import { getDefectTypes } from "../api/defectType";
+import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 
 const QuickAddDefect: React.FC = () => {
   const { selectedProjectId, projects, defects, addDefect, modulesByProject, releases } =
@@ -13,6 +18,7 @@ const QuickAddDefect: React.FC = () => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    attachmentUrl: "",
     module: "",
     subModule: "",
     type: "bug",
@@ -32,6 +38,11 @@ const QuickAddDefect: React.FC = () => {
     },
   ]);
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [priorities, setPriorities] = useState<{ id: number; priority: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [releasesData, setReleasesData] = useState<{ id: string; releaseName: string }[]>([]);
+  const [submodules, setSubmodules] = useState<{ id: string; name: string }[]>([]);
 
   const mockModules = [
     {
@@ -108,6 +119,7 @@ const QuickAddDefect: React.FC = () => {
       priority: formData.priority as "low" | "medium" | "high" | "critical",
       severity: formData.severity as "low" | "medium" | "high" | "critical",
       reportedBy: "", // Set to empty string or user info if available
+      attachmentUrl: formData.attachmentUrl,
     });
     setTimeout(() => {
       setSuccess(false);
@@ -115,6 +127,7 @@ const QuickAddDefect: React.FC = () => {
       setFormData({
         title: "",
         description: "",
+        attachmentUrl: "",
         module: "",
         subModule: "",
         type: "bug",
@@ -147,6 +160,32 @@ const QuickAddDefect: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
+
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getAllPriorities().then(res => setPriorities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+    if (selectedProjectId) {
+      projectReleaseCardView(selectedProjectId).then(res => {
+        setReleasesData(res.data || []);
+      });
+    } else {
+      setReleasesData([]);
+    }
+    // Fetch submodules when module changes
+    if (formData.module) {
+      const selectedModuleObj = projectModules.find((m: any) => m.name === formData.module || m.moduleName === formData.module || m.id === formData.module);
+      if (selectedModuleObj && 'id' in selectedModuleObj && selectedModuleObj.id) {
+        getSubmodulesByModuleId(selectedModuleObj.id).then(res => {
+          setSubmodules(res.data || []);
+        }).catch(() => setSubmodules([]));
+      } else {
+        setSubmodules([]);
+      }
+    } else {
+      setSubmodules([]);
+    }
+  }, [selectedProjectId, formData.module, projectModules]);
 
   return (
     <div>
@@ -213,7 +252,7 @@ const QuickAddDefect: React.FC = () => {
             onChange={(e) => handleInputChange("title", e.target.value)}
             required
           />
-          {/* Steps/Description */}
+          {/* Steps */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Steps
@@ -226,27 +265,22 @@ const QuickAddDefect: React.FC = () => {
               required
             />
           </div>
-          {/* Release Dropdown */}
+          {/* Attachment URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
-            <select
-              value={formData.releaseId}
-              onChange={e => handleInputChange('releaseId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={!selectedProjectId || projectReleases.length === 0}
-            >
-              <option value="">Select release...</option>
-              {projectReleases.map(release => (
-                <option key={release.id} value={release.id}>{release.name}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Attachment URL
+            </label>
+            <Input
+              placeholder="Paste attachment URL here"
+              value={formData.attachmentUrl}
+              onChange={(e) => handleInputChange("attachmentUrl", e.target.value)}
+            />
           </div>
           {/* Modules and Submodules */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Module
+                Modules
               </label>
               <select
                 value={formData.module}
@@ -258,7 +292,7 @@ const QuickAddDefect: React.FC = () => {
                 required
                 disabled={!selectedProjectId}
               >
-                <option value="">Select...</option>
+                <option value="">Select a module</option>
                 {modulesList.map((module: string) => (
                   <option key={module} value={module}>
                     {module}
@@ -268,7 +302,7 @@ const QuickAddDefect: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Submodule
+                Submodules
               </label>
               <select
                 value={formData.subModule}
@@ -276,17 +310,35 @@ const QuickAddDefect: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={!formData.module}
               >
-                <option value="">Select...</option>
-                {submodulesList.map((submodule: string) => (
-                  <option key={submodule} value={submodule}>
-                    {submodule}
+                <option value="">{submodules.length === 0 ? "No submodules" : "Select a submodule (optional)"}</option>
+                {submodules.map((submodule) => (
+                  <option key={submodule.id} value={submodule.name}>
+                    {submodule.name}
                   </option>
                 ))}
               </select>
             </div>
           </div>
-          {/* Severity, Priority, Type */}
+          {/* Type and Severity */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) => handleInputChange("type", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select Type</option>
+                {defectTypes.map((type) => (
+                  <option key={type.id} value={type.defectTypeName}>
+                    {type.defectTypeName}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Severity
@@ -298,10 +350,29 @@ const QuickAddDefect: React.FC = () => {
                 required
               >
                 <option value="">Select severity</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                {severities.map((severity) => (
+                  <option key={severity.id} value={severity.name}>
+                    {severity.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {/* Found in Release and Priority */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Found in Release</label>
+              <select
+                value={formData.releaseId}
+                onChange={e => handleInputChange('releaseId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled={!selectedProjectId || releasesData.length === 0}
+              >
+                <option value="">Select release</option>
+                {releasesData.map(release => (
+                  <option key={release.id} value={release.id}>{release.releaseName}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -315,47 +386,30 @@ const QuickAddDefect: React.FC = () => {
                 required
               >
                 <option value="">Select priority</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-          </div>
-          {/* Type and Assigned To in one row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleInputChange("type", e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select type</option>
-                <option value="bug">Bug</option>
-                <option value="test-failure">Test Failure</option>
-                <option value="enhancement">Enhancement</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assigned To
-              </label>
-              <select
-                value={formData.assignedTo}
-                onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select assignee</option>
-                {Array.from(new Set(defects.map((d) => d.assignedTo).filter(Boolean))).map((user) => (
-                  <option key={user} value={user}>{user}</option>
+                {priorities.map((priority) => (
+                  <option key={priority.id} value={priority.priority}>
+                    {priority.priority}
+                  </option>
                 ))}
               </select>
             </div>
+          </div>
+          {/* Assigned To */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assigned To
+            </label>
+            <select
+              value={formData.assignedTo}
+              onChange={(e) => handleInputChange("assignedTo", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="">Select assignee</option>
+              {Array.from(new Set(defects.map((d) => d.assignedTo).filter(Boolean))).map((user) => (
+                <option key={user} value={user}>{user}</option>
+              ))}
+            </select>
           </div>
           {/* Show rejection comment if status is rejected */}
           {formData.status === "rejected" && (
@@ -365,14 +419,13 @@ const QuickAddDefect: React.FC = () => {
               </label>
               <Input
                 value={formData.rejectionComment}
-                onChange={(e) =>
-                  handleInputChange("rejectionComment", e.target.value)
-                }
+                onChange={(e) => handleInputChange("rejectionComment", e.target.value)}
                 placeholder="Enter reason for rejection"
                 required={formData.status === "rejected"}
               />
             </div>
           )}
+          {/* Import from Excel/CSV button moved after main fields */}
           <div className="flex items-center mb-2">
             <button
               type="button"
