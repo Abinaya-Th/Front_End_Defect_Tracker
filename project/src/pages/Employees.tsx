@@ -163,6 +163,7 @@ export const Employees: React.FC = () => {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
+      // password: formData.password, // Uncomment if you have a password field
       phoneNo: formData.phone,
       joinDate: formData.joinedDate
         ? new Date(formData.joinedDate).toISOString()
@@ -187,7 +188,6 @@ export const Employees: React.FC = () => {
     if (editingEmployee) {
       // Only update, do not create
       try {
-        console.log("Updating user with data:", backendEmployeeData);
         await updateUser(editingEmployee.id, backendEmployeeData);
         alert("User updated successfully!");
         updateEmployee(editingEmployee.id, frontendEmployeeData);

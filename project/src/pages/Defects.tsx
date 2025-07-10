@@ -167,7 +167,7 @@ export const Defects: React.FC = () => {
     if (!hasFilters) {
       // No filters: use the new project endpoint
       axios
-        .get(`http://192.168.1.110:8080/api/v1/defect/project/${selectedProjectId}`)
+        .get(`http://34.171.115.156:8087/api/v1/defect/project/${selectedProjectId}`)
         .then((res) => {
           setBackendDefects(res.data.data || []);
         })
@@ -724,7 +724,7 @@ export const Defects: React.FC = () => {
     console.log('BASE_URL for user fetch:', BASE_URL); // Debug log
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://192.168.1.110:8080/api/v1/user';
+    const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
     console.log('Trying user API at:', userApiUrl);
 
     axios.get(userApiUrl).then(res => {
