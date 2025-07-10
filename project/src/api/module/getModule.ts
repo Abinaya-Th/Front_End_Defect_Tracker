@@ -1,13 +1,36 @@
 /// <reference types="vite/client" />
 import axios from "axios";
 
-const baseUrl = import.meta.env.VITE_BASE_URL;
+// Create a local axios instance for API calls
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
 export interface Modules {
   id: number;
   moduleId: string;
   moduleName: string;
   projectId: string;
+  submodules?: Submodule[];
+  assignedDevs?: string[];
 }
+
+export interface Submodule {
+  id: number;
+  subModuleId: string;
+  getSubModuleName: string;
+  moduleId: number;
+  assignedDevs?: string[];
+  // Additional possible property names for submodule name (for backward compatibility)
+  name?: string;
+  submoduleName?: string;
+  subModule?: string;
+  subModuleName?: string;
+}
+
 export interface CreateReleaseResponse {
   status: string;
   message: string;
@@ -15,10 +38,14 @@ export interface CreateReleaseResponse {
   statusCode: number;
 }
 
-
+/**
+ * Fetch modules with submodules by project ID
+ * @param projectId - The project ID (string or number)
+ * @returns Promise resolving to the API response
+ */
 export const getModulesByProjectId = (projectId: string | number): Promise<CreateReleaseResponse> => {
-  return axios.get<CreateReleaseResponse>(
-    `${baseUrl}modules/project/${projectId}`
+  return apiClient.get<CreateReleaseResponse>(
+    `projects/${projectId}`
   ).then(({ data }: { data: CreateReleaseResponse }) => data);
 };
 
