@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { deleteDefectById } from '../api/defect/delete_defect';
 
 import {
@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  MessageCircle,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -38,6 +39,9 @@ import { filterDefects } from "../api/defect/filterDefectByProject";
 
 import { updateDefectById } from '../api/defect/updateDefect';
 import axios from "axios";
+import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { addDefects } from "../api/defect/addNewDefect";
+import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -81,6 +85,7 @@ export const Defects: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDefect, setEditingDefect] = useState<FilteredDefect | null>(null);
+  const [releasesData, setReleasesData] = useState<ProjectRelease[]>([]);
   const [formData, setFormData] = useState({
     defectId: '',
     description: '',
@@ -93,7 +98,6 @@ export const Defects: React.FC = () => {
     assigntoId: '',
     assignbyId: '',
     releaseId: '',
-    release_test_case_description: '',
     attachment: '',
     statusId: '',
   });
@@ -155,7 +159,7 @@ export const Defects: React.FC = () => {
     if (!selectedProjectId) return;
     // Prepare backend-supported filters
     const backendFilters = {
-      projectId: selectedProjectId,
+      projectId: Number(selectedProjectId),
       typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
       severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
       priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
@@ -183,6 +187,19 @@ export const Defects: React.FC = () => {
       (!filters.status || d.defect_status_name === filters.status)
     );
   });
+  const fetchReleaseData = async (selectedProject: string | null) => {
+    try {
+      const response = await projectReleaseCardView(selectedProject);
+      setReleasesData(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch releases:", error);
+    }
+  };
+  useEffect(() => {
+
+    fetchReleaseData(selectedProjectId);
+  }, [selectedProjectId]);
+  console.log(releasesData, "Release Data");
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -202,50 +219,100 @@ export const Defects: React.FC = () => {
     return `DEF-${nextNum.toString().padStart(4, "0")}`;
   };
 
+  const defectAdd = async () => {
+    // Removed userList validation - allow submission even without users
+    // The API can handle null values for assigntoId
+
+    const payload = {
+      description: formData.description,
+      severityId: Number(formData.severityId),
+      priorityId: Number(formData.priorityId),
+      typeId: Number(formData.typeId),
+      assigntoId: formData.assigntoId || null,
+      attachment: formData.attachment || undefined,
+      assignbyId: formData.assignbyId || null,
+      steps: formData.steps || undefined,
+      projectId: Number(selectedProjectId),
+      modulesId: Number(formData.moduleId),
+      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
+      defectStatusId: formData.statusId ? Number(formData.statusId) : null,
+      reOpenCount: 0, // Default value as per API sample
+    };
+    try {
+      const response = await addDefects(payload as any);
+      console.log("API Response:", response); // Debug log
+
+      // Check for success - API returns "Success" (uppercase) or statusCode 2000
+      if (response.status === "Success" || response.status === "success" || response.statusCode === 2000) {
+        // Handle successful defect addition
+        console.log("Defect added successfully:", response.data);
+        alert("Defect added successfully!");
+        // Refresh the defects list
+        if (selectedProjectId) {
+          const backendFilters = {
+            projectId: Number(selectedProjectId),
+            typeId: filters.type ? (defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id ? Number(defectTypes.find(t => t.defectTypeName === filters.type)?.id) : undefined) : undefined,
+            severityId: filters.severity ? (severities && severities.find(s => s.name === filters.severity)?.id ? Number(severities.find(s => s.name === filters.severity)?.id) : undefined) : undefined,
+            priorityId: filters.priority ? (priorities && priorities.find(p => p.priority === filters.priority)?.id ? Number(priorities.find(p => p.priority === filters.priority)?.id) : undefined) : undefined,
+            defectStatusId: filters.status ? (defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id ? Number(defectStatuses.find(s => s.defectStatusName === filters.status)?.id) : undefined) : undefined,
+            releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
+            moduleId: filters.module ? (() => { const id = modules && modules.find(m => m.name === filters.module)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
+            subModuleId: filters.subModule ? (() => { const id = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
+            assignToId: filters.assignedTo ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id) : undefined) : undefined,
+            assignById: filters.reportedBy ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id) : undefined) : undefined,
+          };
+          filterDefects(backendFilters).then(setBackendDefects);
+        }
+        // Close modal and reset form
+        resetForm();
+      } else {
+        // Handle error in defect addition
+        console.error("Failed to add defect:", response.message);
+        alert("Failed to add defect: " + response.message);
+      }
+    } catch (error) {
+      console.error("Error adding defect:", error);
+      alert("Error adding defect. Please try again.");
+    }
+  };
+
   // CRUD handlers
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingDefect) {
-      // For editing, we need to use the backend API
-      alert('Editing defects is not yet implemented with the new API structure.');
+
+    // Validate required fields
+    if (!formData.description.trim()) {
+      alert('Please enter a description');
       return;
-    } else {
-      // For new defects, we'll use the existing addDefect function
-      const { severityId, priorityId, typeId, ...restFormData } = formData;
-      let severityValue = severities && severities.find(s => s.id.toString() === formData.severityId)?.name?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(severityValue)) severityValue = 'medium';
-      let priorityValue = priorities && priorities.find(p => p.id.toString() === formData.priorityId)?.priority?.toLowerCase() || 'medium';
-      if (!['low', 'medium', 'high', 'critical'].includes(priorityValue)) priorityValue = 'medium';
-      let typeValue = defectTypes && defectTypes.find(t => t.id.toString() === formData.typeId)?.defectTypeName?.toLowerCase().replace(/\s/g, '-') || 'bug';
-      if (!['bug', 'test-failure', 'enhancement'].includes(typeValue)) typeValue = 'bug';
-
-      // Create a new defect object that matches the expected structure
-      const newDefect = {
-        id: `DEF-${Date.now()}`,
-        title: restFormData.description || '',
-        description: restFormData.description || '',
-        module: formData.moduleId || '',
-        subModule: formData.subModuleId || '',
-        severity: severityValue as 'low' | 'medium' | 'high' | 'critical',
-        priority: priorityValue as 'low' | 'medium' | 'high' | 'critical',
-        type: typeValue as 'bug' | 'test-failure' | 'enhancement',
-        assignedTo: formData.assigntoId || '',
-        reportedBy: formData.assignbyId || '',
-        status: 'new' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
-        projectId: selectedProjectId || '',
-        releaseId: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      addDefect(newDefect);
     }
-    resetForm();
+    if (!formData.severityId) {
+      alert('Please select a severity');
+      return;
+    }
+    if (!formData.priorityId) {
+      alert('Please select a priority');
+      return;
+    }
+    if (!formData.typeId) {
+      alert('Please select a type');
+      return;
+    }
+    // Removed assigntoId validation - now optional
+    if (!formData.moduleId) {
+      alert('Please select a module');
+      return;
+    }
+    if (!formData.steps.trim()) {
+      alert('Please enter steps to reproduce');
+      return;
+    }
+
+    // Call the defectAdd function
+    await defectAdd();
   };
-  const handleEdit = (defect: FilteredDefect) => {
+  const handleEdit = async (defect: FilteredDefect) => {
     // Map names to IDs for dropdowns
     const moduleId = modules.find(m => m.name === defect.module_name)?.id || '';
-    const subModuleId = submodules.find(sm => sm.name === defect.sub_module_name)?.id || '';
     const severityId = severities.find(s => s.name === defect.severity_name)?.id?.toString() || '';
     const priorityId = priorities.find(p => p.priority === defect.priority_name)?.id?.toString() || '';
     const typeId = defectTypes.find(t => t.defectTypeName === defect.defect_type_name)?.id?.toString() || '';
@@ -255,23 +322,39 @@ export const Defects: React.FC = () => {
     const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
 
     setEditingDefect(defect);
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       defectId: defect.defectId || '',
       description: defect.description || '',
       steps: defect.steps || '',
       moduleId,
-      subModuleId,
+      subModuleId: '', // temporarily clear until submodules are loaded
       severityId,
       priorityId,
       typeId,
       assigntoId,
       assignbyId,
       releaseId,
-      release_test_case_description: defect.release_test_case_description || '',
       attachment: defect.attachment || '',
       statusId,
-    });
+    }));
     setIsModalOpen(true);
+    // Fetch submodules for the selected module, then set subModuleId
+    if (moduleId) {
+      try {
+        const res = await getSubmodulesByModuleId(moduleId);
+        const mapped = (res.data || []).map((sm: any) => ({
+          id: sm.id?.toString() || sm.subModuleId?.toString(),
+          name: sm.name || sm.subModuleName
+        }));
+        setSubmodules(mapped);
+        const subModuleId = mapped.find(sm => sm.name === defect.sub_module_name)?.id || '';
+        setFormData(prev => ({ ...prev, subModuleId }));
+      } catch (err) {
+        setSubmodules([]);
+        setFormData(prev => ({ ...prev, subModuleId: '' }));
+      }
+    }
   };
   const handleDelete = async (defectId: string) => {
     console.log("Attempting to delete defect with ID:", defectId); // Log the defect ID
@@ -314,7 +397,6 @@ export const Defects: React.FC = () => {
       assigntoId: '',
       assignbyId: '',
       releaseId: '',
-      release_test_case_description: '',
       attachment: '',
       statusId: '',
     });
@@ -438,7 +520,7 @@ export const Defects: React.FC = () => {
   }, [filters.module, modules]);
 
   // For Assigned To and Entered By, use employees context
-  const employeeOptions = employees.map(e => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
+  // Remove mock/fallback employeeOptions; only use userList from backend
 
   // Get highlight param from URL
   const highlightId = React.useMemo(() => {
@@ -460,7 +542,7 @@ export const Defects: React.FC = () => {
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [statusEditValue, setStatusEditValue] = useState<string>('new');
   const [statusEditComment, setStatusEditComment] = useState<string>('');
-  const [viewingDefectHistory, setViewingDefectHistory] = useState<DefectHistoryEntry[]>([]);
+  const [viewingDefectHistory, setViewingDefectHistory] = useState<RealDefectHistoryEntry[]>([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isEditingRejectionComment, setIsEditingRejectionComment] = useState(false);
 
@@ -522,12 +604,20 @@ export const Defects: React.FC = () => {
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!selectedProjectId) {
+      alert("Please select a project before importing defects.");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await axios.post(`${BASE_URL}defect/import`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await axios.post(
+        `${BASE_URL}defect/import/${selectedProjectId}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       if (response && response.data && Array.isArray(response.data)) {
         response.data.forEach((row: any) => addDefect(row));
         alert("Imported defects successfully.");
@@ -540,10 +630,17 @@ export const Defects: React.FC = () => {
   };
   // Add exportDefects function
   const exportDefects = async () => {
+    if (!selectedProjectId) {
+      alert("Please select a project before exporting defects.");
+      return;
+    }
     try {
-      const response = await axios.get(`${BASE_URL}defect/export`, {
-        responseType: "blob",
-      });
+      const response = await axios.get(
+        `${BASE_URL}defect/export/${selectedProjectId}`,
+        {
+          responseType: "blob",
+        }
+      );
       // Create a link to download the file
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -569,7 +666,7 @@ export const Defects: React.FC = () => {
   const handleExportExcel = () => {
     exportDefects();
   };
-
+  
   const releaseMap = React.useMemo(() => Object.fromEntries(releases.map(r => [Number(r.id), r.name])), [releases]);
 
   const handleStatusSave = (defect: FilteredDefect, newStatus: string, comment: string) => {
@@ -592,10 +689,27 @@ export const Defects: React.FC = () => {
 
   // Fetch users for 'Assigned To' and 'Entered By' on mount
   React.useEffect(() => {
-    axios.get(`${BASE_URL}user`).then(res => {
+    setIsUsersLoading(true);
+    console.log('BASE_URL for user fetch:', BASE_URL); // Debug log
+
+    // Try the correct API endpoint based on your PowerShell test
+    const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
+    console.log('Trying user API at:', userApiUrl);
+
+    axios.get(userApiUrl).then(res => {
+      console.log('User API response:', res); // Debug log
       if (res.data && Array.isArray(res.data.data)) {
         setUserList(res.data.data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName })));
+      } else {
+        console.warn('No users found or invalid response format');
+        setUserList([]);
       }
+    }).catch(error => {
+      console.error('Failed to fetch users:', error);
+      console.error('Error details:', error.response?.data, error.response?.status);
+      setUserList([]);
+    }).finally(() => {
+      setIsUsersLoading(false);
     });
   }, []);
 
@@ -607,6 +721,58 @@ export const Defects: React.FC = () => {
       { id: 'REL-002', name: 'Release 2.0', projectId: selectedProjectId, status: 'planned', version: '2.0', description: '', Testcase: [], features: [], bugFixes: [], createdAt: new Date().toISOString() },
     ];
   }
+
+  // Add state for loading and error
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
+
+  // Update handler to fetch real defect history
+  const handleOpenDefectHistory = async (defectId: string) => {
+    setIsHistoryModalOpen(true);
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      // Extract numeric part from defectId (e.g., DF00002 -> 2)
+      const numericIdMatch = defectId.match(/(\d+)$/);
+      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : defectId;
+      const data = await getDefectHistoryByDefectId(numericId);
+      setViewingDefectHistory(data);
+    } catch (err: any) {
+      setViewingDefectHistory([]);
+      setHistoryError(err.message || 'Failed to fetch defect history');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Add state for comments by defect
+  const [commentsByDefectId, setCommentsByDefectId] = useState<Record<string, { text: string; timestamp: string }[]>>({});
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [activeCommentsDefectId, setActiveCommentsDefectId] = useState<string | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+
+  const handleOpenCommentsModal = (defectId: string) => {
+    setActiveCommentsDefectId(defectId);
+    setIsCommentsModalOpen(true);
+    setNewCommentText('');
+  };
+
+  const handleAddComment = () => {
+    if (activeCommentsDefectId && newCommentText.trim()) {
+      setCommentsByDefectId(prev => {
+        const prevComments = prev[activeCommentsDefectId] || [];
+        return {
+          ...prev,
+          [activeCommentsDefectId]: [
+            ...prevComments,
+            { text: newCommentText, timestamp: new Date().toISOString() },
+          ],
+        };
+      });
+      setNewCommentText('');
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -741,8 +907,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {projectReleases.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+              {[...new Set(backendDefects.map(d => (d as any).releaseId).filter(Boolean))].map(id => (
+                <option key={id} value={id}>{releaseMap[id] || id}</option>
               ))}
             </select>
           </div>
@@ -778,8 +944,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {employeeOptions.map((user) => (
-                <option key={user.id} value={user.name}>{user.name}</option>
+              {userList.map((user) => (
+                <option key={user.id} value={`${user.firstName} ${user.lastName}`}>{user.firstName} {user.lastName}</option>
               ))}
             </select>
           </div>
@@ -793,8 +959,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {employeeOptions.map((user) => (
-                <option key={user.id} value={user.name}>{user.name}</option>
+              {userList.map((user) => (
+                <option key={user.id} value={`${user.firstName} ${user.lastName}`}>{user.firstName} {user.lastName}</option>
               ))}
             </select>
           </div>
@@ -863,9 +1029,6 @@ export const Defects: React.FC = () => {
                     Defect ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Case Description
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brief Description
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -915,9 +1078,6 @@ export const Defects: React.FC = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {defect.defectId}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.release_test_case_description || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {defect.description}
@@ -1047,10 +1207,7 @@ export const Defects: React.FC = () => {
                           type="button"
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="View defect history"
-                          onClick={() => {
-                            setViewingDefectHistory([]);
-                            setIsHistoryModalOpen(true);
-                          }}
+                          onClick={() => handleOpenDefectHistory(defect.defectId)}
                         >
                           <History className="h-5 w-5 inline" />
                         </button>
@@ -1062,7 +1219,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.release_test_case_description || '-'}
+                        {releaseMap[(defect as any).releaseId || ''] || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1094,6 +1251,19 @@ export const Defects: React.FC = () => {
                             onClick={() => handleDelete(defect.defectId)}
                           >
                             <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="relative text-purple-600 hover:text-purple-800 flex items-center"
+                            title="Comments"
+                            onClick={() => handleOpenCommentsModal(defect.defectId)}
+                          >
+                            <MessageCircle className="w-5 h-5" />
+                            {commentsByDefectId[defect.defectId]?.length > 0 && (
+                              <span className="absolute -top-1 -right-2 bg-blue-500 text-white text-xs rounded-full px-1">
+                                {commentsByDefectId[defect.defectId].length}
+                              </span>
+                            )}
                           </button>
                         </div>
                       </td>
@@ -1129,12 +1299,6 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Test Case Description */}
-          <Input
-            label="Test Case Description"
-            value={formData.release_test_case_description || ''}
-            onChange={e => handleInputChange('release_test_case_description', e.target.value)}
-          />
           {/* Brief Description */}
           <Input
             label="Brief Description"
@@ -1217,6 +1381,7 @@ export const Defects: React.FC = () => {
                 onChange={e => handleInputChange('typeId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
+              //nilux
               >
                 <option value="">Select type</option>
                 {defectTypes.map((t) => (
@@ -1240,6 +1405,27 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
+            {/* Found in Release and Priority side by side */}
+
+
+
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Found in Release
+              </label>
+              <select
+                value={formData.releaseId}
+                onChange={e => handleInputChange('releaseId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Select release</option>
+                {releasesData.map(release => (
+                  <option key={release.id} value={release.id}>{release.releaseName}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Priority
@@ -1256,76 +1442,81 @@ export const Defects: React.FC = () => {
                 ))}
               </select>
             </div>
-            {/* Only show Status dropdown in Edit mode */}
-            {editingDefect && (
+            {/* Assigned To for Add Defect */}
+            {!editingDefect && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  Assigned To (Optional)
                 </label>
                 <select
-                  value={formData.statusId || ''}
-                  onChange={e => handleInputChange('statusId', e.target.value)}
+                  value={formData.assigntoId}
+                  onChange={e => handleInputChange('assigntoId', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  disabled={isUsersLoading}
                 >
-                  <option value="">Select status</option>
-                  {defectStatuses.map((s) => (
-                    <option key={s.id} value={s.id}>{s.defectStatusName}</option>
+                  <option value="">
+                    {isUsersLoading ? "Loading users..." : userList.length === 0 ? "No users available - will assign later" : "Select assignee (optional)"}
+                  </option>
+                  {userList.map(user => (
+                    <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
                   ))}
                 </select>
+                {userList.length === 0 && !isUsersLoading && (
+                  <p className="text-blue-500 text-xs mt-1">You can assign the defect later when users are available.</p>
+                )}
               </div>
             )}
-          </div>
-          {/* Assigned To and Entered By */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assigned To
-              </label>
-              <select
-                value={formData.assigntoId}
-                onChange={e => handleInputChange('assigntoId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select assignee</option>
-                {userList.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Entered By
-              </label>
-              <select
-                value={formData.assignbyId}
-                onChange={e => handleInputChange('assignbyId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select user</option>
-                {userList.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {/* Release Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Release</label>
-            <select
-              value={formData.releaseId || ''}
-              onChange={e => handleInputChange('releaseId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-              disabled={!selectedProjectId || projectReleases.length === 0}
-            >
-              <option value="">Select release...</option>
-              {projectReleases.map(release => (
-                <option key={release.id} value={release.id}>{release.name}</option>
-              ))}
-            </select>
+            {editingDefect && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.statusId || ''}
+                    onChange={e => handleInputChange('statusId', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select status</option>
+                    {defectStatuses.map((s) => (
+                      <option key={s.id} value={s.id}>{s.defectStatusName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reassign (Optional)
+                  </label>
+                  <select
+                    value={formData.assigntoId}
+                    onChange={e => handleInputChange('assigntoId', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isUsersLoading}
+                  >
+                    <option value="">
+                      {isUsersLoading ? "Loading users..." : userList.length === 0 ? "No users available - will assign later" : "Select assignee (optional)"}
+                    </option>
+                    {userList.map(user => (
+                      <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
+                    ))}
+                  </select>
+                  {userList.length === 0 && !isUsersLoading && (
+                    <p className="text-blue-500 text-xs mt-1">You can assign the defect later when users are available.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entered By</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                    value={editingDefect?.assigned_by_name || '-'}
+                    readOnly
+                    disabled
+                  />
+                </div>
+              </>
+            )}
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="secondary" onClick={resetForm}>
@@ -1417,32 +1608,87 @@ export const Defects: React.FC = () => {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         title="Defect History"
-        size="md"
+        size="xl"
       >
-        <div className="flex flex-col items-center">
-          {viewingDefectHistory.length === 0 ? (
+        <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
+          {isHistoryLoading ? (
+            <div className="text-gray-500">Loading history...</div>
+          ) : historyError ? (
+            <div className="text-red-500">{historyError}</div>
+          ) : !Array.isArray(viewingDefectHistory) || viewingDefectHistory.length === 0 ? (
             <div className="text-gray-500">No history available.</div>
           ) : (
-            <div className="flex items-center flex-wrap gap-2">
-              {viewingDefectHistory.map((entry, idx) => (
-                <React.Fragment key={idx}>
-                  <div className="flex flex-col items-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(entry.status)}`}>{entry.status}</span>
-                    {entry.comment && <div className="text-xs text-gray-700 mt-1">{entry.comment}</div>}
-                    <div className="text-[10px] text-gray-400 mt-0.5">{new Date(entry.changedAt).toLocaleString()}</div>
-                  </div>
-                  {idx < viewingDefectHistory.length - 1 && (
-                    <span className="mx-1 text-lg text-gray-500">→</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Assigned By</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Previous Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Current Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Release</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Array.isArray(viewingDefectHistory) && viewingDefectHistory.map((entry, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.assignedByName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.assignedToName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectDate}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectTime}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.previousStatus}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.defectStatus}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{entry.releaseName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
         <div className="flex justify-end pt-4">
           <Button type="button" variant="secondary" onClick={() => setIsHistoryModalOpen(false)}>
             Close
           </Button>
+        </div>
+      </Modal>
+
+      {/* Comments Modal */}
+      <Modal
+        isOpen={isCommentsModalOpen}
+        onClose={() => setIsCommentsModalOpen(false)}
+        title="Comments"
+        size="sm"
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Add a comment</label>
+          <textarea
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            rows={3}
+            value={newCommentText}
+            onChange={e => setNewCommentText(e.target.value)}
+            placeholder="Enter your comment here..."
+          />
+          <div className="flex justify-end pt-4 gap-2 mb-4">
+            <Button type="button" variant="secondary" onClick={() => setIsCommentsModalOpen(false)}>
+              Close
+            </Button>
+            <Button type="button" variant="primary" onClick={handleAddComment} disabled={!newCommentText.trim()}>
+              Add Comment
+            </Button>
+          </div>
+          {activeCommentsDefectId && (commentsByDefectId[activeCommentsDefectId]?.length > 0) ? (
+            <ul className="space-y-2">
+              {commentsByDefectId[activeCommentsDefectId].map((c, idx) => (
+                <li key={idx} className="border-b pb-2">
+                  <div className="text-xs text-gray-400 mb-1">{new Date(c.timestamp).toLocaleString()}</div>
+                  <div className="text-gray-800">{c.text}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-gray-500">No comments yet.</div>
+          )}
         </div>
       </Modal>
 

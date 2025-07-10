@@ -37,6 +37,7 @@ import StatusWorkflow from "./pages/StatusWorkflow";
 import StatusType from "./pages/StatusType";
 import BenchAllocate from './pages/BenchAllocate';
 import Status from "./pages/Status";
+import ReleaseDetails from "./pages/ReleaseDetails";
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, noLayout?: boolean }> = ({ children, noLayout }) => {
@@ -282,6 +283,14 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute noLayout>
               <BenchAllocate />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/releases/:releaseId/details"
+          element={
+            <ProtectedRoute>
+              <ReleaseDetails />
             </ProtectedRoute>
           }
         />
