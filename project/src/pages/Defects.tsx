@@ -89,6 +89,7 @@ export const Defects: React.FC = () => {
   const [releasesData, setReleasesData] = useState<ProjectRelease[]>([]);
   const [formData, setFormData] = useState({
     defectId: '',
+    id: '', // real numeric id
     description: '',
     steps: '',
     moduleId: '',
@@ -101,6 +102,7 @@ export const Defects: React.FC = () => {
     releaseId: '',
     attachment: '',
     statusId: '',
+    testCaseId: '',
   });
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
@@ -338,8 +340,56 @@ export const Defects: React.FC = () => {
       return;
     }
 
-    // Call the defectAdd function
-    await defectAdd();
+    if (editingDefect) {
+      // EDIT: Call updateDefectById with new API
+      console.log(formData);
+
+      try {
+        // Use a fallback value for testCaseId and assignby if not provided
+        const testCaseId = Number(formData.testCaseId);
+        const releaseId = Number(formData.releaseId);
+        // Use the real numeric defect id for API path
+        const defectIdForApi = Number(formData.id);
+        const payload = {
+          description: formData.description,
+          projectId: Number(selectedProjectId),
+          severityId: Number(formData.severityId),
+          priorityId: Number(formData.priorityId),
+          defectStatusId: formData.statusId ? Number(formData.statusId) : undefined, // Capital S
+          typeId: Number(formData.typeId),
+          reOpenCount: editingDefect.reOpenCount || 0,
+          attachment: formData.attachment || '',
+          steps: formData.steps,
+          releasesId: Number(formData.releaseId), // must be number
+          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : 1, // must be number
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : 1, // must be number
+        };
+        // Debug log
+        console.log('UpdateDefect API call:', { defectIdForApi, payload, testCaseId, releaseId });
+        const response = await updateDefectById(
+          defectIdForApi,
+          payload,
+          testCaseId,
+          releaseId // query param
+        );
+        if (response.status === 'Success' || response.statusCode === 2000) {
+          alert('Defect updated successfully!');
+          fetchData();
+          resetForm();
+        } else {
+          alert('Failed to update defect: ' + (response.message || 'Unknown error'));
+        }
+      } catch (error: any) {
+        if (error.response && error.response.data) {
+          alert('Error updating defect: ' + JSON.stringify(error.response.data));
+        } else {
+          alert('Error updating defect: ' + (error?.message || error));
+        }
+      }
+    } else {
+      // ADD: Call defectAdd for new defect
+      await defectAdd();
+    }
   };
   const handleEdit = async (defect: FilteredDefect) => {
     // Map names to IDs for dropdowns
@@ -356,6 +406,7 @@ export const Defects: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       defectId: defect.defectId || '',
+      id: defect.id ? String(defect.id) : '', // store real numeric id as string
       description: defect.description || '',
       steps: defect.steps || '',
       moduleId,
@@ -418,6 +469,7 @@ export const Defects: React.FC = () => {
   const resetForm = () => {
     setFormData({
       defectId: '',
+      id: '', // real numeric id
       description: '',
       steps: '',
       moduleId: '',
@@ -430,6 +482,7 @@ export const Defects: React.FC = () => {
       releaseId: '',
       attachment: '',
       statusId: '',
+      testCaseId: '',
     });
     setEditingDefect(null);
     setIsModalOpen(false);
@@ -1293,7 +1346,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {defect.release_name || releaseMap[(defect as any).releaseId || ''] || '-'}
+                        {releaseMap[(defect as any).releaseId || ''] || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
@@ -1512,17 +1565,27 @@ export const Defects: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Found in Release
               </label>
-              <select
-                value={formData.releaseId}
-                onChange={e => handleInputChange('releaseId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select release</option>
-                {releasesData.map(release => (
-                  <option key={release.id} value={release.id}>{release.releaseName}</option>
-                ))}
-              </select>
+              {editingDefect ? (
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                  value={releasesData.find(r => r.id === formData.releaseId)?.releaseName || formData.releaseId || '-'}
+                  readOnly
+                  disabled
+                />
+              ) : (
+                <select
+                  value={formData.releaseId}
+                  onChange={e => handleInputChange('releaseId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select release</option>
+                  {releasesData.map(release => (
+                    <option key={release.id} value={release.id}>{release.releaseName}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

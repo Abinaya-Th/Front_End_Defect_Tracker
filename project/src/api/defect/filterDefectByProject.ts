@@ -3,6 +3,7 @@ import axios from 'axios';
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export interface FilteredDefect {
+  id: number; // real numeric id from backend
   defectId: string;
   description: string;
   reOpenCount: number;
