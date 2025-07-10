@@ -13,8 +13,12 @@ import { getAllPriorities } from "../api/priority";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import axios from "axios";
 
-const QuickAddDefect: React.FC = () => {
-  const { selectedProjectId, projects, defects, addDefect, releases } = useApp();
+interface QuickAddDefectProps {
+  projectModules: { id: string; name: string; submodules: { id: string; name: string }[] }[];
+}
+
+const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules }) => {
+  const { selectedProjectId, projects, addDefect } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     description: "",
@@ -101,6 +105,9 @@ const QuickAddDefect: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(true);
+    // Map priorityId and severityId to their names
+    const priorityName = priorities.find(p => String(p.id) === formData.priorityId)?.priority || "medium";
+    const severityName = severities.find(s => String(s.id) === formData.severityId)?.name || "medium";
     // Add defect to main defect table
     addDefect({
       ...formData,
@@ -109,6 +116,10 @@ const QuickAddDefect: React.FC = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: "open",
+      title: formData.description || "Untitled Defect",
+      priority: priorityName as "low" | "medium" | "high" | "critical",
+      severity: severityName as "low" | "medium" | "high" | "critical",
+      reportedBy: "system", // Placeholder, update as needed
     });
     setTimeout(() => {
       setSuccess(false);
@@ -162,8 +173,8 @@ const QuickAddDefect: React.FC = () => {
       setReleasesData([]);
     }
     // Fetch submodules when module changes
-    if (formData.module) {
-      const selectedModuleObj = projectModules.find((m: any) => m.name === formData.module || m.moduleName === formData.module || m.id === formData.module);
+    if (formData.moduleId) {
+      const selectedModuleObj = projectModules.find((m: any) => m.id === formData.moduleId);
       if (selectedModuleObj && 'id' in selectedModuleObj && selectedModuleObj.id) {
         getSubmodulesByModuleId(selectedModuleObj.id).then(res => {
           setSubmodules(res.data || []);
@@ -174,7 +185,7 @@ const QuickAddDefect: React.FC = () => {
     } else {
       setSubmodules([]);
     }
-  }, [selectedProjectId, formData.module, projectModules]);
+  }, [selectedProjectId, formData.moduleId, projectModules]);
 
   return (
     <div>
