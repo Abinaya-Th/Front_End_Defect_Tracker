@@ -9,6 +9,9 @@ import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { getTestCasesByFilter } from "../api/releasetestcase";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
+import { Modal } from "../components/ui/Modal";
+import QuickAddTestCase from "./QuickAddTestCase";
+import QuickAddDefect from "./QuickAddDefect";
 
 interface TestCase {
   id: string;
@@ -39,6 +42,8 @@ export const ReleaseDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
+  const [viewingTestCase, setViewingTestCase] = useState<TestCase | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -228,7 +233,22 @@ export const ReleaseDetails: React.FC = () => {
                     <tr key={testCase.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.id}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{testCase.description}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{testCase.steps}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        <button
+                          onClick={() => {
+                            setViewingTestCase(testCase);
+                            setIsViewStepsModalOpen(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                          title="View Steps"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          <span>View</span>
+                        </button>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.type || 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(testCase.severity || 'low')}`}>
@@ -243,6 +263,51 @@ export const ReleaseDetails: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      {isViewStepsModalOpen && (
+        <Modal
+          isOpen={isViewStepsModalOpen}
+          onClose={() => {
+            setIsViewStepsModalOpen(false);
+            setViewingTestCase(null);
+          }}
+          title={`Test Steps - ${viewingTestCase?.id}`}
+        >
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-gray-700 whitespace-pre-wrap break-words">
+                {viewingTestCase?.steps}
+              </p>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsViewStepsModalOpen(false);
+                  setViewingTestCase(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* Fixed Quick Add Button */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 32,
+          right: 32,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <QuickAddTestCase selectedProjectId={projectId || ""} />
+        <QuickAddDefect />
+      </div>
     </div>
   );
 };

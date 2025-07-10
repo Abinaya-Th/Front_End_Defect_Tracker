@@ -25,6 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
+import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
 
 
 type ModuleAssignment = {
@@ -79,6 +80,12 @@ export const ModuleManagement: React.FC = () => {
   const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
   const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
+  // New state for developers with roles
+  const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ name: string; role: string; projectAllocationId: number }>>([]);
+
+  // New state for selected developer in bulk assignment
+  const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
+
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
@@ -93,18 +100,41 @@ export const ModuleManagement: React.FC = () => {
       emp.department.toLowerCase().includes("engineering")
   );
 
+  // Fetch developers with roles when selectedProjectId changes
+  const fetchDevelopersWithRoles = async () => {
+    if (!selectedProjectId) return;
+    try {
+      const response = await getDevelopersWithRolesByProjectId(Number(selectedProjectId));
+      if (response && response.status === "success" && Array.isArray(response.data)) {
+        const parsed = response.data.map((item: string) => {
+          const [name, role, projectAllocationId] = item?.userWithRole.split("-");
+          return { name: name?.trim() || "", role: role?.trim() || "", projectAllocationId: item?.projectAllocationId };
+        });
+        setDevelopersWithRoles(parsed);
+      } else {
+        setDevelopersWithRoles([]);
+      }
+    } catch (error) {
+      setDevelopersWithRoles([]);
+    }
+  };
+
+  console.log("developersWithRoles", developersWithRoles);
+
+
   const handleAddModule = async () => {
     if (moduleForm.name.trim() && selectedProjectId) {
       const payload = {
         moduleName: moduleForm.name,
-        projectId: selectedProjectId,
+        projectId: Number(selectedProjectId),
       }
       console.log({ payload });
 
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
-        if (response.success && response.module) {
+        console.log({ response });
+        if (response.status === "success") {
           // Refresh modules after adding
           fetchModules();
         }
@@ -132,7 +162,7 @@ export const ModuleManagement: React.FC = () => {
     if (!selectedProjectId || !assignmentForm.moduleId) return;
     const module = modulesByProjectId?.find((m) => m.id.toString() === assignmentForm.moduleId);
     if (!module) return;
-    
+
     // For now, just close the modal - you may want to implement actual assignment logic
     setIsAssignmentModalOpen(false);
   };
@@ -181,8 +211,8 @@ export const ModuleManagement: React.FC = () => {
     ) {
       if (selectedProjectId) {
         try {
-          const response = await deleteModuleApi(moduleId);
-          if (response.success) {
+          const response = await deleteModuleApi(Number(moduleId));
+          if (response.status === "success") {
             // Refresh modules after deleting
             fetchModules();
           } else {
@@ -196,21 +226,43 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleBulkAssignment = () => {
+    fetchDevelopersWithRoles();
     if (selectedItems.length > 0) {
       setAssignmentForm({
         moduleId: "",
         employeeIds: [],
       });
+      setSelectedDeveloperProjectAllocationId(null); // Reset on open
       setIsBulkAssignmentModalOpen(true);
     }
   };
 
-  // Bulk assignment handler: update via context
-  const handleSaveBulkAssignment = () => {
-    if (!selectedProjectId) return;
-    // For now, just close the modal - you may want to implement actual assignment logic
-    setSelectedItems([]);
-    setIsBulkAssignmentModalOpen(false);
+  // Bulk assignment handler: assign developer to all selected modules/submodules
+  const handleSaveBulkAssignment = async () => {
+    if (!selectedDeveloperProjectAllocationId) {
+      alert("Please select a developer to assign.");
+      return;
+    }
+    try {
+      for (const item of selectedItems) {
+        if (item.type === "module") {
+          await allocateDeveloperToModule(Number(item.moduleId), selectedDeveloperProjectAllocationId);
+        } else if (item.type === "submodule" && item.submoduleId) {
+          await allocateDeveloperToSubModule(
+            Number(item.moduleId),
+            selectedDeveloperProjectAllocationId,
+            Number(item.submoduleId)
+          );
+        }
+      }
+      alert("Assignment successful!");
+      setSelectedItems([]);
+      setIsBulkAssignmentModalOpen(false);
+      fetchModules(); // Refresh module assignments
+    } catch (error) {
+      alert("Assignment failed. Please try again.");
+      console.error(error);
+    }
   };
 
   const handleSelectItem = (
@@ -368,7 +420,7 @@ export const ModuleManagement: React.FC = () => {
       }
     } catch (error) {
       console.error("Error fetching modules:", error);
-     
+
     } finally {
       setIsLoading(false);
     }
@@ -427,12 +479,9 @@ export const ModuleManagement: React.FC = () => {
                     className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span>Allocate ({selectedItems.length})</span>
+                    <span>Allocate</span>
                   </Button>
                 )}
-              </div>
-              <div className="text-sm text-gray-500">
-                {availableDevelopers.length} developers available
               </div>
             </div>
             {/* Bulk Selection Controls */}
@@ -451,9 +500,7 @@ export const ModuleManagement: React.FC = () => {
                     </span>
                   </label>
                   {selectedItems.length > 0 && (
-                    <span className="text-sm text-gray-500">
-                      {selectedItems.length} item(s) selected
-                    </span>
+                    <></>
                   )}
                 </div>
                 {selectedItems.length > 0 && (
@@ -467,14 +514,14 @@ export const ModuleManagement: React.FC = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Loading State */}
             {isLoading && (
               <div className="text-center py-8">
                 <div className="text-gray-500">Loading modules...</div>
               </div>
             )}
-            
+
             {/* Modules Grid */}
             {!isLoading && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -493,6 +540,19 @@ export const ModuleManagement: React.FC = () => {
                           />
                           <h3 className="text-lg font-semibold text-gray-900">
                             {module.moduleName}
+                            {/* Show assigned developers for the module */}
+                            {module.assignedDevs && module.assignedDevs.length > 0 && (
+                              <span className="ml-2 text-xs text-blue-600 font-normal">
+                                (
+                                {module.assignedDevs
+                                  .map((id: string) => {
+                                    const dev = employees.find((e) => e.id === id);
+                                    return dev ? `${dev.firstName} ${dev.lastName}` : 'Unknown';
+                                  })
+                                  .join(', ')}
+                                )
+                              </span>
+                            )}
                           </h3>
                         </div>
                         <div className="flex space-x-2">
@@ -524,10 +584,31 @@ export const ModuleManagement: React.FC = () => {
                             {module.submodules.map((sub: any) => {
                               // Use the correct property name from the API response
                               const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
-                              
+
                               return (
                                 <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
-                                  <span>{submoduleName}</span>
+                                  <span className="flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={isItemSelected("submodule", module.id.toString(), sub.id.toString())}
+                                      onChange={e => handleSelectItem("submodule", module.id.toString(), e.target.checked, sub.id.toString())}
+                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                    />
+                                    {submoduleName}
+                                    {/* Show assigned developers for the submodule */}
+                                    {sub.assignedDevs && sub.assignedDevs.length > 0 && (
+                                      <span className="ml-2 text-xs text-blue-600 font-normal">
+                                        (
+                                        {sub.assignedDevs
+                                          .map((id: string) => {
+                                            const dev = employees.find((e) => e.id === id);
+                                            return dev ? `${dev.firstName} ${dev.lastName}` : 'Unknown';
+                                          })
+                                          .join(', ')}
+                                        )
+                                      </span>
+                                    )}
+                                  </span>
                                   <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
                                     <button
                                       type="button"
@@ -635,70 +716,7 @@ export const ModuleManagement: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Assignment Modal */}
-      <Modal
-        isOpen={isAssignmentModalOpen}
-        onClose={() => setIsAssignmentModalOpen(false)}
-        title={`Assign Developers - ${selectedModuleForAssignment?.moduleName}${selectedSubmoduleForAssignment
-          ? ` > ${selectedSubmoduleForAssignment.getSubModuleName || selectedSubmoduleForAssignment.subModuleName || selectedSubmoduleForAssignment.name || 'Unknown'}`
-          : ""
-          }`}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Developers
-            </label>
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {availableDevelopers.map((dev) => (
-                <label
-                  key={dev.id}
-                  className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
-                >
-                  <input
-                    type="checkbox"
-                    checked={assignmentForm.employeeIds.includes(dev.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setAssignmentForm((prev: ModuleAssignment) => ({
-                          ...prev,
-                          employeeIds: [...prev.employeeIds, dev.id],
-                        }));
-                      } else {
-                        setAssignmentForm((prev: ModuleAssignment) => ({
-                          ...prev,
-                          employeeIds: prev.employeeIds.filter(
-                            (id) => id !== dev.id
-                          ),
-                        }));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {dev.firstName} {dev.lastName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {dev.designation} • {dev.department}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setIsAssignmentModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveAssignment}>Save Assignment</Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Edit Module Modal */}
       <Modal
@@ -749,96 +767,117 @@ export const ModuleManagement: React.FC = () => {
         onClose={() => {
           setIsBulkAssignmentModalOpen(false);
           setSelectedItems([]);
+          setSelectedDeveloperProjectAllocationId(null); // Reset on close
         }}
-        title={`Bulk Assign Developers (${selectedItems.length} items)`}
+        title={`Assign Developers`}
+        size="xl"
       >
-        <div className="space-y-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0 max-h-[90vh] overflow-y-auto">
+          <div className="md:w-1/2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Selected Items
+              Selected Modules and Submodules
             </label>
-            <div className="max-h-32 overflow-y-auto p-3 bg-gray-50 rounded text-sm">
-              {selectedItems.map((item, index) => {
-                const module = modulesByProjectId?.find((m) => m.id.toString() === item.moduleId);
-                if (item.type === "module") {
-                  return <div key={index}>📁 {module?.moduleName}</div>;
-                } else {
-                  const submodule = module?.submodules?.find(
-                    (s) => s.id.toString() === item.submoduleId
-                  );
-                  const submoduleName = submodule?.getSubModuleName || submodule?.subModuleName || submodule?.name || submodule?.submoduleName || submodule?.subModule || 'Unknown';
+            <div className="max-h-[60vh] overflow-y-auto p-3 bg-gray-50 rounded text-sm">
+              {/* Group selected items by module */}
+              {(() => {
+                // Build a map: moduleId -> { module, selected: bool, submodules: Set<submoduleId> }
+                const moduleMap: Record<string, { module: any, selected: boolean, submodules: Set<string> }> = {};
+                selectedItems.forEach(item => {
+                  if (!moduleMap[item.moduleId]) {
+                    const module = modulesByProjectId?.find((m) => m.id.toString() === item.moduleId);
+                    moduleMap[item.moduleId] = {
+                      module,
+                      selected: false,
+                      submodules: new Set<string>(),
+                    };
+                  }
+                  if (item.type === "module") {
+                    moduleMap[item.moduleId].selected = true;
+                  } else if (item.type === "submodule" && item.submoduleId) {
+                    moduleMap[item.moduleId].submodules.add(item.submoduleId);
+                  }
+                });
+                return Object.values(moduleMap).map(({ module, selected, submodules }, idx) => {
+                  if (!module) return null;
+                  // Get all submodules for this module
+                  const allSubmodules = module.submodules || [];
                   return (
-                    <div key={index}>
-                      📄 {module?.moduleName} → {submoduleName}
+                    <div key={module.id} className="mb-2">
+                      <div className="font-semibold text-gray-900">{module.moduleName}</div>
+                      <ul className="list-disc list-inside ml-4">
+                        {selected
+                          ? allSubmodules.map((sub: any) => {
+                            const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
+                            return (
+                              <li key={sub.id}>{submoduleName}</li>
+                            );
+                          })
+                          : Array.from(submodules).map(subId => {
+                            const sub = allSubmodules.find((s: any) => s.id.toString() === subId);
+                            if (!sub) return null;
+                            const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
+                            return (
+                              <li key={sub.id}>{submoduleName}</li>
+                            );
+                          })}
+                      </ul>
                     </div>
                   );
-                }
-              })}
+                });
+              })()}
             </div>
           </div>
-
-          <div>
+          <div className="md:w-1/2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Developers
             </label>
             <div className="max-h-60 overflow-y-auto space-y-2">
-              {availableDevelopers.map((dev) => (
-                <label
-                  key={dev.id}
-                  className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
-                >
-                  <input
-                    type="checkbox"
-                    checked={assignmentForm.employeeIds.includes(dev.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setAssignmentForm((prev: ModuleAssignment) => ({
-                          ...prev,
-                          employeeIds: [...prev.employeeIds, dev.id],
-                        }));
-                      } else {
-                        setAssignmentForm((prev: ModuleAssignment) => ({
-                          ...prev,
-                          employeeIds: prev.employeeIds.filter(
-                            (id) => id !== dev.id
-                          ),
-                        }));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {dev.firstName} {dev.lastName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {dev.designation} • {dev.department}
+              {developersWithRoles.length > 0 ? (
+                developersWithRoles.map((dev, idx) => (
+                  <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                    <input
+                      type="radio"
+                      name="bulk-assign-developer"
+                      checked={selectedDeveloperProjectAllocationId === dev.projectAllocationId}
+                      onChange={() => setSelectedDeveloperProjectAllocationId(dev.projectAllocationId)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {dev.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {dev.role}
+                      </div>
                     </div>
                   </div>
-                </label>
-              ))}
+                ))
+              ) : (
+                <div className="text-gray-400 text-sm">No developers found for this project.</div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setIsBulkAssignmentModalOpen(false);
-                setSelectedItems([]);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveBulkAssignment}>
-              Assign to All Selected
-            </Button>
-          </div>
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setIsBulkAssignmentModalOpen(false);
+              setSelectedItems([]);
+              setSelectedDeveloperProjectAllocationId(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleSaveBulkAssignment}>
+            Assign to All Selected
+          </Button>
         </div>
       </Modal>
 
       {/* Add Submodule Modal */}
-      <Modal
+      < Modal
         isOpen={isAddSubmoduleModalOpen}
         onClose={() => {
           setIsAddSubmoduleModalOpen(false);
@@ -922,10 +961,10 @@ export const ModuleManagement: React.FC = () => {
             </Button>
           </div>
         </div>
-      </Modal>
+      </Modal >
 
       {/* Fixed Quick Add Button */}
-      <div
+      < div
         style={{
           position: "fixed",
           bottom: 32,
@@ -938,7 +977,7 @@ export const ModuleManagement: React.FC = () => {
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect />
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };

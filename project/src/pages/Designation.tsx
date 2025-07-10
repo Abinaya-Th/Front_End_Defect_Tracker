@@ -6,25 +6,16 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Briefcase } from 'lucide-react';
 import axios from 'axios';
-
-interface Designation {
-  id: string;
-  name: string;
-  description: string;
-  level: 'entry' | 'mid' | 'senior' | 'lead' | 'manager';
-  department: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { deleteDesignation, Designations, getDesignations, putDesignation } from '../api/designation/designation';
 
 const Designation: React.FC = () => {
   const navigate = useNavigate();
-  const [designations, setDesignations] = useState<Designation[]>([]);
+  const [designations, setDesignations] = useState<Designations[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingDesignation, setEditingDesignation] = useState<Designation | null>(null);
-  const [deletingDesignation, setDeletingDesignation] = useState<Designation | null>(null);
+  const [editingDesignation, setEditingDesignation] = useState<Designations | null>(null);
+  const [deletingDesignation, setDeletingDesignation] = useState<Designations | null>(null);
   const [formData, setFormData] = useState({
     name: ''
   
@@ -38,20 +29,10 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${baseUrl}designation`);
-      setDesignations(
-        (response.data.data || []).map((item: any) => ({
-          id: item.id.toString(),
-          name: item.name,
-          description: item.description || '',
-          level: item.level || 'entry',
-          department: item.department || '',
-          createdAt: item.createdAt || '',
-          updatedAt: item.updatedAt || ''
-        }))
-      );
+      const response = await getDesignations();
+      setDesignations(response.data);
     } catch (err: any) {
-      setError('Failed to fetch designations');
+      setError(err.response?.data?.message || 'Failed to fetch designations');
     } finally {
       setIsLoading(false);
     }
@@ -88,20 +69,8 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.put(
-        `${baseUrl}designation/${editingDesignation.id}`,
-        formData
-      );
-      const updatedDesignation: Designation = {
-        ...editingDesignation,
-        ...formData,
-        updatedAt: response.data.updatedAt || new Date().toISOString()
-      };
-      setDesignations(
-        designations.map((designation) =>
-          designation.id === editingDesignation.id ? updatedDesignation : designation
-        )
-      );
+      await putDesignation(editingDesignation.id, formData);
+      await fetchDesignations(); // Refresh the list from backend
       setIsEditModalOpen(false);
       setEditingDesignation(null);
       resetForm();
@@ -117,7 +86,7 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.delete(`${baseUrl}designation/${deletingDesignation.id}`);
+      await deleteDesignation(deletingDesignation.id);
       setDesignations(
         designations.filter((designation) => designation.id !== deletingDesignation.id)
       );
@@ -130,7 +99,7 @@ const Designation: React.FC = () => {
     }
   };
 
-  const openEditModal = (designation: Designation) => {
+  const openEditModal = (designation: Designations) => {
     setEditingDesignation(designation);
     setFormData({
       name: designation.name
@@ -139,7 +108,7 @@ const Designation: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (designation: Designation) => {
+  const openDeleteModal = (designation: Designations) => {
     setDeletingDesignation(designation);
     setIsDeleteModalOpen(true);
   };

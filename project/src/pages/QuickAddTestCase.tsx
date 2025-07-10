@@ -427,16 +427,6 @@ console.log("id",selectedProjectId);
                   />
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
-                  {modals.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemove(idx)}
-                      className="absolute top-2 right-2 px-2 py-1"
-                    >
-                      Remove
-                    </Button>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -575,8 +565,28 @@ console.log("id",selectedProjectId);
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx + 1)}
-                      disabled={idx === modals.length - 1}
+                      onClick={() => {
+                        if (idx === modals.length - 1) {
+                          setModals((prev) => [
+                            ...prev,
+                            {
+                              open: true,
+                              formData: {
+                                module: modal.formData.module,
+                                subModule: modal.formData.subModule,
+                                description: "",
+                                steps: "",
+                                type: "functional",
+                                severity: "medium",
+                              },
+                            },
+                          ]);
+                          setCurrentModalIdx(modals.length);
+                        } else {
+                          setCurrentModalIdx(idx + 1);
+                        }
+                      }}
+                      disabled={false}
                     >
                       Next
                     </Button>
