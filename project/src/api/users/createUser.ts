@@ -11,7 +11,7 @@ export interface CreateUserRequest {
   phoneNo?: string;
   joinDate?: string;
   userGender?: string;
-  userStatus?: boolean |undefined;
+  userStatus?: string; // Changed from boolean to string to match backend
   designationId: number;
 }
 
