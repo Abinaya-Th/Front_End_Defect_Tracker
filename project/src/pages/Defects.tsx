@@ -654,7 +654,7 @@ console.log(releasesData, "Release Data");
   const handleExportExcel = () => {
     exportDefects();
   };
-
+  
   const releaseMap = React.useMemo(() => Object.fromEntries(releases.map(r => [Number(r.id), r.name])), [releases]);
 
   const handleStatusSave = (defect: FilteredDefect, newStatus: string, comment: string) => {
