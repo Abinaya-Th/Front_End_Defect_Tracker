@@ -260,7 +260,11 @@ export const ModuleManagement: React.FC = () => {
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
     } catch (error) {
-      alert("Assignment failed. Please try again.");
+      if (error.response && error.response.status === 409) {
+        alert("Developer is already assigned to this module or submodule.");
+      } else {
+        alert("Assignment failed. Please try again.");
+      }
       console.error(error);
     }
   };
@@ -403,8 +407,9 @@ export const ModuleManagement: React.FC = () => {
     setSelectedProjectId(id);
   };
 
-  console.log('projects:', projects);
-  console.log('selectedProjectId:', selectedProjectId);
+  // Defensive logging and type normalization for project lookup
+  console.log('projects:', projects, 'selectedProjectId:', selectedProjectId, typeof selectedProjectId);
+  console.log('project ids:', projects.map(p => [p.id, typeof p.id]));
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
   console.log('found project:', project);
 
