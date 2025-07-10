@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bug, Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -150,6 +150,32 @@ const QuickAddDefect: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getAllPriorities().then(res => setPriorities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+    if (selectedProjectId) {
+      projectReleaseCardView(selectedProjectId).then(res => {
+        setReleasesData(res.data || []);
+      });
+    } else {
+      setReleasesData([]);
+    }
+    // Fetch submodules when module changes
+    if (formData.module) {
+      const selectedModuleObj = projectModules.find((m: any) => m.name === formData.module || m.moduleName === formData.module || m.id === formData.module);
+      if (selectedModuleObj && 'id' in selectedModuleObj && selectedModuleObj.id) {
+        getSubmodulesByModuleId(selectedModuleObj.id).then(res => {
+          setSubmodules(res.data || []);
+        }).catch(() => setSubmodules([]));
+      } else {
+        setSubmodules([]);
+      }
+    } else {
+      setSubmodules([]);
+    }
+  }, [selectedProjectId, formData.module, projectModules]);
+
   return (
     <div>
       <Button
@@ -212,6 +238,7 @@ const QuickAddDefect: React.FC = () => {
             required
           />
           {/* Steps */}
+          {/* Steps */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Steps
@@ -236,6 +263,7 @@ const QuickAddDefect: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Modules
+                Modules
               </label>
               <select
                 value={formData.moduleId}
@@ -251,6 +279,7 @@ const QuickAddDefect: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Submodules
                 Submodules
               </label>
               <select
