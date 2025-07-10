@@ -231,7 +231,7 @@ export const Defects: React.FC = () => {
         type: typeValue as 'bug' | 'test-failure' | 'enhancement',
         assignedTo: formData.assigntoId || '',
         reportedBy: formData.assignbyId || '',
-        status: 'open' as 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
+        status: 'new' as 'new' | 'open' | 'in-progress' | 'resolved' | 'closed' | 'rejected',
         projectId: selectedProjectId || '',
         releaseId: '',
         createdAt: new Date().toISOString(),
@@ -519,10 +519,13 @@ export const Defects: React.FC = () => {
     fetchStatuses();
   }, []);
 
-  // Update import API call to use the provided endpoint and projectId
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedProjectId) return;
+    if (!file) return;
+    if (!selectedProjectId) {
+      alert("Please select a project before importing defects.");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     try {
@@ -543,11 +546,10 @@ export const Defects: React.FC = () => {
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
-
-  // Update export API call to use the provided endpoint and projectId
+  // Add exportDefects function
   const exportDefects = async () => {
     if (!selectedProjectId) {
-      alert("Please select a project to export defects.");
+      alert("Please select a project before exporting defects.");
       return;
     }
     try {
@@ -876,9 +878,6 @@ export const Defects: React.FC = () => {
                     Defect ID
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Case Description
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brief Description
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -928,9 +927,6 @@ export const Defects: React.FC = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {defect.defectId}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {defect.release_test_case_description || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {defect.description}
@@ -1142,12 +1138,6 @@ export const Defects: React.FC = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Test Case Description */}
-          <Input
-            label="Test Case Description"
-            value={formData.release_test_case_description || ''}
-            onChange={e => handleInputChange('release_test_case_description', e.target.value)}
-          />
           {/* Brief Description */}
           <Input
             label="Brief Description"
