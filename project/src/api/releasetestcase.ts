@@ -44,3 +44,69 @@ export const getTestCasesByFilter = async (
   const { data } = await axios.get<GetTestCasesByFilterResponse>(url);
   return data;
 };
+
+export interface AllocateTestCaseRequest {
+  releaseId: string | number;
+  testCaseId: string | number;
+}
+
+export interface AllocateTestCaseResponse {
+  status: string;
+  message: string;
+  data?: any;
+  statusCode: number;
+}
+
+export const allocateTestCaseToRelease = async (
+  releaseId: string | number,
+  testCaseId: string | number
+): Promise<AllocateTestCaseResponse> => {
+  const payload: AllocateTestCaseRequest = {
+    releaseId,
+    testCaseId
+  };
+  
+  const { data } = await axios.post<AllocateTestCaseResponse>(
+    `${BASE_URL}releasetestcase/allocate`,
+    payload
+  );
+  return data;
+};
+
+export interface AllocateOneToManyRequest {
+  testCaseId: string | number;
+  releaseIds: (string | number)[];
+}
+
+export const allocateTestCaseToMultipleReleases = async (
+  testCaseId: string | number,
+  releaseIds: (string | number)[]
+): Promise<AllocateTestCaseResponse> => {
+  const payload: AllocateOneToManyRequest = {
+    testCaseId,
+    releaseIds
+  };
+  
+  const { data } = await axios.post<AllocateTestCaseResponse>(
+    `${BASE_URL}releasetestcase/allocate-one-to-many`,
+    payload
+  );
+  return data;
+};
+
+export interface BulkAllocateRequest {
+  releaseIds: (string | number)[];
+  testCaseIds: (string | number)[];
+}
+
+export const bulkAllocateTestCasesToReleases = async (
+  releaseIds: (string | number)[],
+  testCaseIds: (string | number)[]
+): Promise<AllocateTestCaseResponse> => {
+  const payload: BulkAllocateRequest = { releaseIds, testCaseIds };
+  const { data } = await axios.post<AllocateTestCaseResponse>(
+    `${BASE_URL}releasetestcase/bulk-allocate`,
+    payload
+  );
+  return data;
+};
