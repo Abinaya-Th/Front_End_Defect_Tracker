@@ -17,7 +17,7 @@ interface QuickAddDefectProps {
   projectModules: { id: string; name: string; submodules: { id: string; name: string }[] }[];
 }
 
-const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules }) => {
+const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) => {
   const { selectedProjectId, projects, addDefect } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -274,7 +274,6 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Modules
-                Modules
               </label>
               <select
                 value={formData.moduleId}
@@ -290,7 +289,6 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Submodules
                 Submodules
               </label>
               <select
