@@ -390,17 +390,17 @@ export const TestCase: React.FC = () => {
       if (typeof severityId === 'number') payload.severityId = severityId;
       const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
       if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
-      try {
+    try {
         if (formData.id) {
           // Edit mode: update existing test case
           await updateTestCase(formData.id, payload);
           console.log("Test case updated successfully");
         } else {
           // Add mode: create new test case
-          const response = await createTestCase(payload);
-          console.log("Test case created successfully:", response);
+      const response = await createTestCase(payload);
+      console.log("Test case created successfully:", response);
         }
-      } catch (error) {
+    } catch (error) {
         console.error("Error saving test case:", error);
       }
     }
@@ -603,31 +603,31 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
               selectedModuleId={selectedModuleId}
               onSelect={(id) => {
                 setSelectedModuleId(id);
-                setSelectedSubmoduleId(null);
-                setSelectedTestCases([]);
-              }}
+                            setSelectedSubmoduleId(null);
+                            setSelectedTestCases([]);
+                          }}
               className="mb-4"
               onAdd={(module) => {
-                setModals((prev) => {
-                  const newModals = [
-                    ...prev,
-                    {
-                      open: true,
-                      formData: {
-                        module: module.name,
-                        subModule: "",
-                        description: "",
-                        steps: "",
-                        type: "functional",
-                        severity: "medium",
-                        projectId: selectedProjectId,
-                      },
-                    },
-                  ];
-                  setCurrentModalIdx(newModals.length - 1);
-                  return newModals;
-                });
-              }}
+                            setModals((prev) => {
+                              const newModals = [
+                                ...prev,
+                                {
+                                  open: true,
+                                  formData: {
+                                    module: module.name,
+                                    subModule: "",
+                                    description: "",
+                                    steps: "",
+                                    type: "functional",
+                                    severity: "medium",
+                                    projectId: selectedProjectId,
+                                  },
+                                },
+                              ];
+                              setCurrentModalIdx(newModals.length - 1);
+                              return newModals;
+                            });
+                          }}
             />
           )}
 
@@ -1278,43 +1278,43 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                   <div className="flex space-x-2">
                     {!isEditMode && (
                       <>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setCurrentModalIdx(idx - 1)}
-                          disabled={idx === 0}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCurrentModalIdx(idx - 1)}
+                      disabled={idx === 0}
                           style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => {
-                            if (idx === modals.length - 1) {
-                              setModals((prev) => [
-                                ...prev,
-                                {
-                                  open: true,
-                                  formData: {
-                                    module: modal.formData.module,
-                                    subModule: modal.formData.subModule,
-                                    description: "",
-                                    steps: "",
-                                    type: "functional",
-                                    severity: "medium",
-                                    projectId: modal.formData.projectId,
-                                  },
-                                },
-                              ]);
-                              setCurrentModalIdx(modals.length);
-                            } else {
-                              setCurrentModalIdx(idx + 1);
-                            }
-                          }}
-                        >
-                          Next
-                        </Button>
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (idx === modals.length - 1) {
+                          setModals((prev) => [
+                            ...prev,
+                            {
+                              open: true,
+                              formData: {
+                                module: modal.formData.module,
+                                subModule: modal.formData.subModule,
+                                description: "",
+                                steps: "",
+                                type: "functional",
+                                severity: "medium",
+                                projectId: modal.formData.projectId,
+                              },
+                            },
+                          ]);
+                          setCurrentModalIdx(modals.length);
+                        } else {
+                          setCurrentModalIdx(idx + 1);
+                        }
+                      }}
+                    >
+                      Next
+                    </Button>
                       </>
                     )}
                   </div>

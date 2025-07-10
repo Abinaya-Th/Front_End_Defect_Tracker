@@ -26,6 +26,7 @@ import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getMo
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
 import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
+import { Toast } from "../components/ui/Toast";
 
 
 type ModuleAssignment = {
@@ -86,6 +87,13 @@ export const ModuleManagement: React.FC = () => {
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isOpen: boolean }>({
+    message: '',
+    type: 'success',
+    isOpen: false,
+  });
+
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
@@ -121,6 +129,73 @@ export const ModuleManagement: React.FC = () => {
 
   console.log("developersWithRoles", developersWithRoles);
 
+  // Toast helper functions
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type, isOpen: true });
+  };
+
+  const closeToast = () => {
+    setToast((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // Functions to update local state immediately for submodule operations
+  const addSubmoduleToLocalState = (moduleId: string, newSubmodule: any) => {
+    setModulesByProjectId(prev => {
+      if (!prev) return [];
+      return prev.map(module => {
+        if (module.id.toString() === moduleId) {
+          return {
+            ...module,
+            submodules: [...(module.submodules || []), newSubmodule]
+          };
+        }
+        return module;
+      });
+    });
+  };
+
+  const updateSubmoduleInLocalState = (moduleId: string, submoduleId: string, updatedName: string) => {
+    setModulesByProjectId(prev => {
+      if (!prev) return [];
+      return prev.map(module => {
+        if (module.id.toString() === moduleId) {
+          return {
+            ...module,
+            submodules: (module.submodules || []).map(sub => {
+              if (sub.id.toString() === submoduleId) {
+                return {
+                  ...sub,
+                  subModuleName: updatedName,
+                  getSubModuleName: updatedName,
+                  name: updatedName,
+                  submoduleName: updatedName,
+                  subModule: updatedName
+                };
+              }
+              return sub;
+            })
+          };
+        }
+        return module;
+      });
+    });
+  };
+
+  const deleteSubmoduleFromLocalState = (moduleId: string, submoduleId: string) => {
+    setModulesByProjectId(prev => {
+      if (!prev) return [];
+      return prev.map(module => {
+        if (module.id.toString() === moduleId) {
+          return {
+            ...module,
+            submodules: (module.submodules || []).filter(sub => sub.id.toString() !== submoduleId)
+          };
+        }
+        return module;
+      });
+    });
+  };
+
 
   const handleAddModule = async () => {
     if (moduleForm.name.trim() && selectedProjectId) {
@@ -140,8 +215,9 @@ export const ModuleManagement: React.FC = () => {
         }
         setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
+        showToast("Module added successfully!", "success");
       } catch (error) {
-        alert("Failed to add module. Please try again.");
+        showToast("Failed to add module. Please try again.", "error");
       }
     }
   };
@@ -195,8 +271,9 @@ export const ModuleManagement: React.FC = () => {
         setModuleForm({ name: "" });
         setEditingModule(null);
         setIsEditModuleModalOpen(false);
+        showToast("Module updated successfully!", "success");
       } catch (error) {
-        alert("Failed to update module. Please try again.");
+        showToast("Failed to update module. Please try again.", "error");
       } finally {
         setIsUpdatingModule(false);
       }
@@ -215,11 +292,12 @@ export const ModuleManagement: React.FC = () => {
           if (response.status === "success") {
             // Refresh modules after deleting
             fetchModules();
+            showToast("Module deleted successfully!", "success");
           } else {
-            alert(response.message || "Failed to delete module on server.");
+            showToast(response.message || "Failed to delete module on server.", "error");
           }
         } catch (error) {
-          alert("Failed to delete module on server.");
+          showToast("Failed to delete module on server.", "error");
         }
       }
     }
@@ -240,7 +318,7 @@ export const ModuleManagement: React.FC = () => {
   // Bulk assignment handler: assign developer to all selected modules/submodules
   const handleSaveBulkAssignment = async () => {
     if (!selectedDeveloperProjectAllocationId) {
-      alert("Please select a developer to assign.");
+      showToast("Please select a developer to assign.", "error");
       return;
     }
     try {
@@ -255,12 +333,12 @@ export const ModuleManagement: React.FC = () => {
           );
         }
       }
-      alert("Assignment successful!");
+      showToast("Assignment successful!", "success");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
     } catch (error) {
-      alert("Assignment failed. Please try again.");
+      showToast("Assignment failed. Please try again.", "error");
       console.error(error);
     }
   };
@@ -632,16 +710,17 @@ export const ModuleManagement: React.FC = () => {
                                           try {
                                             const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
                                             if (response.data && response.data.success) {
-                                              fetchModules();
-                                              alert("Submodule deleted successfully.");
+                                              // Update local state immediately
+                                              deleteSubmoduleFromLocalState(module.id.toString(), sub.id.toString());
+                                              showToast("Submodule deleted successfully.", "success");
                                             } else {
-                                              alert("Submodule deleted successfully.");
+                                              showToast("Submodule deleted successfully.", "success");
                                             }
                                           } catch (error: any) {
                                             if (error.response && error.response.data) {
-                                              alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
+                                              showToast("Failed to delete submodule: " + JSON.stringify(error.response.data), "error");
                                             } else {
-                                              alert("Failed to delete submodule. Please try again.");
+                                              showToast("Failed to delete submodule. Please try again.", "error");
                                             }
                                           }
                                         }
@@ -914,17 +993,24 @@ export const ModuleManagement: React.FC = () => {
                       { subModuleName: submoduleForm.name }
                     );
                     if (response.data && response.data.success) {
-                      // Refresh modules after updating
-                      fetchModules();
-                      alert("Submodule updated successfully.");
+                      // Update local state immediately
+                      updateSubmoduleInLocalState(currentModuleIdForSubmodule, editingSubmoduleId, submoduleForm.name);
+                      
+                      // Close modal and reset form
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
+                      setSubmoduleForm({ name: "" });
+                      setCurrentModuleIdForSubmodule(null);
+                      showToast("Submodule updated successfully.", "success");
                     } else {
-                      alert("Submodule updated successfully.");
+                      showToast("Submodule updated successfully.", "success");
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
-                      alert("Failed to update submodule: " + JSON.stringify(error.response.data));
+                      showToast("Failed to update submodule: " + JSON.stringify(error.response.data), "error");
                     } else {
-                      alert("Failed to update submodule. Please try again.");
+                      showToast("Failed to update submodule. Please try again.", "error");
                     }
                   }
                 } else {
@@ -936,20 +1022,35 @@ export const ModuleManagement: React.FC = () => {
                     });
                     console.log("Submodule API response:", response);
                     if (response.success) {
-                      // Refresh modules after adding
-                      fetchModules();
+                      // Create new submodule object for local state
+                      const newSubmodule = {
+                        id: response.data?.id || Date.now().toString(),
+                        subModuleName: submoduleForm.name,
+                        getSubModuleName: submoduleForm.name,
+                        name: submoduleForm.name,
+                        submoduleName: submoduleForm.name,
+                        subModule: submoduleForm.name,
+                        assignedDevs: []
+                      };
+                      
+                      // Update local state immediately
+                      addSubmoduleToLocalState(currentModuleIdForSubmodule, newSubmodule);
+                      
+                      // Close modal and reset form
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
-                      alert("Submodule added successfully.");
+                      setSubmoduleForm({ name: "" });
+                      setCurrentModuleIdForSubmodule(null);
+                      showToast("Submodule added successfully.", "success");
                     } else {
-                      alert("Submodule added successfully.");
+                      showToast("Submodule added successfully.", "success");
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
-                      alert("Failed to add submodule: " + JSON.stringify(error.response.data));
+                      showToast("Failed to add submodule: " + JSON.stringify(error.response.data), "error");
                     } else {
-                      alert("Failed to add submodule. Please try again.");
+                      showToast("Failed to add submodule. Please try again.", "error");
                     }
                   }
                 }
@@ -976,6 +1077,15 @@ export const ModuleManagement: React.FC = () => {
         <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect />
       </div >
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={closeToast}
+        duration={2000}
+      />
     </div >
   );
 };
