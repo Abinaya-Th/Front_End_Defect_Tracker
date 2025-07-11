@@ -49,7 +49,6 @@ export interface ProjectAllocationPayload {
 
 export async function postProjectAllocations(payload: ProjectAllocationPayload) {
   try {
-    console.log('Sending payload to backend:', JSON.stringify(payload, null, 2));
     const response = await axios.post(BASE_URL, payload, {
       headers: {
         'Content-Type': 'application/json',
@@ -61,10 +60,6 @@ export async function postProjectAllocations(payload: ProjectAllocationPayload) 
   } catch (error) {
     console.error('Project allocation error:', error);
     if (axios.isAxiosError(error)) {
-      console.error('Response data:', error.response?.data);
-      console.error('Response status:', error.response?.status);
-      console.error('Response headers:', error.response?.headers);
-
       if (error.code === 'ERR_NETWORK') {
         throw new Error('Network error - please check if the server is running');
       }

@@ -157,7 +157,6 @@ export const Allocation: React.FC = () => {
     setAllocationError(null);
   }, [activeTab]);
 
-  console.log("Project Release Data:", projectRelease);
 
 
   // Filter releases for this project
@@ -351,7 +350,6 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
-    console.log(id);
     
     setSelectedProjectId(id);
     setSelectedProject(id);
@@ -394,7 +392,6 @@ export const Allocation: React.FC = () => {
     try {
       if (allocationMode === "bulk") {
         setAllocationProgress({ current: 0, total: 1 });
-        console.log({selectedTestCases});
         
         const payload: ReleaseTestCaseMappingRequest[] = [];
         selectedTestCases.forEach((testCaseId:any) => {
@@ -457,7 +454,6 @@ export const Allocation: React.FC = () => {
         let completedAllocations = 0;
         let firstMessage: string | null = null;
         let firstIsSuccess = false;
-        console.log({selectedTestCases});
         
         for (const releaseId of selectedIds) {
           for (const testCaseId of selectedTestCases) {
@@ -511,18 +507,15 @@ export const Allocation: React.FC = () => {
     }
   };
   const handleSelectSubModule = (selectedSubmoduleId: string) => {
-    console.log("--------------", selectedSubmoduleId);
-    console.log('++++++++++++++++++', selectedProjectId);
+   
     setSelectedSubmodule(selectedSubmoduleId);
     setSelectedTestCases([]);
     
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId)
       .then((data) => {
-        console.log("API returned test cases:", data);
         // Map moduleId/subModuleId to names for display
         const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
         const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-        console.log("-----------+++++++++++++" ,data);
         
         setAllocatedTestCases(
           (data as any[]).map((tc: any) => ({
@@ -539,7 +532,6 @@ export const Allocation: React.FC = () => {
         setAllocatedTestCases([]);
       });
   };
-console.log("Selected Submodule:", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
@@ -1426,7 +1418,6 @@ console.log("Selected Submodule:", selectedTestCases);
     if (!selectedProjectId || !selectedSubmodule) return;
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmodule)
       .then((data) => {
-        console.log("API returned test cases:", data);
         // Map moduleId/subModuleId to names for display
         const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
         const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));

@@ -43,18 +43,15 @@ export interface ErrorResponse {
 // Create Severity
 export const createSeverity = async (data: CreateSeverityRequest): Promise<CreateSeverityResponse> => {
   try {
-    console.log('Creating severity with data:', data);
-    console.log('Request URL:', SEVERITY_URL);
+   
     const response = await axios.post<CreateSeverityResponse>(SEVERITY_URL, data, {
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    console.log('Success response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('Error creating severity:', error);
-    console.error('Error response data:', error.response?.data);
     if (error.response?.data) {
       throw error.response.data as ErrorResponse;
     }
@@ -99,12 +96,9 @@ export const updateSeverity = async (id: number, data: Partial<CreateSeverityReq
 // Delete Severity
 export const deleteSeverity = async (id: number): Promise<CreateSeverityResponse> => {
   try {
-    console.log('Deleting severity with ID:', id);
-    console.log('Request URL:', `${SEVERITY_URL}/${id}`);
-    console.log(deleteSeverity);
-    
+ 
     const response = await axios.delete<CreateSeverityResponse>(`${SEVERITY_URL}/${id}`);
-    console.log('Delete success response:', response.data);
+    
     return response.data;
   } catch (error: any) {
     console.error('Error deleting severity:', error);

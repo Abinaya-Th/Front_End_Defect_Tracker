@@ -202,6 +202,7 @@ export const Defects: React.FC = () => {
         });
     }
   }
+  console.log(backendDefects, "==========");
 
   React.useEffect(() => {
     if (!selectedProjectId) return;
@@ -278,6 +279,7 @@ export const Defects: React.FC = () => {
         ? Number(formData.statusId)
         : (defectStatuses.find(s => s.defectStatusName.toLowerCase().startsWith("new"))?.id ?? null),
       reOpenCount: 0, // Default value as per API sample
+      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // <-- Ensure releaseId is always included
     };
     try {
       const response = await addDefects(payload as any);
@@ -357,32 +359,30 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
+      console.log(formData);
 
       try {
-        // Use a fallback value for testCaseId and assignby if not provided
-        const testCaseId = Number(formData.testCaseId);
-        const releaseId = Number(formData.releaseId);
-        // Use the real numeric defect id for API path
         const defectIdForApi = Number(formData.id);
+        // Use the new payload structure as per backend requirements
         const payload = {
           description: formData.description,
           projectId: Number(selectedProjectId),
           severityId: Number(formData.severityId),
           priorityId: Number(formData.priorityId),
-          defectStatusId: formData.statusId ? Number(formData.statusId) : undefined, // Capital S
+          defectStatusId: formData.statusId ? Number(formData.statusId) : null, // can be null
           typeId: Number(formData.typeId),
           reOpenCount: editingDefect.reOpenCount || 0,
           attachment: formData.attachment || '',
           steps: formData.steps,
-          releasesId: Number(formData.releaseId), // must be number
-          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : 1, // must be number
-          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : 1, // must be number
+          releaseId: formData.releaseId ? Number(formData.releaseId) : null, // required
+          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // can be null
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // can be null
+          modulesId: Number(formData.moduleId),
+          subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
         };
         const response = await updateDefectById(
           defectIdForApi,
-          payload,
-          testCaseId,
-          releaseId // query param
+          payload
         );
         if (response.status === 'Success' || response.statusCode === 2000) {
           alert('Defect updated successfully!');
@@ -413,12 +413,15 @@ export const Defects: React.FC = () => {
     const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
     const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
+    const id = backendDefects.find(x => x.id === defect.id)?.id?.toString() || "";
+    console.log(id);
+
 
     setEditingDefect(defect);
     setFormData(prev => ({
       ...prev,
+      id,
       defectId: defect.defectId || '',
-      id: defect.id ? String(defect.id) : '', // store real numeric id as string
       description: defect.description || '',
       steps: defect.steps || '',
       moduleId,
@@ -1257,72 +1260,6 @@ export const Defects: React.FC = () => {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor((defect.defect_status_name || '').toLowerCase())}`}>
                             {defect.defect_status_name || '-'}
                           </span>
-                          {editingStatusId === defect.defectId ? (
-                            <form
-                              onSubmit={e => {
-                                e.preventDefault();
-                                if (statusEditValue === 'rejected' && !statusEditComment) return;
-                                handleStatusSave(defect, statusEditValue, statusEditComment);
-                              }}
-                              className="flex flex-col items-center gap-1 mt-2"
-                            >
-                              <select
-                                value={statusEditValue}
-                                onChange={e => setStatusEditValue(e.target.value)}
-                                className="w-28 px-2 py-1 border border-gray-300 rounded"
-                                disabled={isStatusLoading || !!statusError}
-                              >
-                                {isStatusLoading ? (
-                                  <option disabled>Loading...</option>
-                                ) : statusError ? (
-                                  <option disabled>Error loading statuses</option>
-                                ) : (
-                                  defectStatuses.map((s) => (
-                                    <option key={s.id} value={s.defectStatusName}>{s.defectStatusName}</option>
-                                  ))
-                                )}
-                              </select>
-                              {statusEditValue === 'rejected' && (
-                                <input
-                                  type="text"
-                                  className="w-28 px-2 py-1 border border-red-400 rounded mt-1"
-                                  placeholder="Enter rejection comment"
-                                  value={statusEditComment}
-                                  onChange={e => setStatusEditComment(e.target.value)}
-                                  required
-                                />
-                              )}
-                              <div className="flex gap-2 mt-1">
-                                <button
-                                  type="submit"
-                                  className="bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                                  disabled={statusEditValue === 'rejected' && !statusEditComment}
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  type="button"
-                                  className="bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
-                                  onClick={() => setEditingStatusId(null)}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </form>
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-blue-600 hover:text-blue-900 p-1 mt-1"
-                              title="Edit status"
-                              onClick={() => {
-                                setEditingStatusId(defect.defectId);
-                                setStatusEditValue(defect.defect_status_name);
-                                setStatusEditComment('');
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
@@ -1342,7 +1279,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {releaseMap[(defect as any).releaseId || ''] || '-'}
+                        {((defect as any).release_name?.toString() || releaseMap[(defect as any).releaseId || ''] || '-')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">

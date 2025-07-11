@@ -497,22 +497,18 @@ export const TestExecution: React.FC = () => {
       projectReleaseCardView(selectedProject)
         .then((res) => {
           if (res.status === "success" || res.statusCode === "2000") {
-            console.log("Releases loaded from API:", res.data || []);
             setProjectReleaseCard(res.data || []);
           } else {
-            console.log("API returned no releases, using mock data");
             setReleaseError(res.message || "No releases found");
           }
         })
-        .catch((err) => {
-          // API failed, but mock data fallback will work
-          console.log("API unavailable, using mock data fallback");
-          // Don't set error since fallback is working
+        .catch((error) => {
+    console.log("Error fetching releases:", error);
+    
         })
         .finally(() => setReleaseLoading(false));
     }
   }, [selectedProject]);
-  console.log("Project Releases:", projectReleaseCard);
   
 
   // Filter releases for selected project (API or mock fallback)
@@ -523,7 +519,6 @@ export const TestExecution: React.FC = () => {
   ).filter((r: any) => r.projectId === selectedProject);
 
   // DEBUG LOGGING to diagnose why no release cards are shown
-  console.log({ selectedProject, projectReleases, releases, mockReleases });
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -1485,7 +1480,7 @@ export const TestExecution: React.FC = () => {
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProject || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={[]} />
       </div>
     </div>
   );

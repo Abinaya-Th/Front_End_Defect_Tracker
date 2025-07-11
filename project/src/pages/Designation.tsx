@@ -30,9 +30,10 @@ const Designation: React.FC = () => {
     setError(null);
     try {
       const response = await getDesignations();
-      setDesignations(response.data);
+      setDesignations(Array.isArray(response.data) ? response.data : []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch designations');
+      setDesignations([]); // Ensure it's always an array
     } finally {
       setIsLoading(false);
     }
@@ -173,7 +174,7 @@ const Designation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {designations.length === 0 && !isLoading && !error && (
+            {Array.isArray(designations) && designations.length === 0 && !isLoading && !error && (
               <tr>
                 <td colSpan={2} className="px-5 py-3 text-center text-gray-500">
                   No designations found.
@@ -187,7 +188,7 @@ const Designation: React.FC = () => {
                 </td>
               </tr>
             )}
-            {designations.map((designation) => (
+            {Array.isArray(designations) && designations.map((designation) => (
               <tr key={designation.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{designation.name}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">

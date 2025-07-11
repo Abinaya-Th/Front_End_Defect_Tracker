@@ -367,7 +367,6 @@ const Privileges: React.FC = () => {
 
   const handleSave = () => {
     // In real app, this would save to API
-    console.log("Saving role privileges:", rolePrivileges);
     alert("Role privileges saved successfully!");
   };
 

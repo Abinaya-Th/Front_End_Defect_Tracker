@@ -138,19 +138,11 @@ export const ReleaseView: React.FC = () => {
       setLoadingTestCases(true);
       setTestCaseError(null);
 
-      console.log('Fetching test cases with filters:', {
-        projectId: selectedProject,
-        moduleId: selectedModule,
-        submoduleId: selectedSubmoduleId,
-        releaseId: selectedRelease
-      });
+
 
       getTestCasesByFilter(selectedProject, selectedModule, selectedSubmoduleId, selectedRelease)
         .then((res) => {
-          console.log('API Response:', res);
-          console.log('Test Cases Data:', res.data);
           if (res.data && res.data.length > 0) {
-            console.log('First Test Case:', res.data[0]);
           }
 
           // Map the test cases like TestCase page does

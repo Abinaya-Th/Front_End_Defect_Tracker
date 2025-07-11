@@ -71,6 +71,7 @@ export interface Defect {
 }
 
 export interface TestCase {
+  testCaseId: Key | null | undefined;
   id: string;
   description: string;
   steps: string;
