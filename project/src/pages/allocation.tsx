@@ -423,8 +423,11 @@ export const Allocation: React.FC = () => {
           try {
             const response = await allocateTestCaseToMultipleReleases(testCaseId, selectedIds);
             if (!firstMessage) {
-              if (response.status === "success") {
-                firstMessage = response.message || "Success";
+              if (
+                (typeof response.status === 'string' && response.status.toLowerCase() === "success") ||
+                (typeof response.message === 'string' && response.message.toLowerCase().includes("allocated to"))
+              ) {
+                firstMessage = response.message || "Test case(s) successfully allocated to selected releases!";
                 firstIsSuccess = true;
               } else {
                 firstMessage = response.message || "Failed";
@@ -441,8 +444,13 @@ export const Allocation: React.FC = () => {
           setAllocationProgress({ current: completedAllocations, total: totalAllocations });
         }
         if (firstMessage) {
-          if (firstIsSuccess) setAllocationSuccess(firstMessage);
-          else setAllocationError(firstMessage);
+          if (firstIsSuccess) {
+            setAllocationSuccess(firstMessage);
+            setAllocationError(null);
+          } else {
+            setAllocationError(firstMessage);
+            setAllocationSuccess(null);
+          }
         }
       } else {
         const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
@@ -1775,7 +1783,7 @@ console.log("Selected Submodule:", selectedTestCases);
         }}
       >
         <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={[]} />
       </div>
     </div>
   );
