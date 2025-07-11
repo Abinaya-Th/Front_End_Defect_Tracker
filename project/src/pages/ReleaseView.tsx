@@ -29,6 +29,7 @@ import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import axios from 'axios';
+import { getAllReleaseTypes } from "../api/Releasetype";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 interface TestCase {
@@ -95,6 +96,8 @@ export const ReleaseView: React.FC = () => {
   // Add state for severities and defect types (like TestCase page)
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [releaseTypes, setReleaseTypes] = useState<{ id: number; releaseTypeName: string }[]>([]);
+  const [editingReleaseId, setEditingReleaseId] = useState<string | null>(null);
 
   // Fetch modules when project changes
   useEffect(() => {
@@ -120,6 +123,14 @@ export const ReleaseView: React.FC = () => {
     getSeverities().then(res => setSeverities(res.data));
     getDefectTypes().then(res => setDefectTypes(res.data));
   }, []);
+
+  useEffect(() => {
+    if (isCreateReleaseModalOpen) {
+      getAllReleaseTypes()
+        .then((res) => setReleaseTypes(res.data || []))
+        .catch(() => setReleaseTypes([]));
+    }
+  }, [isCreateReleaseModalOpen]);
 
   // Fetch test cases when all filters are selected
   useEffect(() => {
@@ -199,6 +210,15 @@ export const ReleaseView: React.FC = () => {
       .catch(() => setSubmodules([]));
   };
 
+  const deleteRelease = async (releaseId: string) => {
+    try {
+      await axios.delete(`${BASE_URL}releases/${releaseId}`);
+      getReleaseCardView();
+    } catch (error) {
+      alert('Failed to delete release');
+    }
+  };
+
   // UI helpers
   const getSeverityColor = (severity: string) => {
     if (!severity) return "bg-gray-100 text-gray-800";
@@ -263,7 +283,42 @@ export const ReleaseView: React.FC = () => {
                   className={`cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${selectedRelease === release.id ? 'border-4 border-blue-700 bg-blue-600 text-white' : 'border border-gray-200 bg-white text-gray-900'}`}
                   onClick={() => navigate(`/projects/${selectedProject}/releases/${release.id}/details`)}
                 >
-                  <CardContent className={`p-6 ${selectedRelease === release.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-900'}`}>
+                  <CardContent className={`p-6 relative ${selectedRelease === release.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-900'}`}>
+                    {/* Edit & Delete Icons */}
+                    <div className="absolute top-4 right-4 flex space-x-2 opacity-80 group-hover:opacity-100 z-10">
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setReleaseFormData({
+                            name: release.releaseName,
+                            version: release.version || "",
+                            description: release.description || "",
+                            releaseDate: release.releaseDate ? release.releaseDate.split('T')[0] : "",
+                            releaseType: release.releaseType || "",
+                          });
+                          setIsCreateReleaseModalOpen(true);
+                          setEditingReleaseId(release.id);
+                        }}
+                        title="Edit"
+                        className="p-1 rounded hover:bg-gray-200"
+                      >
+                        <Edit2 className="w-5 h-5 text-blue-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (window.confirm("Are you sure you want to delete this release?")) {
+                            deleteRelease(release.id);
+                          }
+                        }}
+                        title="Delete"
+                        className="p-1 rounded hover:bg-gray-200"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-500" />
+                      </button>
+                    </div>
                     <div className="mb-4">
                       <h3 className={`text-lg font-semibold mb-1 ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}>
                         {release.releaseName}
@@ -569,8 +624,9 @@ export const ReleaseView: React.FC = () => {
             releaseDate: "",
             releaseType: "",
           });
+          setEditingReleaseId(null);
         }}
-        title="Create New Release"
+        title={editingReleaseId ? "Edit Release" : "Create New Release"}
         size="xl"
       >
         <form onSubmit={async (e) => {
@@ -585,20 +641,39 @@ export const ReleaseView: React.FC = () => {
             releaseStatus: releaseFormData.releaseType,
           };
           try {
-            const response = await createRelease(payload);
-            if (response.status === "success" && response.statusCode === 2000) {
-              getReleaseCardView();
-              setIsCreateReleaseModalOpen(false);
-              setReleaseFormData({
-                name: "",
-                version: "",
-                description: "",
-                releaseDate: "",
-                releaseType: "",
-              });
-              alert("Release created successfully");
+            if (editingReleaseId) {
+              const response = await axios.put(`${BASE_URL}releases/${editingReleaseId}`, payload);
+              if (response.status === 200 && response.data.statusCode === 2000) {
+                getReleaseCardView();
+                setIsCreateReleaseModalOpen(false);
+                setReleaseFormData({
+                  name: "",
+                  version: "",
+                  description: "",
+                  releaseDate: "",
+                  releaseType: "",
+                });
+                setEditingReleaseId(null);
+                alert("Release updated successfully");
+              } else {
+                alert(response.data.message || "Failed to update release");
+              }
             } else {
-              alert(response.message || "Failed to create release");
+              const response = await createRelease(payload);
+              if (response.status === "success" && response.statusCode === 2000) {
+                getReleaseCardView();
+                setIsCreateReleaseModalOpen(false);
+                setReleaseFormData({
+                  name: "",
+                  version: "",
+                  description: "",
+                  releaseDate: "",
+                  releaseType: "",
+                });
+                alert("Release created successfully");
+              } else {
+                alert(response.message || "Failed to create release");
+              }
             }
           } catch (error: any) {
             alert(
@@ -625,11 +700,11 @@ export const ReleaseView: React.FC = () => {
               required
             >
               <option value="">Select Release Type</option>
-              <option value="Client Release">Client Release</option>
-              <option value="Project Release">Project Release</option>
-              <option value="Frontend Release">Frontend Release</option>
-              <option value="QA Release">QA Release</option>
-              <option value="Backend Release">Backend Release</option>
+              {releaseTypes.map((type) => (
+                <option key={type.id} value={type.releaseTypeName}>
+                  {type.releaseTypeName}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -656,6 +731,7 @@ export const ReleaseView: React.FC = () => {
                   releaseDate: "",
                   releaseType: "",
                 });
+                setEditingReleaseId(null);
               }}
             >
               Cancel
