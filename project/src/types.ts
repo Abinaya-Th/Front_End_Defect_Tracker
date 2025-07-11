@@ -50,7 +50,6 @@ export interface ProjectFormData {
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
-  role: string;
   manager: string;
   clientName: string;
   clientCountry: string;
@@ -59,15 +58,6 @@ export interface ProjectFormData {
   clientPhone: string;
   address: string;
   description: string;
-  privileges: {
-    read: boolean;
-    write: boolean;
-    delete: boolean;
-    admin: boolean;
-    exportImport: boolean;
-    manageUsers: boolean;
-    viewReports: boolean;
-  };
 }
 
 export interface Defect {
