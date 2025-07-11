@@ -7,9 +7,9 @@ export interface DefectCreate {
   severityId: number;           // Severity level ID (Long)
   priorityId: number;           // Priority level ID (Long)
   typeId: number;              // Defect type ID (Long)
-  assigntoId?: string | null;  // User ID to assign the defect to (Varchar/String) - Optional for now
+  assigntoId?: number | null;  // User ID to assign the defect to (Varchar/String) - Optional for now
   attachment?: string;          // Defect related attachment (Optional)
-  assignbyId?: string | null;  // User ID who entered the defect (Optional)
+  assignbyId?: number | null;  // User ID who entered the defect (Optional)
   releaseTestCaseId?: string | null; // testcaseId allocated to release (Optional)
   defectStatusId?: number | null;    // Defect status level ID (Optional)
   steps?: string;              // Steps to reproduce the defect(1-1000) (Optional)
@@ -27,13 +27,11 @@ export interface DefectCreateProps {
 }
 
 export const addDefects = (payload: DefectCreate): Promise<DefectCreateProps> => {
-  console.log('Making API call to:', `${BASE_URL}defect/withoutReleaseTestCaseId`);
-  console.log('Payload being sent:', payload);
+
 
   return axios
     .post<DefectCreateProps>(`${BASE_URL}defect/withoutReleaseTestCaseId`, payload)
     .then(({ data }) => {
-      console.log('API call successful, response:', data);
       return data;
     })
     .catch((error) => {

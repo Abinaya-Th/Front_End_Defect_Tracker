@@ -23,7 +23,7 @@ import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { TestCase as TestCaseType } from "../types/index";
-import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases } from "../api/releasetestcase";
+import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -36,173 +36,13 @@ const TABS = [
 // --- MOCK DATA SECTION (for modules, testcases, QA, releases) ---
 
 // Mock Modules
-const mockModules = [
-  {
-    id: "auth",
-    name: "Authentication",
-  },
-  {
-    id: "acc",
-    name: "Account Management",
-  },
-  {
-    id: "payment",
-    name: "Payment",
-  },
-  {
-    id: "cart",
-    name: "Shopping Cart",
-  },
-  {
-    id: "user",
-    name: "User Management",
-  },
-  {
-    id: "analytics",
-    name: "Analytics",
-  },
-  {
-    id: "reporting",
-    name: "Reporting",
-  },
-  {
-    id: "visualization",
-    name: "Visualization",
-  },
-  // ...add more modules as needed
-];
+// const mockModules = [ ... ];
 
 // Mock QA (engineers/teams)
-const mockQA = [
-  {
-    id: "QA001",
-    name: "Sarah Wilson",
-    role: "QA Engineer",
-    email: "sarah.wilson@company.com",
-    skills: ["Manual Testing", "Automation", "Selenium", "Jest"],
-    experience: 3,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA002",
-    name: "QA Team Alpha",
-    role: "QA Team",
-    email: "qa.alpha@company.com",
-    skills: ["Regression Testing", "Performance Testing"],
-    experience: 5,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA003",
-    name: "Michael Chen",
-    role: "Senior QA Engineer",
-    email: "michael.chen@company.com",
-    skills: ["API Testing", "Mobile Testing", "Cypress", "Appium"],
-    experience: 7,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA004",
-    name: "Emily Rodriguez",
-    role: "QA Lead",
-    email: "emily.rodriguez@company.com",
-    skills: ["Test Strategy", "Team Management", "JIRA", "TestRail"],
-    experience: 8,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA005",
-    name: "David Thompson",
-    role: "Automation Engineer",
-    email: "david.thompson@company.com",
-    skills: ["Playwright", "Python", "CI/CD", "Performance Testing"],
-    experience: 4,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA006",
-    name: "Priya Patel",
-    role: "QA Analyst",
-    email: "priya.patel@company.com",
-    skills: ["Exploratory Testing", "Bug Reporting"],
-    experience: 2,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA007",
-    name: "QA Team Beta",
-    role: "QA Team",
-    email: "qa.beta@company.com",
-    skills: ["Load Testing", "Security Testing"],
-    experience: 6,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  // ...add more QA engineers/teams as needed
-];
+// const mockQA = [ ... ];
 
 // Mock Releases
-const mockReleases = [
-  {
-    id: "R002",
-    name: "Mobile Banking v2.1",
-    version: "2.1.0",
-    description: "Security enhancements and UI updates for mobile banking",
-    projectId: "PR0001",
-    status: "planned",
-    releaseDate: "2024-04-01",
-    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
-    features: ["Biometric login", "Quick transfer"],
-    bugFixes: ["Fixed session timeout"],
-    createdAt: "2024-03-10T09:00:00Z",
-  },
-  {
-    id: "R003",
-    name: "Inventory v1.2",
-    version: "1.2.0",
-    description: "Performance improvements and bug fixes for inventory system",
-    projectId: "PR0003",
-    status: "completed",
-    releaseDate: "2024-02-15",
-    testCases: [],
-    features: ["Faster report generation"],
-    bugFixes: ["Fixed database timeout"],
-    createdAt: "2024-02-01T08:00:00Z",
-  },
-  {
-    id: "R004",
-    name: "E-commerce Platform v3.0",
-    version: "3.0.0",
-    description: "Major update with new payment gateway integration and improved user experience",
-    projectId: "PR0001",
-    status: "in-progress",
-    releaseDate: "2024-05-15",
-    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
-    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
-    bugFixes: ["Fixed checkout flow", "Improved search"],
-    createdAt: "2024-04-01T10:00:00Z",
-  },
-  {
-    id: "R005",
-    name: "Analytics Dashboard v2.5",
-    version: "2.5.0",
-    description: "Advanced analytics with real-time data visualization and custom reports",
-    projectId: "PR0002",
-    status: "planned",
-    releaseDate: "2024-06-01",
-    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002", "TC-VISUAL-003"],
-    features: ["Real-time analytics", "Custom reports", "Data export"],
-    bugFixes: ["Fixed chart rendering", "Improved performance"],
-    createdAt: "2024-04-15T14:00:00Z",
-  },
-  // ...add more releases as needed
-];
+// const mockReleases = [ ... ];
 
 // --- END MOCK DATA SECTION ---
 
@@ -219,6 +59,7 @@ export const Allocation: React.FC = () => {
   } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds]=useState<number[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
@@ -316,7 +157,6 @@ export const Allocation: React.FC = () => {
     setAllocationError(null);
   }, [activeTab]);
 
-  console.log("Project Release Data:", projectRelease);
 
 
   // Filter releases for this project
@@ -459,11 +299,13 @@ export const Allocation: React.FC = () => {
       });
     }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
+  } else if (selectedSubmodule) {
+    // If a submodule is selected, use allocatedTestCases directly
+    filteredTestCases = allocatedTestCases;
   } else if (selectedModule) {
+    // If only a module is selected, filter by module
     filteredTestCases = effectiveTestCases.filter(
-      (tc: any) =>
-        tc.module === selectedModule &&
-        (!selectedSubmodule || tc.subModule === selectedSubmodule)
+      (tc: any) => tc.module === selectedModule
     );
   }
 
@@ -508,7 +350,6 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
-    console.log(id);
     
     setSelectedProjectId(id);
     setSelectedProject(id);
@@ -550,108 +391,115 @@ export const Allocation: React.FC = () => {
 
     try {
       if (allocationMode === "bulk") {
-        // Bulk allocation: allocate all selected test cases to all selected releases in one API call
         setAllocationProgress({ current: 0, total: 1 });
+        
+        const payload: ReleaseTestCaseMappingRequest[] = [];
+        selectedTestCases.forEach((testCaseId:any) => {
+          selectedIds.forEach((releaseId:any) => {
+            payload.push({ testCaseId, releaseId });
+          });
+        });
         try {
-          await bulkAllocateTestCasesToReleases(selectedReleaseIds, selectedTestCases);
+          const response = await bulkAllocateTestCasesToReleases(payload);
+          if (response.status === "success") {
+            setAllocationSuccess(response.message || "Success");
+          } else {
+            setAllocationError(response.message || "Failed");
+          }
           setAllocationProgress({ current: 1, total: 1 });
         } catch (allocationError: any) {
-          console.error("Bulk allocation failed:", allocationError);
-          setAllocationError("Bulk allocation failed. " + (allocationError?.message || ""));
+          setAllocationError(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
           setAllocationProgress({ current: 1, total: 1 });
         }
       } else if (allocationMode === "one-to-many") {
-        // One-to-many allocation: allocate each test case to all selected releases in one API call
         const totalAllocations = selectedTestCases.length;
         let completedAllocations = 0;
-
+        let firstMessage: string | null = null;
+        let firstIsSuccess = false;
         for (const testCaseId of selectedTestCases) {
-          console.log(`Allocating test case ${testCaseId} to ${selectedReleaseIds.length} releases`);
-          
           try {
-            await allocateTestCaseToMultipleReleases(testCaseId, selectedReleaseIds);
-            completedAllocations++;
-            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+            const response = await allocateTestCaseToMultipleReleases(testCaseId, selectedIds);
+            if (!firstMessage) {
+              if (response.status === "success") {
+                firstMessage = response.message || "Success";
+                firstIsSuccess = true;
+              } else {
+                firstMessage = response.message || "Failed";
+                firstIsSuccess = false;
+              }
+            }
           } catch (allocationError: any) {
-            console.error(`Failed to allocate test case ${testCaseId} to multiple releases:`, allocationError);
-            // Continue with other test cases even if one fails
-            completedAllocations++;
-            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
-          }
-        }
-      } else {
-        // One-to-one allocation: allocate each test case to each selected release individually
-        const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
-        let completedAllocations = 0;
-
-        for (const releaseId of selectedReleaseIds) {
-          for (const testCaseId of selectedTestCases) {
-            console.log(`Allocating test case ${testCaseId} to release ${releaseId}`);
-            
-            try {
-              await allocateTestCaseToRelease(releaseId, testCaseId);
-              completedAllocations++;
-              setAllocationProgress({ current: completedAllocations, total: totalAllocations });
-            } catch (allocationError: any) {
-              console.error(`Failed to allocate test case ${testCaseId} to release ${releaseId}:`, allocationError);
-              // Continue with other allocations even if one fails
-              completedAllocations++;
-              setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+            if (!firstMessage) {
+              firstMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+              firstIsSuccess = false;
             }
           }
+          completedAllocations++;
+          setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+        }
+        if (firstMessage) {
+          if (firstIsSuccess) setAllocationSuccess(firstMessage);
+          else setAllocationError(firstMessage);
+        }
+      } else {
+        const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
+        let completedAllocations = 0;
+        let firstMessage: string | null = null;
+        let firstIsSuccess = false;
+        
+        for (const releaseId of selectedIds) {
+          for (const testCaseId of selectedTestCases) {
+           
+            try {
+              const response = await allocateTestCaseToRelease(releaseId, Number(testCaseId));
+              if (!firstMessage) {
+                if (response.status === "success") {
+                  firstMessage = response.message || "Success";
+                  firstIsSuccess = true;
+                } else {
+                  firstMessage = response.message || "Failed";
+                  firstIsSuccess = false;
+                }
+              }
+            } catch (allocationError: any) {
+              if (!firstMessage) {
+                firstMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+                firstIsSuccess = false;
+              }
+            }
+            completedAllocations++;
+            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+          }
+        }
+        if (firstMessage) {
+          if (firstIsSuccess) setAllocationSuccess(firstMessage);
+          else setAllocationError(firstMessage);
         }
       }
-
-      // Store the selected test cases for each selected release (for QA allocation)
       setQaAllocatedTestCases(prev => {
         const updated = { ...prev };
         selectedReleaseIds.forEach(releaseId => {
-          // Each release gets the currently selected test cases
           updated[releaseId] = [...selectedTestCases];
         });
         return updated;
       });
-
-      // Show success message
-      const totalProcessed = allocationMode === "one-to-many" 
-        ? selectedTestCases.length 
-        : selectedReleaseIds.length * selectedTestCases.length;
-      setAllocationSuccess(`Allocation process completed. ${totalProcessed} ${allocationMode === "one-to-many" ? "test cases" : "individual allocations"} processed.`);
-
-      // Clear the current selections and switch to QA tab after a delay
       setTimeout(() => {
         setSelectedTestCases([]);
         setSelectedReleaseIds([]);
+        setSelectedIds([])
         setActiveTab("qa");
         setAllocationSuccess(null);
         setAllocationProgress(null);
       }, 2000);
-
     } catch (error: any) {
-      console.error("Error allocating test cases to releases:", error);
-      console.error("Error response data:", error.response?.data);
-      console.error("Error response status:", error.response?.status);
-      
-      // Try to get more specific error information
-      let errorMessage = "Failed to allocate test cases to releases. Please try again.";
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data) {
-        errorMessage = typeof error.response.data === 'string' 
-          ? error.response.data 
-          : JSON.stringify(error.response.data);
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+      let errorMessage = error.response?.data?.message || error.message || "Failed to allocate test cases to releases. Please try again.";
       setAllocationError(errorMessage);
     } finally {
       setAllocationLoading(false);
     }
   };
   const handleSelectSubModule = (selectedSubmoduleId: string) => {
-    console.log("--------------", selectedSubmoduleId);
-    console.log('++++++++++++++++++', selectedProjectId);
+   
     setSelectedSubmodule(selectedSubmoduleId);
     setSelectedTestCases([]);
     
@@ -676,13 +524,13 @@ export const Allocation: React.FC = () => {
         setAllocatedTestCases([]);
       });
   };
-console.log("Selected Submodule:", selectedTestCases);
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
       <div className="flex space-x-2 overflow-x-auto">
         {effectiveProjectRelease.map((release: any) => {
-          const releaseId = release.releaseId || release.id;
+          const releaseId = release.releaseId 
+          const ids= release.id
           const isSelected = selectedReleaseIds.includes(releaseId);
           return (
             <div
@@ -706,9 +554,13 @@ console.log("Selected Submodule:", selectedTestCases);
                 onClick={() => {
                   if (allocationMode === "one-to-one") {
                     setSelectedReleaseIds(isSelected ? [] : [releaseId]);
+                    setSelectedIds(isSelected?[]:[ids])
                   } else {
                     setSelectedReleaseIds((prev) =>
-                      isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                      isSelected ? prev.filter((id) => id !== id) : [...prev, releaseId]
+                    );
+                    setSelectedIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== id) : [...prev, ids]
                     );
                   }
                 }}
@@ -851,8 +703,8 @@ console.log("Selected Submodule:", selectedTestCases);
               {submodules.map((submodule: any) => {
                 // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.subModuleId)
-                  : selectedSubmodule === submodule.subModuleId;
+                  ? selectedSubmodules.includes(String(submodule.subModuleId))
+                  : selectedSubmodule === String(submodule.subModuleId);
                 return (
                   <Button
                     key={submodule.subModuleId}
@@ -860,13 +712,13 @@ console.log("Selected Submodule:", selectedTestCases);
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.subModuleId)
-                            ? prev.filter((s) => s !== submodule.subModuleId)
-                            : [...prev, submodule.subModuleId]
+                          prev.includes(String(submodule.subModuleId))
+                            ? prev.filter((s) => s !== String(submodule.subModuleId))
+                            : [...prev, String(submodule.subModuleId)]
                         );
                       } else {
-                        handleSelectSubModule(submodule.subModuleId);
-                        setSelectedSubmodule(submodule.subModuleId);
+                        handleSelectSubModule(String(submodule.subModuleId));
+                        setSelectedSubmodule(String(submodule.subModuleId));
                       }
                     }}
                     className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
@@ -994,7 +846,7 @@ console.log("Selected Submodule:", selectedTestCases);
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredTestCases.map((tc: any) => (
+            {allocatedTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
@@ -1104,15 +956,9 @@ console.log("Selected Submodule:", selectedTestCases);
     }
 
     // Get all QA engineers
-    const effectiveQAEngineers = mockQA.map(qa => ({
-      id: qa.id,
-      firstName: qa.name.split(' ')[0],
-      lastName: qa.name.split(' ').slice(1).join(' '),
-      designation: qa.role,
-      email: qa.email,
-      department: qa.department,
-      status: qa.status
-    }));
+    const effectiveQAEngineers = employees.filter(emp =>
+      emp.designation && emp.designation.toLowerCase().includes('qa')
+    );
 
     // State for summary modal
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -1168,7 +1014,7 @@ console.log("Selected Submodule:", selectedTestCases);
             {releasesForQAAllocation.length > 0 ? (
               <div className="flex space-x-2 overflow-x-auto">
                 {releasesForQAAllocation.map((release: any) => {
-                const releaseId = release.releaseId || release.id;
+                const releaseId = release.releaseId ;
                 const isSelected = selectedReleaseForQA === releaseId;
                 const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
                 const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
@@ -1482,24 +1328,24 @@ console.log("Selected Submodule:", selectedTestCases);
     );
   };
 
-  useEffect(() => {
-    if (activeTab === "release" && selectedReleaseIds.length === 1) {
-      setLoadingRelease(true);
-      setReleaseError(null);
-      axios
-        .get(`${BASE_URL}releases/releaseId/${selectedReleaseIds[0]}`)
-        .then((res) => setApiRelease(res.data))
-        .catch((err) => setReleaseError(err.message))
-        .finally(() => setLoadingRelease(false));
-    } else {
-      setApiRelease(null);
-    }
-  }, [activeTab, selectedReleaseIds]);
+  // useEffect(() => {
+  //   if (activeTab === "release" && selectedReleaseIds.length === 1) {
+  //     setLoadingRelease(true);
+  //     setReleaseError(null);
+  //     axios
+  //       .get(`${BASE_URL}releases/releaseId/${selectedReleaseIds[0]}`)
+  //       .then((res) => setApiRelease(res.data))
+  //       .catch((err) => setReleaseError(err.message))
+  //       .finally(() => setLoadingRelease(false));
+  //   } else {
+  //     setApiRelease(null);
+  //   }
+  // }, [activeTab, selectedReleaseIds]);
 
   // Save mock test cases and mock QA to localStorage on mount (for cross-page use)
-  useEffect(() => {
-    // No mock test case storage
-  }, []);
+  // useEffect(() => {
+  //   // No mock test case storage
+  // }, []);
 
   // Save allocations to localStorage whenever they change
   useEffect(() => {
@@ -1520,6 +1366,7 @@ console.log("Selected Submodule:", selectedTestCases);
       if (selectedReleaseIds.length > 1) {
         setSelectedReleaseIds([selectedReleaseIds[0]]);
       }
+    
     } else if (allocationMode === "one-to-many") {
       if (selectedTestCases.length > 1) {
         setSelectedTestCases([selectedTestCases[0]]);
@@ -1528,6 +1375,58 @@ console.log("Selected Submodule:", selectedTestCases);
     }
     // Bulk: allow all
   }, [allocationMode, selectedTestCases, selectedReleaseIds]);
+
+  // Add a useEffect to fetch test cases for all submodules when a module is selected and no submodule is selected
+  useEffect(() => {
+    if (selectedProjectId && selectedModule && !selectedSubmodule) {
+      // Find the module object
+      const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+      if (moduleObj && Array.isArray(moduleObj.submodules)) {
+        // Fetch test cases for all submodules in parallel
+        Promise.all(
+          moduleObj.submodules.map((sm: any) =>
+            getTestCasesByProjectAndSubmodule(selectedProjectId, String(sm.subModuleId))
+          )
+        ).then((results) => {
+          // Flatten and map all test cases
+          const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+          const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+          setAllocatedTestCases(
+            results.flat().map((tc: any) => ({
+              ...tc,
+              module: moduleMap[tc.moduleId] || tc.moduleId,
+              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+            })) as TestCaseType[]
+          );
+        }).catch(() => setAllocatedTestCases([]));
+      }
+    }
+  }, [selectedProjectId, selectedModule, effectiveModules, severities, defectTypes]);
+
+  // The existing useEffect for selectedSubmodule remains, so when a submodule is selected, only its test cases are fetched.
+  useEffect(() => {
+    if (!selectedProjectId || !selectedSubmodule) return;
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmodule)
+      .then((data) => {
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setAllocatedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
+        );
+      })
+      .catch((error) => {
+        setAllocatedTestCases([]);
+      });
+  }, [selectedProjectId, selectedSubmodule, effectiveModules, severities, defectTypes]);
 
   return (
     <div className="max-w-5xl mx-auto py-8">

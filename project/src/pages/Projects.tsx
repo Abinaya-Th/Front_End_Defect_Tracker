@@ -106,7 +106,6 @@ export const Projects: React.FC = () => {
     setLoading(true);
     getAllProjects()
       .then((data: any) => {
-        console.log("Fetched projects:", data); // Debug: log the response
         let projectsArray = Array.isArray(data)
           ? data
           : (data && Array.isArray(data.data))
@@ -118,7 +117,6 @@ export const Projects: React.FC = () => {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
-  console.log(backendProjects);
 
 
   const handleSubmit = async (e: React.FormEvent) => {

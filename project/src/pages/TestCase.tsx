@@ -60,13 +60,18 @@ export const TestCase: React.FC = () => {
     getAllProjects().then(res => setProjects(res));
   }, []);
 
+  // Fetch static data only once on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
   // Fetch modules when selectedProjectId changes
   useEffect(() => {
     if (!selectedProjectId) return;
     getModulesByProjectId(selectedProjectId).then((res) => {
-      // Transform API data to expected format
       const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id), // Always use backend module ID
+        id: String(mod.id),
         name: mod.moduleName || mod.name,
         submodules: (mod.submodules || []).map((sm: any) => ({
           id: String(sm.id),
@@ -159,7 +164,6 @@ export const TestCase: React.FC = () => {
         }
       });
   }, [selectedModuleId]);
-  console.log("Submodules fetched:", submodules);
 
 
   // Add state for severities and defect types
@@ -183,14 +187,7 @@ export const TestCase: React.FC = () => {
         })) as TestCaseType[]
       );
     });
-  }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
-
-  // Fetch severities and defect types on mount
-  useEffect(() => {
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-
-  }, []);
+  }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes]); // Removed projectModules from dependencies
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -266,9 +263,8 @@ export const TestCase: React.FC = () => {
   // };
 
   // Handle submodule selection (just highlight, no fetch)
+  //noneeded
   const handleSubmoduleSelect = (submoduleId: string | null) => {
-    console.log("Submodule selected:", submoduleId);
-
     setSelectedSubmoduleId(submoduleId);
     setSelectedTestCases([]);
     setSearchResults(null);
@@ -394,11 +390,9 @@ export const TestCase: React.FC = () => {
         if (formData.id) {
           // Edit mode: update existing test case
           await updateTestCase(formData.id, payload);
-          console.log("Test case updated successfully");
         } else {
           // Add mode: create new test case
           const response = await createTestCase(payload);
-          console.log("Test case created successfully:", response);
         }
       } catch (error) {
         console.error("Error saving test case:", error);
@@ -510,8 +504,6 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-console.log("----------",selectedSubmoduleId);
-console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
@@ -728,6 +720,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                       setSelectedTestCases([]);
                       if (selectedProjectId && selectedSubmoduleId !== null) {
                         getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                          
                           const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
                           const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
                           setTestCases(
@@ -928,14 +921,14 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedTestCases.map((testCase: TestCaseType) => (
-                      <tr key={testCase.id} className="hover:bg-gray-50">
+                      <tr key={testCase.testCaseId} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedTestCases.includes(testCase.id)}
                             onChange={(e) =>
                               handleSelectTestCase(
-                                testCase.id,
+                                testCase.testCaseId,
                                 e.target.checked
                               )
                             }
@@ -943,7 +936,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.id}
+                          {testCase.testCaseId}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {testCase.description}
@@ -992,7 +985,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                                       type: testCase.type || "functional",
                                       severity: testCase.severity || "medium",
                                       projectId: testCase.projectId,
-                                      id: testCase.id,
+                                      id: testCase.testCaseId,
                                     },
                                   },
                                 ]);
@@ -1329,7 +1322,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
           setIsViewStepsModalOpen(false);
           setViewingTestCase(null);
         }}
-        title={`Test Steps - ${viewingTestCase?.id}`}
+        title={`Test Steps - ${viewingTestCase?.testCaseId}`}
       >
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
@@ -1359,7 +1352,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
           setIsViewTestCaseModalOpen(false);
           setViewingTestCase(null);
         }}
-        title={`Test Case Details - ${viewingTestCase?.id}`}
+        title={`Test Case Details - ${viewingTestCase?.testCaseId}`}
         size="xl"
       >
         {viewingTestCase && (

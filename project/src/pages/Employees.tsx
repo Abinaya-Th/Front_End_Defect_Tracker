@@ -27,6 +27,8 @@ import { createUser } from "../api/users/createUser";
 import { Designations, getDesignations } from "../api/designation/designation";
 import { useParams } from "react-router-dom";
 import { getAllUsers, User as BackendUser } from "../api/users/getallusers";
+import { getUsersByFilter, UserFilter } from "../api/users/filter";
+import { updateUser } from "../api/users/updateuser";
 
 export const Employees: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useApp();
@@ -53,7 +55,7 @@ export const Employees: React.FC = () => {
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 5;
+  const rowsPerPage = 10;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("");
@@ -66,26 +68,25 @@ export const Employees: React.FC = () => {
   );
 
   // Filter and search logic
-    const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch =
-      emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter ? emp.status === statusFilter : true;
-    const matchesGender = genderFilter ? emp.gender === genderFilter : true;
-    const matchesDesignation = designationFilter
-      ? emp.designation === designationFilter
-      : true;
-    return (
-      matchesSearch && matchesStatus && matchesGender && matchesDesignation
-    );
-  });
+    // const filteredEmployees = employees.filter((emp) => {
+    //   const matchesSearch =
+    //     emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     emp.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    //     emp.id.toLowerCase().includes(searchTerm.toLowerCase());
+    //   const matchesStatus = statusFilter ? emp.status === statusFilter : true;
+    //   const matchesGender = genderFilter ? emp.gender === genderFilter : true;
+    //   const matchesDesignation = designationFilter
+    //     ? emp.designation === designationFilter
+    //     : true;
+    //   return (
+    //     matchesSearch && matchesStatus && matchesGender && matchesDesignation
+    //   );
+    // });
   const name=useParams().name;
     const fetchDesignations = async () => {
   
       try {
         const response = await getDesignations();
-         console.log("Designations:", response.data);
         setDesignations(response.data);
       } catch (err: any) {
        console.error("Error fetching designations:", err);
@@ -94,7 +95,6 @@ export const Employees: React.FC = () => {
     useEffect(() => {
       fetchDesignations();  
     }, [name]);
-    console.log("Designations:", designations);
     
   function generateRandomPassword(length = 12) {
     const chars =
@@ -131,7 +131,6 @@ export const Employees: React.FC = () => {
       designationId: designationId,
     };
     
-    console.log("Sending payload:", payload); // Debug log
     
     try {
       const response = await createUser(payload);
@@ -150,9 +149,29 @@ export const Employees: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const employeeData = {
+
+    // Find the designationId from the name
+    const designationId = designations.find(d => d.name === formData.designation)?.id;
+
+    // Backend-compatible payload
+    const backendEmployeeData = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      // password: formData.password, // Uncomment if you have a password field
+      phoneNo: formData.phone,
+      joinDate: formData.joinedDate
+        ? new Date(formData.joinedDate).toISOString()
+        : "",
+      userGender: formData.gender,
+      userStatus: formData.status ? "Active" : "Inactive",
+      designationId: designationId,
+    };
+
+    // Frontend-compatible structure
+    const frontendEmployeeData = {
       ...formData,
       gender: formData.gender as "Male" | "Female",
       status: (formData.status ? "active" : "inactive") as "active" | "inactive",
@@ -162,13 +181,27 @@ export const Employees: React.FC = () => {
         .filter(Boolean),
       currentProjects: [],
     };
+
     if (editingEmployee) {
-      updateEmployee(editingEmployee.id, employeeData);
+      // Only update, do not create
+      try {
+        await updateUser(editingEmployee.id, backendEmployeeData);
+        alert("User updated successfully!");
+        updateEmployee(editingEmployee.id, frontendEmployeeData);
+      } catch (err) {
+        alert("Failed to update user");
+      }
       setEditingEmployee(null);
     } else {
-      addEmployee(employeeData as Omit<Employee, "id" | "createdAt" | "updatedAt">);
+      // Only create, do not update
+      try {
+        await fetchCreate(); // This should call createUser in the backend
+        alert("User created successfully!");
+        addEmployee(frontendEmployeeData as Omit<Employee, "id" | "createdAt" | "updatedAt">);
+      } catch (err) {
+        alert("Failed to create user");
+      }
     }
-    fetchCreate();
     resetForm();
     setIsModalOpen(false);
   };
@@ -191,6 +224,7 @@ export const Employees: React.FC = () => {
       status: true,
     });
   };
+  
 
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
@@ -203,7 +237,8 @@ export const Employees: React.FC = () => {
       phone: employee.phone,
       designation: employee.designation,
       experience: employee.experience,
-      joinedDate: employee.joinedDate,
+      // Convert join date to YYYY-MM-DD for input type="date"
+      joinedDate: employee.joinedDate ? new Date(employee.joinedDate).toISOString().slice(0, 10) : "",
       skills: employee.skills.join(", "),
       department: employee.department,
       manager: employee.manager || "",
@@ -248,15 +283,42 @@ export const Employees: React.FC = () => {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await getAllUsers(currentPage - 1, rowsPerPage);
-        setUsers(res.data.content);
-        setTotalPages(res.data.totalPages);
+        const selectedDesignationObj = designations.find(
+          (d) => d.name === designationFilter
+        );
+        const designationId = selectedDesignationObj ? selectedDesignationObj.id : undefined;
+
+        if (statusFilter || genderFilter || designationId) {
+          const res = await getUsersByFilter(genderFilter, statusFilter, designationId);
+          const mappedUsers = res.data.map((user) => {
+            const designationObj = designations.find(d => String(d.id) === String(user.designationId));
+            return {
+              userId: user.userId,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              userGender: user.userGender,
+              email: user.email,
+              phoneNo: user.phoneNo,
+              joinDate: user.joinDate,
+              userStatus: user.userStatus,
+              designationId: user.designationId ? String(user.designationId) : null,
+              id: user.userId,
+              designationName: designationObj ? designationObj.name : '',
+            };
+          });
+          setUsers(mappedUsers);
+          setTotalPages(1);
+        } else {
+          const allRes = await getAllUsers(currentPage - 1, rowsPerPage);
+          setUsers(allRes.data.content);
+          setTotalPages(allRes.data.totalPages);
+        }
       } catch (err) {
         console.error("Failed to fetch users", err);
       }
     }
     fetchUsers();
-  }, [currentPage]);
+  }, [currentPage, genderFilter, statusFilter, designationFilter, designations]);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -329,9 +391,9 @@ export const Employees: React.FC = () => {
             className="border border-gray-300 rounded-lg px-3 py-2"
           >
             <option value="">All Designations</option>
-            {uniqueDesignations.map((designation) => (
-              <option key={designation} value={designation}>
-                {designation}
+            {designations.map((designation) => (
+              <option key={designation?.id} value={designation?.name}>
+                {designation?.name}
               </option>
             ))}
           </select>
@@ -352,16 +414,16 @@ export const Employees: React.FC = () => {
                 <table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableCell header>Employee ID</TableCell>
-                      <TableCell header>First Name</TableCell>
-                      <TableCell header>Last Name</TableCell>
-                      <TableCell header>Gender</TableCell>
-                      <TableCell header>Designation</TableCell>
-                      <TableCell header>Contact Number</TableCell>
-                      <TableCell header>Email ID</TableCell>
-                      <TableCell header>Join Date</TableCell>
-                      <TableCell header>Status</TableCell>
-                      <TableCell header>Actions</TableCell>
+                      <TableCell header className="whitespace-nowrap">Employee ID</TableCell>
+                      <TableCell header className="whitespace-nowrap">First Name</TableCell>
+                      <TableCell header className="whitespace-nowrap">Last Name</TableCell>
+                      <TableCell header className="whitespace-nowrap">Gender</TableCell>
+                      <TableCell header className="whitespace-nowrap">Designation</TableCell>
+                      <TableCell header className="whitespace-nowrap">Contact Number</TableCell>
+                      <TableCell header className="whitespace-nowrap">Email ID</TableCell>
+                      <TableCell header className="whitespace-nowrap">Join Date</TableCell>
+                      <TableCell header className="whitespace-nowrap">Status</TableCell>
+                      <TableCell header className="whitespace-nowrap">Actions</TableCell>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -410,14 +472,6 @@ export const Employees: React.FC = () => {
                                 className="p-2 hover:bg-yellow-50 text-yellow-600"
                               >
                                 <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(user.userId)}
-                                className="p-2 hover:bg-red-50 text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -588,7 +642,9 @@ export const Employees: React.FC = () => {
             />
           </div>
           <div className="flex justify-start space-x-3 pt-4">
-            <Button type="submit">Save Employee</Button>
+            <Button type="submit">
+              {editingEmployee ? "Update Employee" : "Save Employee"}
+            </Button>
             <Button
               type="button"
               variant="secondary"
