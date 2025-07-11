@@ -202,6 +202,7 @@ export const Defects: React.FC = () => {
         });
     }
   }
+  console.log(backendDefects, "==========");
 
   React.useEffect(() => {
     if (!selectedProjectId) return;
@@ -358,6 +359,8 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
+      console.log(formData);
+
       try {
         const defectIdForApi = Number(formData.id);
         // Use the new payload structure as per backend requirements
@@ -410,12 +413,15 @@ export const Defects: React.FC = () => {
     const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
     const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
+    const id = backendDefects.find(x => x.id === defect.id)?.id?.toString() || "";
+    console.log(id);
+
 
     setEditingDefect(defect);
     setFormData(prev => ({
       ...prev,
+      id,
       defectId: defect.defectId || '',
-      id: defect.id ? String(defect.id) : '', // store real numeric id as string
       description: defect.description || '',
       steps: defect.steps || '',
       moduleId,
