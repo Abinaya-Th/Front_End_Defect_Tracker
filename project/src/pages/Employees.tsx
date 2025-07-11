@@ -87,7 +87,6 @@ export const Employees: React.FC = () => {
   
       try {
         const response = await getDesignations();
-         console.log("Designations:", response.data);
         setDesignations(response.data);
       } catch (err: any) {
        console.error("Error fetching designations:", err);
@@ -96,7 +95,6 @@ export const Employees: React.FC = () => {
     useEffect(() => {
       fetchDesignations();  
     }, [name]);
-    console.log("Designations:", designations);
     
   function generateRandomPassword(length = 12) {
     const chars =
@@ -133,7 +131,6 @@ export const Employees: React.FC = () => {
       designationId: designationId,
     };
     
-    console.log("Sending payload:", payload); // Debug log
     
     try {
       const response = await createUser(payload);
@@ -227,7 +224,6 @@ export const Employees: React.FC = () => {
       status: true,
     });
   };
-  console.log({designations});
   
 
   const handleEdit = (employee: Employee) => {

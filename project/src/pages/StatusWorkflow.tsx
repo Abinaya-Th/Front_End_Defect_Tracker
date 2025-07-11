@@ -398,7 +398,6 @@ const StatusWorkflow: React.FC = () => {
             icon={Save}
             onClick={() => {
               // Save workflow logic here
-              console.log('Saving workflow:', { nodes, edges });
             }}
           >
             Save Workflow

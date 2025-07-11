@@ -119,8 +119,6 @@ export const ModuleManagement: React.FC = () => {
     }
   };
 
-  console.log("developersWithRoles", developersWithRoles);
-
 
   const handleAddModule = async () => {
     if (moduleForm.name.trim() && selectedProjectId) {
@@ -128,12 +126,10 @@ export const ModuleManagement: React.FC = () => {
         moduleName: moduleForm.name,
         projectId: Number(selectedProjectId),
       }
-      console.log({ payload });
 
       try {
         // Call backend API to create module
         const response = await createModuleApi(payload);
-        console.log({ response });
         if (response.status === "success") {
           // Refresh modules after adding
           fetchModules();
@@ -168,7 +164,6 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleEditModule = (module: ApiModule) => {
-    console.log('Editing module:', module);
     setEditingModule(module);
     setModuleForm({
       name: module.moduleName || '',
@@ -184,7 +179,6 @@ export const ModuleManagement: React.FC = () => {
           moduleName: moduleForm.name,
           projectId: Number(selectedProjectId),
         });
-        console.log('Update module API response:', response);
         if (response.success && response.module) {
           // Refresh modules after updating
           fetchModules();
@@ -408,18 +402,15 @@ export const ModuleManagement: React.FC = () => {
   };
 
   // Defensive logging and type normalization for project lookup
-  console.log('projects:', projects, 'selectedProjectId:', selectedProjectId, typeof selectedProjectId);
-  console.log('project ids:', projects.map(p => [p.id, typeof p.id]));
+
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
-  console.log('found project:', project);
+ 
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
     setIsLoading(true);
     try {
       const response = await getModulesByProjectId(selectedProjectId);
-      console.log("Fetched modules:", response);
-
       if (response.data) {
         setModulesByProjectId(response.data);
       }
@@ -435,7 +426,6 @@ export const ModuleManagement: React.FC = () => {
     fetchModules();
   }, [selectedProjectId]);
 
-  console.log({ modulesByProjectId });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -941,7 +931,6 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    console.log("Submodule API response:", response);
                     if (response.success) {
                       // Refresh modules after adding
                       fetchModules();

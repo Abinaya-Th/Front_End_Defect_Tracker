@@ -85,7 +85,6 @@ export default function BenchAllocate() {
         setProjectsLoading(true);
         getAllProjects()
             .then((data: any) => {
-                console.log("Fetched projects for BenchAllocate:", data);
                 let projectsArray = Array.isArray(data)
                     ? data
                     : (data && Array.isArray(data.data))
@@ -124,10 +123,8 @@ export default function BenchAllocate() {
     // Fetch project allocations when selectedProjectId changes
     useEffect(() => {
         if (selectedProjectId) {
-            console.log('Fetching allocations for project:', selectedProjectId);
             getProjectAllocationsById(selectedProjectId)
                 .then((data) => {
-                    console.log('Allocations GET response:', data);
                     setProjectAllocations(prev => ({
                         ...prev,
                         [selectedProjectId]: Array.isArray(data.data) ? data.data : [],

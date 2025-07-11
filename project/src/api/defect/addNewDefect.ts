@@ -27,13 +27,11 @@ export interface DefectCreateProps {
 }
 
 export const addDefects = (payload: DefectCreate): Promise<DefectCreateProps> => {
-  console.log('Making API call to:', `${BASE_URL}defect/withoutReleaseTestCaseId`);
-  console.log('Payload being sent:', payload);
+
 
   return axios
     .post<DefectCreateProps>(`${BASE_URL}defect/withoutReleaseTestCaseId`, payload)
     .then(({ data }) => {
-      console.log('API call successful, response:', data);
       return data;
     })
     .catch((error) => {
