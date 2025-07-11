@@ -412,9 +412,14 @@ export const Defects: React.FC = () => {
     const assigntoId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_to_name)?.id?.toString() || '';
     const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
-    const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
+    const releaseId = releasesData.find(r => r.releaseName === defect.release_test_case_description)?.id?.toString() || '';
     const id = backendDefects.find(x => x.id === defect.id)?.id?.toString() || "";
     console.log(id);
+    console.log('Editing defect:', {
+      defectReleaseDesc: defect.release_test_case_description,
+      releasesData: releasesData.map(r => r.releaseName),
+      foundReleaseId: releaseId
+    });
 
 
     setEditingDefect(defect);
@@ -1502,7 +1507,11 @@ export const Defects: React.FC = () => {
                 <input
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                  value={releasesData.find(r => r.id === formData.releaseId)?.releaseName || formData.releaseId || '-'}
+                  value={
+                    releasesData.find(r => r.id === String(formData.releaseId))?.releaseName ||
+                    (editingDefect as any).release_name?.toString() ||
+                    '-'
+                  }
                   readOnly
                   disabled
                 />
