@@ -89,7 +89,7 @@ export const TestCase: React.FC = () => {
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
-  const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
+  // const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]); // Removed
   const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
   // const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Unused
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
@@ -266,17 +266,17 @@ export const TestCase: React.FC = () => {
   //noneeded
   const handleSubmoduleSelect = (submoduleId: string | null) => {
     setSelectedSubmoduleId(submoduleId);
-    setSelectedTestCases([]);
+    // setSelectedTestCases([]); // Removed
     setSearchResults(null);
     setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
   };
 
   // When selection changes, update selectedTestCases for bulk actions
-  useEffect(() => {
-    if (selectedModules.length > 0 || selectedSubmodules.length > 0) {
-      setSelectedTestCases(selectedTestCaseIds);
-    }
-  }, [selectedTestCaseIds, selectedModules, selectedSubmodules]);
+  // useEffect(() => {
+  //   if (selectedModules.length > 0 || selectedSubmodules.length > 0) {
+  //     setSelectedTestCases(selectedTestCaseIds);
+  //   }
+  // }, [selectedTestCaseIds, selectedModules, selectedSubmodules]); // Removed
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -389,7 +389,7 @@ export const TestCase: React.FC = () => {
       try {
         if (formData.id) {
           // Edit mode: update existing test case
-          await updateTestCase(formData.id, payload);
+          await updateTestCase(extractNumericId(formData.id), payload);
         } else {
           // Add mode: create new test case
           const response = await createTestCase(payload);
@@ -451,21 +451,21 @@ export const TestCase: React.FC = () => {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedTestCases(filteredTestCases.map((tc: TestCaseType) => tc.id));
-    } else {
-      setSelectedTestCases([]);
-    }
-  };
+  // const handleSelectAll = (checked: boolean) => {
+  //   if (checked) {
+  //     setSelectedTestCases(filteredTestCases.map((tc: TestCaseType) => tc.id));
+  //   } else {
+  //     setSelectedTestCases([]);
+  //   }
+  // };
 
-  const handleSelectTestCase = (testCaseId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedTestCases([...selectedTestCases, testCaseId]);
-    } else {
-      setSelectedTestCases(selectedTestCases.filter((id) => id !== testCaseId));
-    }
-  };
+  // const handleSelectTestCase = (testCaseId: string, checked: boolean) => {
+  //   if (checked) {
+  //     setSelectedTestCases([...selectedTestCases, testCaseId]);
+  //   } else {
+  //     setSelectedTestCases(selectedTestCases.filter((id) => id !== testCaseId));
+  //   }
+  // };
 
   const handleViewSteps = (testCase: TestCaseType) => {
     setViewingTestCase(testCase);
@@ -559,6 +559,11 @@ export const TestCase: React.FC = () => {
     setCurrentPage(1);
   }, [searchResults, filteredTestCases, rowsPerPage]);
 
+  // Add helper function at the top (after imports)
+  function extractNumericId(id: string) {
+    return id.replace(/\D/g, '').replace(/^0+/, '');
+  }
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -596,7 +601,7 @@ export const TestCase: React.FC = () => {
               onSelect={(id) => {
                 setSelectedModuleId(id);
                 setSelectedSubmoduleId(null);
-                setSelectedTestCases([]);
+                // setSelectedTestCases([]); // Removed
               }}
               className="mb-4"
             />
@@ -707,43 +712,7 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Bulk Operations Panel */}
-          {selectedProjectId && selectedModuleId && selectedTestCases.length > 0 && (
-            <div className="flex justify-end space-x-3 mb-4">
-              <Button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Are you sure you want to delete ${selectedTestCases.length} test case(s)?`
-                    )
-                  ) {
-                    Promise.all(selectedTestCases.map((id) => deleteTestCaseById(id))).then(() => {
-                      setSelectedTestCases([]);
-                      if (selectedProjectId && selectedSubmoduleId !== null) {
-                        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                          
-                          const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                          const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                          setTestCases(
-                            (data as any[]).map((tc: any) => ({
-                              ...tc,
-                              module: moduleMap[tc.moduleId] || tc.moduleId,
-                              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                            })) as TestCaseType[]
-                          );
-                        });
-                      }
-                    });
-                  }
-                }}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete ({selectedTestCases.length})</span>
-              </Button>
-            </div>
-          )}
+          {/* Removed bulk delete button */}
 
           {/* Filter Options Above Table */}
           {selectedProjectId && selectedModuleId && (
@@ -888,17 +857,7 @@ export const TestCase: React.FC = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr className="border-b border-gray-200">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedTestCases.length ===
-                            filteredTestCases.length
-                          }
-                          onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </th>
+                      {/* Removed checkbox column */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         TEST CASE ID
                       </th>
@@ -922,19 +881,7 @@ export const TestCase: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedTestCases.map((testCase: TestCaseType) => (
                       <tr key={testCase.testCaseId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={selectedTestCases.includes(testCase.id)}
-                            onChange={(e) =>
-                              handleSelectTestCase(
-                                testCase.testCaseId,
-                                e.target.checked
-                              )
-                            }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        </td>
+                        {/* Removed checkbox column */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testCase.testCaseId}
                         </td>
