@@ -89,12 +89,13 @@ export const ModuleManagement: React.FC = () => {
 
   // New state for developers assigned to modules/submodules
   const [moduleDevelopers, setModuleDevelopers] = useState<Record<string, any[]>>({});
+console.log(projectId, "projectId from params in module management page");
 
-  useEffect(() => {
-    if (projectId) {
-      setSelectedProjectId(projectId);
-    }
-  }, [projectId, setSelectedProjectId]);
+  // useEffect(() => {
+  //   if (projectId) {
+  //     setSelectedProjectId(projectId);
+  //   }
+  // }, [projectId, setSelectedProjectId]);
 
   // Filter developers (engineers/developers)
   const availableDevelopers = employees.filter(
@@ -409,6 +410,8 @@ export const ModuleManagement: React.FC = () => {
   };
 
   // Defensive logging and type normalization for project lookup
+  console.log("Selected Project ID:", selectedProjectId);
+  
 
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
  
@@ -956,7 +959,7 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    if (response.success) {
+                    if (response.status === "success") {
                       // Refresh modules after adding
                       fetchModules();
                       setIsAddSubmoduleModalOpen(false);

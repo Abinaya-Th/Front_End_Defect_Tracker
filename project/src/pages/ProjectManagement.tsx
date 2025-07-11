@@ -51,7 +51,10 @@ export const ProjectManagement: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
-          onClick={() => setShowModuleManagement(true)}
+          // onClick={() => setShowModuleManagement(true)}
+          onClick={() => navigate(`/projects/${projectId}/project-management/module-management`)}
+
+
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Settings className="w-12 h-12 text-blue-500 mb-4 group-hover:text-blue-700 transition-colors" />
@@ -63,7 +66,7 @@ export const ProjectManagement: React.FC = () => {
         <Card
           hover
           className="cursor-pointer group transition-all duration-300 hover:shadow-lg hover:scale-[1.03]"
-          onClick={() => navigate(`/projects/${projectId}/allocation-history`)}
+          onClick={() => navigate(`/projects/${projectId}/project-management/allocation-history`)}
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Users className="w-12 h-12 text-green-500 mb-4 group-hover:text-green-700 transition-colors" />

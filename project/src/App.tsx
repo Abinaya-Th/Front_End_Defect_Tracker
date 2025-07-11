@@ -167,7 +167,7 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/allocation-history"
+          path="/projects/:projectId/project-management/allocation-history"
           element={
             <ProtectedRoute>
               <ProjectAllocationHistory />
@@ -175,7 +175,7 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/projects/:projectId/module-management"
+          path="/projects/:projectId/project-management/module-management"
           element={
             <ProtectedRoute>
               <ModuleManagement />
