@@ -153,7 +153,6 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
       )
     );
   };
-console.log("id",selectedProjectId);  
 
   const handleAddAnother = () => {
     setModals((prev) => [
@@ -262,11 +261,26 @@ console.log("id",selectedProjectId);
     (p: { id: string }) => p.id === selectedProjectId
   );
 
+  // Fetch static data only once on mount
   useEffect(() => {
-    getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-  }, [selectedProjectId ]);
+    getSeverities()
+      .then(res => setSeverities(res.data))
+      .catch(() => setSeverities([]));
+    getDefectTypes()
+      .then(res => setDefectTypes(res.data))
+      .catch(() => setDefectTypes([]));
+  }, []);
+
+  // Fetch modules when project changes
+  useEffect(() => {
+    if (selectedProjectId) {
+      getModulesByProjectId(selectedProjectId)
+        .then(res => setModules(res.data))
+        .catch(() => setModules([]));
+    } else {
+      setModules([]);
+    }
+  }, [selectedProjectId]);
 
   // Fetch submodules for the selected module only
   useEffect(() => {
@@ -275,7 +289,9 @@ console.log("id",selectedProjectId);
       (m: any) => m.moduleName === currentModuleName
     );
     if (selectedModuleObj && selectedModuleObj.id) {
-      getSubmodulesByModuleId(selectedModuleObj.id).then(res => setSubModules(res.data || []));
+      getSubmodulesByModuleId(selectedModuleObj.id)
+        .then(res => setSubModules(res.data || []))
+        .catch(() => setSubModules([]));
     } else {
       setSubModules([]);
     }
@@ -369,7 +385,7 @@ console.log("id",selectedProjectId);
           const modal = modals[idx];
           const submodules: string[] =
             projectModules
-              && projectModules.find((m: { name: string }) => m.name === modal.formData.module)
+            && projectModules.find((m: { name: string }) => m.name === modal.formData.module)
               ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal
@@ -448,7 +464,7 @@ console.log("id",selectedProjectId);
                             <option key={module.id} value={module.moduleName}>
                               {module.moduleName}
                             </option>
-                          ) 
+                          )
                         )}
                       </select>
                     </div>

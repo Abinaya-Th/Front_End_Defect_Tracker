@@ -729,11 +729,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         prev[projectId]?.map((m) =>
           m.id === moduleId
             ? {
-                ...m,
-                submodules: m.submodules.map((s, i) =>
-                  i === submoduleIdx ? { ...s, name: newName } : s
-                ),
-              }
+              ...m,
+              submodules: m.submodules.map((s, i) =>
+                i === submoduleIdx ? { ...s, name: newName } : s
+              ),
+            }
             : m
         ) || [],
     }));
@@ -884,19 +884,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    getModulesByProjectId(selectedProjectId).then((res) => {
-      const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id),
-        name: mod.moduleName || mod.name,
-        assignedDevs: [],
-        submodules: (mod.submodules || []).map((sm: any) => ({
-          id: String(sm.id),
-          name: sm.subModuleName || sm.name,
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        const modules = (res.data || []).map((mod: any) => ({
+          id: String(mod.id),
+          name: mod.moduleName || mod.name,
           assignedDevs: [],
-        })),
-      }));
-      setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
-    });
+          submodules: (mod.submodules || []).map((sm: any) => ({
+            id: String(sm.id),
+            name: sm.subModuleName || sm.name,
+            assignedDevs: [],
+          })),
+        }));
+        setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
+      })
+      .catch(error => {
+        console.error('Failed to fetch modules for project:', error.message);
+        setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: [] }));
+      });
   }, [selectedProjectId]);
 
   return (

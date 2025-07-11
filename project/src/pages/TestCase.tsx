@@ -60,13 +60,18 @@ export const TestCase: React.FC = () => {
     getAllProjects().then(res => setProjects(res));
   }, []);
 
+  // Fetch static data only once on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
   // Fetch modules when selectedProjectId changes
   useEffect(() => {
     if (!selectedProjectId) return;
     getModulesByProjectId(selectedProjectId).then((res) => {
-      // Transform API data to expected format
       const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id), // Always use backend module ID
+        id: String(mod.id),
         name: mod.moduleName || mod.name,
         submodules: (mod.submodules || []).map((sm: any) => ({
           id: String(sm.id),
@@ -183,14 +188,7 @@ export const TestCase: React.FC = () => {
         })) as TestCaseType[]
       );
     });
-  }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
-
-  // Fetch severities and defect types on mount
-  useEffect(() => {
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-
-  }, []);
+  }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes]); // Removed projectModules from dependencies
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -510,8 +508,8 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-console.log("----------",selectedSubmoduleId);
-console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
+  console.log("----------", selectedSubmoduleId);
+  console.log(submodules.find((sm: any) => sm.id === selectedSubmoduleId)?.name);
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);

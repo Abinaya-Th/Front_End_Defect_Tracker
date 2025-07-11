@@ -12,13 +12,16 @@ import { getSeverities } from "../api/severity";
 import { getAllPriorities } from "../api/priority";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import axios from "axios";
+import { addDefects } from "../api/defect/addNewDefect";
+import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 
 interface QuickAddDefectProps {
   projectModules: { id: string; name: string; submodules: { id: string; name: string }[] }[];
+  onDefectAdded?: () => void;
 }
 
-const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) => {
-  const { selectedProjectId, projects, addDefect } = useApp();
+const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefectAdded }) => {
+  const { selectedProjectId, projects, addDefect, employees } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     description: "",
@@ -44,101 +47,127 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) 
   const [severities, setSeverities] = useState<{ id: number; name: string }[]>([]);
   const [priorities, setPriorities] = useState<{ id: number; priority: string }[]>([]);
   const [releasesData, setReleasesData] = useState<any[]>([]);
-  const [userList, setUserList] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
 
-  // Fetch modules when project changes
-  React.useEffect(() => {
-    if (!selectedProjectId) return;
-    getModulesByProjectId(selectedProjectId).then((res) => {
-      setModules((res.data || []).map((m: any) => ({ id: m.id?.toString(), name: m.moduleName })));
-    });
+  // Add state for allocated users for the selected module
+  const [allocatedUsers, setAllocatedUsers] = useState<{ userId: number; userName: string }[]>([]);
+  const [isAllocatedUsersLoading, setIsAllocatedUsersLoading] = useState(false);
+
+  // Fetch static data only once on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getAllPriorities().then(res => setPriorities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
+  // Fetch project-specific data only when project changes
+  useEffect(() => {
+    if (selectedProjectId) {
+      projectReleaseCardView(selectedProjectId).then(res => {
+        setReleasesData(res.data || []);
+      }).catch(() => setReleasesData([]));
+      getModulesByProjectId(selectedProjectId)
+        .then((res) => {
+          setModules((res.data || []).map((m: any) => ({ id: m.id?.toString(), name: m.moduleName })));
+        })
+        .catch(() => setModules([]));
+    } else {
+      setReleasesData([]);
+      setModules([]);
+    }
   }, [selectedProjectId]);
 
   // Fetch submodules when module changes
-  React.useEffect(() => {
-    if (!formData.moduleId) {
-      setSubmodules([]);
-      setFormData(f => ({ ...f, subModuleId: '' }));
-      return;
-    }
-    getSubmodulesByModuleId(formData.moduleId)
-      .then(res => {
+  useEffect(() => {
+    if (formData.moduleId) {
+      getSubmodulesByModuleId(formData.moduleId).then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
-          name: sm.name || sm.subModuleName
+          name: sm.subModuleName || sm.name || ''
         }));
         setSubmodules(mapped);
-      })
-      .catch(() => setSubmodules([]));
+      }).catch(() => setSubmodules([]));
+    } else {
+      setSubmodules([]);
+    }
   }, [formData.moduleId]);
 
-  // Fetch defect types and severities on mount
-  React.useEffect(() => {
-    getDefectTypes().then(res => setDefectTypes(res.data));
-    getSeverities().then(res => setSeverities(res.data));
-  }, []);
-
-  // Fetch priorities
-  React.useEffect(() => {
-    getAllPriorities().then(res => setPriorities(res.data || []));
-  }, []);
-
-  // Fetch releases for the selected project
-  React.useEffect(() => {
-    if (!selectedProjectId) return;
-    projectReleaseCardView(selectedProjectId).then(res => setReleasesData(res.data || []));
-  }, [selectedProjectId]);
-
-  // Fetch users for 'Assigned To' and 'Entered By' on mount
-  React.useEffect(() => {
-    axios.get(`${import.meta.env.VITE_BASE_URL}user`).then(res => {
-      if (res.data && Array.isArray(res.data.data)) {
-        setUserList(res.data.data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName })));
-      }
-    });
-  }, []);
+  // Fetch allocated users when moduleId changes in the form
+  useEffect(() => {
+    if (!formData.moduleId) {
+      setAllocatedUsers([]);
+      return;
+    }
+    setIsAllocatedUsersLoading(true);
+    getAllocatedUsersByModuleId(formData.moduleId)
+      .then((data) => {
+        // The API returns an array of allocations, may have duplicate users for submodules
+        // We'll deduplicate by userId
+        const uniqueUsers: { [id: number]: string } = {};
+        (Array.isArray(data) ? data : []).forEach((item: any) => {
+          if (item.userId && item.userName) {
+            uniqueUsers[item.userId] = item.userName;
+          }
+        });
+        setAllocatedUsers(Object.entries(uniqueUsers).map(([userId, userName]) => ({ userId: Number(userId), userName })));
+      })
+      .catch(() => setAllocatedUsers([]))
+      .finally(() => setIsAllocatedUsersLoading(false));
+  }, [formData.moduleId]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(true);
-    // Map priorityId and severityId to their names
-    const priorityName = priorities.find(p => String(p.id) === formData.priorityId)?.priority || "medium";
-    const severityName = severities.find(s => String(s.id) === formData.severityId)?.name || "medium";
-    // Add defect to main defect table
-    addDefect({
-      ...formData,
-      id: `DEF-${Date.now()}`,
+    // Prepare payload for backend API
+    const payload = {
+      description: formData.description,
+      severityId: Number(formData.severityId),
+      priorityId: Number(formData.priorityId),
+      typeId: Number(formData.typeId),
+      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // Ensure number or null
+      attachment: formData.attachment || undefined,
+      assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // Ensure number or null
+      steps: formData.steps || undefined,
       projectId: selectedProjectId || "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: "open",
-      title: formData.description || "Untitled Defect",
-      priority: priorityName as "low" | "medium" | "high" | "critical",
-      severity: severityName as "low" | "medium" | "high" | "critical",
-      reportedBy: "system", // Placeholder, update as needed
-    });
-    setTimeout(() => {
+      modulesId: formData.moduleId,
+      subModuleId: formData.subModuleId ? formData.subModuleId : null,
+      defectStatusId: formData.statusId ? Number(formData.statusId) : null,
+      reOpenCount: 0,
+    };
+    try {
+      const response = await addDefects(payload as any);
+      if (response.status === "Success" || response.statusCode === 200) {
+        setTimeout(() => {
+          setSuccess(false);
+          setIsModalOpen(false);
+          setFormData({
+            description: "",
+            steps: "",
+            moduleId: "",
+            subModuleId: "",
+            severityId: "",
+            priorityId: "",
+            typeId: "",
+            assigntoId: "",
+            assignbyId: "",
+            releaseId: "",
+            attachment: "",
+            statusId: "",
+          });
+        }, 1200);
+        alert("Defect added successfully!");
+        if (onDefectAdded) onDefectAdded();
+      } else {
+        setSuccess(false);
+        alert("Failed to add defect: " + (response.message || "Unknown error"));
+      }
+    } catch (error: any) {
       setSuccess(false);
-      setIsModalOpen(false);
-      setFormData({
-        description: "",
-        steps: "",
-        moduleId: "",
-        subModuleId: "",
-        severityId: "",
-        priorityId: "",
-        typeId: "",
-        assigntoId: "",
-        assignbyId: "",
-        releaseId: "",
-        attachment: "",
-        statusId: "",
-      });
-    }, 1200);
+      alert("Error adding defect. Please try again.\n" + (error?.message || error));
+    }
   };
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,32 +189,6 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) 
       alert("Failed to import defects: " + (error?.message || error));
     }
   };
-
-  useEffect(() => {
-    getSeverities().then(res => setSeverities(res.data));
-    getAllPriorities().then(res => setPriorities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-    if (selectedProjectId) {
-      projectReleaseCardView(selectedProjectId).then(res => {
-        setReleasesData(res.data || []);
-      });
-    } else {
-      setReleasesData([]);
-    }
-    // Fetch submodules when module changes
-    if (formData.moduleId) {
-      const selectedModuleObj = projectModules.find((m: any) => m.id === formData.moduleId);
-      if (selectedModuleObj && 'id' in selectedModuleObj && selectedModuleObj.id) {
-        getSubmodulesByModuleId(selectedModuleObj.id).then(res => {
-          setSubmodules(res.data || []);
-        }).catch(() => setSubmodules([]));
-      } else {
-        setSubmodules([]);
-      }
-    } else {
-      setSubmodules([]);
-    }
-  }, [selectedProjectId, formData.moduleId, projectModules]);
 
   return (
     <div>
@@ -239,7 +242,7 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) 
             {projects.find((p) => p.id === selectedProjectId)?.name}
           </div>
         )}
-       
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Brief Description */}
           <Input
@@ -300,7 +303,7 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) 
                 <option value="">
                   {submodules.length === 0
                     ? "No submodules"
-                    : "Select a submodule (optional)"}
+                    : "Select a submodule"}
                 </option>
                 {submodules.map((submodule) => (
                   <option key={submodule.id} value={submodule.id}>
@@ -384,43 +387,17 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules = [] }) 
                 value={formData.assigntoId}
                 onChange={e => handleInputChange('assigntoId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isAllocatedUsersLoading || !formData.moduleId}
                 required
               >
-                <option value="">Select assignee</option>
-                {userList.map(user => (
-                  <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>
+                <option value="">
+                  {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee"}
+                </option>
+                {allocatedUsers.map(user => (
+                  <option key={user.userId} value={user.userId.toString()}>{user.userName}</option>
                 ))}
               </select>
             </div>
-          </div>
-          <div className="flex items-center mb-2">
-            <button
-              type="button"
-              className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
-                />
-              </svg>
-              Import from Excel/CSV
-            </button>
-            <input
-              type="file"
-              accept=".xlsx,.csv"
-              onChange={handleImportExcel}
-              ref={fileInputRef}
-              className="hidden"
-            />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button
