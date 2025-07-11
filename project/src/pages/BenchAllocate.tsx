@@ -58,6 +58,9 @@ export default function BenchAllocate() {
     const [selectedBench, setSelectedBench] = useState<string[]>([]);
     const [selectedProjectUsers, setSelectedProjectUsers] = useState<string[]>([]);
     const [allocationModal, setAllocationModal] = useState<{ open: boolean, employees: any[] }>({ open: false, employees: [] });
+    const [deallocationFilter, setDeallocationFilter] = useState('');
+    const [deallocationRoleFilter, setDeallocationRoleFilter] = useState('');
+    const [deallocationAvailabilityFilter, setDeallocationAvailabilityFilter] = useState<string>('');
     // Allocations are local to this page for now
     const [projectAllocations, setProjectAllocations] = useState<{ [projectId: string]: any[] }>({});
     const [hoveredEmployee, setHoveredEmployee] = useState<any | null>(null);
@@ -183,6 +186,23 @@ export default function BenchAllocate() {
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
     
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
+    
+    const filteredAllocatedEmployees = useMemo(() => {
+        return allocatedEmployees.filter(emp => {
+            const matchesSearch = emp.userFullName?.toLowerCase().includes(deallocationFilter.toLowerCase()) || 
+                                 emp.roleName?.toLowerCase().includes(deallocationFilter.toLowerCase());
+            const matchesRole = !deallocationRoleFilter || emp.roleName === deallocationRoleFilter;
+            let matchesAvailability = true;
+            if (deallocationAvailabilityFilter === '100') {
+                matchesAvailability = emp.allocationPercentage === 100;
+            } else if (deallocationAvailabilityFilter === '75') {
+                matchesAvailability = emp.allocationPercentage >= 75;
+            } else if (deallocationAvailabilityFilter === '50') {
+                matchesAvailability = emp.allocationPercentage >= 50;
+            }
+            return matchesSearch && matchesRole && matchesAvailability;
+        });
+    }, [allocatedEmployees, deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
 
     // Handlers
     const handleAllocate = () => {
@@ -307,35 +327,7 @@ export default function BenchAllocate() {
                 className="mb-4"
             />
 
-            {/* Filters */}
-            <div className="flex gap-4 mb-4">
-                <Input
-                    placeholder="Search employees..."
-                    value={benchFilter}
-                    onChange={e => setBenchFilter(e.target.value)}
-                    className="w-64"
-                />
-                <select
-                    value={designationFilter}
-                    onChange={e => setDesignationFilter(e.target.value)}
-                    className="border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10 w-64"
-                >
-                    <option value="">All Designations</option>
-                    {[...new Set(employees.map(e => e.designation))].map(d => (
-                        <option key={d} value={d}>{d}</option>
-                    ))}
-                </select>
-                <select
-                    value={availabilityFilter[0] ? String(availabilityFilter[0]) : ''}
-                    onChange={e => setAvailabilityFilter(e.target.value ? [parseInt(e.target.value)] : [])}
-                    className="border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10 w-64"
-                >
-                    <option value="">All Availability</option>
-                    <option value={100}>100% Available</option>
-                    <option value={75}>75% and above</option>
-                    <option value={50}>50% and above</option>
-                </select>
-            </div>
+
             {/* Main Panels */}
             <div className="flex flex-1 gap-6">
                 {/* Left: Bench */}
@@ -353,6 +345,37 @@ export default function BenchAllocate() {
                                 className="bg-[#f5f6f7] rounded-xl shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] px-6 py-2 font-semibold text-gray-800 transition hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff]"
                                 onClick={() => setSelectedBench([])}
                             >Clear</Button>
+                        </div>
+                    </div>
+                    {/* Search and Filter for Bench */}
+                    <div className="mb-4 space-y-3">
+                        <Input
+                            placeholder="Search employees..."
+                            value={benchFilter}
+                            onChange={e => setBenchFilter(e.target.value)}
+                            className="w-full"
+                        />
+                        <div className="flex gap-2">
+                            <select
+                                value={designationFilter}
+                                onChange={e => setDesignationFilter(e.target.value)}
+                                className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
+                            >
+                                <option value="">All Designations</option>
+                                {[...new Set(employees.map(e => e.designation))].map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={availabilityFilter[0] ? String(availabilityFilter[0]) : ''}
+                                onChange={e => setAvailabilityFilter(e.target.value ? [parseInt(e.target.value)] : [])}
+                                className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
+                            >
+                                <option value="">All Availability</option>
+                                <option value={100}>100% Available</option>
+                                <option value={75}>75% and above</option>
+                                <option value={50}>50% and above</option>
+                            </select>
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
@@ -411,12 +434,14 @@ export default function BenchAllocate() {
                 <div className="flex-1 bg-white rounded-lg border border-[#D1D5DB] p-4 flex flex-col shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
                     <div className="flex items-center bg-blue-50 rounded-t-lg px-4 py-2">
                         <User className="w-5 h-5 mr-2" />
-                        <span className="font-semibold text-lg">{currentProject?.name}</span>
+                        <span className="font-semibold text-lg text-blue-900">
+                            {currentProject?.name ? currentProject.name : ' Project Selected'}
+                        </span>
                         <div className="flex gap-2 ml-auto">
                             <Button
                                 variant="primary"
                                 className="mr-2"
-                                onClick={() => setSelectedProjectUsers(allocatedEmployees.map(e => e.id))}
+                                onClick={() => setSelectedProjectUsers(filteredAllocatedEmployees.map(e => e.id))}
                             >Select All</Button>
                             <Button
                                 variant="primary"
@@ -424,9 +449,42 @@ export default function BenchAllocate() {
                             >Clear</Button>
                         </div>
                     </div>
+                    {/* Search and Filter for Deallocation */}
+                    <div className="mb-4 space-y-3 px-4 py-2">
+                        <Input
+                            placeholder="Search allocated employees..."
+                            value={deallocationFilter}
+                            onChange={e => setDeallocationFilter(e.target.value)}
+                            className="w-full"
+                        />
+                        <div className="flex gap-2">
+                            <select
+                                value={deallocationRoleFilter}
+                                onChange={e => setDeallocationRoleFilter(e.target.value)}
+                                className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
+                            >
+                                <option value="">All Roles</option>
+                                {[...new Set(allocatedEmployees.map(e => e.roleName))].map(role => (
+                                    <option key={role} value={role}>{role}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={deallocationAvailabilityFilter}
+                                onChange={e => setDeallocationAvailabilityFilter(e.target.value)}
+                                className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
+                            >
+                                <option value="">All Availability</option>
+                                <option value="100">100% Available</option>
+                                <option value="75">75% and above</option>
+                                <option value="50">50% and above</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="flex-1 overflow-y-auto">
-                        {allocatedEmployees.length === 0 ? (
-                            <div className="text-gray-400 text-center py-8">No allocations yet</div>
+                        {filteredAllocatedEmployees.length === 0 ? (
+                            <div className="text-gray-400 text-center py-8">
+                                {allocatedEmployees.length === 0 ? "No allocations yet" : "No employees match your search"}
+                            </div>
                         ) : (
                             <table className="w-full text-center">
                                 <thead>
@@ -440,7 +498,7 @@ export default function BenchAllocate() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {allocatedEmployees.map((emp: any) => (
+                                    {filteredAllocatedEmployees.map((emp: any) => (
                                         <tr
                                             key={emp.id}
                                             className={`border-b border-[#D1D5DB] hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8] border-[#2563EB]' : ''}`}

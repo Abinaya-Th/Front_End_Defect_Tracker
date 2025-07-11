@@ -414,16 +414,16 @@ export const Employees: React.FC = () => {
                 <table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableCell header>Employee ID</TableCell>
-                      <TableCell header>First Name</TableCell>
-                      <TableCell header>Last Name</TableCell>
-                      <TableCell header>Gender</TableCell>
-                      <TableCell header>Designation</TableCell>
-                      <TableCell header>Contact Number</TableCell>
-                      <TableCell header>Email ID</TableCell>
-                      <TableCell header>Join Date</TableCell>
-                      <TableCell header>Status</TableCell>
-                      <TableCell header>Actions</TableCell>
+                      <TableCell header className="whitespace-nowrap">Employee ID</TableCell>
+                      <TableCell header className="whitespace-nowrap">First Name</TableCell>
+                      <TableCell header className="whitespace-nowrap">Last Name</TableCell>
+                      <TableCell header className="whitespace-nowrap">Gender</TableCell>
+                      <TableCell header className="whitespace-nowrap">Designation</TableCell>
+                      <TableCell header className="whitespace-nowrap">Contact Number</TableCell>
+                      <TableCell header className="whitespace-nowrap">Email ID</TableCell>
+                      <TableCell header className="whitespace-nowrap">Join Date</TableCell>
+                      <TableCell header className="whitespace-nowrap">Status</TableCell>
+                      <TableCell header className="whitespace-nowrap">Actions</TableCell>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -472,14 +472,6 @@ export const Employees: React.FC = () => {
                                 className="p-2 hover:bg-yellow-50 text-yellow-600"
                               >
                                 <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(user.userId)}
-                                className="p-2 hover:bg-red-50 text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
                           </TableCell>
