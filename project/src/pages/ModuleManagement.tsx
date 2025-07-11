@@ -109,9 +109,12 @@ export const ModuleManagement: React.FC = () => {
     if (!selectedProjectId) return;
     try {
       const response = await getDevelopersWithRolesByProjectId(Number(selectedProjectId));
+      console.log(response);
+      
       if (response && response.status === "success" && Array.isArray(response.data)) {
         const parsed = response.data.map((item: string) => {
-          const [name, role, projectAllocationId] = item?.userWithRole.split("-");
+          const [name, role] = item?.userWithRole.split("-");
+          const projectAllocationId = item?.projectAllocationId || null;
           return { name: name?.trim() || "", role: role?.trim() || "", projectAllocationId: item?.projectAllocationId };
         });
         setDevelopersWithRoles(parsed);
@@ -455,7 +458,6 @@ export const ModuleManagement: React.FC = () => {
       });
     }
   }, [modulesByProjectId]);
-  console.log({ modulesByProjectId });
 
 
   return (
