@@ -728,6 +728,8 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                       setSelectedTestCases([]);
                       if (selectedProjectId && selectedSubmoduleId !== null) {
                         getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                          console.log("----------------");
+                          
                           const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
                           const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
                           setTestCases(
