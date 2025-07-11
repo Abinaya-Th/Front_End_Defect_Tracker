@@ -128,32 +128,33 @@ export const Defects: React.FC = () => {
     search: "",
   });
 
-  // Fetch lookup data on mount or project change
+  // Fetch static lookup data only once on mount
+  React.useEffect(() => {
+    getSeverities().then(res => setSeverityMap(Object.fromEntries((res.data || []).map((s: any) => [s.id, s.name]))));
+    getAllPriorities().then(res => setPriorityMap(Object.fromEntries((res.data || []).map((p: any) => [p.id, p.priority]))));
+    getDefectTypes().then(res => setTypeMap(Object.fromEntries((res.data || []).map((t: any) => [t.id, t.defectTypeName]))));
+  }, []);
+
+  // Fetch project-specific lookup data when selectedProjectId changes
   React.useEffect(() => {
     if (!selectedProjectId) return;
-    // Fetch all lookup data in parallel
-    Promise.all([
-      getAllDefectStatuses(),
-      getSeverities(),
-      getAllPriorities(),
-      getDefectTypes(),
-      getModulesByProjectId(selectedProjectId),
-    ]).then(([statuses, severities, priorities, types, modules]) => {
+    getAllDefectStatuses().then((statuses) => {
       setStatusMap(Object.fromEntries((statuses.data || []).map((s: any) => [s.id, s.defectStatusName])));
-      setSeverityMap(Object.fromEntries((severities.data || []).map((s: any) => [s.id, s.name])));
-      setPriorityMap(Object.fromEntries((priorities.data || []).map((p: any) => [p.id, p.priority])));
-      setTypeMap(Object.fromEntries((types.data || []).map((t: any) => [t.id, t.defectTypeName])));
+    });
+    getModulesByProjectId(selectedProjectId).then((modules) => {
       setModuleMap(Object.fromEntries((modules.data || []).map((m: any) => [m.id, m.moduleName])));
-      // For submodules, fetch all for each module
-      Promise.all((modules.data || []).map((m: any) => getSubmodulesByModuleId(m.id))).then((submoduleResults) => {
-        const subMap: Record<string, string> = {};
-        submoduleResults.forEach((res) => {
-          (res.data || []).forEach((sm: any) => {
-            subMap[String(sm.id)] = sm.name;
+      // Fetch submodules for each module
+      Promise.all((modules.data || []).map((m: any) => getSubmodulesByModuleId(m.id)))
+        .then((submoduleResults) => {
+          const subMap: Record<string, string> = {};
+          submoduleResults.forEach((res) => {
+            (res.data || []).forEach((sm: any) => {
+              subMap[String(sm.id)] = sm.name;
+            });
           });
-        });
-        setSubmoduleMap(subMap);
-      });
+          setSubmoduleMap(subMap);
+        })
+        .catch(() => setSubmoduleMap({}));
     });
   }, [selectedProjectId]);
 
@@ -175,7 +176,10 @@ export const Defects: React.FC = () => {
         })
         .catch((err) => {
           setBackendDefects([]);
-          console.error('Failed to fetch defects for project:', err);
+          // Only log the error once, not on every render
+          if (err && backendDefects.length === 0) {
+            console.error('Failed to fetch defects for project:', err.message);
+          }
         });
     } else {
       // Filters applied: use the filter API
@@ -187,18 +191,21 @@ export const Defects: React.FC = () => {
         defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
         releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
       };
-      filterDefects(backendFilters).then(setBackendDefects);
+      filterDefects(backendFilters)
+        .then(setBackendDefects)
+        .catch(error => {
+          // Only log the error once, not on every render
+          if (error && backendDefects.length === 0) {
+            console.error('Failed to filter defects:', error.message);
+          }
+          setBackendDefects([]);
+        });
     }
   }
-
 
   React.useEffect(() => {
     if (!selectedProjectId) return;
     fetchData();
-    // Check if any filters (other than projectId) are applied
-
-
-
   }, [selectedProjectId, filters.type, filters.severity, filters.priority, filters.status, filters.module, filters.subModule, filters.releaseId]);
 
   // Filtered defects based on filters
@@ -219,6 +226,7 @@ export const Defects: React.FC = () => {
       (!filters.status || d.defect_status_name === filters.status)
     );
   });
+
   const fetchReleaseData = async (selectedProject: string | null) => {
     try {
       const response = await projectReleaseCardView(selectedProject);
@@ -227,11 +235,10 @@ export const Defects: React.FC = () => {
       console.error("Failed to fetch releases:", error);
     }
   };
-  useEffect(() => {
 
+  useEffect(() => {
     fetchReleaseData(selectedProjectId);
   }, [selectedProjectId]);
-  console.log(releasesData, "Release Data");
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
@@ -274,12 +281,10 @@ export const Defects: React.FC = () => {
     };
     try {
       const response = await addDefects(payload as any);
-      console.log("API Response:", response); // Debug log
 
       // Check for success - API returns "Success" (uppercase) or statusCode 2000
       if (response.status === "Success" || response.statusCode === 200) {
         // Handle successful defect addition
-        console.log("Defect added successfully:", response.data);
         alert("Defect added successfully!");
         fetchData();
         // Refresh the defects list
@@ -296,7 +301,15 @@ export const Defects: React.FC = () => {
             assignToId: filters.assignedTo ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id) : undefined) : undefined,
             assignById: filters.reportedBy ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id) : undefined) : undefined,
           };
-          filterDefects(backendFilters).then(setBackendDefects);
+          filterDefects(backendFilters)
+            .then(setBackendDefects)
+            .catch(error => {
+              // Only log the error once, not on every render
+              if (error && backendDefects.length === 0) {
+                console.error('Failed to filter defects:', error.message);
+              }
+              setBackendDefects([]);
+            });
         }
         // Close modal and reset form
         resetForm();
@@ -332,7 +345,7 @@ export const Defects: React.FC = () => {
       alert('Please select a type');
       return;
     }
-    // Removed assigntoId validation - now optional
+
     if (!formData.moduleId) {
       alert('Please select a module');
       return;
@@ -344,7 +357,6 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-      console.log(formData);
 
       try {
         // Use a fallback value for testCaseId and assignby if not provided
@@ -366,8 +378,6 @@ export const Defects: React.FC = () => {
           assignbyId: formData.assignbyId ? Number(formData.assignbyId) : 1, // must be number
           assigntoId: formData.assigntoId ? Number(formData.assigntoId) : 1, // must be number
         };
-        // Debug log
-        console.log('UpdateDefect API call:', { defectIdForApi, payload, testCaseId, releaseId });
         const response = await updateDefectById(
           defectIdForApi,
           payload,
@@ -441,16 +451,13 @@ export const Defects: React.FC = () => {
     }
   };
   const handleDelete = async (defectId: string) => {
-    console.log("Attempting to delete defect with ID:", defectId); // Log the defect ID
     if (window.confirm("Are you sure you want to delete this defect?")) {
       try {
         // Call the delete API
-        console.log("Calling delete API for defect ID:", defectId);
         const response = await deleteDefectById(defectId);
 
         // Handle successful deletion
         if (response.status === 'Success') {
-          console.log("Defect deleted successfully. Updating local state...");
           // Filter out the deleted defect from the backendDefects state
           setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
           alert("Defect deleted successfully.");
@@ -462,8 +469,6 @@ export const Defects: React.FC = () => {
         console.error("Error occurred while deleting defect:", error);
         alert("Error: " + (error.message || 'Failed to delete defect'));
       }
-    } else {
-      console.log("Deletion was cancelled.");
     }
   };
 
@@ -550,32 +555,36 @@ export const Defects: React.FC = () => {
   // Fetch modules when project changes
   React.useEffect(() => {
     if (!selectedProjectId) return;
-    getModulesByProjectId(selectedProjectId).then((res) => {
-      setModules((res.data || []).map((m: any) => ({ id: m.id?.toString(), name: m.moduleName })));
-    });
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        setModules((res.data || []).map((m: any) => ({ id: m.id?.toString(), name: m.moduleName })));
+      })
+      .catch(error => {
+        console.error('Failed to fetch modules:', error.message);
+        setModules([]);
+      });
   }, [selectedProjectId]);
 
   // Fetch submodules when module changes in the form
   React.useEffect(() => {
     if (!formData.moduleId) {
-      console.log('No moduleId selected, submodule dropdown will be disabled.');
       setSubmodules([]);
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
-    console.log('Fetching submodules for moduleId:', formData.moduleId);
     getSubmodulesByModuleId(formData.moduleId)
       .then(res => {
-        console.log('Submodule API response:', res);
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
           name: sm.name || sm.subModuleName
         }));
-        console.log('Mapped submodules:', mapped);
         setSubmodules(mapped);
       })
       .catch((err) => {
-        console.error('Failed to fetch submodules:', err);
+        // Only log the error once, not on every render
+        if (err && !submodules.length) {
+          console.error('Failed to fetch submodules:', err.message);
+        }
         setSubmodules([]);
       });
   }, [formData.moduleId]);
@@ -587,15 +596,12 @@ export const Defects: React.FC = () => {
       return;
     }
     const selectedModule = modules && modules.find(m => m.name === filters.module);
-    console.log('Filter submodule fetch - selectedModule:', selectedModule);
     if (!selectedModule || !selectedModule.id) {
       setFilterSubmodules([]);
       return;
     }
-    console.log('Fetching submodules for module id:', selectedModule.id);
     getSubmodulesByModuleId(selectedModule.id)
       .then(res => {
-        console.log('Fetched submodules for filter:', res.data, 'for module:', selectedModule.id, selectedModule.name);
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
           name: sm.name || sm.subModuleName
@@ -644,48 +650,37 @@ export const Defects: React.FC = () => {
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
 
-  // Fetch severities and defect types on mount
+  // Fetch severities and defect types on mount (only once)
   React.useEffect(() => {
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-  }, []);
-
-  // Fetch priorities from database
-  React.useEffect(() => {
-    const fetchPriorities = async () => {
-      try {
-        const response = await getAllPriorities();
-        if (response.data) {
-          setPriorities(response.data);
-        }
-      } catch (error) {
+    getSeverities()
+      .then(res => setSeverities(res.data))
+      .catch(error => {
+        console.error('Failed to fetch severities:', error.message);
+        setSeverities([]);
+      });
+    getDefectTypes()
+      .then(res => setDefectTypes(res.data))
+      .catch(error => {
+        console.error('Failed to fetch defect types:', error.message);
+        setDefectTypes([]);
+      });
+    getAllPriorities()
+      .then(res => setPriorities(res.data || []))
+      .catch(error => {
         console.error("Failed to fetch priorities:", error);
-      }
-    };
-
-    fetchPriorities();
-  }, []);
-
-  React.useEffect(() => {
-    const fetchStatuses = async () => {
-      setIsStatusLoading(true);
-      setStatusError(null);
-      try {
-        const response = await getAllDefectStatuses();
-        if (response && response.data) {
-          setDefectStatuses(response.data);
-        } else {
-          setDefectStatuses([]);
-        }
-      } catch (err: any) {
+        setPriorities([]);
+      });
+    getAllDefectStatuses()
+      .then(res => {
+        setDefectStatuses(res.data || []);
+        setIsStatusLoading(false);
+      })
+      .catch(err => {
         setStatusError(err.message || "Failed to fetch statuses");
         setDefectStatuses([]);
-      } finally {
         setIsStatusLoading(false);
-      }
-    };
-    fetchStatuses();
-  }, []);
+      });
+  }, []); // Only run once on mount
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -776,14 +771,11 @@ export const Defects: React.FC = () => {
   // Fetch users for 'Assigned To' and 'Entered By' on mount
   React.useEffect(() => {
     setIsUsersLoading(true);
-    console.log('BASE_URL for user fetch:', BASE_URL); // Debug log
 
     // Try the correct API endpoint based on your PowerShell test
     const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
-    console.log('Trying user API at:', userApiUrl);
 
     axios.get(userApiUrl).then(res => {
-      console.log('User API response:', res); // Debug log
       if (res.data && Array.isArray(res.data.data)) {
         setUserList(res.data.data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName })));
       } else {
@@ -791,8 +783,10 @@ export const Defects: React.FC = () => {
         setUserList([]);
       }
     }).catch(error => {
-      console.error('Failed to fetch users:', error);
-      console.error('Error details:', error.response?.data, error.response?.status);
+      // Only log the error once, not on every render
+      if (error && userList.length === 0) {
+        console.error('Failed to fetch users:', error.message);
+      }
       setUserList([]);
     }).finally(() => {
       setIsUsersLoading(false);
@@ -1513,7 +1507,7 @@ export const Defects: React.FC = () => {
                 <option value="">
                   {submodules.length === 0
                     ? "No submodules"
-                    : "Select a submodule (optional)"}
+                    : "Select a submodule "}
                 </option>
                 {submodules.map((submodule) => (
                   <option key={submodule.id} value={submodule.id}>
@@ -1609,7 +1603,7 @@ export const Defects: React.FC = () => {
             {!editingDefect && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assigned To (Optional)
+                  Assigned To
                 </label>
                 <select
                   value={formData.assigntoId}
@@ -1618,15 +1612,12 @@ export const Defects: React.FC = () => {
                   disabled={isAllocatedUsersLoading || !formData.moduleId}
                 >
                   <option value="">
-                    {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee (optional)"}
+                    {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? " available users for this module" : "Select assignee"}
                   </option>
                   {allocatedUsers.map(user => (
                     <option key={user.userId} value={user.userId.toString()}>{user.userName}</option>
                   ))}
                 </select>
-                {allocatedUsers.length === 0 && !isAllocatedUsersLoading && (
-                  <p className="text-blue-500 text-xs mt-1">No users allocated to this module. You can assign the defect later.</p>
-                )}
               </div>
             )}
             {editingDefect && (
@@ -1649,7 +1640,7 @@ export const Defects: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reassign (Optional)
+                    Reassign
                   </label>
                   <select
                     value={formData.assigntoId}
@@ -1658,15 +1649,12 @@ export const Defects: React.FC = () => {
                     disabled={isAllocatedUsersLoading || !formData.moduleId}
                   >
                     <option value="">
-                      {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee (optional)"}
+                      {isAllocatedUsersLoading ? "Loading users..." : allocatedUsers.length === 0 ? "No users available for this module" : "Select assignee"}
                     </option>
                     {allocatedUsers.map(user => (
                       <option key={user.userId} value={user.userId.toString()}>{user.userName}</option>
                     ))}
                   </select>
-                  {allocatedUsers.length === 0 && !isAllocatedUsersLoading && (
-                    <p className="text-blue-500 text-xs mt-1">No users allocated to this module. You can assign the defect later.</p>
-                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entered By</label>
@@ -1868,7 +1856,7 @@ export const Defects: React.FC = () => {
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
-        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} />
+        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} onDefectAdded={fetchData} />
       </div>
     </div>
   );

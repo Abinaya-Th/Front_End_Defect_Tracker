@@ -29,22 +29,14 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   useEffect(() => {
     getAllProjects()
       .then((data: any) => {
-        console.log("Fetched projects:", data); // Debug: log the response
         let projectsArray = Array.isArray(data)
           ? data
           : (data && Array.isArray(data.data))
             ? data.data
             : [];
-        console.log("Processed projects array:", projectsArray);
-        if (projectsArray.length > 0) {
-          console.log("First project structure:", projectsArray[0]);
-        }
         setBackendProjects(projectsArray);
-
       })
   }, [])
-  console.log("Backend Projects:", backendProjects); // Debug: log the projects
-  console.log("Selected Project ID:", selectedProjectId); // Debug: log the selected project ID
 
 
   return (
