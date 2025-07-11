@@ -186,13 +186,15 @@ export const Employees: React.FC = () => {
     };
 
     if (editingEmployee) {
+      console.log("Editing existing employee:", editingEmployee);
+      
       // Only update, do not create
       try {
-        await updateUser(editingEmployee.id, backendEmployeeData);
+        await updateUser(Number(editingEmployee.id), backendEmployeeData);
         alert("User updated successfully!");
         updateEmployee(editingEmployee.id, frontendEmployeeData);
-      } catch (err) {
-        alert("Failed to update user");
+      } catch (error) {
+        console.log("Failed to update user", error);  
       }
       setEditingEmployee(null);
     } else {
