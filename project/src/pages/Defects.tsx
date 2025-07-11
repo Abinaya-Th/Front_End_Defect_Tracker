@@ -278,6 +278,7 @@ export const Defects: React.FC = () => {
         ? Number(formData.statusId)
         : (defectStatuses.find(s => s.defectStatusName.toLowerCase().startsWith("new"))?.id ?? null),
       reOpenCount: 0, // Default value as per API sample
+      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // <-- Ensure releaseId is always included
     };
     try {
       const response = await addDefects(payload as any);
@@ -357,32 +358,28 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-
       try {
-        // Use a fallback value for testCaseId and assignby if not provided
-        const testCaseId = Number(formData.testCaseId);
-        const releaseId = Number(formData.releaseId);
-        // Use the real numeric defect id for API path
         const defectIdForApi = Number(formData.id);
+        // Use the new payload structure as per backend requirements
         const payload = {
           description: formData.description,
           projectId: Number(selectedProjectId),
           severityId: Number(formData.severityId),
           priorityId: Number(formData.priorityId),
-          defectStatusId: formData.statusId ? Number(formData.statusId) : undefined, // Capital S
+          defectStatusId: formData.statusId ? Number(formData.statusId) : null, // can be null
           typeId: Number(formData.typeId),
           reOpenCount: editingDefect.reOpenCount || 0,
           attachment: formData.attachment || '',
           steps: formData.steps,
-          releasesId: Number(formData.releaseId), // must be number
-          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : 1, // must be number
-          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : 1, // must be number
+          releaseId: formData.releaseId ? Number(formData.releaseId) : null, // required
+          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // can be null
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // can be null
+          modulesId: Number(formData.moduleId),
+          subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
         };
         const response = await updateDefectById(
           defectIdForApi,
-          payload,
-          testCaseId,
-          releaseId // query param
+          payload
         );
         if (response.status === 'Success' || response.statusCode === 2000) {
           alert('Defect updated successfully!');
@@ -1276,7 +1273,7 @@ export const Defects: React.FC = () => {
                         {defect.assigned_by_name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {releaseMap[(defect as any).releaseId || ''] || '-'}
+                        {((defect as any).release_name?.toString() || releaseMap[(defect as any).releaseId || ''] || '-')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-2">
