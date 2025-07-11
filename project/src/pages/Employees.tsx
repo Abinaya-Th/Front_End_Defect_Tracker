@@ -411,14 +411,6 @@ export const Employees: React.FC = () => {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(user.userId)}
-                                className="p-2 hover:bg-red-50 text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
