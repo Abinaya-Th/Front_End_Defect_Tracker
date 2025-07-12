@@ -110,6 +110,7 @@ export const TestCase: React.FC = () => {
     severity: string;
     projectId: string | undefined;
     id?: string;
+    [key: string]: string | undefined;
   }
   const [modals, setModals] = useState<{
     open: boolean;
@@ -371,9 +372,68 @@ export const TestCase: React.FC = () => {
     XLSX.writeFile(wb, `TestCases_${selectedProjectId}_${selectedModuleId}.xlsx`);
   };
 
+  // Add state for bulk validation error
+  const [bulkValidationError, setBulkValidationError] = useState<string | null>(null);
+
+  // Validation function for bulk test cases
+  function validateTestCases(modals: { formData: any }[]): { idx: number; missing: string[] }[] {
+    const requiredFields = ['module', 'subModule', 'type', 'severity', 'description', 'steps'];
+    return modals
+      .map((modal, idx) => {
+        const missing = requiredFields.filter(field => !(modal.formData as any)[field]);
+        return missing.length > 0 ? { idx, missing } : null;
+      })
+      .filter((i): i is { idx: number; missing: string[] } => i !== null);
+  }
+
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    for (const { formData } of modals) {
+
+    // Validate all test cases
+    const requiredFields = ['module', 'subModule', 'type', 'severity', 'description', 'steps'];
+
+    // Only include modals that are open and have at least one required field filled
+    const modalsToValidate = modals
+      .map((modal, idx) => ({ modal, idx }))
+      .filter(({ modal }) =>
+        modal.open && requiredFields.some(field => (modal.formData as any)[field] && (modal.formData as any)[field].toString().trim() !== '')
+      );
+
+    // If there are no modals to validate, do not show an error and do not proceed
+    if (modalsToValidate.length === 0) {
+      setBulkValidationError(null);
+      return;
+    }
+
+    const incomplete = validateTestCases(modalsToValidate.map(m => m.modal));
+    if (incomplete.length > 0) {
+      setBulkValidationError(
+        incomplete
+          .map((i, errorIdx) => {
+            // Use the original row index from modalsToValidate
+            const rowNumber = modalsToValidate[errorIdx].idx + 1;
+            return (
+              `Test Case ${rowNumber} is missing: ` +
+              i.missing
+                .map(field =>
+                  field
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase())
+                    .replace('Sub Module', 'Sub Module')
+                    .replace('Test Steps', 'Test Steps')
+                )
+                .join(', ')
+            );
+          })
+          .join('\n')
+      );
+      return;
+    } else {
+      setBulkValidationError(null);
+    }
+
+    // Use only the validated modals for submission
+    for (const { formData } of modalsToValidate.map(m => m.modal)) {
       // Prepare payload for both create and update
       const payload: any = {
         description: formData.description,
@@ -977,8 +1037,8 @@ export const TestCase: React.FC = () => {
                   </tbody>
                 </table>
                 {/* Pagination Controls */}
-                <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6 py-3 bg-gray-50 border-t border-gray-200 gap-2">
+                  <div className="flex items-center space-x-2 mb-2 sm:mb-0">
                     <span className="text-sm text-gray-700">Rows per page:</span>
                     <select
                       className="border border-gray-300 rounded px-2 py-1 text-sm"
@@ -990,26 +1050,32 @@ export const TestCase: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex justify-center items-center gap-2 py-2">
                     <button
-                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                     >
                       Previous
                     </button>
-                    <span className="text-sm text-gray-700">
-                      Page {currentPage} of {totalPages}
-                    </span>
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                        key={i + 1}
+                        className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                        onClick={() => setCurrentPage(i + 1)}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
                     <button
-                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                     >
                       Next
                     </button>
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 text-center sm:text-right">
                     {totalRows === 0
                       ? 'No test cases'
                       : `Showing ${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, totalRows)} of ${totalRows}`}
@@ -1109,6 +1175,11 @@ export const TestCase: React.FC = () => {
                     </button>
                   )}
                 </div>
+                {bulkValidationError && (
+                  <div className="mb-4 p-3 bg-red-100 text-red-700 rounded whitespace-pre-line">
+                    {bulkValidationError}
+                  </div>
+                )}
                 <div className="border rounded-lg p-4 mb-2 relative">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
