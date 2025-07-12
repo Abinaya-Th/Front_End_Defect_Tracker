@@ -109,15 +109,18 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await createDefectStatus({
+      const response = await createDefectStatus({
         ...formData,
         colorCode: normalizedColor
       });
-      await fetchStatusTypes(); // Refresh the list
-      setIsCreateModalOpen(false);
-      resetForm();
+      window.alert(response?.message || 'Status created.');
+      if (response?.status === 'success') {
+        await fetchStatusTypes(); // Refresh the list
+        setIsCreateModalOpen(false);
+        resetForm();
+      }
     } catch (error: any) {
-      setApiError(error.message);
+      window.alert(error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -130,16 +133,19 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await updateDefectStatus(editingStatus.id, {
+      const response = await updateDefectStatus(editingStatus.id, {
         ...formData,
         colorCode: normalizedColor
       });
-      await fetchStatusTypes(); // Refresh the list
-      setIsEditModalOpen(false);
-      setEditingStatus(null);
-      resetForm();
+      window.alert(response?.message || 'Status updated.');
+      if (response?.status === 'success') {
+        await fetchStatusTypes(); // Refresh the list
+        setIsEditModalOpen(false);
+        setEditingStatus(null);
+        resetForm();
+      }
     } catch (error: any) {
-      setApiError(error.message);
+      window.alert(error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -150,12 +156,15 @@ const StatusType: React.FC = () => {
     
     try {
       setLoading(true);
-      await deleteDefectStatus(deletingStatus.id);
-      await fetchStatusTypes(); // Refresh the list
-      setIsDeleteModalOpen(false);
-      setDeletingStatus(null);
+      const response = await deleteDefectStatus(deletingStatus.id);
+      window.alert(response?.message || 'Status deleted.');
+      if (response?.status === 'success') {
+        await fetchStatusTypes(); // Refresh the list
+        setIsDeleteModalOpen(false);
+        setDeletingStatus(null);
+      }
     } catch (error: any) {
-      setApiError(error.message);
+      window.alert(error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
