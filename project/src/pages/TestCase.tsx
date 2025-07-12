@@ -83,7 +83,10 @@ export const TestCase: React.FC = () => {
   }, [selectedProjectId]);
 
   // Use fetched modules for the selected project
-  const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
+  const projectModules = useMemo(() =>
+    selectedProjectId ? modulesByProject[selectedProjectId] || [] : [],
+    [selectedProjectId, modulesByProject]
+  );
 
   // ... keep other UI state as before ...
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
@@ -175,8 +178,9 @@ export const TestCase: React.FC = () => {
     if (!selectedProjectId || selectedSubmoduleId === null) return;
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
       // Map moduleId/subModuleId to names for display
-      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+      const currentProjectModules = modulesByProject[selectedProjectId] || [];
+      const moduleMap = Object.fromEntries(currentProjectModules.map((m: any) => [m.id, m.name]));
+      const submoduleMap = Object.fromEntries(currentProjectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
       setTestCases(
         (data as any[]).map((tc: any) => ({
           ...tc,
@@ -187,7 +191,7 @@ export const TestCase: React.FC = () => {
         })) as TestCaseType[]
       );
     });
-  }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes]); // Removed projectModules from dependencies
+  }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes, modulesByProject]);
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -516,7 +520,8 @@ export const TestCase: React.FC = () => {
       return;
     }
     const currentModuleName = currentModal?.formData.module;
-    const moduleObj = projectModules && projectModules.find((m: any) => m.name === currentModuleName);
+    const currentProjectModules = modulesByProject[selectedProjectId] || [];
+    const moduleObj = currentProjectModules.find((m: any) => m.name === currentModuleName);
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id).then(res => {
         setModalSubmodules(prev => {
@@ -532,7 +537,7 @@ export const TestCase: React.FC = () => {
         return copy;
       });
     }
-  }, [modals[currentModalIdx]?.formData.module, projectModules, currentModalIdx]);
+  }, [modals[currentModalIdx]?.formData.module, modulesByProject, selectedProjectId, currentModalIdx]);
 
   // Helper to get module and submodule names by ID
   const getModuleNameById = (id: string | null) => projectModules.find(m => m.id === id)?.name || "";

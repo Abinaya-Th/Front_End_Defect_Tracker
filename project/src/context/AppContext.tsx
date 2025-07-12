@@ -881,10 +881,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setStatusTypes((prev) => prev.filter((status) => status.id !== id));
   };
 
-  useEffect(() => {
+    useEffect(() => {
     if (!selectedProjectId) return;
+    
+    // Add a flag to prevent multiple simultaneous requests
+    let isMounted = true;
+    
+    // Add a timeout to prevent hanging requests
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Module fetch timeout, using empty array');
+        setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: [] }));
+      }
+    }, 10000); // 10 second timeout
+    
     getModulesByProjectId(selectedProjectId)
       .then((res) => {
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        
         const modules = (res.data || []).map((mod: any) => ({
           id: String(mod.id),
           name: mod.moduleName || mod.name,
@@ -898,9 +913,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
       })
       .catch(error => {
-        console.error('Failed to fetch modules for project:', error.message);
+        if (!isMounted) return;
+        clearTimeout(timeoutId);
+        
+        // Only log the error once to avoid spam
+        if (!error.message?.includes('Network Error')) {
+          console.error('Failed to fetch modules for project:', error.message);
+        }
         setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: [] }));
       });
+      
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [selectedProjectId]);
 
   return (

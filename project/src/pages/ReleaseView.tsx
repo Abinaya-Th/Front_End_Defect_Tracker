@@ -28,6 +28,7 @@ import { getTestCasesByFilter } from "../api/releasetestcase";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
+import { getAllReleaseTypes } from "../api/Releasetype";
 import axios from 'axios';
 import AlertModal from '../components/ui/AlertModal';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -99,6 +100,8 @@ export const ReleaseView: React.FC = () => {
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [editingReleaseId, setEditingReleaseId] = useState<string | null>(null);
+  const [releaseTypes, setReleaseTypes] = useState<any[]>([]);
 
   // Fetch modules when project changes
   useEffect(() => {

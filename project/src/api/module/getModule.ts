@@ -45,7 +45,7 @@ export interface CreateReleaseResponse {
  */
 export const getModulesByProjectId = (projectId: string | number): Promise<CreateReleaseResponse> => {
   return apiClient.get<CreateReleaseResponse>(
-    `projects/${projectId}`
+    `modules?projectId=${projectId}`
   ).then(({ data }: { data: CreateReleaseResponse }) => data);
 };
 
