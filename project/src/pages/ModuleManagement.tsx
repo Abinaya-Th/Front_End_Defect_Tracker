@@ -229,12 +229,17 @@ console.log(projectId, "projectId from params in module management page");
     ) {
       if (selectedProjectId) {
         try {
+          console.log("+++++++++++++++++++");
           const response = await deleteModuleApi(Number(moduleId));
+          console.log("------------------");
+          console.log(response, "Delete module response");
+          
           if (response.status === "success") {
             // Refresh modules after deleting
-            fetchModules();
+            
             setAlertMessage('Module deleted successfully!');
             setAlertOpen(true);
+            fetchModules();
           } else {
             alert(response.message || "Failed to delete module on server.");
           }
@@ -279,7 +284,7 @@ console.log(projectId, "projectId from params in module management page");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
-    } catch (error) {
+    } catch (error:any) {
       if (error.response && error.response.status === 409) {
         alert("Developer is already assigned to this module or submodule.");
       } else {

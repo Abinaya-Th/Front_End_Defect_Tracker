@@ -24,6 +24,7 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { TestCase as TestCaseType } from "../types/index";
 import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
+import { getAllocatedUsersByModuleId, getModulesByProjectId } from "../api/module/getModule";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -55,8 +56,8 @@ export const Allocation: React.FC = () => {
     releases,
     employees,
     testCases,
-    modulesByProject,
   } = useApp();
+  const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds]=useState<number[]>([]);
@@ -165,12 +166,12 @@ export const Allocation: React.FC = () => {
   const projectTestCases = testCases.filter((tc) => tc.projectId === projectId);
 
   // Get modules for selected project from context
-  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
+  const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
 
   // Use mock data if API/server is not working
   const effectiveProjectRelease = projectRelease;
   const effectiveTestCases = allocatedTestCases.length > 0 ? allocatedTestCases : projectTestCases;
-  const effectiveModules = projectModules;
+  const effectiveModules = projectModules?projectModules || []: []; // Use modulesByProject state
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -178,16 +179,46 @@ export const Allocation: React.FC = () => {
       loadExistingQAAllocations();
     }
   }, [effectiveProjectRelease, selectedProject]);
+  const fetchModules = async () => {
+    console.log("Fetching modules for project ID:", selectedProjectId);
+    
+    if (!selectedProjectId) return;
+    try {
+      const response = await getModulesByProjectId(selectedProjectId);
+      if (response.data) {
+        const modules = (response.data || []).map((mod: any) => ({
+          id: mod.id,
+          name: mod.moduleName,
+          submodules: (mod.submodules || []).map((sm: any) => ({
+            id: String(sm.id),
+            name: sm.subModuleName || sm.name,
+          })),
+      }))
+        setModulesByProject((prev: any) => ({ ...prev, [selectedProjectId]: modules }));
+      }
+    } catch (error) {
+      console.error("Error fetching modules:", error);
 
+    }
+  };
+  console.log("Modules fetched:", modulesByProject);
+  
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchModules();}
+    },[selectedProjectId]);
   // Fetch submodules when selectedModule changes
   useEffect(() => {
+    
     if (!selectedModule) {
       setSubmodules([]);
       setSubmoduleError("");
       return;
     }
+   
     // Find the module ID from effectiveModules
     const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+  
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id)
         .then((res) => {
@@ -212,7 +243,8 @@ export const Allocation: React.FC = () => {
       setSubmodules([]);
       setSubmoduleError("Module not found.");
     }
-  }, [selectedModule, effectiveModules]);
+  }, [selectedModule]);
+  
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {

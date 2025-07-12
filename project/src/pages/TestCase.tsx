@@ -1025,9 +1025,12 @@ export const TestCase: React.FC = () => {
       {modals[currentModalIdx]?.open &&
         (() => {
           const idx = currentModalIdx;
+          console.log("Rendering modal for index:", idx, "with data:", modals[idx]);
+          
           const modal = modals[idx];
           return (
             <Modal
+              key={idx}
               isOpen={modal.open}
               onClose={() => {
                 if (modals.length === 1) {
@@ -1201,8 +1204,8 @@ export const TestCase: React.FC = () => {
                           type="button"
                           variant="secondary"
                           onClick={() => setCurrentModalIdx(idx - 1)}
-                          disabled={idx === 0}
-                          style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                          disabled={idx === 1}
+                          // style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                         >
                           Previous
                         </Button>
