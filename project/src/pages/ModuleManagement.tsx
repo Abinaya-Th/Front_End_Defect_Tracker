@@ -26,6 +26,7 @@ import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getMo
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
 import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
+import AlertModal from '../components/ui/AlertModal';
 
 
 type ModuleAssignment = {
@@ -86,6 +87,9 @@ export const ModuleManagement: React.FC = () => {
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
 
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+
   useEffect(() => {
     if (projectId) {
       setSelectedProjectId(projectId);
@@ -137,6 +141,8 @@ export const ModuleManagement: React.FC = () => {
         if (response.status === "success") {
           // Refresh modules after adding
           fetchModules();
+          setAlertMessage('Module created successfully!');
+          setAlertOpen(true);
         }
         setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
@@ -186,15 +192,25 @@ export const ModuleManagement: React.FC = () => {
         });
         console.log('Update module API response:', response);
         if (response.success && response.module) {
-          // Refresh modules after updating
-          fetchModules();
+          await fetchModules();
+          setAlertMessage('Module updated successfully!');
+          setAlertOpen(true);
+          setTimeout(() => {
+            setModuleForm({ name: "" });
+            setEditingModule(null);
+            setIsEditModuleModalOpen(false);
+          }, 200);
         } else {
           // Fallback: refetch modules if update did not succeed
-          fetchModules();
+          await fetchModules();
+          setAlertMessage('Module updated successfully!');
+          setAlertOpen(true);
+          setTimeout(() => {
+            setModuleForm({ name: "" });
+            setEditingModule(null);
+            setIsEditModuleModalOpen(false);
+          }, 200);
         }
-        setModuleForm({ name: "" });
-        setEditingModule(null);
-        setIsEditModuleModalOpen(false);
       } catch (error) {
         alert("Failed to update module. Please try again.");
       } finally {
@@ -215,6 +231,8 @@ export const ModuleManagement: React.FC = () => {
           if (response.status === "success") {
             // Refresh modules after deleting
             fetchModules();
+            setAlertMessage('Module deleted successfully!');
+            setAlertOpen(true);
           } else {
             alert(response.message || "Failed to delete module on server.");
           }
@@ -439,6 +457,7 @@ export const ModuleManagement: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       {!selectedProjectId ? (
         <div className="p-8 text-center text-gray-500">
           Please select a project to manage modules.
@@ -638,8 +657,7 @@ export const ModuleManagement: React.FC = () => {
                                           try {
                                             const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
                                             if (response.data && response.data.success) {
-                                              // Refresh modules after deleting submodule
-                                              fetchModules();
+                                              await fetchModules();
                                               alert("Submodule deleted successfully.");
                                             } else {
                                               alert("Submodule deleted successfully.");
@@ -921,8 +939,10 @@ export const ModuleManagement: React.FC = () => {
                       { subModuleName: submoduleForm.name }
                     );
                     if (response.data && response.data.success) {
-                      // Refresh modules after updating
-                      fetchModules();
+                      await fetchModules();
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
                       alert("Submodule updated successfully.");
                     } else {
                       alert("Submodule updated successfully.");
@@ -941,10 +961,8 @@ export const ModuleManagement: React.FC = () => {
                       subModuleName: submoduleForm.name,
                       moduleId: Number(currentModuleIdForSubmodule),
                     });
-                    console.log("Submodule API response:", response);
                     if (response.success) {
-                      // Refresh modules after adding
-                      fetchModules();
+                      await fetchModules();
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
