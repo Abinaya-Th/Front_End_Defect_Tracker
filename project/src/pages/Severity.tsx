@@ -7,13 +7,20 @@ import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSeverities, createSeverity as apiCreateSeverity, updateSeverity as apiUpdateSeverity, deleteSeverity as apiDeleteSeverity, Severity as SeverityType } from '../api/severity';
-import { Toast } from '../components/ui/Toast';
+import AlertModal from '../components/ui/AlertModal';
+import { HexColorPicker } from 'react-colorful';
 
 const Severity: React.FC = () => {
   const navigate = useNavigate();
   const [severities, setSeverities] = useState<SeverityType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(severities.length / pageSize);
+  const paginatedSeverities = severities.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -25,25 +32,34 @@ const Severity: React.FC = () => {
     color: '#000000',
   });
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; isOpen: boolean }>({
-    message: '',
-    type: 'success',
+  // Custom color picker visibility
+  const [showColorPickerCreate, setShowColorPickerCreate] = useState(false);
+  const [showColorPickerEdit, setShowColorPickerEdit] = useState(false);
+
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({
     isOpen: false,
+    message: '',
   });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [deleteAlert, setDeleteAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
 
   const resetForm = () => {
     setFormData({
       name: '',
       color: '#000000',
     });
-  };
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type, isOpen: true });
-  };
-
-  const closeToast = () => {
-    setToast((prev) => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -60,7 +76,20 @@ const Severity: React.FC = () => {
       }
     };
     fetchSeverities();
+    // Reset all alert popups on mount so none show at page load
+    setCreateAlert({ isOpen: false, message: '' });
+    setEditAlert({ isOpen: false, message: '' });
+    setDeleteAlert({ isOpen: false, message: '' });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
+
+  // Show create alert after modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Severity created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleCreate = async () => {
     try {
@@ -71,19 +100,13 @@ const Severity: React.FC = () => {
         setSeverities([...severities, res.data]);
         setIsCreateModalOpen(false);
         resetForm();
-        showToast('Severity created successfully!', 'success');
+        setPendingCreateSuccess(true);
       } else {
-        showToast('Failed to create severity: No data returned', 'error');
+        setCreateAlert({ isOpen: true, message: 'Failed to create severity' });
       }
     } catch (err: any) {
-      let msg = 'Failed to create severity';
-      if (err?.response?.data?.message) {
-        msg = err.response.data.message;
-      } else if (err?.message) {
-        msg = err.message;
-      }
-      setError(msg);
-      showToast(msg, 'error');
+      setError('Failed to create severity');
+      setCreateAlert({ isOpen: true, message: 'Failed to create severity' });
     } finally {
       setLoading(false);
     }
@@ -103,19 +126,13 @@ const Severity: React.FC = () => {
         setIsEditModalOpen(false);
         setEditingSeverity(null);
         resetForm();
-        showToast('Severity updated successfully!', 'success');
+        setEditAlert({ isOpen: true, message: 'Severity updated successfully!' });
       } else {
-        showToast('Failed to update severity: No data returned', 'error');
+        setEditAlert({ isOpen: true, message: 'Failed to update severity' });
       }
     } catch (err: any) {
-      let msg = 'Failed to update severity';
-      if (err?.response?.data?.message) {
-        msg = err.response.data.message;
-      } else if (err?.message) {
-        msg = err.message;
-      }
-      setError(msg);
-      showToast(msg, 'error');
+      setError('Failed to update severity');
+      setEditAlert({ isOpen: true, message: 'Failed to update severity' });
     } finally {
       setLoading(false);
     }
@@ -133,14 +150,10 @@ const Severity: React.FC = () => {
       setSeverities(updatedSeverities);
       setIsDeleteModalOpen(false);
       setDeletingSeverity(null);
-      showToast('Severity deleted successfully!', 'success');
+      setDeleteAlert({ isOpen: true, message: 'Severity deleted successfully!' });
     } catch (err: any) {
-      let msg = 'Failed to delete severity';
-      if (err?.response?.data?.message) {
-        msg = err.response.data.message;
-      }
-      setError(msg);
-      showToast(msg, 'error');
+      setError('Failed to delete severity');
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete severity' });
     } finally {
       setLoading(false);
     }
@@ -162,6 +175,27 @@ const Severity: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -203,43 +237,79 @@ const Severity: React.FC = () => {
               </TableRow>
             </thead>
             <TableBody>
-              {severities.map((severity) => (
-                <TableRow key={severity.id}>
-                  <TableCell className="font-medium">{severity.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: severity.color }}
-                      />
-                      <span className="text-sm text-gray-600">{severity.color}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(severity)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(severity)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {paginatedSeverities.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center text-gray-500 py-4">
+                    No severities found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedSeverities.map((severity) => (
+                  <TableRow key={severity.id}>
+                    <TableCell className="font-medium">{severity.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: severity.color }}
+                        />
+                        <span className="text-sm text-gray-600">{severity.color}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(severity)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(severity)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-4">
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Create Modal */}
       <Modal
@@ -247,10 +317,12 @@ const Severity: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setShowColorPickerCreate(false);
+          setCreateAlert({ isOpen: false, message: '' });
         }}
         title="Create New Severity"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 items-start flex flex-col">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Severity Name
@@ -263,28 +335,41 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Color
+              Colour
             </label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-16 h-10 p-1"
-              />
-              <Input
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                placeholder="#000000"
-              />
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.color}
+                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="#000000"
+                  className="flex-1"
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.color }}
+                  onClick={() => setShowColorPickerCreate((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {showColorPickerCreate && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.color}
+                    onChange={color => setFormData({ ...formData, color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-4 w-full">
             <Button
               variant="secondary"
               onClick={() => {
                 setIsCreateModalOpen(false);
                 resetForm();
+                setShowColorPickerCreate(false);
               }}
             >
               Cancel
@@ -306,6 +391,8 @@ const Severity: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingSeverity(null);
           resetForm();
+          setShowColorPickerEdit(false);
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title="Edit Severity"
       >
@@ -322,20 +409,32 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Color
+              Colour
             </label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-16 h-10 p-1"
-              />
-              <Input
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                placeholder="#000000"
-              />
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.color}
+                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="#000000"
+                  className="flex-1"
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.color }}
+                  onClick={() => setShowColorPickerEdit((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {showColorPickerEdit && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.color}
+                    onChange={color => setFormData({ ...formData, color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -345,6 +444,7 @@ const Severity: React.FC = () => {
                 setIsEditModalOpen(false);
                 setEditingSeverity(null);
                 resetForm();
+                setShowColorPickerEdit(false);
               }}
             >
               Cancel
@@ -365,6 +465,7 @@ const Severity: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingSeverity(null);
+          setDeleteAlert({ isOpen: false, message: '' });
         }}
         title="Delete Severity"
       >
@@ -394,12 +495,6 @@ const Severity: React.FC = () => {
       </Modal>
 
       {loading && <div className="text-gray-600 mb-4">Loading...</div>}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-      />
     </div>
   );
 };

@@ -995,6 +995,7 @@ export const TestCase: React.FC = () => {
                       className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
+                      //style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                     >
                       Previous
                     </button>
@@ -1198,14 +1199,14 @@ export const TestCase: React.FC = () => {
                     {!isEditMode && (
                       <>
                         <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setCurrentModalIdx(idx - 1)}
-                          disabled={idx === 0}
-                          style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                        >
-                          Previous
-                        </Button>
+  type="button"
+  variant="secondary"
+  onClick={() => setCurrentModalIdx(idx - 1)}
+  disabled={idx === 0}
+  style={idx === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+>
+  Previous
+</Button>
                         <Button
                           type="button"
                           variant="secondary"
