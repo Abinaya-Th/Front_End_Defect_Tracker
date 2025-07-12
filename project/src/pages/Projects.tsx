@@ -35,6 +35,7 @@ import { ProjectFormData, Project } from "../types";
 import { useNavigate } from "react-router-dom";
 import { getAllProjects } from "../api/projectget";
 import { createProject } from "../api/createProject/createProject";
+import AlertModal from '../components/ui/AlertModal';
 import { getAllRoles } from "../api/role/viewrole";
 
 const cardStyles = [
@@ -92,7 +93,8 @@ export const Projects: React.FC = () => {
   const [backendProjects, setBackendProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [roles, setRoles] = useState<{ id: string; roleName: string }[]>([]);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -145,6 +147,8 @@ export const Projects: React.FC = () => {
             ? data.data
             : [];
         setBackendProjects(projectsArray);
+        setAlertMessage('Project created successfully!');
+        setAlertOpen(true);
       }
       resetForm();
     } catch (err: any) {
@@ -235,6 +239,7 @@ export const Projects: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
