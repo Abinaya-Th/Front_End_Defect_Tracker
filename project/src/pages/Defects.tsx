@@ -461,13 +461,20 @@ export const Defects: React.FC = () => {
   const handleDelete = async (defectId: string) => {
     if (window.confirm("Are you sure you want to delete this defect?")) {
       try {
-        // Call the delete API
-        const response = await deleteDefectById(defectId);
+        // Find the defect to get its numeric ID for the API
+        const defect = backendDefects.find(d => d.defectId === defectId);
+        if (!defect) {
+          alert("Defect not found.");
+          return;
+        }
+
+        // Call the delete API with the numeric ID
+        const response = await deleteDefectById(defect.id.toString());
 
         // Handle successful deletion
-        if (response.status === 'Success') {
+        if (response.status === 'Success' || response.statusCode === 2000) {
           // Filter out the deleted defect from the backendDefects state
-          setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
+          setBackendDefects(prevDefects => prevDefects.filter(d => d.defectId !== defectId));
           alert("Defect deleted successfully.");
         } else {
           console.error("Delete failed:", response.message);
