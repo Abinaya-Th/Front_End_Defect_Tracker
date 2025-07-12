@@ -203,7 +203,6 @@ export const Defects: React.FC = () => {
         });
     }
   }
-  console.log(backendDefects, "==========");
 
   React.useEffect(() => {
     if (!selectedProjectId) return;
@@ -360,7 +359,7 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-      console.log(formData);
+      // console.log(formData);
 
       try {
         const defectIdForApi = Number(formData.id);
@@ -415,12 +414,12 @@ export const Defects: React.FC = () => {
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
     const releaseId = releasesData.find(r => r.releaseName === defect.release_test_case_description)?.id?.toString() || '';
     const id = backendDefects.find(x => x.id === defect.id)?.id?.toString() || "";
-    console.log(id);
-    console.log('Editing defect:', {
-      defectReleaseDesc: defect.release_test_case_description,
-      releasesData: releasesData.map(r => r.releaseName),
-      foundReleaseId: releaseId
-    });
+    // console.log(id);
+    // console.log('Editing defect:', {
+    //   defectReleaseDesc: defect.release_test_case_description,
+    //   releasesData: releasesData.map(r => r.releaseName),
+    //   foundReleaseId: releaseId
+    // });
 
 
     setEditingDefect(defect);
