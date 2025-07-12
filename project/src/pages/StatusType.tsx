@@ -13,6 +13,7 @@ import {
   deleteDefectStatus,
   DefectStatus 
 } from '../api/defectStatus';
+import AlertModal from '../components/ui/AlertModal';
 
 // Utility function to normalize color values
 const normalizeColor = (color: string): string => {
@@ -57,10 +58,25 @@ const StatusType: React.FC = () => {
   });
   const [error, setError] = useState('');
   const [apiError, setApiError] = useState('');
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({ isOpen: false, message: '' });
+  const [editAlert, setEditAlert] = useState({ isOpen: false, message: '' });
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, message: '' });
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(statusTypes.length / pageSize);
+  const paginatedStatusTypes = statusTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Fetch all status types on component mount
   useEffect(() => {
     fetchStatusTypes();
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const fetchStatusTypes = async () => {
@@ -116,12 +132,21 @@ const StatusType: React.FC = () => {
       await fetchStatusTypes(); // Refresh the list
       setIsCreateModalOpen(false);
       resetForm();
+      setPendingCreateSuccess(true);
     } catch (error: any) {
       setApiError(error.message);
+      setCreateAlert({ isOpen: true, message: 'Failed to create status type' });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Status type created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleEdit = async () => {
     if (!validateForm()) return;
@@ -138,8 +163,10 @@ const StatusType: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingStatus(null);
       resetForm();
+      setEditAlert({ isOpen: true, message: 'Status type updated successfully!' });
     } catch (error: any) {
       setApiError(error.message);
+      setEditAlert({ isOpen: true, message: 'Failed to update status type' });
     } finally {
       setLoading(false);
     }
@@ -154,8 +181,10 @@ const StatusType: React.FC = () => {
       await fetchStatusTypes(); // Refresh the list
       setIsDeleteModalOpen(false);
       setDeletingStatus(null);
+      setDeleteAlert({ isOpen: true, message: 'Status type deleted successfully!' });
     } catch (error: any) {
       setApiError(error.message);
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete status type' });
     } finally {
       setLoading(false);
     }
@@ -212,11 +241,11 @@ const StatusType: React.FC = () => {
       </div>
 
       {/* API Error Display */}
-      {apiError && (
+      {/* {apiError && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{apiError}</p>
         </div>
-      )}
+      )} */}
 
       <div className="bg-white p-6 rounded-lg shadow-md">
         {loading ? (
@@ -234,43 +263,79 @@ const StatusType: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {statusTypes.map((status) => (
-                <TableRow key={status.id}>
-                  <TableCell className="font-medium">{status.defectStatusName}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div
-                        className="w-6 h-6 rounded-full border border-gray-300 mr-3"
-                        style={{ backgroundColor: status.colorCode }}
-                      />
-                      <span>{status.colorCode}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => openEditModal(status)} 
-                      className="mr-2"
-                      disabled={loading}
-                    >
-                      <Edit2 className="w-4 h-4 text-blue-500" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => openDeleteModal(status)}
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {paginatedStatusTypes.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center text-gray-500 py-4">
+                    No status types found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedStatusTypes.map((status) => (
+                  <TableRow key={status.id}>
+                    <TableCell className="font-medium">{status.defectStatusName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <div
+                          className="w-6 h-6 rounded-full border border-gray-300 mr-3"
+                          style={{ backgroundColor: status.colorCode }}
+                        />
+                        <span>{status.colorCode}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => openEditModal(status)} 
+                        className="mr-2"
+                        disabled={loading}
+                      >
+                        <Edit2 className="w-4 h-4 text-blue-500" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => openDeleteModal(status)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         )}
       </div>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-4">
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Create Modal */}
       <Modal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); resetForm(); }} title="Create Status Type">
@@ -390,6 +455,24 @@ const StatusType: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };
