@@ -11,7 +11,7 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
     const initials = `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase();
     const experienceLabel = employee.experience === 1 ? 'year' : 'years';
     return (
-        <div className="relative flex flex-col gap-4 animate-fade-in-fast">
+        <div className="relative flex flex-col gap-4 animate-fade-in-fast max-w-4xl mx-auto">
             
             {/* Header */}
             <div className="flex flex-col md:flex-row items-center md:items-center gap-6 md:gap-8 pb-2 border-b border-gray-100">
@@ -55,25 +55,12 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
                             <div><span className="font-medium">Manager:</span> <span className="ml-1">{employee.manager}</span></div>
                         </div>
                     </div>
-                    {/* Skills */}
-                    <div className="bg-gray-50 rounded-xl p-4 shadow-sm">
-                        <div className="font-semibold text-base mb-2">Skills & Expertise</div>
-                        <div className="flex flex-wrap gap-2">
-                            {employee.skills && employee.skills.length > 0 ? (
-                                employee.skills.map((skill: string, idx: number) => (
-                                    <span key={idx} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">{skill}</span>
-                                ))
-                            ) : (
-                                <span className="text-gray-400">No skills listed</span>
-                            )}
-                        </div>
-                    </div>
                 </div>
                 {/* Right Column */}
                 <div className="flex flex-col gap-4">
-                    {/* Current Projects */}
+                    {/* Project History */}
                     <div className="bg-gray-50 rounded-xl p-4 shadow-sm">
-                        <div className="font-semibold text-base mb-2">Current Projects</div>
+                        <div className="font-semibold text-base mb-2">Project History </div>
                         {employee.currentProjects && employee.currentProjects.length > 0 ? (
                             <ul className="list-disc ml-4 text-sm">
                                 {employee.currentProjects.map((proj: string, idx: number) => (
@@ -81,7 +68,7 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
                                 ))}
                             </ul>
                         ) : (
-                            <div className="text-gray-400 text-sm">No current projects assigned<br />Available for new assignments</div>
+                            <div className="text-gray-400 text-sm">No project history available<br />Available for new assignments</div>
                         )}
                     </div>
                     {/* Availability Timeline */}

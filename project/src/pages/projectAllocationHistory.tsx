@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { ChevronLeft, Users, Calendar, User, Clock, ArrowRight, ChevronDown, ChevronUp, Search, Filter, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { getAllProjects } from '../api/projectget';
+import { Project } from '../types';
 
 interface ProjectAllocationHistory {
   id: string;
@@ -43,7 +45,16 @@ interface UserProjectAllocation {
 const ProjectAllocationHistory: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { projects, employees, selectedProjectId, setSelectedProjectId } = useApp();
+  const { employees, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId } = useApp();
+  
+  // State for projects from API (same pattern as BenchAllocate)
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  
+  // Always call useState - don't use conditional logic
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(contextProjectId || null);
+  
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [allocationHistory, setAllocationHistory] = useState<ProjectAllocationHistory[]>([]);
   const [userAllocations, setUserAllocations] = useState<UserProjectAllocation[]>([]);
@@ -52,8 +63,47 @@ const ProjectAllocationHistory: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
+  // Update selectedProjectId when contextProjectId changes
+  useEffect(() => {
+    if (contextProjectId && contextProjectId !== selectedProjectId) {
+      setSelectedProjectId(contextProjectId);
+    }
+  }, [contextProjectId, selectedProjectId]);
+
+  // Fetch projects from API (same pattern as BenchAllocate)
+  useEffect(() => {
+    setProjectsLoading(true);
+    getAllProjects()
+      .then((data: any) => {
+        let projectsArray = Array.isArray(data)
+          ? data
+          : (data && Array.isArray(data.data))
+            ? data.data
+            : [];
+        setProjects(projectsArray);
+        setProjectsError(null);
+        
+        // Set selected project if none is selected
+        if (!selectedProjectId && projectsArray.length > 0) {
+          const firstActiveProject = projectsArray.find((p: Project) => p.status === 'active');
+          if (firstActiveProject) {
+            setSelectedProjectId(firstActiveProject.id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch projects:", err);
+        setProjectsError(err.message);
+      })
+      .finally(() => setProjectsLoading(false));
+  }, []);
+
   // Only show active projects
   const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
+  const currentProject = useMemo(
+    () => projects.find(p => String(p.id) === String(selectedProjectId)),
+    [selectedProjectId, projects]
+  );
 
   const scrollBy = (offset: number) => {
     if (scrollRef.current) {
@@ -285,17 +335,33 @@ const ProjectAllocationHistory: React.FC = () => {
     return allocationHistory.filter(item => item.userId === userId);
   };
 
-  const handleProjectChange = (newProjectId: string) => {
-    setSelectedProjectId(newProjectId);
+  // Project selection handler (same pattern as BenchAllocate)
+  const handleProjectSelect = (id: string) => {
+    setSelectedProjectId(id);
+    setContextProjectId?.(id); // If provided by context
     setExpandedUser(null);
-    // In real app, fetch new project data here
+    // TODO: In real app, fetch new project allocation data here based on selectedProjectId
+    // This would involve calling an API to get allocation history for the specific project
   };
 
-  if (loading) {
+  if (loading || projectsLoading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (projectsError) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">Failed to load projects: {projectsError}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
         </div>
       </div>
     );
@@ -319,41 +385,55 @@ const ProjectAllocationHistory: React.FC = () => {
         <p className="text-gray-600 mt-2">Track project-level user allocations and movements</p>
       </div>
 
-      {/* Project Selection Panel */}
+      {/* Project Selection Panel - Same as BenchAllocate */}
       <Card className="mb-6">
-        <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">Select Project</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
+        <CardContent className="p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Selection</h2>
+          <div className="relative flex items-center">
             <button
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-100"
-              onClick={() => scrollBy(-200)}
+              onClick={() => {
+                const container = document.getElementById('project-scroll');
+                if (container) container.scrollLeft -= 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
               type="button"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div
-              ref={scrollRef}
-              className="flex gap-3 overflow-x-auto scrollbar-hide py-2 px-1"
-              style={{ scrollBehavior: 'smooth', minWidth: 0, maxWidth: '1120px' }}
+              id="project-scroll"
+              className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', maxWidth: '100%' }}
             >
-              {availableProjects.map(project => (
-                <button
-                  key={project.id}
-                  className={`px-6 py-2 rounded-xl font-semibold whitespace-nowrap transition-all duration-200 focus:outline-none shadow-[4px_4px_12px_#e0e0e0,-4px_-4px_12px_#ffffff] hover:shadow-[2px_2px_6px_#e0e0e0,-2px_-2px_6px_#ffffff] ${selectedProjectId === project.id ? 'bg-blue-600 text-white' : 'bg-[#f5f6f7] text-gray-800'}`}
-                  onClick={() => handleProjectChange(project.id)}
-                >
-                  {project.name}
-                </button>
-              ))}
+              {projects.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">
+                  No projects available
+                </div>
+              ) : (
+                projects.map((project) => {
+                  const isSelected = Number(selectedProjectId) === (Number(project?.id));
+                  return (
+                    <Button
+                      key={project.id}
+                      variant={isSelected ? 'primary' : 'secondary'}
+                      onClick={() => handleProjectSelect(project?.id)}
+                      className="whitespace-nowrap m-2"
+                    >
+                      {project?.projectName || project?.name}
+                    </Button>
+                  );
+                })
+              )}
             </div>
             <button
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-100"
-              onClick={() => scrollBy(200)}
+              onClick={() => {
+                const container = document.getElementById('project-scroll');
+                if (container) container.scrollLeft += 200;
+              }}
+              className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
               type="button"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 text-gray-600" />
             </button>
           </div>
         </CardContent>
@@ -400,7 +480,7 @@ const ProjectAllocationHistory: React.FC = () => {
             Project Allocation History
             {selectedProjectId && (
               <span className="text-sm font-normal text-gray-600">
-                - {availableProjects.find(p => p.id === selectedProjectId)?.name}
+                - {currentProject?.projectName || currentProject?.name}
               </span>
             )}
           </h3>

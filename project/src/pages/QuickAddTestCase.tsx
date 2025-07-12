@@ -10,6 +10,7 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
+import { createTestCase } from "../api/testCase/createTestcase";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -152,7 +153,6 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
       )
     );
   };
-console.log("id",selectedProjectId);  
 
   const handleAddAnother = () => {
     setModals((prev) => [
@@ -202,19 +202,34 @@ console.log("id",selectedProjectId);
     }
   };
 
-  const handleSubmitAll = (e?: React.FormEvent) => {
+  const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    modals.forEach(({ formData }) => {
-      addTestCase({
-        ...formData,
-        id: `TC-${formData.module
-          .substring(0, 3)
-          .toUpperCase()}-${formData.subModule
-            .substring(0, 3)
-            .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        projectId: selectedProjectId,
-      });
-    });
+    let allSuccess = true;
+    for (const { formData } of modals) {
+      // Map names to IDs
+      const selectedModule = modules.find((m: any) => m.moduleName === formData.module);
+      const selectedSubModule = subModules.find((s: any) => (s.subModuleName || s.name) === formData.subModule);
+      const selectedSeverity = severities.find((sev) => sev.name === formData.severity);
+      const selectedDefectType = defectTypes.find((dt) => dt.defectTypeName === formData.type);
+      if (!selectedModule || !selectedSeverity || !selectedDefectType) {
+        allSuccess = false;
+        continue;
+      }
+      const payload = {
+        subModuleId: selectedSubModule ? (selectedSubModule.subModuleId || selectedSubModule.id) : 0,
+        moduleId: selectedModule.id,
+        steps: formData.steps,
+        severityId: selectedSeverity.id,
+        projectId: Number(selectedProjectId),
+        description: formData.description,
+        defectTypeId: selectedDefectType.id,
+      };
+      try {
+        await createTestCase(payload);
+      } catch (error) {
+        allSuccess = false;
+      }
+    }
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);
@@ -233,6 +248,9 @@ console.log("id",selectedProjectId);
       ]);
       setCurrentModalIdx(0);
     }, 1200);
+    if (!allSuccess) {
+      alert("Some test cases could not be added. Please check your input.");
+    }
   };
 
   // Use modulesByProject from context instead of mockModules
@@ -243,11 +261,26 @@ console.log("id",selectedProjectId);
     (p: { id: string }) => p.id === selectedProjectId
   );
 
+  // Fetch static data only once on mount
   useEffect(() => {
-    getModulesByProjectId(selectedProjectId || "").then(res => setModules(res.data)); 
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-  }, [selectedProjectId ]);
+    getSeverities()
+      .then(res => setSeverities(res.data))
+      .catch(() => setSeverities([]));
+    getDefectTypes()
+      .then(res => setDefectTypes(res.data))
+      .catch(() => setDefectTypes([]));
+  }, []);
+
+  // Fetch modules when project changes
+  useEffect(() => {
+    if (selectedProjectId) {
+      getModulesByProjectId(selectedProjectId)
+        .then(res => setModules(res.data))
+        .catch(() => setModules([]));
+    } else {
+      setModules([]);
+    }
+  }, [selectedProjectId]);
 
   // Fetch submodules for the selected module only
   useEffect(() => {
@@ -256,7 +289,9 @@ console.log("id",selectedProjectId);
       (m: any) => m.moduleName === currentModuleName
     );
     if (selectedModuleObj && selectedModuleObj.id) {
-      getSubmodulesByModuleId(selectedModuleObj.id).then(res => setSubModules(res.data || []));
+      getSubmodulesByModuleId(selectedModuleObj.id)
+        .then(res => setSubModules(res.data || []))
+        .catch(() => setSubModules([]));
     } else {
       setSubModules([]);
     }
@@ -350,7 +385,7 @@ console.log("id",selectedProjectId);
           const modal = modals[idx];
           const submodules: string[] =
             projectModules
-              && projectModules.find((m: { name: string }) => m.name === modal.formData.module)
+            && projectModules.find((m: { name: string }) => m.name === modal.formData.module)
               ?.submodules.map((s: any) => s.name) || [];
           return (
             <Modal
@@ -406,25 +441,8 @@ console.log("id",selectedProjectId);
                     ref={fileInputRef}
                     className="hidden"
                   />
-                  <Button
-                    type="button"
-                    onClick={handleAddAnother}
-                    className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                  >
-                    + Add Another Test Case
-                  </Button>
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
-                  {modals.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleRemove(idx)}
-                      className="absolute top-2 right-2 px-2 py-1"
-                    >
-                      Remove
-                    </Button>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -446,7 +464,7 @@ console.log("id",selectedProjectId);
                             <option key={module.id} value={module.moduleName}>
                               {module.moduleName}
                             </option>
-                          ) 
+                          )
                         )}
                       </select>
                     </div>
@@ -563,8 +581,28 @@ console.log("id",selectedProjectId);
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx + 1)}
-                      disabled={idx === modals.length - 1}
+                      onClick={() => {
+                        if (idx === modals.length - 1) {
+                          setModals((prev) => [
+                            ...prev,
+                            {
+                              open: true,
+                              formData: {
+                                module: modal.formData.module,
+                                subModule: modal.formData.subModule,
+                                description: "",
+                                steps: "",
+                                type: "functional",
+                                severity: "medium",
+                              },
+                            },
+                          ]);
+                          setCurrentModalIdx(modals.length);
+                        } else {
+                          setCurrentModalIdx(idx + 1);
+                        }
+                      }}
+                      disabled={false}
                     >
                       Next
                     </Button>

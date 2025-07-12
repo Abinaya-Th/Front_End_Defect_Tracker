@@ -18,6 +18,12 @@ import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
+import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
+import { getSeverities } from "../api/severity";
+import { getDefectTypes } from "../api/defectType";
+import { TestCase as TestCaseType } from "../types/index";
+import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -27,329 +33,20 @@ const TABS = [
   { key: "qa", label: "QA Allocation" },
 ];
 
-// --- MOCK DATA SECTION (for modules, submodules, testcases, QA, releases) ---
+// --- MOCK DATA SECTION (for modules, testcases, QA, releases) ---
 
-// Mock Modules and Submodules
-const mockModules = [
-  {
-    id: "auth",
-    name: "Authentication",
-    submodules: [
-      { id: "auth-bio", name: "Biometric Login" },
-      { id: "auth-pin", name: "PIN Login" },
-      { id: "auth-pass", name: "Password Reset" },
-      { id: "auth-session", name: "Session Management" },
-    ],
-  },
-  {
-    id: "acc",
-    name: "Account Management",
-    submodules: [
-      { id: "acc-overview", name: "Account Overview" },
-      { id: "acc-history", name: "Transaction History" },
-      { id: "acc-statements", name: "Account Statements" },
-      { id: "acc-settings", name: "Account Settings" },
-    ],
-  },
-  {
-    id: "payment",
-    name: "Payment",
-    submodules: [
-      { id: "pay-gateway", name: "Gateway Integration" },
-      { id: "pay-methods", name: "Payment Methods" },
-      { id: "pay-security", name: "Payment Security" },
-      { id: "pay-processing", name: "Payment Processing" },
-    ],
-  },
-  {
-    id: "cart",
-    name: "Shopping Cart",
-    submodules: [
-      { id: "cart-management", name: "Cart Management" },
-      { id: "cart-checkout", name: "Checkout Process" },
-      { id: "cart-discounts", name: "Discounts & Coupons" },
-      { id: "cart-inventory", name: "Inventory Check" },
-    ],
-  },
-  {
-    id: "user",
-    name: "User Management",
-    submodules: [
-      { id: "user-dashboard", name: "Dashboard" },
-      { id: "user-profile", name: "Profile Management" },
-      { id: "user-preferences", name: "User Preferences" },
-      { id: "user-security", name: "Security Settings" },
-    ],
-  },
-  {
-    id: "analytics",
-    name: "Analytics",
-    submodules: [
-      { id: "analytics-realtime", name: "Real-time Data" },
-      { id: "analytics-trends", name: "Trend Analysis" },
-      { id: "analytics-metrics", name: "Key Metrics" },
-      { id: "analytics-insights", name: "Data Insights" },
-    ],
-  },
-  {
-    id: "reporting",
-    name: "Reporting",
-    submodules: [
-      { id: "reports-custom", name: "Custom Reports" },
-      { id: "reports-scheduled", name: "Scheduled Reports" },
-      { id: "reports-export", name: "Data Export" },
-      { id: "reports-sharing", name: "Report Sharing" },
-    ],
-  },
-  {
-    id: "visualization",
-    name: "Visualization",
-    submodules: [
-      { id: "visual-charts", name: "Charts" },
-      { id: "visual-graphs", name: "Graphs" },
-      { id: "visual-dashboards", name: "Dashboards" },
-      { id: "visual-widgets", name: "Widgets" },
-    ],
-  },
-  // ...add more modules as needed
-];
-
-// Mock Test Cases
-const mockTestCases = [
-  {
-    id: "TC-AUT-BIO-0001",
-    module: "Authentication",
-    subModule: "Biometric Login",
-    description: "Verify that users can log in using biometric authentication",
-    steps: "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-AUT-PIN-0001",
-    module: "Authentication",
-    subModule: "PIN Login",
-    description: "Test PIN login security features",
-    steps: "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
-    type: "functional",
-    severity: "critical",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-PAY-001",
-    module: "Payment",
-    subModule: "Gateway Integration",
-    description: "Test new payment gateway integration",
-    steps: "Add items to cart\nProceed to checkout\nSelect new payment method\nComplete payment\nVerify order confirmation",
-    type: "integration",
-    severity: "high",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-CART-002",
-    module: "Shopping Cart",
-    subModule: "Cart Management",
-    description: "Test enhanced cart functionality",
-    steps: "Add multiple items to cart\nModify quantities\nRemove items\nApply discount codes\nVerify total calculation",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-USER-003",
-    module: "User Management",
-    subModule: "Dashboard",
-    description: "Test new user dashboard features",
-    steps: "Login to user account\nNavigate to dashboard\nView order history\nUpdate profile information\nSave changes",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0001",
-  },
-  {
-    id: "TC-ANALYTICS-001",
-    module: "Analytics",
-    subModule: "Real-time Data",
-    description: "Test real-time analytics data display",
-    steps: "Access analytics dashboard\nSelect real-time data view\nVerify data updates\nExport data\nGenerate reports",
-    type: "functional",
-    severity: "high",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-REPORTS-002",
-    module: "Reporting",
-    subModule: "Custom Reports",
-    description: "Test custom report generation",
-    steps: "Navigate to reports section\nCreate custom report\nSelect data parameters\nGenerate report\nDownload report",
-    type: "functional",
-    severity: "medium",
-    status: "active",
-    projectId: "PR0002",
-  },
-  {
-    id: "TC-VISUAL-003",
-    module: "Visualization",
-    subModule: "Charts",
-    description: "Test data visualization components",
-    steps: "Select chart type\nConfigure data source\nCustomize appearance\nSave chart configuration\nShare chart",
-    type: "functional",
-    severity: "low",
-    status: "active",
-    projectId: "PR0002",
-  },
-  // ...add more test cases as needed
-];
+// Mock Modules
+// const mockModules = [ ... ];
 
 // Mock QA (engineers/teams)
-const mockQA = [
-  {
-    id: "QA001",
-    name: "Sarah Wilson",
-    role: "QA Engineer",
-    email: "sarah.wilson@company.com",
-    skills: ["Manual Testing", "Automation", "Selenium", "Jest"],
-    experience: 3,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA002",
-    name: "QA Team Alpha",
-    role: "QA Team",
-    email: "qa.alpha@company.com",
-    skills: ["Regression Testing", "Performance Testing"],
-    experience: 5,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA003",
-    name: "Michael Chen",
-    role: "Senior QA Engineer",
-    email: "michael.chen@company.com",
-    skills: ["API Testing", "Mobile Testing", "Cypress", "Appium"],
-    experience: 7,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA004",
-    name: "Emily Rodriguez",
-    role: "QA Lead",
-    email: "emily.rodriguez@company.com",
-    skills: ["Test Strategy", "Team Management", "JIRA", "TestRail"],
-    experience: 8,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA005",
-    name: "David Thompson",
-    role: "Automation Engineer",
-    email: "david.thompson@company.com",
-    skills: ["Playwright", "Python", "CI/CD", "Performance Testing"],
-    experience: 4,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA006",
-    name: "Priya Patel",
-    role: "QA Analyst",
-    email: "priya.patel@company.com",
-    skills: ["Exploratory Testing", "Bug Reporting"],
-    experience: 2,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  {
-    id: "QA007",
-    name: "QA Team Beta",
-    role: "QA Team",
-    email: "qa.beta@company.com",
-    skills: ["Load Testing", "Security Testing"],
-    experience: 6,
-    department: "Quality Assurance",
-    status: "active",
-  },
-  // ...add more QA engineers/teams as needed
-];
+// const mockQA = [ ... ];
 
 // Mock Releases
-const mockReleases = [
-  {
-    id: "R002",
-    name: "Mobile Banking v2.1",
-    version: "2.1.0",
-    description: "Security enhancements and UI updates for mobile banking",
-    projectId: "PR0001",
-    status: "planned",
-    releaseDate: "2024-04-01",
-    testCases: ["TC-AUT-BIO-0001", "TC-AUT-PIN-0001"],
-    features: ["Biometric login", "Quick transfer"],
-    bugFixes: ["Fixed session timeout"],
-    createdAt: "2024-03-10T09:00:00Z",
-  },
-  {
-    id: "R003",
-    name: "Inventory v1.2",
-    version: "1.2.0",
-    description: "Performance improvements and bug fixes for inventory system",
-    projectId: "PR0003",
-    status: "completed",
-    releaseDate: "2024-02-15",
-    testCases: [],
-    features: ["Faster report generation"],
-    bugFixes: ["Fixed database timeout"],
-    createdAt: "2024-02-01T08:00:00Z",
-  },
-  {
-    id: "R004",
-    name: "E-commerce Platform v3.0",
-    version: "3.0.0",
-    description: "Major update with new payment gateway integration and improved user experience",
-    projectId: "PR0001",
-    status: "in-progress",
-    releaseDate: "2024-05-15",
-    testCases: ["TC-PAY-001", "TC-CART-002", "TC-USER-003"],
-    features: ["New payment gateway", "Enhanced cart", "User dashboard"],
-    bugFixes: ["Fixed checkout flow", "Improved search"],
-    createdAt: "2024-04-01T10:00:00Z",
-  },
-  {
-    id: "R005",
-    name: "Analytics Dashboard v2.5",
-    version: "2.5.0",
-    description: "Advanced analytics with real-time data visualization and custom reports",
-    projectId: "PR0002",
-    status: "planned",
-    releaseDate: "2024-06-01",
-    testCases: ["TC-ANALYTICS-001", "TC-REPORTS-002", "TC-VISUAL-003"],
-    features: ["Real-time analytics", "Custom reports", "Data export"],
-    bugFixes: ["Fixed chart rendering", "Improved performance"],
-    createdAt: "2024-04-15T14:00:00Z",
-  },
-  // ...add more releases as needed
-];
+// const mockReleases = [ ... ];
 
 // --- END MOCK DATA SECTION ---
 
 // Helper: Use mock data if API/server is not working
-function useMockOrApiData(apiData: any, mockData: any): any {
-  // If API data is empty or null, use mock data
-  if (!apiData || (Array.isArray(apiData) && apiData.length === 0)) {
-    return mockData;
-  }
-  return apiData;
-}
-
 export const Allocation: React.FC = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -358,22 +55,24 @@ export const Allocation: React.FC = () => {
     releases,
     employees,
     testCases,
-    setSelectedProjectId,
     modulesByProject,
   } = useApp();
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds]=useState<number[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
-  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
   const [viewingTestCase, setViewingTestCase] = useState<any>(null);
   const [bulkModuleSelect, setBulkModuleSelect] = useState(false);
-  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>("");
+  const [bulkSubmoduleSelect, setBulkSubmoduleSelect] = useState<boolean>(false);
   const [selectedSubmodules, setSelectedSubmodules] = useState<string[]>([]);
+  const [submodules, setSubmodules] = useState<Submodule[]>([]);
+  const [submoduleError, setSubmoduleError] = useState<string>("");
   const [apiRelease, setApiRelease] = useState<any>(null);
   const [loadingRelease, setLoadingRelease] = useState(false);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -384,16 +83,36 @@ export const Allocation: React.FC = () => {
   const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
+  const [loadingReleases, setLoadingReleases] = useState(false);
+  const [allocatedTestCases, setAllocatedTestCases] = useState<TestCaseType[]>([]);
+  const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationSuccess, setAllocationSuccess] = useState<string | null>(null);
+  const [allocationError, setAllocationError] = useState<string | null>(null);
+  const [allocationProgress, setAllocationProgress] = useState<{ current: number; total: number } | null>(null);
+  const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk">("one-to-one");
+
   React.useEffect(() => {
-    if (projectId) setSelectedProjectId(projectId);
-  }, [projectId, setSelectedProjectId]);
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      setSelectedProject(projectId);
+    }
+  }, [projectId]);
 
   const getReleaseCardView = async () => {
+    if (!selectedProject) return;
+    
+    setLoadingReleases(true);
     try {
       const response = await projectReleaseCardView(selectedProject);
       setProjectRelease(response.data || []);
     } catch (error) {
       console.error("Error fetching release card view:", error);
+      setProjectRelease([]);
+    } finally {
+      setLoadingReleases(false);
     }
   };
 
@@ -412,12 +131,32 @@ export const Allocation: React.FC = () => {
     }
   };
 
+  // Fetch releases when selectedProject changes
   useEffect(() => {
-    getReleaseCardView();
-    getReleaseCardView();
+    if (selectedProject) {
+      getReleaseCardView();
+    }
   }, [selectedProject]);
 
-  console.log("Project Release Data:", projectRelease);
+  // Fetch severities and defect types on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
+  // Refetch test cases when severities or defect types change to ensure proper mapping
+  useEffect(() => {
+    if (selectedProjectId && selectedSubmodule && (severities.length > 0 || defectTypes.length > 0)) {
+      handleSelectSubModule(selectedSubmodule);
+    }
+  }, [severities, defectTypes]);
+
+  // Clear allocation messages when tab changes
+  useEffect(() => {
+    setAllocationSuccess(null);
+    setAllocationError(null);
+  }, [activeTab]);
+
 
 
   // Filter releases for this project
@@ -429,9 +168,9 @@ export const Allocation: React.FC = () => {
   const projectModules = projectId ? modulesByProject[projectId] || [] : [];
 
   // Use mock data if API/server is not working
-  const effectiveProjectRelease = useMockOrApiData(projectRelease, mockReleases.filter((r: any) => !projectId || r.projectId === projectId));
-  const effectiveTestCases = useMockOrApiData(testCases, mockTestCases.filter((tc: any) => !projectId || tc.projectId === projectId));
-  const effectiveModules = useMockOrApiData(projectModules, mockModules);
+  const effectiveProjectRelease = projectRelease;
+  const effectiveTestCases = allocatedTestCases.length > 0 ? allocatedTestCases : projectTestCases;
+  const effectiveModules = projectModules;
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -439,6 +178,41 @@ export const Allocation: React.FC = () => {
       loadExistingQAAllocations();
     }
   }, [effectiveProjectRelease, selectedProject]);
+
+  // Fetch submodules when selectedModule changes
+  useEffect(() => {
+    if (!selectedModule) {
+      setSubmodules([]);
+      setSubmoduleError("");
+      return;
+    }
+    // Find the module ID from effectiveModules
+    const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+    if (moduleObj && moduleObj.id) {
+      getSubmodulesByModuleId(moduleObj.id)
+        .then((res) => {
+          if (res.status !== 'success' || !Array.isArray(res.data) || res.data.length === 0) {
+            setSubmodules([]);
+            setSubmoduleError(res.message || "No submodules found for this module.");
+            return;
+          }
+          // Normalize submodule name property for UI
+          const normalized = (res.data || []).map((sm: any) => ({
+            ...sm,
+            name: sm.name || sm.subModuleName || sm.submoduleName || "Unnamed"
+          }));
+          setSubmodules(normalized);
+          setSubmoduleError("");
+        })
+        .catch((err) => {
+          setSubmodules([]);
+          setSubmoduleError("Failed to fetch submodules. Please try again.");
+        });
+    } else {
+      setSubmodules([]);
+      setSubmoduleError("Module not found.");
+    }
+  }, [selectedModule, effectiveModules]);
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -474,18 +248,37 @@ export const Allocation: React.FC = () => {
     activeTab,
     selectedReleaseIds,
   ]);
-
+  // useEffect(() => {
+  //   if (!selectedProjectId || selectedSubmoduleId === null) return;
+  //   getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+  //     // Map moduleId/subModuleId to names for display
+  //     const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+  //     const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+  //     setTestCases(
+  //       (data as any[]).map((tc: any) => ({
+  //         ...tc,
+  //         module: moduleMap[tc.moduleId] || tc.moduleId,
+  //         subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+  //         severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+  //         type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+  //       })) as TestCaseType[]
+  //     );
+  //   });
+  // }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
   // --- Filtered test cases for table ---
   let filteredTestCases = effectiveTestCases;
   if (activeTab === "qa") {
     if (selectedReleaseForQA) {
       // Only show test cases allocated to this release and not yet assigned to any QA
-      const allocatedTestCases = qaAllocatedTestCases[selectedReleaseForQA] || [];
+      const allocatedTestCaseIds = qaAllocatedTestCases[selectedReleaseForQA] || [];
       const alreadyAllocatedTestCaseIds = Object.values(qaAllocations[selectedReleaseForQA] || {}).flat();
-      const unallocatedTestCaseIds = allocatedTestCases.filter(
+      const unallocatedTestCaseIds = allocatedTestCaseIds.filter(
         id => !alreadyAllocatedTestCaseIds.includes(id)
       );
-      filteredTestCases = effectiveTestCases.filter((tc: any) => unallocatedTestCaseIds.includes(tc.id));
+      
+      // Get the full test case objects for the allocated test cases
+      const allocatedTestCases = effectiveTestCases.filter((tc: any) => allocatedTestCaseIds.includes(tc.id));
+      filteredTestCases = allocatedTestCases.filter((tc: any) => unallocatedTestCaseIds.includes(tc.id));
     } else {
       filteredTestCases = [];
     }
@@ -506,11 +299,13 @@ export const Allocation: React.FC = () => {
       });
     }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
+  } else if (selectedSubmodule) {
+    // If a submodule is selected, use allocatedTestCases directly
+    filteredTestCases = allocatedTestCases;
   } else if (selectedModule) {
+    // If only a module is selected, filter by module
     filteredTestCases = effectiveTestCases.filter(
-      (tc: any) =>
-        tc.module === selectedModule &&
-        (!selectedSubmodule || tc.subModule === selectedSubmodule)
+      (tc: any) => tc.module === selectedModule
     );
   }
 
@@ -555,41 +350,195 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
+    
     setSelectedProjectId(id);
     setSelectedProject(id);
     setSelectedModule("");
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    setAllocatedTestCases([]);
   };
+
 
   // --- UI Panels ---
   const ProjectSelectionPanel = () => (
     <ProjectSelector
       projects={projects}
-      selectedProjectId={projectId || null}
-      onSelect={handleProjectSelect}
+      selectedProjectId={selectedProjectId || null}
+      onSelect={
+        (id:string)=>{ 
+          setSelectedProjectId(id),
+          handleProjectSelect(id)
+      }
+      
+    }
       className="mb-4"
     />
   );
-
+ 
   // In ReleaseCardsPanel, on Allocate:
   // For each selected release, store the selected test cases
-  const handleAllocate = () => {
-    setQaAllocatedTestCases(prev => {
-      const updated = { ...prev };
-      selectedReleaseIds.forEach(id => {
-        updated[id] = selectedTestCases;
+  const handleAllocate = async () => {
+    if (selectedReleaseIds.length === 0 || selectedTestCases.length === 0) {
+      setAllocationError("Please select at least one release and test case.");
+      return;
+    }
+
+    setAllocationLoading(true);
+    setAllocationError(null);
+    setAllocationSuccess(null);
+    setAllocationProgress(null);
+
+    try {
+      if (allocationMode === "bulk") {
+        setAllocationProgress({ current: 0, total: 1 });
+        
+        const payload: ReleaseTestCaseMappingRequest[] = [];
+        selectedTestCases.forEach((testCaseId:any) => {
+          selectedIds.forEach((releaseId:any) => {
+            payload.push({ testCaseId, releaseId });
+          });
+        });
+        try {
+          const response = await bulkAllocateTestCasesToReleases(payload);
+          if (response.status === "success") {
+            setAllocationSuccess(response.message || "Success");
+          } else {
+            setAllocationError(response.message || "Failed");
+          }
+          setAllocationProgress({ current: 1, total: 1 });
+        } catch (allocationError: any) {
+          setAllocationError(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
+          setAllocationProgress({ current: 1, total: 1 });
+        }
+      } else if (allocationMode === "one-to-many") {
+        const totalAllocations = selectedTestCases.length;
+        let completedAllocations = 0;
+        let firstMessage: string | null = null;
+        let firstIsSuccess = false;
+        for (const testCaseId of selectedTestCases) {
+          try {
+            const response = await allocateTestCaseToMultipleReleases(testCaseId, selectedIds);
+            if (!firstMessage) {
+              if (
+                (typeof response.status === 'string' && response.status.toLowerCase() === "success") ||
+                (typeof response.message === 'string' && response.message.toLowerCase().includes("allocated to"))
+              ) {
+                firstMessage = response.message || "Test case(s) successfully allocated to selected releases!";
+                firstIsSuccess = true;
+              } else {
+                firstMessage = response.message || "Failed";
+                firstIsSuccess = false;
+              }
+            }
+          } catch (allocationError: any) {
+            if (!firstMessage) {
+              firstMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+              firstIsSuccess = false;
+            }
+          }
+          completedAllocations++;
+          setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+        }
+        if (firstMessage) {
+          if (firstIsSuccess) {
+            setAllocationSuccess(firstMessage);
+            setAllocationError(null);
+          } else {
+            setAllocationError(firstMessage);
+            setAllocationSuccess(null);
+          }
+        }
+      } else {
+        const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
+        let completedAllocations = 0;
+        let firstMessage: string | null = null;
+        let firstIsSuccess = false;
+        
+        for (const releaseId of selectedIds) {
+          for (const testCaseId of selectedTestCases) {
+           
+            try {
+              const response = await allocateTestCaseToRelease(releaseId, Number(testCaseId));
+              if (!firstMessage) {
+                if (response.status === "success") {
+                  firstMessage = response.message || "Success";
+                  firstIsSuccess = true;
+                } else {
+                  firstMessage = response.message || "Failed";
+                  firstIsSuccess = false;
+                }
+              }
+            } catch (allocationError: any) {
+              if (!firstMessage) {
+                firstMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+                firstIsSuccess = false;
+              }
+            }
+            completedAllocations++;
+            setAllocationProgress({ current: completedAllocations, total: totalAllocations });
+          }
+        }
+        if (firstMessage) {
+          if (firstIsSuccess) setAllocationSuccess(firstMessage);
+          else setAllocationError(firstMessage);
+        }
+      }
+      setQaAllocatedTestCases(prev => {
+        const updated = { ...prev };
+        selectedReleaseIds.forEach(releaseId => {
+          updated[releaseId] = [...selectedTestCases];
+        });
+        return updated;
       });
-      return updated;
-    });
-    setActiveTab("qa");
+      setTimeout(() => {
+        setSelectedTestCases([]);
+        setSelectedReleaseIds([]);
+        setSelectedIds([])
+        setActiveTab("qa");
+        setAllocationSuccess(null);
+        setAllocationProgress(null);
+      }, 2000);
+    } catch (error: any) {
+      let errorMessage = error.response?.data?.message || error.message || "Failed to allocate test cases to releases. Please try again.";
+      setAllocationError(errorMessage);
+    } finally {
+      setAllocationLoading(false);
+    }
+  };
+  const handleSelectSubModule = (selectedSubmoduleId: string) => {
+   
+    setSelectedSubmodule(selectedSubmoduleId);
+    setSelectedTestCases([]);
+    
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId)
+      .then((data) => {
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        
+        setAllocatedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
+        );
+      })
+      .catch((error) => {
+        console.error("Error fetching test cases:", error);
+        setAllocatedTestCases([]);
+      });
   };
 
   const ReleaseCardsPanel = () => (
     <div className="mb-4">
       <div className="flex space-x-2 overflow-x-auto">
         {effectiveProjectRelease.map((release: any) => {
-          const releaseId = release.releaseId || release.id;
+          const releaseId = release.releaseId 
+          const ids= release.id
           const isSelected = selectedReleaseIds.includes(releaseId);
           return (
             <div
@@ -611,12 +560,19 @@ export const Allocation: React.FC = () => {
                 variant={isSelected ? "primary" : "secondary"}
                 className="w-full"
                 onClick={() => {
-                  setSelectedReleaseIds((prev) =>
-                    isSelected
-                      ? prev.filter((id) => id !== releaseId)
-                      : [...prev, releaseId]
-                  );
+                  if (allocationMode === "one-to-one") {
+                    setSelectedReleaseIds(isSelected ? [] : [releaseId]);
+                    setSelectedIds(isSelected?[]:[ids])
+                  } else {
+                    setSelectedReleaseIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== id) : [...prev, releaseId]
+                    );
+                    setSelectedIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== id) : [...prev, ids]
+                    );
+                  }
                 }}
+                disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
               >
                 {isSelected ? "Selected" : "Select"}
               </Button>
@@ -624,18 +580,6 @@ export const Allocation: React.FC = () => {
           );
         })}
       </div>
-      {/* Allocate button appears if at least one release is selected */}
-      {selectedReleaseIds.length > 0 && (
-        <div className="mt-4 flex justify-end">
-          <Button
-            variant="primary"
-            disabled={selectedTestCases.length === 0}
-            onClick={handleAllocate}
-          >
-            Allocate
-          </Button>
-        </div>
-      )}
     </div>
   );
 
@@ -696,6 +640,7 @@ export const Allocation: React.FC = () => {
                       setSelectedModule(module.name);
                       setSelectedSubmodule("");
                       setSelectedTestCases([]);
+                      setAllocatedTestCases([]);
                     }
                   }}
                   className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
@@ -721,10 +666,6 @@ export const Allocation: React.FC = () => {
   );
 
   const SubmoduleSelectionPanel = () => {
-    const submodules =
-      selectedModule
-        ? (effectiveModules && effectiveModules.find((m: any) => m.name === selectedModule)?.submodules || [])
-        : [];
     return (
       <Card className="mb-4">
         <CardContent className="p-4">
@@ -745,6 +686,9 @@ export const Allocation: React.FC = () => {
               </Button>
             )}
           </div>
+          {submoduleError && (
+            <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+          )}
           <div className="relative flex items-center">
             <button
               onClick={() => {
@@ -765,27 +709,27 @@ export const Allocation: React.FC = () => {
               }}
             >
               {submodules.map((submodule: any) => {
+                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
-                  ? selectedSubmodules.includes(submodule.name)
-                  : selectedSubmodule === submodule.name;
+                  ? selectedSubmodules.includes(String(submodule.subModuleId))
+                  : selectedSubmodule === String(submodule.subModuleId);
                 return (
                   <Button
-                    key={submodule.id}
+                    key={submodule.subModuleId}
                     variant={isSelected ? "primary" : "secondary"}
                     onClick={() => {
                       if (bulkSubmoduleSelect) {
                         setSelectedSubmodules((prev) =>
-                          prev.includes(submodule.name)
-                            ? prev.filter((s) => s !== submodule.name)
-                            : [...prev, submodule.name]
+                          prev.includes(String(submodule.subModuleId))
+                            ? prev.filter((s) => s !== String(submodule.subModuleId))
+                            : [...prev, String(submodule.subModuleId)]
                         );
                       } else {
-                        setSelectedSubmodule(submodule.name);
-                        setSelectedTestCases([]);
+                        handleSelectSubModule(String(submodule.subModuleId));
+                        setSelectedSubmodule(String(submodule.subModuleId));
                       }
                     }}
-                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                      }`}
+                    className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                   >
                     {submodule.name}
                   </Button>
@@ -910,7 +854,7 @@ export const Allocation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredTestCases.map((tc: any) => (
+            {allocatedTestCases.map((tc: any) => (
               <tr key={tc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
@@ -919,6 +863,10 @@ export const Allocation: React.FC = () => {
                       activeTab === "qa" 
                         ? (selectedReleaseForQA ? (selectedTestCasesForQA[selectedReleaseForQA]?.includes(tc.id) ?? false) : false)
                         : selectedTestCases.includes(tc.id)
+                    }
+                    disabled={
+                      (allocationMode === "one-to-one" && !selectedTestCases.includes(tc.id) && selectedTestCases.length >= 1) ||
+                      (allocationMode === "one-to-many" && !selectedTestCases.includes(tc.id) && selectedTestCases.length >= 1)
                     }
                     onChange={(e) =>
                       handleSelectTestCase(tc.id, e.target.checked)
@@ -997,9 +945,12 @@ export const Allocation: React.FC = () => {
     </Card>
   );
 
-  // Only show releases that were selected in the Release Allocation tab
+  // Only show releases that have test cases allocated for QA
   const releasesForQAAllocation = effectiveProjectRelease.filter(
-    (release: any) => selectedReleaseIds.includes(release.id || release.releaseId)
+    (release: any) => {
+      const releaseId = release.releaseId || release.id;
+      return qaAllocatedTestCases[releaseId] && qaAllocatedTestCases[releaseId].length > 0;
+    }
   );
 
   // --- QA Allocation Panel ---
@@ -1013,21 +964,52 @@ export const Allocation: React.FC = () => {
     }
 
     // Get all QA engineers
-    const effectiveQAEngineers = mockQA.map(qa => ({
-      id: qa.id,
-      firstName: qa.name.split(' ')[0],
-      lastName: qa.name.split(' ').slice(1).join(' '),
-      designation: qa.role,
-      email: qa.email,
-      department: qa.department,
-      status: qa.status
-    }));
+    const effectiveQAEngineers = employees.filter(emp =>
+      emp.designation && emp.designation.toLowerCase().includes('qa')
+    );
 
     // State for summary modal
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
     return (
       <div className="space-y-6">
+        {/* Overall Progress Summary */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                📊
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Overall QA Allocation Progress</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="text-2xl font-bold text-blue-600">
+                  {releasesForQAAllocation.length}
+                </div>
+                <div className="text-sm text-blue-700">Releases with Test Cases</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="text-2xl font-bold text-green-600">
+                  {releasesForQAAllocation.filter((r: any) => {
+                    const releaseId = r.releaseId || r.id;
+                    const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
+                    const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
+                    return allocatedToQA === allocatedTestCases.length;
+                  }).length}
+                </div>
+                <div className="text-sm text-green-700">Releases Completed</div>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <div className="text-2xl font-bold text-orange-600">
+                  {Object.values(qaAllocatedTestCases).flat().length - Object.values(qaAllocations).flatMap(Object.values).flat().length}
+                </div>
+                <div className="text-sm text-orange-700">Test Cases Remaining</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Step 1: Release Selection */}
         <Card>
           <CardContent className="p-6">
@@ -1037,14 +1019,19 @@ export const Allocation: React.FC = () => {
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Select Release for QA Allocation</h3>
             </div>
-            <div className="flex space-x-2 overflow-x-auto">
-              {releasesForQAAllocation.map((release: any) => {
-                const releaseId = release.releaseId || release.id;
+            {releasesForQAAllocation.length > 0 ? (
+              <div className="flex space-x-2 overflow-x-auto">
+                {releasesForQAAllocation.map((release: any) => {
+                const releaseId = release.releaseId ;
                 const isSelected = selectedReleaseForQA === releaseId;
+                const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
+                const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
+                const remainingTestCases = allocatedTestCases.length - allocatedToQA;
+                
                 return (
                   <div
                     key={releaseId}
-                    className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
+                    className={`min-w-[180px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
                       ${
                         isSelected
                           ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
@@ -1055,26 +1042,40 @@ export const Allocation: React.FC = () => {
                     }}
                   >
                     <div className="truncate font-semibold mb-1">{release.releaseName || release.name}</div>
-                    <div className="text-xs text-gray-500 mb-2">Version: {release.version}</div>
+                    <div className="text-xs text-gray-500 mb-1">Version: {release.version}</div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      {allocatedTestCases.length} test cases allocated
+                    </div>
+                    <div className="text-xs text-green-600 mb-2">
+                      {allocatedToQA} assigned to QA • {remainingTestCases} remaining
+                    </div>
                     <Button
                       size="sm"
                       variant={isSelected ? "primary" : "secondary"}
                       className="w-full"
                       onClick={() => {
-                        if (isSelected) {
-                          setSelectedReleaseForQA(null);
-                          setQaAllocations({});
+                        if (allocationMode === "one-to-one") {
+                          setSelectedReleaseIds(isSelected ? [] : [releaseId]);
                         } else {
-                          setSelectedReleaseForQA(releaseId);
+                          setSelectedReleaseIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                          );
                         }
                       }}
+                      disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
                     >
-                      {isSelected ? "Allocated" : "Select for QA"}
+                      {isSelected ? "Selected" : "Select"}
                     </Button>
                   </div>
                 );
               })}
-            </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-sm text-gray-500 mb-2">No releases have test cases allocated for QA.</div>
+                <div className="text-xs text-gray-400">Please go back to the Release Allocation tab and allocate test cases to releases first.</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1110,8 +1111,11 @@ export const Allocation: React.FC = () => {
                   <div className="text-lg font-semibold text-blue-700 mb-1">
                     {allocatedRelease.releaseName || allocatedRelease.name} (v{allocatedRelease.version})
                   </div>
-                  <div className="text-sm text-blue-600">
-                    {qaAllocatedTestCases[selectedReleaseForQA].length} test cases available for allocation
+                  <div className="text-sm text-blue-600 mb-2">
+                    {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated to this release
+                  </div>
+                  <div className="text-sm text-green-600">
+                    {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} already assigned to QA • {qaAllocatedTestCases[selectedReleaseForQA].length - Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} remaining for allocation
                   </div>
                 </div>
               )}
@@ -1171,7 +1175,7 @@ export const Allocation: React.FC = () => {
           </Card>
         )}
 
-        {/* Step 3: Overall Progress (only show if all test cases are allocated) */}
+        {/* Step 3: Release Complete (only show if all test cases for current release are allocated) */}
         {selectedReleaseForQA && Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length === qaAllocatedTestCases[selectedReleaseForQA].length && (
           <Card>
             <CardContent className="p-6">
@@ -1179,27 +1183,44 @@ export const Allocation: React.FC = () => {
                 <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-semibold">
                   ✓
                 </div>
-                <h3 className="text-lg font-semibold text-green-900">Allocation Complete!</h3>
+                <h3 className="text-lg font-semibold text-green-900">Release Allocation Complete!</h3>
               </div>
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-sm font-medium text-green-900 mb-2">
-                  All test cases have been allocated successfully!
+                  All test cases for "{allocatedRelease?.releaseName || allocatedRelease?.name}" have been allocated successfully!
                 </div>
                 <div className="text-sm text-green-700 mb-4">
                   {Object.values(qaAllocations[selectedReleaseForQA] || {}).flat().length} of {qaAllocatedTestCases[selectedReleaseForQA].length} test cases allocated
                 </div>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    const currentProjectId = selectedProject || projectId;
-                    if (!currentProjectId) return;
-                    // Save mock modules to localStorage for TestExecution page
-                    localStorage.setItem("mockModules", JSON.stringify(effectiveModules));
-                    navigate(`/projects/${currentProjectId}/releases/test-execution`);
-                  }}
-                >
-                  Proceed to Test Execution
-                </Button>
+                <div className="flex gap-3">
+                  {releasesForQAAllocation.find((r: any) => (r.releaseId || r.id) !== selectedReleaseForQA) ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const nextRelease = releasesForQAAllocation.find((r: any) => (r.releaseId || r.id) !== selectedReleaseForQA);
+                        if (nextRelease) {
+                          setSelectedReleaseForQA(nextRelease.releaseId || nextRelease.id);
+                          setSelectedQA(null);
+                        }
+                      }}
+                    >
+                      Next Release
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const currentProjectId = selectedProject || projectId;
+                        if (!currentProjectId) return;
+                        // Save mock modules to localStorage for TestExecution page
+                        localStorage.setItem("mockModules", JSON.stringify(effectiveModules));
+                        navigate(`/projects/${currentProjectId}/releases/test-execution`);
+                      }}
+                    >
+                      Proceed to Test Execution
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1315,25 +1336,24 @@ export const Allocation: React.FC = () => {
     );
   };
 
-  useEffect(() => {
-    if (activeTab === "release" && selectedReleaseIds.length === 1) {
-      setLoadingRelease(true);
-      setReleaseError(null);
-      axios
-        .get(`${BASE_URL}releases/releaseId/${selectedReleaseIds[0]}`)
-        .then((res) => setApiRelease(res.data))
-        .catch((err) => setReleaseError(err.message))
-        .finally(() => setLoadingRelease(false));
-    } else {
-      setApiRelease(null);
-    }
-  }, [activeTab, selectedReleaseIds]);
+  // useEffect(() => {
+  //   if (activeTab === "release" && selectedReleaseIds.length === 1) {
+  //     setLoadingRelease(true);
+  //     setReleaseError(null);
+  //     axios
+  //       .get(`${BASE_URL}releases/releaseId/${selectedReleaseIds[0]}`)
+  //       .then((res) => setApiRelease(res.data))
+  //       .catch((err) => setReleaseError(err.message))
+  //       .finally(() => setLoadingRelease(false));
+  //   } else {
+  //     setApiRelease(null);
+  //   }
+  // }, [activeTab, selectedReleaseIds]);
 
   // Save mock test cases and mock QA to localStorage on mount (for cross-page use)
-  useEffect(() => {
-    localStorage.setItem('mockTestCases', JSON.stringify(mockTestCases));
-    localStorage.setItem('mockQA', JSON.stringify(mockQA));
-  }, []);
+  // useEffect(() => {
+  //   // No mock test case storage
+  // }, []);
 
   // Save allocations to localStorage whenever they change
   useEffect(() => {
@@ -1344,6 +1364,77 @@ export const Allocation: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('qaAllocations', JSON.stringify(qaAllocations));
   }, [qaAllocations]);
+
+  // Add useEffect to enforce selection restrictions
+  useEffect(() => {
+    if (allocationMode === "one-to-one") {
+      if (selectedTestCases.length > 1) {
+        setSelectedTestCases([selectedTestCases[0]]);
+      }
+      if (selectedReleaseIds.length > 1) {
+        setSelectedReleaseIds([selectedReleaseIds[0]]);
+      }
+    
+    } else if (allocationMode === "one-to-many") {
+      if (selectedTestCases.length > 1) {
+        setSelectedTestCases([selectedTestCases[0]]);
+      }
+      // Allow multiple releases
+    }
+    // Bulk: allow all
+  }, [allocationMode, selectedTestCases, selectedReleaseIds]);
+
+  // Add a useEffect to fetch test cases for all submodules when a module is selected and no submodule is selected
+  useEffect(() => {
+    if (selectedProjectId && selectedModule && !selectedSubmodule) {
+      // Find the module object
+      const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+      if (moduleObj && Array.isArray(moduleObj.submodules)) {
+        // Fetch test cases for all submodules in parallel
+        Promise.all(
+          moduleObj.submodules.map((sm: any) =>
+            getTestCasesByProjectAndSubmodule(selectedProjectId, String(sm.subModuleId))
+          )
+        ).then((results) => {
+          // Flatten and map all test cases
+          const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+          const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+          setAllocatedTestCases(
+            results.flat().map((tc: any) => ({
+              ...tc,
+              module: moduleMap[tc.moduleId] || tc.moduleId,
+              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+            })) as TestCaseType[]
+          );
+        }).catch(() => setAllocatedTestCases([]));
+      }
+    }
+  }, [selectedProjectId, selectedModule, effectiveModules, severities, defectTypes]);
+
+  // The existing useEffect for selectedSubmodule remains, so when a submodule is selected, only its test cases are fetched.
+  useEffect(() => {
+    if (!selectedProjectId || !selectedSubmodule) return;
+    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmodule)
+      .then((data) => {
+        // Map moduleId/subModuleId to names for display
+        const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setAllocatedTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
+        );
+      })
+      .catch((error) => {
+        setAllocatedTestCases([]);
+      });
+  }, [selectedProjectId, selectedSubmodule, effectiveModules, severities, defectTypes]);
 
   return (
     <div className="max-w-5xl mx-auto py-8">
@@ -1358,6 +1449,144 @@ export const Allocation: React.FC = () => {
         </Button>
       </div>
       {ProjectSelectionPanel()}
+      
+      {/* Show releases at the top when project is selected (only for Release Allocation tab) */}
+      {selectedProject && activeTab === "release" && (
+        <div className="mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Available Releases
+              </h2>
+              {loadingReleases ? (
+                <div className="text-center py-8">
+                  <div className="text-sm text-gray-500">Loading releases...</div>
+                </div>
+              ) : effectiveProjectRelease.length > 0 ? (
+                <>
+                  <ReleaseCardsPanel />
+                  {/* Allocate button appears if at least one release is selected */}
+                  {selectedReleaseIds.length > 0 && (
+                    <div className="mt-4 flex flex-col space-y-3">
+                      {/* Allocation Mode Selection */}
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm font-medium text-gray-700">Allocation Mode:</span>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "one-to-one" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("one-to-one")}
+                            disabled={allocationLoading}
+                          >
+                            One-to-One
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "one-to-many" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("one-to-many")}
+                            disabled={allocationLoading}
+                          >
+                            One-to-Many
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "bulk" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("bulk")}
+                            disabled={allocationLoading}
+                          >
+                            Bulk
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Mode Description */}
+                      <div className="text-xs text-gray-500">
+                        {allocationMode === "one-to-one" 
+                          ? `Each test case will be allocated to each release individually (${selectedTestCases.length} × ${selectedReleaseIds.length} = ${selectedTestCases.length * selectedReleaseIds.length} API calls)`
+                          : allocationMode === "one-to-many"
+                          ? `Each test case will be allocated to all selected releases in one API call (${selectedTestCases.length} API calls)`
+                          : `All selected test cases will be allocated to all selected releases in a single API call (1 API call)`}
+                      </div>
+
+                      {/* Allocate Button */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="primary"
+                          disabled={selectedTestCases.length === 0 || allocationLoading}
+                          onClick={handleAllocate}
+                        >
+                          {allocationLoading ? "Allocating..." : `Allocate Selected Releases (${allocationMode === "one-to-many" ? "One-to-Many" : "One-to-One"})`}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-sm text-gray-500">No releases found for this project.</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Success and Error Messages */}
+      {allocationSuccess && (
+        <div className="mb-4">
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-green-800">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{allocationSuccess}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {allocationError && (
+        <div className="mb-4">
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-red-800">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">{allocationError}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Allocation Progress */}
+      {allocationProgress && (
+        <div className="mb-4">
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center text-blue-800 mb-2">
+                <svg className="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="font-medium">Allocating test cases to releases...</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${(allocationProgress.current / allocationProgress.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="text-sm text-blue-600 mt-1">
+                {allocationProgress.current} of {allocationProgress.total} {allocationMode === "bulk" ? "bulk allocations" : allocationMode === "one-to-many" ? "test cases" : "allocations"} completed
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Show release details if a single release is selected */}
       {activeTab === "release" && selectedReleaseIds.length === 1 && (
         <div className="mb-4">
@@ -1406,17 +1635,36 @@ export const Allocation: React.FC = () => {
       {/* Tab Content */}
       {activeTab === "release" ? (
         <>
-          <ReleaseCardsPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
-          <TestCaseTable />
+          {selectedModule && <SubmoduleSelectionPanel />}
+          {filteredTestCases.length > 0 ? (
+            <TestCaseTable />
+          ) : (
+            selectedSubmodule && (
+              <Card className="mb-4">
+                <CardContent className="p-8 text-center">
+                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                </CardContent>
+              </Card>
+            )
+          )}
         </>
       ) : (
         <>
           <QASelectionPanel />
           {ModuleSelectionPanel()}
-          {SubmoduleSelectionPanel()}
-          <TestCaseTable />
+          {selectedModule && <SubmoduleSelectionPanel />}
+          {filteredTestCases.length > 0 ? (
+            <TestCaseTable />
+          ) : (
+            selectedSubmodule && (
+              <Card className="mb-4">
+                <CardContent className="p-8 text-center">
+                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                </CardContent>
+              </Card>
+            )
+          )}
         </>
       )}
       {/* View Steps Modal */}
@@ -1526,7 +1774,7 @@ export const Allocation: React.FC = () => {
         }}
       >
         <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={[]} />
       </div>
     </div>
   );

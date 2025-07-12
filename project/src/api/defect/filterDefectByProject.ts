@@ -3,27 +3,28 @@ import axios from 'axios';
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export interface FilteredDefect {
+  id: number; // real numeric id from backend
   defectId: string;
   description: string;
-  projectId: number;
-  severityId: number;
-  priorityId: number;
-  defectStatusId: number;
-  typeId: number;
-  id: string | null;
   reOpenCount: number;
   attachment: string | null;
   steps: string;
-  subModuleId: number;
-  releaseTestCaseId: number | null;
-  assignbyId: number;
-  assigntoId: number;
-  moduleId: number;
+  project_name: string;
+  severity_name: string;
+  priority_name: string;
+  priority: string;
+  defect_status_name: string;
+  release_test_case_description: string;
+  assigned_by_name: string;
+  assigned_to_name: string;
+  defect_type_name: string;
+  module_name: string;
+  sub_module_name: string;
 }
 
 /**
  * Fetches defects filtered by projectId and optional filters from the backend API.
- * @param filters An object with projectId (mandatory) and optional typeId, severityId, priorityId, defectStatusId, releaseTestCaseId.
+ * @param filters An object with projectId (mandatory) and optional typeId, severityId, priorityId, defectStatusId, releaseTestCaseId, moduleId, subModuleId, assignToId, assignById.
  * @returns Promise<FilteredDefect[]>
  */
 export async function filterDefects(filters: {
@@ -33,6 +34,10 @@ export async function filterDefects(filters: {
   priorityId?: number;
   defectStatusId?: number;
   releaseTestCaseId?: number;
+  moduleId?: number;
+  subModuleId?: number;
+  assignToId?: number;
+  assignById?: number;
 }): Promise<FilteredDefect[]> {
   const params: any = { projectId: filters.projectId };
   if (filters.typeId) params.typeId = filters.typeId;
@@ -40,6 +45,10 @@ export async function filterDefects(filters: {
   if (filters.priorityId) params.priorityId = filters.priorityId;
   if (filters.defectStatusId) params.defectstatusId = filters.defectStatusId;
   if (filters.releaseTestCaseId) params.ReleaseTestCaseId = filters.releaseTestCaseId;
+  if (filters.moduleId) params.moduleId = filters.moduleId;
+  if (filters.subModuleId) params.subModuleId = filters.subModuleId;
+  if (filters.assignToId) params.assignToId = filters.assignToId;
+  if (filters.assignById) params.assignById = filters.assignById;
   const response = await axios.get(`${baseUrl}defect/filter`, {
     params,
     headers: { 'Content-Type': 'application/json' },

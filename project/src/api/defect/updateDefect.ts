@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
-
-export async function updateDefectById(defectId: string | number, payload: any) {
-  const response = await axios.put(`${BASE_URL}defect/${defectId}`, payload);
+// New: Accept testCaseId and releasesId as arguments, and use them as query params
+export async function updateDefectById(defectId: number, payload: any) {
+  const url = `http://34.171.115.156:8087/api/v1/defect/updateById/${defectId}`;
+  const response = await axios.put(url, payload, {
+    headers: { 'Content-Type': 'application/json' },
+  });
   return response.data;
 } 

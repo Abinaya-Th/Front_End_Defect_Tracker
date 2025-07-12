@@ -35,6 +35,8 @@ import { ProjectFormData, Project } from "../types";
 import { useNavigate } from "react-router-dom";
 import { getAllProjects } from "../api/projectget";
 import { createProject } from "../api/createProject/createProject";
+import AlertModal from '../components/ui/AlertModal';
+import { getAllRoles } from "../api/role/viewrole";
 
 const cardStyles = [
   { border: "border-t-4 border-blue-400", iconBg: "bg-gradient-to-br from-blue-400 to-blue-600", iconColor: "text-white" },
@@ -79,7 +81,6 @@ export const Projects: React.FC = () => {
     status: "active",
     startDate: "",
     endDate: "",
-    role: "",
     manager: "",
     clientName: "",
     clientCountry: "",
@@ -88,25 +89,17 @@ export const Projects: React.FC = () => {
     clientPhone: "",
     address: "",
     description: "",
-    privileges: {
-      read: false,
-      write: false,
-      delete: false,
-      admin: false,
-      exportImport: false,
-      manageUsers: false,
-      viewReports: false,
-    },
   });
   const [backendProjects, setBackendProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     setLoading(true);
     getAllProjects()
       .then((data: any) => {
-        console.log("Fetched projects:", data); // Debug: log the response
         let projectsArray = Array.isArray(data)
           ? data
           : (data && Array.isArray(data.data))
@@ -118,7 +111,16 @@ export const Projects: React.FC = () => {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
-  console.log(backendProjects);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      getAllRoles()
+        .then((data) => {
+          setRoles(Array.isArray(data) ? data : (data?.data ?? []));
+        })
+        .catch(() => setRoles([]));
+    }
+  }, [isModalOpen]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -132,6 +134,7 @@ export const Projects: React.FC = () => {
           id: editingProject.id,
           teamMembers: editingProject.teamMembers || [],
           createdAt: editingProject.createdAt,
+          priority: 'medium', // Default value to satisfy Project type
         });
       } else {
         // Call backend API to create project
@@ -144,6 +147,8 @@ export const Projects: React.FC = () => {
             ? data.data
             : [];
         setBackendProjects(projectsArray);
+        setAlertMessage('Project created successfully!');
+        setAlertOpen(true);
       }
       resetForm();
     } catch (err: any) {
@@ -202,7 +207,6 @@ export const Projects: React.FC = () => {
       status: "active",
       startDate: "",
       endDate: "",
-      role: "",
       manager: "",
       clientName: "",
       clientCountry: "",
@@ -211,33 +215,13 @@ export const Projects: React.FC = () => {
       clientPhone: "",
       address: "",
       description: "",
-      privileges: {
-        read: false,
-        write: false,
-        delete: false,
-        admin: false,
-        exportImport: false,
-        manageUsers: false,
-        viewReports: false,
-      },
     });
     setEditingProject(null);
     setIsModalOpen(false);
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    if (field.startsWith("privileges.")) {
-      const privilegeField = field.split(".")[1];
-      setFormData((prev) => ({
-        ...prev,
-        privileges: {
-          ...prev.privileges,
-          [privilegeField]: value,
-        },
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const getStatusColor = (status: string) => {
@@ -255,6 +239,7 @@ export const Projects: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -291,8 +276,8 @@ export const Projects: React.FC = () => {
                 className={`relative rounded-2xl shadow-md border border-gray-200 bg-white ${style.border} cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.03] hover:border-blue-300 hover:bg-blue-50`}
                 style={{ overflow: "visible" }}
                 onClick={() => {
-                  setSelectedProjectId(project?.projectId);
-                  navigate(`/projects/${project?.projectId}/project-management`);
+                  setSelectedProjectId(project?.id);
+                  navigate(`/projects/${project?.id}/project-management`);
                 }}
               >
                 <CardContent className="pt-7 pb-6 px-7">
@@ -427,84 +412,6 @@ export const Projects: React.FC = () => {
                     onChange={(e) => handleInputChange("endDate", e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                   />
-                </div>
-                {/* Row 4: Role | Project Manager */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => handleInputChange("role", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    <option value="project_manager">Project Manager</option>
-                    <option value="team_lead">Team Lead</option>
-                    <option value="developer">Developer</option>
-                    <option value="designer">Designer</option>
-                    <option value="qa">QA Engineer</option>
-                  </select>
-                </div>
-                {/* Remove or comment out the Project Manager select field if sampleManagers is not defined or not needed */}
-                {/* <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Manager</label>
-                  <select
-                    value={formData.manager}
-                    onChange={(e) => handleInputChange("manager", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
-                    required
-                  >
-                    <option value="">Select Project Manager</option>
-                    {sampleManagers.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName} - {emp.designation}
-                      </option>
-                    ))}
-                  </select>
-                </div> */}
-                {/* Project Manager Privileges Accordion - placed immediately after Project Manager */}
-                <div className="md:col-span-2 mb-2">
-                  <div
-                    className="flex items-center justify-between cursor-pointer border border-gray-200 rounded-lg px-4 py-3 bg-white"
-                    onClick={() => setShowPrivileges((prev) => !prev)}
-                  >
-                    <span className="font-semibold text-base text-gray-800">Project Manager Privileges</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${showPrivileges ? "transform rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  {showPrivileges && (
-                    <div className="border border-t-0 border-gray-200 rounded-b-lg px-6 py-4 bg-white">
-                      <div className="space-y-3">
-                        {[
-                          { key: "read", label: "Read Access" },
-                          { key: "write", label: "Write Access" },
-                          { key: "delete", label: "Delete Access" },
-                          { key: "admin", label: "Admin Access" },
-                          { key: "exportImport", label: "Export/Import Data" },
-                          { key: "manageUsers", label: "Manage Users" },
-                          { key: "viewReports", label: "View Reports" },
-                        ].map((priv) => (
-                          <label key={priv.key} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={formData.privileges[priv.key as keyof typeof formData.privileges]}
-                              onChange={(e) =>
-                                handleInputChange(`privileges.${priv.key}`, e.target.checked)
-                              }
-                              className="rounded border-gray-300 text-gray-600 focus:ring-gray-400"
-                            />
-                            <span>{priv.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
