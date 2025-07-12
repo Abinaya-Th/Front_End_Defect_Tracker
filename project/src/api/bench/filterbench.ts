@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee } from '../../types/index';
 
-const API_BASE_URL = 'http://34.57.197.188:8087/api/v1';
+const API_BASE_URL = 'http://34.171.115.156:8087/api/v1';
 
 export interface BenchSearchParams {
   startDate?: string;
