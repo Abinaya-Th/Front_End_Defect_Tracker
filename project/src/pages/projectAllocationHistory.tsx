@@ -341,7 +341,7 @@ const ProjectAllocationHistory: React.FC = () => {
     setContextProjectId?.(id); // If provided by context
     setExpandedUser(null);
     // TODO: In real app, fetch new project allocation data here based on selectedProjectId
-    // This would involve calling an API to get allocation history for the specific project
+
   };
 
   if (loading || projectsLoading) {
