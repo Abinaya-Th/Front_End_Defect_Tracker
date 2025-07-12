@@ -498,27 +498,31 @@ export const Employees: React.FC = () => {
               )}
             </div>
             {/* Pagination Controls */}
-            {users.length > 0 && (
-              <div className="flex justify-end items-center gap-2 p-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 py-4">
+                <button
+                  className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  Prev
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i + 1}
+                    className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
                   Next
-                </Button>
+                </button>
               </div>
             )}
           </div>
