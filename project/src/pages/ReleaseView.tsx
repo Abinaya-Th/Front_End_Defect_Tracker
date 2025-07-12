@@ -29,7 +29,7 @@ import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import axios from 'axios';
-import { getAllReleaseTypes } from "../api/Releasetype";
+import AlertModal from '../components/ui/AlertModal';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 interface TestCase {
@@ -49,6 +49,7 @@ interface TestCase {
   testSeverity?: string;
   caseType?: string;
   caseSeverity?: string;
+  assignedBy?: string;
 }
 
 interface Module {
@@ -96,8 +97,8 @@ export const ReleaseView: React.FC = () => {
   // Add state for severities and defect types (like TestCase page)
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
-  const [releaseTypes, setReleaseTypes] = useState<{ id: number; releaseTypeName: string }[]>([]);
-  const [editingReleaseId, setEditingReleaseId] = useState<string | null>(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   // Fetch modules when project changes
   useEffect(() => {
@@ -471,6 +472,7 @@ export const ReleaseView: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Severity
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned By</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -499,6 +501,7 @@ export const ReleaseView: React.FC = () => {
                           {testCase.severity || 'N/A'}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{testCase.assignedBy || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -633,39 +636,21 @@ export const ReleaseView: React.FC = () => {
             releaseStatus: releaseFormData.releaseType,
           };
           try {
-            if (editingReleaseId) {
-              const response = await axios.put(`${BASE_URL}releases/${editingReleaseId}`, payload);
-              if (response.status === 200 && response.data.statusCode === 2000) {
-                getReleaseCardView();
-                setIsCreateReleaseModalOpen(false);
-                setReleaseFormData({
-                  name: "",
-                  version: "",
-                  description: "",
-                  releaseDate: "",
-                  releaseType: "",
-                });
-                setEditingReleaseId(null);
-                alert("Release updated successfully");
-              } else {
-                alert(response.data.message || "Failed to update release");
-              }
+            const response = await createRelease(payload);
+            if (response.status === "success" && response.statusCode === 2000) {
+              getReleaseCardView();
+              setIsCreateReleaseModalOpen(false);
+              setReleaseFormData({
+                name: "",
+                version: "",
+                description: "",
+                releaseDate: "",
+                releaseType: "",
+              });
+              setAlertMessage("Release created successfully!");
+              setAlertOpen(true);
             } else {
-              const response = await createRelease(payload);
-              if (response.status === "success" && response.statusCode === 2000) {
-                getReleaseCardView();
-                setIsCreateReleaseModalOpen(false);
-                setReleaseFormData({
-                  name: "",
-                  version: "",
-                  description: "",
-                  releaseDate: "",
-                  releaseType: "",
-                });
-                alert("Release created successfully");
-              } else {
-                alert(response.message || "Failed to create release");
-              }
+              alert(response.message || "Failed to create release");
             }
           } catch (error: any) {
             alert(
@@ -747,6 +732,7 @@ export const ReleaseView: React.FC = () => {
         <QuickAddTestCase selectedProjectId={selectedProject || ""} />
         <QuickAddDefect />
       </div>
+      <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
     </div>
   );
 };

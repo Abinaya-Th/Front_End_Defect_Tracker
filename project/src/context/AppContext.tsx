@@ -488,17 +488,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     { id: "7", name: "DUPLICATE", color: "#618833" },
     { id: "8", name: "HOLD", color: "#ffeb3b" },
   ]);
-  const [selectedProjectId, _setSelectedProjectId] = useState<string | null>(() => {
-    // Try to get from localStorage, fallback to null
-    return localStorage.getItem("selectedProjectId") || null;
+  const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(() => {
+    return localStorage.getItem('selectedProjectId') || null;
   });
 
   const setSelectedProjectId = (id: string | null) => {
-    _setSelectedProjectId(id);
+    setSelectedProjectIdState(id);
     if (id) {
-      localStorage.setItem("selectedProjectId", id);
+      localStorage.setItem('selectedProjectId', id);
     } else {
-      localStorage.removeItem("selectedProjectId");
+      localStorage.removeItem('selectedProjectId');
     }
   };
   const [testCaseDefectMap, setTestCaseDefectMap] = useState<{

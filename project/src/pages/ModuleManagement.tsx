@@ -26,6 +26,7 @@ import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getMo
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
 import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
+import AlertModal from '../components/ui/AlertModal';
 import { getDevelopersByModuleId } from "../api/module/getModuleDevelopers";
 
 
@@ -87,6 +88,9 @@ export const ModuleManagement: React.FC = () => {
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
 
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+
   // New state for developers assigned to modules/submodules
   const [moduleDevelopers, setModuleDevelopers] = useState<Record<string, any[]>>({});
 console.log(projectId, "projectId from params in module management page");
@@ -141,6 +145,8 @@ console.log(projectId, "projectId from params in module management page");
         if (response.status === "success") {
           // Refresh modules after adding
           fetchModules();
+          setAlertMessage('Module created successfully!');
+          setAlertOpen(true);
         }
         setModuleForm({ name: "" });
         setIsAddModuleModalOpen(false);
@@ -188,15 +194,25 @@ console.log(projectId, "projectId from params in module management page");
           projectId: Number(selectedProjectId),
         });
         if (response.success && response.module) {
-          // Refresh modules after updating
-          fetchModules();
+          await fetchModules();
+          setAlertMessage('Module updated successfully!');
+          setAlertOpen(true);
+          setTimeout(() => {
+            setModuleForm({ name: "" });
+            setEditingModule(null);
+            setIsEditModuleModalOpen(false);
+          }, 200);
         } else {
           // Fallback: refetch modules if update did not succeed
-          fetchModules();
+          await fetchModules();
+          setAlertMessage('Module updated successfully!');
+          setAlertOpen(true);
+          setTimeout(() => {
+            setModuleForm({ name: "" });
+            setEditingModule(null);
+            setIsEditModuleModalOpen(false);
+          }, 200);
         }
-        setModuleForm({ name: "" });
-        setEditingModule(null);
-        setIsEditModuleModalOpen(false);
       } catch (error) {
         alert("Failed to update module. Please try again.");
       } finally {
@@ -217,6 +233,8 @@ console.log(projectId, "projectId from params in module management page");
           if (response.status === "success") {
             // Refresh modules after deleting
             fetchModules();
+            setAlertMessage('Module deleted successfully!');
+            setAlertOpen(true);
           } else {
             alert(response.message || "Failed to delete module on server.");
           }
@@ -465,6 +483,7 @@ console.log(projectId, "projectId from params in module management page");
 
   return (
     <div className="max-w-6xl mx-auto">
+      <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       {!selectedProjectId ? (
         <div className="p-8 text-center text-gray-500">
           Please select a project to manage modules.
@@ -939,8 +958,10 @@ console.log(projectId, "projectId from params in module management page");
                       { subModuleName: submoduleForm.name }
                     );
                     if (response.data && response.data.success) {
-                      // Refresh modules after updating
-                      fetchModules();
+                      await fetchModules();
+                      setIsAddSubmoduleModalOpen(false);
+                      setIsEditingSubmodule(false);
+                      setEditingSubmoduleId(null);
                       alert("Submodule updated successfully.");
                     } else {
                       alert("Submodule updated successfully.");
