@@ -848,9 +848,7 @@ export const Allocation: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Severity
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -905,38 +903,7 @@ export const Allocation: React.FC = () => {
                     {tc.severity}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        setViewingTestCase(tc);
-                        setIsViewTestCaseModalOpen(true);
-                      }}
-                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                      title="View"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        /* handleEdit(tc) */
-                      }}
-                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        /* handleDelete(tc.id) */
-                      }}
-                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                
               </tr>
             ))}
           </tbody>
