@@ -115,16 +115,23 @@ export default function BenchAllocate() {
             .finally(() => setProjectsLoading(false));
     }, []);
 
+    // Fetch bench employees with filters
+    const fetchBenchEmployees = async (searchParams: BenchSearchParams = {}) => {
+        setIsSearching(true);
+        try {
+            const data = await searchBenchEmployees(searchParams);
+            setEmployees(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch bench employees:', error);
+            setEmployees([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // Initial fetch
     useEffect(() => {
-        getBenchList()
-            .then((data) => {
-                if (Array.isArray(data)) {
-                    setEmployees(data);
-                } else {
-                    setEmployees([]);
-                }
-            })
-            .catch(() => setEmployees([]));
+        fetchBenchEmployees();
     }, []);
 
     // Fetch project allocations when selectedProjectId changes
@@ -157,6 +164,48 @@ export default function BenchAllocate() {
         })
         .catch(() => setRoles([]));
     }, []);
+
+    // Handle filter changes with API calls
+    const handleFirstNameChange = (value: string) => {
+        setBenchFirstName(value);
+        const searchParams: BenchSearchParams = {};
+        if (value.trim()) searchParams.firstName = value.trim();
+        if (benchLastName.trim()) searchParams.lastName = benchLastName.trim();
+        if (designationFilter) searchParams.designation = designationFilter;
+        if (availabilityFilter.length > 0) searchParams.availability = availabilityFilter[0];
+        fetchBenchEmployees(searchParams);
+    };
+
+    const handleLastNameChange = (value: string) => {
+        setBenchLastName(value);
+        const searchParams: BenchSearchParams = {};
+        if (benchFirstName.trim()) searchParams.firstName = benchFirstName.trim();
+        if (value.trim()) searchParams.lastName = value.trim();
+        if (designationFilter) searchParams.designation = designationFilter;
+        if (availabilityFilter.length > 0) searchParams.availability = availabilityFilter[0];
+        fetchBenchEmployees(searchParams);
+    };
+
+    const handleDesignationChange = (value: string) => {
+        setDesignationFilter(value);
+        const searchParams: BenchSearchParams = {};
+        if (benchFirstName.trim()) searchParams.firstName = benchFirstName.trim();
+        if (benchLastName.trim()) searchParams.lastName = benchLastName.trim();
+        if (value) searchParams.designation = value;
+        if (availabilityFilter.length > 0) searchParams.availability = availabilityFilter[0];
+        fetchBenchEmployees(searchParams);
+    };
+
+    const handleAvailabilityChange = (value: string) => {
+        const availability = value ? parseInt(value) : 0;
+        setAvailabilityFilter(value ? [availability] : []);
+        const searchParams: BenchSearchParams = {};
+        if (benchFirstName.trim()) searchParams.firstName = benchFirstName.trim();
+        if (benchLastName.trim()) searchParams.lastName = benchLastName.trim();
+        if (designationFilter) searchParams.designation = designationFilter;
+        if (availability > 0) searchParams.availability = availability;
+        fetchBenchEmployees(searchParams);
+    };
 
     // Project selection handler
     const handleProjectSelect = (id: string) => {
@@ -202,12 +251,8 @@ export default function BenchAllocate() {
         }).filter((e): e is Employee & { availability: number } => e !== null);
     }, [employees, projectAllocations, selectedProjectId]);
 
-    const filteredBench = useMemo(() => benchEmployees.filter(e => {
-        const matchesSearch = `${e.firstName} ${e.lastName}`.toLowerCase().includes(benchFilter.toLowerCase());
-        const matchesDesignation = !designationFilter || e.designation === designationFilter;
-        const matchesAvailability = availabilityFilter.length === 0 || availabilityFilter.some(val => e.availability >= val);
-        return matchesSearch && matchesDesignation && matchesAvailability;
-    }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
+    // No need for local filtering since we're using API filtering
+    const filteredBench = benchEmployees;
     
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
@@ -361,16 +406,24 @@ export default function BenchAllocate() {
                     </div>
                     {/* Search and Filter for Bench */}
                     <div className="mb-4 space-y-3">
-                        <Input
-                            placeholder="Search employees..."
-                            value={benchFilter}
-                            onChange={e => setBenchFilter(e.target.value)}
-                            className="w-full"
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="First Name..."
+                                value={benchFirstName}
+                                onChange={e => handleFirstNameChange(e.target.value)}
+                                className="flex-1"
+                            />
+                            <Input
+                                placeholder="Last Name..."
+                                value={benchLastName}
+                                onChange={e => handleLastNameChange(e.target.value)}
+                                className="flex-1"
+                            />
+                        </div>
                         <div className="flex gap-2">
                             <select
                                 value={designationFilter}
-                                onChange={e => setDesignationFilter(e.target.value)}
+                                onChange={e => handleDesignationChange(e.target.value)}
                                 className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
                             >
                                 <option value="">All Designations</option>
@@ -380,7 +433,7 @@ export default function BenchAllocate() {
                             </select>
                             <select
                                 value={availabilityFilter[0] ? String(availabilityFilter[0]) : ''}
-                                onChange={e => setAvailabilityFilter(e.target.value ? [parseInt(e.target.value)] : [])}
+                                onChange={e => handleAvailabilityChange(e.target.value)}
                                 className="flex-1 border border-[#D1D5DB] rounded px-2 py-2 text-sm h-10"
                             >
                                 <option value="">All Availability</option>
@@ -396,8 +449,8 @@ export default function BenchAllocate() {
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                                 <p className="text-gray-500">Searching employees...</p>
                             </div>
-                        ) : employees.length > 0 ? (
-                            employees.map(emp => (
+                        ) : filteredBench.length > 0 ? (
+                            filteredBench.map(emp => (
                             <div
                                 key={emp.id}
                                 className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
