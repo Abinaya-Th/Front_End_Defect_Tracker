@@ -71,6 +71,7 @@ export interface Defect {
 }
 
 export interface TestCase {
+  testCaseId: Key | null | undefined;
   id: string;
   description: string;
   steps: string;
@@ -175,14 +176,15 @@ export interface Module {
 
 export interface CreateModuleRequest {
   moduleName: string;
-  projectId: string;
-  submodules?: { name: string }[];
+  projectId: number;
+  // submodules?: { name: string }[];
 }
 
 export interface CreateModuleResponse {
-  success: boolean;
+  status: string;
+  statusCode?: string;
+  data?: CreateModuleRequest[];
   message?: string;
-  module?: Module;
 }
 
 export interface GetModulesResponse {

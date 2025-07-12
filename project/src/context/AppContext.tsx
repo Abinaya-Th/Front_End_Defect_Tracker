@@ -8,42 +8,9 @@ import {
   WorkflowItem,
   BenchAllocation,
   WorkflowStatus,
-  StatusTransition,
-  StatusType,
-} from "../types";
+  StatusTransition
+} from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
-
-export interface Project {
-  id: string;
-  name: string;
-  prefix: string;
-  projectType: string;
-  status: "active" | "inactive" | "completed";
-  startDate: string;
-  endDate: string;
-  manager: string;
-  priority: "high" | "medium" | "low";
-  teamMembers: string[];
-  progress: number;
-  description: string;
-  role?: string;
-  clientName?: string;
-  clientCountry?: string;
-  clientState?: string;
-  clientEmail?: string;
-  clientPhone?: string;
-  address?: string;
-  privileges?: {
-    read: boolean;
-    write: boolean;
-    delete: boolean;
-    admin: boolean;
-    exportImport: boolean;
-    manageUsers: boolean;
-    viewReports: boolean;
-  };
-  createdAt: string;
-}
 
 interface Submodule {
   id: string;
@@ -60,6 +27,13 @@ interface Module {
 
 interface ModulesByProject {
   [projectId: string]: Module[];
+}
+
+// Local StatusType definition (not exported from types/index.ts)
+interface StatusType {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface AppContextType {
@@ -118,7 +92,7 @@ interface AppContextType {
   addSubmodule: (
     projectId: string,
     moduleId: string,
-    submodule: string
+    submodule: Submodule
   ) => void;
   updateSubmodule: (
     projectId: string,
@@ -375,13 +349,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       severity: "critical",
       priority: "critical",
       projectId: "PR0001",
-      module: "Security",
-      subModule: "Encryption",
-      type: "bug",
       reportedBy: "Security Team",
       assignedTo: "John Doe",
       createdAt: "2024-03-04",
-      testCaseId: "TC005",
       updatedAt: "2024-03-04T00:00:00Z",
     },
     {
@@ -392,13 +362,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       severity: "medium",
       priority: "medium",
       projectId: "PR0002",
-      module: "UI",
-      subModule: "Responsive Design",
-      type: "bug",
       reportedBy: "QA Team",
       assignedTo: "Sarah Wilson",
       createdAt: "2024-03-05",
-      testCaseId: "TC006",
       updatedAt: "2024-03-05T00:00:00Z",
     },
     {
@@ -409,13 +375,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       severity: "high",
       priority: "high",
       projectId: "PR0001",
-      module: "Transaction",
-      subModule: "Transfer",
-      type: "bug",
       reportedBy: "QA Team",
       assignedTo: "Michael Brown",
       createdAt: "2024-03-06",
-      testCaseId: "TC007",
       updatedAt: "2024-03-06T00:00:00Z",
     },
     {
@@ -426,13 +388,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       severity: "high",
       priority: "high",
       projectId: "PR0003",
-      module: "Database",
-      subModule: "CRUD Operations",
-      type: "bug",
       reportedBy: "DevOps Team",
       assignedTo: "Sarah Wilson",
       createdAt: "2024-03-07",
-      testCaseId: "TC008",
       updatedAt: "2024-03-07T00:00:00Z",
     },
     {
@@ -444,249 +402,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       severity: "medium",
       priority: "medium",
       projectId: "PR0003",
-      module: "Reporting",
-      subModule: "Analytics",
-      type: "bug",
       reportedBy: "QA Team",
       assignedTo: "John Doe",
       createdAt: "2024-03-08",
-      testCaseId: "TC009",
       updatedAt: "2024-03-08T00:00:00Z",
     },
   ]);
 
   const [testCases, setTestCases] = useState<TestCase[]>([
-    // Mobile Banking App Test Cases
-    {
-      id: "TC-AUT-BIO-0001",
-      module: "Authentication",
-      subModule: "Biometric Login",
-      description:
-        "Verify that users can log in using biometric authentication",
-      steps:
-        "Open the mobile banking app\nSelect biometric login option\nAuthenticate using fingerprint/face ID\nVerify successful login and redirection to dashboard",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-BIO-0002",
-      module: "Authentication",
-      subModule: "Biometric Login",
-      description:
-        "Verify fallback to PIN login when biometric authentication fails",
-      steps:
-        "Open the mobile banking app\nSelect biometric login option\nFail biometric authentication 3 times\nVerify fallback to PIN login screen\nEnter correct PIN\nVerify successful login",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0001",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Test PIN login security features",
-      steps:
-        "Enter incorrect PIN 3 times\nVerify account lockout\nWait for lockout period\nEnter correct PIN\nVerify successful login",
-      type: "functional",
-      severity: "critical",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0002",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Verify PIN change functionality",
-      steps:
-        "Log in to the app\nNavigate to security settings\nSelect change PIN option\nEnter current PIN\nEnter new PIN twice\nVerify PIN change confirmation",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PAS-0001",
-      module: "Authentication",
-      subModule: "Password Reset",
-      description: "Test password reset request process",
-      steps:
-        "Click forgot password link\nEnter registered email address\nVerify OTP sent to email\nEnter OTP\nSet new password\nVerify password change confirmation",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PAS-0002",
-      module: "Authentication",
-      subModule: "Password Reset",
-      description: "Verify password strength requirements",
-      steps:
-        "Initiate password reset\nEnter weak password (less than 8 characters)\nVerify error message\nEnter password without special character\nVerify error message\nEnter strong password meeting all requirements\nVerify acceptance",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-SES-0001",
-      module: "Authentication",
-      subModule: "Session Management",
-      description: "Verify session timeout functionality",
-      steps:
-        "Log in to the app\nLeave app idle for 5 minutes\nAttempt to perform an action\nVerify session timeout message\nVerify redirection to login screen",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-SES-0002",
-      module: "Authentication",
-      subModule: "Session Management",
-      description: "Test session handling across multiple devices",
-      steps:
-        "Log in on first device\nLog in on second device\nVerify session status on first device\nPerform action on second device\nVerify session remains active on both devices",
-      type: "functional",
-      severity: "medium",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-ACC-OVE-0003",
-      module: "Account Management",
-      subModule: "Account Overview",
-      description: "Verify account overview displays correct information",
-      steps:
-        "Log in to the app\nNavigate to account overview\nVerify account balance display\nCheck recent transactions list\nVerify account details accuracy",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-TRA-QUI-0004",
-      module: "Money Transfer",
-      subModule: "Quick Transfer",
-      description: "Test quick transfer feature between accounts",
-      steps:
-        "Select quick transfer option\nChoose source and destination accounts\nEnter transfer amount\nConfirm transfer\nVerify transaction completion",
-      type: "functional",
-      severity: "critical",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-BIL-LIS-0005",
-      module: "Bill Payments",
-      subModule: "Bill List",
-      description: "Verify bill list management functionality",
-      steps:
-        "Navigate to bill payments section\nAdd new biller\nVerify biller details\nCheck bill list display\nTest bill payment process",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-SEC-2FA-0006",
-      module: "Security Features",
-      subModule: "Two-Factor Auth",
-      description: "Test two-factor authentication process",
-      steps:
-        "Enable 2FA in security settings\nLog out and attempt login\nEnter primary credentials\nEnter 2FA code\nVerify successful authentication",
-      type: "functional",
-      severity: "critical",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-SUP-CHT-0007",
-      module: "Customer Support",
-      subModule: "Chat Support",
-      description: "Verify in-app chat support features",
-      steps:
-        "Access customer support section\nInitiate chat session\nSend test message\nVerify message delivery\nCheck response handling",
-      type: "functional",
-      severity: "medium",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0003",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Verify PIN length requirements and validation",
-      steps:
-        "Navigate to PIN change screen\nEnter PIN with less than 6 digits\nVerify error message for short PIN\nEnter PIN with more than 6 digits\nVerify error message for long PIN\nEnter valid 6-digit PIN\nVerify PIN acceptance",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0004",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Test validation for consecutive numbers in PIN",
-      steps:
-        "Navigate to PIN change screen\nEnter PIN with consecutive numbers (e.g., 123456)\nVerify warning message\nEnter PIN with non-consecutive numbers\nVerify PIN acceptance",
-      type: "functional",
-      severity: "medium",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0005",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Verify PIN lockout duration and reset functionality",
-      steps:
-        "Enter incorrect PIN 3 times\nVerify account lockout message\nWait for 15 minutes\nAttempt login with correct PIN\nVerify successful login\nEnter incorrect PIN 3 times again\nVerify new lockout period",
-      type: "functional",
-      severity: "critical",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0006",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Test PIN reset process using OTP verification",
-      steps:
-        "Select forgot PIN option\nEnter registered mobile number\nVerify OTP sent to mobile\nEnter received OTP\nSet new PIN\nConfirm new PIN\nVerify PIN reset confirmation",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0007",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Verify that users cannot reuse previous PINs",
-      steps:
-        "Change PIN to a new value\nLog out and log back in\nNavigate to PIN change screen\nAttempt to set previous PIN\nVerify error message\nSet different PIN\nVerify successful PIN change",
-      type: "functional",
-      severity: "high",
-      status: "active",
-      projectId: "2",
-    },
-    {
-      id: "TC-AUT-PIN-0008",
-      module: "Authentication",
-      subModule: "PIN Login",
-      description: "Verify PIN entry field security features",
-      steps:
-        "Navigate to PIN entry screen\nEnter PIN digits\nVerify digits are masked\nToggle show/hide PIN option\nVerify PIN visibility toggle works\nVerify PIN is masked by default after screen timeout",
-      type: "functional",
-      severity: "medium",
-      status: "active",
-      projectId: "2",
-    },
+    // No mock test case data. Start with an empty array or load from API.
   ]);
 
   const [releases, setReleases] = useState<Release[]>([
@@ -764,9 +488,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     { id: "7", name: "DUPLICATE", color: "#618833" },
     { id: "8", name: "HOLD", color: "#ffeb3b" },
   ]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
-  );
+  const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(() => {
+    return localStorage.getItem('selectedProjectId') || null;
+  });
+
+  const setSelectedProjectId = (id: string | null) => {
+    setSelectedProjectIdState(id);
+    if (id) {
+      localStorage.setItem('selectedProjectId', id);
+    } else {
+      localStorage.removeItem('selectedProjectId');
+    }
+  };
   const [testCaseDefectMap, setTestCaseDefectMap] = useState<{
     [testCaseId: string]: string;
   }>({});
@@ -970,7 +703,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const addSubmodule = (
     projectId: string,
     moduleId: string,
-    submodule: string
+    submodule: Submodule
   ) => {
     setModulesByProject((prev) => ({
       ...prev,
@@ -997,7 +730,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
             ? {
               ...m,
               submodules: m.submodules.map((s, i) =>
-                i === submoduleIdx ? newName : s
+                i === submoduleIdx ? { ...s, name: newName } : s
               ),
             }
             : m
@@ -1150,19 +883,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    getModulesByProjectId(selectedProjectId).then((res) => {
-      const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id),
-        name: mod.moduleName || mod.name,
-        assignedDevs: [],
-        submodules: (mod.submodules || []).map((sm: any) => ({
-          id: String(sm.id),
-          name: sm.subModuleName || sm.name,
+    getModulesByProjectId(selectedProjectId)
+      .then((res) => {
+        const modules = (res.data || []).map((mod: any) => ({
+          id: String(mod.id),
+          name: mod.moduleName || mod.name,
           assignedDevs: [],
-        })),
-      }));
-      setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
-    });
+          submodules: (mod.submodules || []).map((sm: any) => ({
+            id: String(sm.id),
+            name: sm.subModuleName || sm.name,
+            assignedDevs: [],
+          })),
+        }));
+        setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: modules }));
+      })
+      .catch(error => {
+        console.error('Failed to fetch modules for project:', error.message);
+        setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: [] }));
+      });
   }, [selectedProjectId]);
 
   return (

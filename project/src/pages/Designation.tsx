@@ -6,25 +6,17 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Briefcase } from 'lucide-react';
 import axios from 'axios';
-
-interface Designation {
-  id: string;
-  name: string;
-  description: string;
-  level: 'entry' | 'mid' | 'senior' | 'lead' | 'manager';
-  department: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { deleteDesignation, Designations, getDesignations, putDesignation } from '../api/designation/designation';
+import AlertModal from '../components/ui/AlertModal';
 
 const Designation: React.FC = () => {
   const navigate = useNavigate();
-  const [designations, setDesignations] = useState<Designation[]>([]);
+  const [designations, setDesignations] = useState<Designations[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingDesignation, setEditingDesignation] = useState<Designation | null>(null);
-  const [deletingDesignation, setDeletingDesignation] = useState<Designation | null>(null);
+  const [editingDesignation, setEditingDesignation] = useState<Designations | null>(null);
+  const [deletingDesignation, setDeletingDesignation] = useState<Designations | null>(null);
   const [formData, setFormData] = useState({
     name: ''
   
@@ -32,26 +24,54 @@ const Designation: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const baseUrl=import.meta.env.VITE_BASE_URL;
+  const [alert, setAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [createAlert, setCreateAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [deleteAlert, setDeleteAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(designations.length / pageSize);
+  const paginatedDesignations = designations.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+  const showAlert = (message: string) => {
+    setAlert({ isOpen: true, message });
+  };
+  const showEditAlert = (message: string) => {
+    setEditAlert({ isOpen: true, message });
+  };
+  const showCreateAlert = (message: string) => {
+    setCreateAlert({ isOpen: true, message });
+  };
+  const showDeleteAlert = (message: string) => {
+    setDeleteAlert({ isOpen: true, message });
+  };
 
   // Fetch designations from API on mount
   const fetchDesignations = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${baseUrl}designation`);
-      setDesignations(
-        (response.data.data || []).map((item: any) => ({
-          id: item.id.toString(),
-          name: item.name,
-          description: item.description || '',
-          level: item.level || 'entry',
-          department: item.department || '',
-          createdAt: item.createdAt || '',
-          updatedAt: item.updatedAt || ''
-        }))
-      );
+      const response = await getDesignations();
+      setDesignations(Array.isArray(response.data) ? response.data : []);
     } catch (err: any) {
-      setError('Failed to fetch designations');
+      setError(err.response?.data?.message || 'Failed to fetch designations');
+      setDesignations([]); // Ensure it's always an array
+      showAlert(err.response?.data?.message || 'Failed to fetch designations');
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +79,12 @@ const Designation: React.FC = () => {
 
   useEffect(() => {
     fetchDesignations();
+    // Reset all alert popups on mount so none show at page load
+    setAlert({ isOpen: false, message: '' });
+    setEditAlert({ isOpen: false, message: '' });
+    setCreateAlert({ isOpen: false, message: '' });
+    setDeleteAlert({ isOpen: false, message: '' });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const resetForm = () => {
@@ -76,37 +102,36 @@ const Designation: React.FC = () => {
       await fetchDesignations(); // Refresh the list from backend
       setIsCreateModalOpen(false);
       resetForm();
+      setPendingCreateSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create designation');
+      showCreateAlert(err.response?.data?.message || 'Failed to create designation');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      showCreateAlert('Created Successfully');
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleEdit = async () => {
     if (!editingDesignation) return;
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.put(
-        `${baseUrl}designation/${editingDesignation.id}`,
-        formData
-      );
-      const updatedDesignation: Designation = {
-        ...editingDesignation,
-        ...formData,
-        updatedAt: response.data.updatedAt || new Date().toISOString()
-      };
-      setDesignations(
-        designations.map((designation) =>
-          designation.id === editingDesignation.id ? updatedDesignation : designation
-        )
-      );
+      await putDesignation(editingDesignation.id, formData);
+      await fetchDesignations(); // Refresh the list from backend
       setIsEditModalOpen(false);
       setEditingDesignation(null);
       resetForm();
+      showEditAlert('Updated Successfully');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update designation');
+      showEditAlert(err.response?.data?.message || 'Failed to update designation');
     } finally {
       setIsLoading(false);
     }
@@ -117,20 +142,22 @@ const Designation: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await axios.delete(`${baseUrl}designation/${deletingDesignation.id}`);
+      await deleteDesignation(deletingDesignation.id);
       setDesignations(
         designations.filter((designation) => designation.id !== deletingDesignation.id)
       );
       setIsDeleteModalOpen(false);
       setDeletingDesignation(null);
+      showDeleteAlert('Deleted Successfully');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete designation');
+      showDeleteAlert(err.response?.data?.message || 'Failed to delete designation');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const openEditModal = (designation: Designation) => {
+  const openEditModal = (designation: Designations) => {
     setEditingDesignation(designation);
     setFormData({
       name: designation.name
@@ -139,7 +166,7 @@ const Designation: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
-  const openDeleteModal = (designation: Designation) => {
+  const openDeleteModal = (designation: Designations) => {
     setDeletingDesignation(designation);
     setIsDeleteModalOpen(true);
   };
@@ -168,6 +195,12 @@ const Designation: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      {/* Toast Notification */}
+      <AlertModal
+        isOpen={alert.isOpen}
+        message={alert.message}
+        onClose={() => setAlert((a) => ({ ...a, isOpen: false }))}
+      />
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -204,21 +237,14 @@ const Designation: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {designations.length === 0 && !isLoading && !error && (
+            {Array.isArray(designations) && designations.length === 0 && !isLoading && !error && (
               <tr>
                 <td colSpan={2} className="px-5 py-3 text-center text-gray-500">
                   No designations found.
                 </td>
               </tr>
             )}
-            {error && (
-              <tr>
-                <td colSpan={2} className="px-5 py-3 text-center text-red-600">
-                  {error}
-                </td>
-              </tr>
-            )}
-            {designations.map((designation) => (
+            {Array.isArray(paginatedDesignations) && paginatedDesignations.map((designation) => (
               <tr key={designation.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{designation.name}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
@@ -241,6 +267,34 @@ const Designation: React.FC = () => {
             ))}
           </tbody>
         </table>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -249,6 +303,7 @@ const Designation: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setCreateAlert({ isOpen: false, message: '' });
         }}
         title="Create New Designation"
       >
@@ -263,7 +318,6 @@ const Designation: React.FC = () => {
               placeholder="Enter designation name"
             />
           </div>
-          {error && <div className="text-red-600 text-sm">{error}</div>}
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               variant="secondary"
@@ -284,6 +338,12 @@ const Designation: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Create Alert Modal (appears above Create modal) */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
 
       {/* Edit Modal */}
       <Modal
@@ -292,6 +352,7 @@ const Designation: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingDesignation(null);
           resetForm();
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title="Edit Designation"
       >
@@ -326,6 +387,12 @@ const Designation: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Edit Alert Modal (appears above Edit modal) */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -333,6 +400,7 @@ const Designation: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingDesignation(null);
+          setDeleteAlert({ isOpen: false, message: '' });
         }}
         title="Delete Designation"
       >
@@ -360,6 +428,12 @@ const Designation: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Delete Alert Modal (appears above Delete modal) */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };

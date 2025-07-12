@@ -20,7 +20,6 @@ export async function createProject(projectData: ProjectFormData) {
             phoneNo: projectData.clientPhone,
             userId: 2, // Dummy userId for now
         };
-        console.log('Payload being sent to backend:', payload);
         const response = await axios.post(API_URL, payload);
         return response.data;
     } catch (error: any) {

@@ -20,7 +20,7 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import ModuleSelector from "../components/ui/ModuleSelector";
 import { Project } from "../types";
 import { getAllProjects } from "../api/projectget";
-import { getTestCasesByProjectAndSubmodule, deleteTestCase as apiDeleteTestCase } from "../api/testCase/testCaseApi";
+import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { searchTestCases } from "../api/testCase/searchTestCase";
@@ -28,6 +28,7 @@ import { updateTestCase } from "../api/testCase/updateTestCase";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
+import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -59,13 +60,18 @@ export const TestCase: React.FC = () => {
     getAllProjects().then(res => setProjects(res));
   }, []);
 
+  // Fetch static data only once on mount
+  useEffect(() => {
+    getSeverities().then(res => setSeverities(res.data));
+    getDefectTypes().then(res => setDefectTypes(res.data));
+  }, []);
+
   // Fetch modules when selectedProjectId changes
   useEffect(() => {
     if (!selectedProjectId) return;
     getModulesByProjectId(selectedProjectId).then((res) => {
-      // Transform API data to expected format
       const modules = (res.data || []).map((mod: any) => ({
-        id: String(mod.id), // Always use backend module ID
+        id: String(mod.id),
         name: mod.moduleName || mod.name,
         submodules: (mod.submodules || []).map((sm: any) => ({
           id: String(sm.id),
@@ -83,7 +89,7 @@ export const TestCase: React.FC = () => {
   // const [isModalOpen, setIsModalOpen] = useState(false); // Unused
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [isViewTestCaseModalOpen, setIsViewTestCaseModalOpen] = useState(false);
-  const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
+  // const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]); // Removed
   const [viewingTestCase, setViewingTestCase] = useState<TestCaseType | null>(null);
   // const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Unused
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
@@ -158,7 +164,6 @@ export const TestCase: React.FC = () => {
         }
       });
   }, [selectedModuleId]);
-  console.log("Submodules fetched:", submodules);
 
 
   // Add state for severities and defect types
@@ -182,14 +187,7 @@ export const TestCase: React.FC = () => {
         })) as TestCaseType[]
       );
     });
-  }, [selectedProjectId, selectedSubmoduleId, projectModules, severities, defectTypes]);
-
-  // Fetch severities and defect types on mount
-  useEffect(() => {
-    getSeverities().then(res => setSeverities(res.data));
-    getDefectTypes().then(res => setDefectTypes(res.data));
-
-  }, []);
+  }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes]); // Removed projectModules from dependencies
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -265,21 +263,20 @@ export const TestCase: React.FC = () => {
   // };
 
   // Handle submodule selection (just highlight, no fetch)
+  //noneeded
   const handleSubmoduleSelect = (submoduleId: string | null) => {
-    console.log("Submodule selected:", submoduleId);
-
     setSelectedSubmoduleId(submoduleId);
-    setSelectedTestCases([]);
+    // setSelectedTestCases([]); // Removed
     setSearchResults(null);
     setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
   };
 
   // When selection changes, update selectedTestCases for bulk actions
-  useEffect(() => {
-    if (selectedModules.length > 0 || selectedSubmodules.length > 0) {
-      setSelectedTestCases(selectedTestCaseIds);
-    }
-  }, [selectedTestCaseIds, selectedModules, selectedSubmodules]);
+  // useEffect(() => {
+  //   if (selectedModules.length > 0 || selectedSubmodules.length > 0) {
+  //     setSelectedTestCases(selectedTestCaseIds);
+  //   }
+  // }, [selectedTestCaseIds, selectedModules, selectedSubmodules]); // Removed
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -377,60 +374,28 @@ export const TestCase: React.FC = () => {
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     for (const { formData } of modals) {
-      console.log("Submitting form data:", formData);
-
-      //  const moduleObj = projectModules.find(m => m.name === formData.module);
-      //   const submoduleObj = moduleObj?.submodules.find(sm => sm.name === formData.subModule);
+      // Prepare payload for both create and update
       const payload: any = {
         description: formData.description,
         steps: formData.steps,
         subModuleId: Number(selectedSubmoduleId),
         moduleId: Number(selectedModuleId),
-        projectId: formData.projectId,
+        projectId: Number(formData.projectId),
       };
       const severityId = severities.find(s => s.name === formData.severity)?.id;
       if (typeof severityId === 'number') payload.severityId = severityId;
       const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
       if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
-    try {
-      const response = await createTestCase(payload);
-      console.log("Test case created successfully:", response);
-    } catch (error) {
-      console.error("Error creating test case:", error);
-    }
-     
-  }
- 
-
-    if (e) e.preventDefault();
-    for (const { formData } of modals) {
-      if (formData.id) {
-        // Map module and submodule names to IDs
-        const moduleObj = projectModules && projectModules.find(m => m.name === formData.module);
-        const submoduleObj = moduleObj?.submodules && moduleObj?.submodules.find(sm => sm.name === formData.subModule);
-        await updateTestCase(formData.id, {
-          testcaseId: String(formData.id),
-          testcase: formData.description, // Use description as the title/name
-          description: formData.description,
-          steps: formData.steps,
-          submoduleId: submoduleObj ? String(submoduleObj.id) : undefined,
-          moduleId: moduleObj ? String(moduleObj.id) : undefined,
-          projectId: formData.projectId ? String(formData.projectId) : undefined,
-          severityId: (() => { const id = severities && severities.find(s => s.name === formData.severity)?.id; return id !== undefined ? String(id) : undefined; })(),
-          typeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
-          defectTypeId: (() => { const id = defectTypes && defectTypes.find(dt => dt.defectTypeName === formData.type)?.id; return id !== undefined && !isNaN(Number(id)) ? Number(id) : undefined; })(),
-        });
-      } else {
-        // Add mode
-        // addTestCase({
-        //   ...formData,
-        //   id: `TC-${formData.module
-        //     .substring(0, 3)
-        //     .toUpperCase()}-${formData.subModule
-        //       .substring(0, 3)
-        //       .toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        //   projectId: selectedProjectId,
-        // });
+      try {
+        if (formData.id) {
+          // Edit mode: update existing test case
+          await updateTestCase(extractNumericId(formData.id), payload);
+        } else {
+          // Add mode: create new test case
+          const response = await createTestCase(payload);
+        }
+      } catch (error) {
+        console.error("Error saving test case:", error);
       }
     }
     setSuccess(true);
@@ -486,21 +451,21 @@ export const TestCase: React.FC = () => {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedTestCases(filteredTestCases.map((tc: TestCaseType) => tc.id));
-    } else {
-      setSelectedTestCases([]);
-    }
-  };
+  // const handleSelectAll = (checked: boolean) => {
+  //   if (checked) {
+  //     setSelectedTestCases(filteredTestCases.map((tc: TestCaseType) => tc.id));
+  //   } else {
+  //     setSelectedTestCases([]);
+  //   }
+  // };
 
-  const handleSelectTestCase = (testCaseId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedTestCases([...selectedTestCases, testCaseId]);
-    } else {
-      setSelectedTestCases(selectedTestCases.filter((id) => id !== testCaseId));
-    }
-  };
+  // const handleSelectTestCase = (testCaseId: string, checked: boolean) => {
+  //   if (checked) {
+  //     setSelectedTestCases([...selectedTestCases, testCaseId]);
+  //   } else {
+  //     setSelectedTestCases(selectedTestCases.filter((id) => id !== testCaseId));
+  //   }
+  // };
 
   const handleViewSteps = (testCase: TestCaseType) => {
     setViewingTestCase(testCase);
@@ -539,15 +504,18 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-console.log("----------",selectedSubmoduleId);
-console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
 
   // Add a useEffect to fetch submodules for the selected module in the current modal
   useEffect(() => {
-    const currentModuleName = modals[currentModalIdx]?.formData.module;
+    const currentModal = modals[currentModalIdx];
+    // Skip fetching submodules if we're in edit mode (formData.id exists)
+    if (currentModal?.formData.id) {
+      return;
+    }
+    const currentModuleName = currentModal?.formData.module;
     const moduleObj = projectModules && projectModules.find((m: any) => m.name === currentModuleName);
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id).then(res => {
@@ -569,6 +537,32 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
   // Helper to get module and submodule names by ID
   const getModuleNameById = (id: string | null) => projectModules.find(m => m.id === id)?.name || "";
   const getSubmoduleNameById = (id: string | null) => submodules.find(sm => sm.id === id)?.name || "";
+
+  // Replace all usages of apiDeleteTestCase with this function
+  const deleteTestCaseById = async (testCaseId: string) => {
+    const url = `http://34.171.115.156:8087/api/v1/testcase/${testCaseId}`;
+    return axios.delete(url);
+  };
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Compute paginated test cases (works for both searchResults and filteredTestCases)
+  const tableData = searchResults !== null ? searchResults : filteredTestCases;
+  const totalRows = tableData.length;
+  const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+  const paginatedTestCases = tableData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Reset to first page if data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchResults, filteredTestCases, rowsPerPage]);
+
+  // Add helper function at the top (after imports)
+  function extractNumericId(id: string) {
+    return id.replace(/\D/g, '').replace(/^0+/, '');
+  }
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -607,7 +601,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
               onSelect={(id) => {
                 setSelectedModuleId(id);
                 setSelectedSubmoduleId(null);
-                setSelectedTestCases([]);
+                // setSelectedTestCases([]); // Removed
               }}
               className="mb-4"
             />
@@ -718,42 +712,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
           )}
 
           {/* Bulk Operations Panel */}
-          {selectedProjectId && selectedModuleId && selectedTestCases.length > 0 && (
-            <div className="flex justify-end space-x-3 mb-4">
-              <Button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Are you sure you want to delete ${selectedTestCases.length} test case(s)?`
-                    )
-                  ) {
-                    Promise.all(selectedTestCases.map((id) => apiDeleteTestCase(id))).then(() => {
-                      setSelectedTestCases([]);
-                      if (selectedProjectId && selectedSubmoduleId !== null) {
-                        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                          const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                          const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                          setTestCases(
-                            (data as any[]).map((tc: any) => ({
-                              ...tc,
-                              module: moduleMap[tc.moduleId] || tc.moduleId,
-                              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                            })) as TestCaseType[]
-                          );
-                        });
-                      }
-                    });
-                  }
-                }}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete ({selectedTestCases.length})</span>
-              </Button>
-            </div>
-          )}
+          {/* Removed bulk delete button */}
 
           {/* Filter Options Above Table */}
           {selectedProjectId && selectedModuleId && (
@@ -898,17 +857,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr className="border-b border-gray-200">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedTestCases.length ===
-                            filteredTestCases.length
-                          }
-                          onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </th>
+                      {/* Removed checkbox column */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         TEST CASE ID
                       </th>
@@ -930,23 +879,11 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {(searchResults !== null ? searchResults : filteredTestCases).map((testCase: TestCaseType) => (
-                      <tr key={testCase.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={selectedTestCases.includes(testCase.id)}
-                            onChange={(e) =>
-                              handleSelectTestCase(
-                                testCase.id,
-                                e.target.checked
-                              )
-                            }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        </td>
+                    {paginatedTestCases.map((testCase: TestCaseType) => (
+                      <tr key={testCase.testCaseId} className="hover:bg-gray-50">
+                        {/* Removed checkbox column */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.id}
+                          {testCase.testCaseId}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {testCase.description}
@@ -995,7 +932,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                                       type: testCase.type || "functional",
                                       severity: testCase.severity || "medium",
                                       projectId: testCase.projectId,
-                                      id: testCase.id,
+                                      id: testCase.testCaseId,
                                     },
                                   },
                                 ]);
@@ -1008,23 +945,25 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                             </button>
                             <button
                               onClick={() => {
-                                apiDeleteTestCase(testCase.id).then(() => {
-                                  if (selectedProjectId && selectedSubmoduleId !== null) {
-                                    getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                                      const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                                      const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                                      setTestCases(
-                                        (data as any[]).map((tc: any) => ({
-                                          ...tc,
-                                          module: moduleMap[tc.moduleId] || tc.moduleId,
-                                          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-                                          severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                          type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                                        })) as TestCaseType[]
-                                      );
-                                    });
-                                  }
-                                });
+                                if (window.confirm("Are you sure you want to delete this test case?")) {
+                                  deleteTestCaseById(testCase.id).then(() => {
+                                    if (selectedProjectId && selectedSubmoduleId !== null) {
+                                      getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                                        const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                                        const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                                        setTestCases(
+                                          (data as any[]).map((tc: any) => ({
+                                            ...tc,
+                                            module: moduleMap[tc.moduleId] || tc.moduleId,
+                                            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                                            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                                            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                                          })) as TestCaseType[]
+                                        );
+                                      });
+                                    }
+                                  });
+                                }
                               }}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
@@ -1037,6 +976,45 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                     ))}
                   </tbody>
                 </table>
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700">Rows per page:</span>
+                    <select
+                      className="border border-gray-300 rounded px-2 py-1 text-sm"
+                      value={rowsPerPage}
+                      onChange={e => setRowsPerPage(Number(e.target.value))}
+                    >
+                      {[5, 10, 20, 50, 100].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {totalRows === 0
+                      ? 'No test cases'
+                      : `Showing ${(currentPage - 1) * rowsPerPage + 1}–${Math.min(currentPage * rowsPerPage, totalRows)} of ${totalRows}`}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1130,16 +1108,6 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                       Import from Excel/CSV
                     </button>
                   )}
-                  {/* Only show Add Another button in add mode */}
-                  {!isEditMode && (
-                    <Button
-                      type="button"
-                      onClick={handleAddAnother}
-                      className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                    >
-                      + Add Another Test Case
-                    </Button>
-                  )}
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   <div className="grid grid-cols-2 gap-4">
@@ -1227,43 +1195,47 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
                 </div>
                 <div className="flex justify-between items-center pt-4">
                   <div className="flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setCurrentModalIdx(idx - 1)}
-                      disabled={idx === 0}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        if (idx === modals.length - 1) {
-                          setModals((prev) => [
-                            ...prev,
-                            {
-                              open: true,
-                              formData: {
-                                module: modal.formData.module,
-                                subModule: modal.formData.subModule,
-                                description: "",
-                                steps: "",
-                                type: "functional",
-                                severity: "medium",
-                                projectId: modal.formData.projectId,
-                              },
-                            },
-                          ]);
-                          setCurrentModalIdx(modals.length);
-                        } else {
-                          setCurrentModalIdx(idx + 1);
-                        }
-                      }}
-                      disabled={false}
-                    >
-                      Next
-                    </Button>
+                    {!isEditMode && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setCurrentModalIdx(idx - 1)}
+                          disabled={idx === 0}
+                          style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            if (idx === modals.length - 1) {
+                              setModals((prev) => [
+                                ...prev,
+                                {
+                                  open: true,
+                                  formData: {
+                                    module: modal.formData.module,
+                                    subModule: modal.formData.subModule,
+                                    description: "",
+                                    steps: "",
+                                    type: "functional",
+                                    severity: "medium",
+                                    projectId: modal.formData.projectId,
+                                  },
+                                },
+                              ]);
+                              setCurrentModalIdx(modals.length);
+                            } else {
+                              setCurrentModalIdx(idx + 1);
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
+                      </>
+                    )}
                   </div>
                   <div className="flex space-x-3">
                     <Button
@@ -1297,11 +1269,11 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
           setIsViewStepsModalOpen(false);
           setViewingTestCase(null);
         }}
-        title={`Test Steps - ${viewingTestCase?.id}`}
+        title={`Test Steps - ${viewingTestCase?.testCaseId}`}
       >
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-gray-700 whitespace-pre-line">
+            <p className="text-gray-700 whitespace-pre-wrap break-words">
               {viewingTestCase?.steps}
             </p>
           </div>
@@ -1327,7 +1299,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
           setIsViewTestCaseModalOpen(false);
           setViewingTestCase(null);
         }}
-        title={`Test Case Details - ${viewingTestCase?.id}`}
+        title={`Test Case Details - ${viewingTestCase?.testCaseId}`}
         size="xl"
       >
         {viewingTestCase && (
@@ -1428,7 +1400,7 @@ console.log(submodules.find((sm:any) => sm.id === selectedSubmoduleId)?.name);
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={projectModules} />
       </div>
     </div>
   );

@@ -440,125 +440,6 @@ export const Bench: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Allocation Modal */}
-      <Modal
-        isOpen={isAllocationModalOpen}
-        onClose={() => {
-          setIsAllocationModalOpen(false);
-          setSelectedEmployee(null);
-        }}
-        title={`Allocate ${selectedEmployee?.firstName} ${selectedEmployee?.lastName}`}
-        size="lg"
-      >
-        <form onSubmit={handleAllocationSubmit} className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <DonutChart
-                percentage={selectedEmployee?.availability || 0}
-                size={60}
-                strokeWidth={6}
-              />
-              <div>
-                <p className="font-semibold text-gray-900">
-                  Current Availability: {selectedEmployee?.availability}%
-                </p>
-                <p className="text-sm text-gray-600">
-                  {selectedEmployee?.designation} • {selectedEmployee?.department}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select Project
-            </label>
-            <select
-              value={allocationData.projectId}
-              onChange={(e) => handleInputChange('projectId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            >
-              <option value="">Choose a project</option>
-              {projects.filter(p => p.status === 'active').map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name} - {project.manager}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Allocation Percentage
-              </label>
-              <input
-                type="range"
-                min="10"
-                max={selectedEmployee?.availability || 100}
-                value={allocationData.allocationPercentage}
-                onChange={(e) => handleInputChange('allocationPercentage', parseInt(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-gray-500 mt-1">
-                <span>10%</span>
-                <span className="font-semibold text-blue-600">
-                  {allocationData.allocationPercentage}%
-                </span>
-                <span>{selectedEmployee?.availability}%</span>
-              </div>
-            </div>
-
-            <Input
-              label="Role in Project"
-              value={allocationData.role}
-              onChange={(e) => handleInputChange('role', e.target.value)}
-              placeholder="e.g., Frontend Developer"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Start Date"
-              type="date"
-              value={allocationData.startDate}
-              onChange={(e) => handleInputChange('startDate', e.target.value)}
-              required
-            />
-            <Input
-              label="End Date (Optional)"
-              type="date"
-              value={allocationData.endDate}
-              onChange={(e) => handleInputChange('endDate', e.target.value)}
-            />
-          </div>
-
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> After allocation, the employee's availability will be reduced to{' '}
-              <strong>{(selectedEmployee?.availability || 0) - allocationData.allocationPercentage}%</strong>
-            </p>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setIsAllocationModalOpen(false);
-                setSelectedEmployee(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">
-              Allocate to Project
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Employee Details Modal */}
       <Modal
@@ -640,21 +521,12 @@ export const Bench: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Skills & Expertise</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingEmployee.skills.map((skill: string, index: number) => (
-                      <Badge key={index} variant="info">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Current Projects</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Project History</h4>
                   {viewingEmployee.currentProjects.length > 0 ? (
                     <div className="space-y-2">
                       {viewingEmployee.currentProjects.map((projectName: string, index: number) => {
@@ -701,17 +573,6 @@ export const Bench: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-4">
-              <Button
-                onClick={() => handleAllocate(viewingEmployee)}
-                disabled={viewingEmployee.availability < 10}
-                className="shadow-lg"
-              >
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Allocate to Project
-              </Button>
             </div>
           </div>
         )}

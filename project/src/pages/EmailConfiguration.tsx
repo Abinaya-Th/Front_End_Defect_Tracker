@@ -135,12 +135,7 @@ const EmailPointsSetup: React.FC = () => {
   };
 
   const handleUpdate = () => {
-    console.log({
-      configType,
-      selectedId,
-      mainPoints,
-      allocationPoints,
-    });
+  
     alert('Check console for updated settings.');
   };
 
