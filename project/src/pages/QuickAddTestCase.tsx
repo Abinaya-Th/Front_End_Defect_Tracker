@@ -133,7 +133,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
         description: "",
         steps: "",
         type: "functional",
-        severity: "medium",
+        severity: "",
       },
     },
   ]);
@@ -169,7 +169,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
           description: "",
           steps: "",
           type: "functional",
-          severity: "medium",
+          severity: "",
         },
       },
     ]);
@@ -229,8 +229,15 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
         defectTypeId: selectedDefectType.id,
       };
       try {
-        await createTestCase(payload);
-      } catch (error) {
+        const response = await createTestCase(payload);
+        if (response?.status === 'Failure' || response?.statusCode === 4000) {
+          showAlert(response?.message || 'Failed to create test case.');
+          allSuccess = false;
+        } else {
+          showAlert(response?.message || 'Test case created successfully!');
+        }
+      } catch (error: any) {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to create test case.');
         allSuccess = false;
       }
     }
@@ -246,7 +253,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
             description: "",
             steps: "",
             type: "functional",
-            severity: "medium",
+            severity: "",
           },
         },
       ]);
@@ -255,6 +262,18 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
     if (!allSuccess) {
       showAlert("Some test cases could not be added. Please check your input.");
     }
+  };
+
+  // Add a helper to check if the current modal form is valid
+  const isCurrentModalValid = (modal: any) => {
+    return (
+      modal.module &&
+      modal.subModule &&
+      modal.description &&
+      modal.steps &&
+      modal.type &&
+      modal.severity
+    );
   };
 
   // Use modulesByProject from context instead of mockModules
@@ -547,6 +566,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Description
                     </label>
+                    <p className="text-xs text-gray-500 mb-1">Description must contain letters and at least one number or special character</p>
                     <textarea
                       value={modal.formData.description}
                       onChange={(e) =>
@@ -561,6 +581,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Test Steps
                     </label>
+                    <p className="text-xs text-gray-500 mb-1">Steps must contain letters and at least one number or special character (e.g., "1. Step one", "Step 1!")</p>
                     <textarea
                       value={modal.formData.steps}
                       onChange={(e) =>
@@ -597,7 +618,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
                                 description: "",
                                 steps: "",
                                 type: "functional",
-                                severity: "medium",
+                                severity: "",
                               },
                             },
                           ]);
@@ -606,7 +627,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
                           setCurrentModalIdx(idx + 1);
                         }
                       }}
-                      disabled={false}
+                      disabled={!isCurrentModalValid(modal.formData)}
                     >
                       Next
                     </Button>
@@ -626,7 +647,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={success}>
+                    <Button type="submit" disabled={success || !isCurrentModalValid(modal.formData)}>
                       {success ? "Added!" : "Submit"}
                     </Button>
                   </div>

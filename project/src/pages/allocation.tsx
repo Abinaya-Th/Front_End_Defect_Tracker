@@ -25,6 +25,7 @@ import { getDefectTypes } from "../api/defectType";
 import { TestCase as TestCaseType } from "../types/index";
 import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
 import { getAllocatedUsersByModuleId, getModulesByProjectId } from "../api/module/getModule";
+import AlertModal from "../components/ui/AlertModal";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -94,6 +95,7 @@ export const Allocation: React.FC = () => {
   const [allocationError, setAllocationError] = useState<string | null>(null);
   const [allocationProgress, setAllocationProgress] = useState<{ current: number; total: number } | null>(null);
   const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk">("one-to-one");
+  const [backendMessageModal, setBackendMessageModal] = useState({ isOpen: false, message: "" });
 
   React.useEffect(() => {
     if (projectId) {
@@ -433,14 +435,10 @@ export const Allocation: React.FC = () => {
         });
         try {
           const response = await bulkAllocateTestCasesToReleases(payload);
-          if (response.status === "success") {
-            setAllocationSuccess(response.message || "Success");
-          } else {
-            setAllocationError(response.message || "Failed");
-          }
+          setBackendMessageModal({ isOpen: true, message: response.message || (response.status === "success" ? "Success" : "Failed") });
           setAllocationProgress({ current: 1, total: 1 });
         } catch (allocationError: any) {
-          setAllocationError(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
+          setBackendMessageModal({ isOpen: true, message: allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed." });
           setAllocationProgress({ current: 1, total: 1 });
         }
       } else if (allocationMode === "one-to-many") {
@@ -452,16 +450,8 @@ export const Allocation: React.FC = () => {
           try {
             const response = await allocateTestCaseToMultipleReleases(testCaseId, selectedIds);
             if (!firstMessage) {
-              if (
-                (typeof response.status === 'string' && response.status.toLowerCase() === "success") ||
-                (typeof response.message === 'string' && response.message.toLowerCase().includes("allocated to"))
-              ) {
-                firstMessage = response.message || "Test case(s) successfully allocated to selected releases!";
-                firstIsSuccess = true;
-              } else {
-                firstMessage = response.message || "Failed";
-                firstIsSuccess = false;
-              }
+              firstMessage = response.message || (response.status && response.status.toLowerCase() === "success" ? "Success" : "Failed");
+              firstIsSuccess = response.status && response.status.toLowerCase() === "success";
             }
           } catch (allocationError: any) {
             if (!firstMessage) {
@@ -473,13 +463,7 @@ export const Allocation: React.FC = () => {
           setAllocationProgress({ current: completedAllocations, total: totalAllocations });
         }
         if (firstMessage) {
-          if (firstIsSuccess) {
-            setAllocationSuccess(firstMessage);
-            setAllocationError(null);
-          } else {
-            setAllocationError(firstMessage);
-            setAllocationSuccess(null);
-          }
+          setBackendMessageModal({ isOpen: true, message: firstMessage });
         }
       } else {
         const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
@@ -493,13 +477,8 @@ export const Allocation: React.FC = () => {
             try {
               const response = await allocateTestCaseToRelease(releaseId, Number(testCaseId));
               if (!firstMessage) {
-                if (response.status === "success") {
-                  firstMessage = response.message || "Success";
-                  firstIsSuccess = true;
-                } else {
-                  firstMessage = response.message || "Failed";
-                  firstIsSuccess = false;
-                }
+                firstMessage = response.message || (response.status === "success" ? "Success" : "Failed");
+                firstIsSuccess = response.status === "success";
               }
             } catch (allocationError: any) {
               if (!firstMessage) {
@@ -512,8 +491,7 @@ export const Allocation: React.FC = () => {
           }
         }
         if (firstMessage) {
-          if (firstIsSuccess) setAllocationSuccess(firstMessage);
-          else setAllocationError(firstMessage);
+          setBackendMessageModal({ isOpen: true, message: firstMessage });
         }
       }
       setQaAllocatedTestCases(prev => {
@@ -533,7 +511,7 @@ export const Allocation: React.FC = () => {
       }, 2000);
     } catch (error: any) {
       let errorMessage = error.response?.data?.message || error.message || "Failed to allocate test cases to releases. Please try again.";
-      setAllocationError(errorMessage);
+      setBackendMessageModal({ isOpen: true, message: errorMessage });
     } finally {
       setAllocationLoading(false);
     }
@@ -1775,6 +1753,11 @@ export const Allocation: React.FC = () => {
         <QuickAddTestCase selectedProjectId={projectId || ""} />
         <QuickAddDefect projectModules={[]} />
       </div>
+      <AlertModal
+        isOpen={backendMessageModal.isOpen === true}
+        message={backendMessageModal.message}
+        onClose={() => setBackendMessageModal({ isOpen: false, message: "" })}
+      />
     </div>
   );
 };

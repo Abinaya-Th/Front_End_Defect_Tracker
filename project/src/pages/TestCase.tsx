@@ -30,7 +30,6 @@ import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
 import axios from "axios";
-import AlertModal from "../components/ui/AlertModal";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -128,7 +127,7 @@ export const TestCase: React.FC = () => {
         description: "",
         steps: "",
         type: "functional",
-        severity: "medium",
+        severity: "", // changed from "medium"
         projectId: projectId,
       },
     },
@@ -316,7 +315,7 @@ export const TestCase: React.FC = () => {
           description: "",
           steps: "",
           type: "functional",
-          severity: "medium",
+          severity: "", // changed from "medium"
           projectId: selectedProjectId,
         },
       },
@@ -407,36 +406,114 @@ export const TestCase: React.FC = () => {
       if (typeof severityId === 'number') payload.severityId = severityId;
       const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
       if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
-      
       try {
+        let response;
         if (formData.id) {
           // Edit mode: update existing test case
-          await updateTestCase(extractNumericId(formData.id), payload);
-          updateCount++;
+          response = await updateTestCase(extractNumericId(formData.id), payload);
+          if (response?.status === 'Failure' || response?.statusCode === 4000) {
+            setUpdateAlert({ isOpen: true, message: response?.message || 'Failed to update test case.' });
+            setPendingUpdateSuccess(false);
+            hasErrors = true;
+          } else {
+            setUpdateAlert({ isOpen: true, message: response?.message || 'Test case updated successfully!' });
+            setPendingUpdateSuccess(true);
+            // After update, close modal and refresh table
+            setTimeout(() => {
+              setSuccess(false);
+              setModals([
+                {
+                  open: false,
+                  formData: {
+                    module: "",
+                    subModule: "",
+                    description: "",
+                    steps: "",
+                    type: "functional",
+                    severity: "", // changed from "medium"
+                    projectId: selectedProjectId,
+                  },
+                },
+              ]);
+              setCurrentModalIdx(0);
+              setUpdateAlert({ isOpen: false, message: '' });
+              if (selectedProjectId && selectedSubmoduleId !== null) {
+                getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                  const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                  const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                  setTestCases(
+                    (data as any[]).map((tc: any) => ({
+                      ...tc,
+                      moduleId: tc.moduleId,
+                      module: moduleMap[tc.moduleId] || tc.moduleId,
+                      subModuleId: tc.subModuleId,
+                      subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                      severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                      type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                    })) as TestCaseType[]
+                  );
+                });
+              }
+            }, 1200);
+          }
         } else {
           // Add mode: create new test case
-          await createTestCase(payload);
-          createCount++;
+          response = await createTestCase(payload);
+          if (response?.status === 'Failure' || response?.statusCode === 4000) {
+            setCreateAlert({ isOpen: true, message: response?.message || 'Failed to create test case.' });
+            setPendingCreateSuccess(false);
+            hasErrors = true;
+          } else {
+            setCreateAlert({ isOpen: true, message: response?.message || 'Test case created successfully!' });
+            setPendingCreateSuccess(true);
+            // After create, close modal and refresh table
+            setTimeout(() => {
+              setSuccess(false);
+              setModals([
+                {
+                  open: false,
+                  formData: {
+                    module: "",
+                    subModule: "",
+                    description: "",
+                    steps: "",
+                    type: "functional",
+                    severity: "", // changed from "medium"
+                    projectId: selectedProjectId,
+                  },
+                },
+              ]);
+              setCurrentModalIdx(0);
+              setCreateAlert({ isOpen: false, message: '' });
+              if (selectedProjectId && selectedSubmoduleId !== null) {
+                getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+                  const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+                  const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+                  setTestCases(
+                    (data as any[]).map((tc: any) => ({
+                      ...tc,
+                      moduleId: tc.moduleId,
+                      module: moduleMap[tc.moduleId] || tc.moduleId,
+                      subModuleId: tc.subModuleId,
+                      subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                      severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                      type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+                    })) as TestCaseType[]
+                  );
+                });
+              }
+            }, 1200);
+          }
         }
       } catch (error: any) {
-        console.error("Error saving test case:", error);
         hasErrors = true;
-        
-        // Reset success flags immediately when error occurs
         setPendingCreateSuccess(false);
         setPendingUpdateSuccess(false);
-        
-        // Check for specific backend validation error
         const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save test case. Please try again.';
-        
-        console.log("Setting alert with message:", errorMessage);
-        
         if (formData.id) {
           setUpdateAlert({ isOpen: true, message: errorMessage });
-          console.log("Update alert set to:", { isOpen: true, message: errorMessage });
         } else {
           setCreateAlert({ isOpen: true, message: errorMessage });
-          console.log("Create alert set to:", { isOpen: true, message: errorMessage });
         }
       }
     }
@@ -461,12 +538,13 @@ export const TestCase: React.FC = () => {
               description: "",
               steps: "",
               type: "functional",
-              severity: "medium",
+              severity: "", // changed from "medium"
               projectId: selectedProjectId,
             },
           },
         ]);
         setCurrentModalIdx(0);
+        setCreateAlert({ isOpen: false, message: '' }); // Clear alert after success
         // Refresh test cases after update
         if (selectedProjectId && selectedSubmoduleId !== null) {
           getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
@@ -601,7 +679,7 @@ export const TestCase: React.FC = () => {
     if (!value) return "";
     const found = list.find(item => String(item[idKey]) === String(value) || item[nameKey] === value);
     return found ? found[nameKey] : String(value); // fallback to value if not found
-  };
+  }
 
   const getModuleName = (value: string | number | undefined | null) => {
     if (!value) return "";
@@ -692,6 +770,18 @@ export const TestCase: React.FC = () => {
   const showAlert = (message: string) => setAlert({ isOpen: true, message });
   const closeAlert = () => setAlert((a) => ({ ...a, isOpen: false }));
 
+  // Add a helper to check if the current modal form is valid
+  const isCurrentModalValid = (modal: ModalFormData) => {
+    return (
+      modal.module &&
+      modal.subModule &&
+      modal.description &&
+      modal.steps &&
+      modal.type &&
+      modal.severity
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -768,10 +858,9 @@ export const TestCase: React.FC = () => {
                     }}
                   >
                     {submodules.map((module: any) => {
+                      // Count all test cases for this submodule, regardless of selection
                       const submoduleTestCases = testCases.filter(
-                        (tc: TestCaseType) =>
-                          tc.projectId === selectedProjectId &&
-                          tc.subModule === module.subModuleId
+                        (tc) => String((tc as any)["subModuleId"]) === String(module.subModuleId)
                       );
                       return (
                         <div key={module.subModuleId} className="flex items-center">
@@ -805,7 +894,7 @@ export const TestCase: React.FC = () => {
                                         description: "",
                                         steps: "",
                                         type: "functional",
-                                        severity: "medium",
+                                        severity: "", // changed from "medium"
                                         projectId: selectedProjectId,
                                       },
                                     },
@@ -1075,7 +1164,7 @@ export const TestCase: React.FC = () => {
                                       description: testCase.description || "",
                                       steps: testCase.steps || "",
                                       type: typeName || "functional",
-                                      severity: severityName || "medium",
+                                      severity: severityName || "", // changed from "medium"
                                       projectId: testCase.projectId,
                                       id: testCase.testCaseId,
                                       moduleId: (testCase as any)["moduleId"] ?? testCase.module, // fallback for backward compatibility
@@ -1191,6 +1280,8 @@ export const TestCase: React.FC = () => {
                 } else {
                   handleRemove(idx);
                 }
+                setCreateAlert({ isOpen: false, message: '' }); // Clear alert on close/cancel
+                setUpdateAlert({ isOpen: false, message: '' });
               }}
               title={isEditMode ? "Edit Test Case" : "Create New Test Case"}
               size="xl"
@@ -1378,7 +1469,7 @@ export const TestCase: React.FC = () => {
                                     description: "",
                                     steps: "",
                                     type: "functional",
-                                    severity: "medium",
+                                    severity: "", // changed from "medium"
                                     projectId: modal.formData.projectId,
                                   },
                                 },
@@ -1388,6 +1479,7 @@ export const TestCase: React.FC = () => {
                               setCurrentModalIdx(idx + 1);
                             }
                           }}
+                          disabled={!isCurrentModalValid(modal.formData)}
                         >
                           Next
                         </Button>
@@ -1409,7 +1501,7 @@ export const TestCase: React.FC = () => {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={success}>
+                    <Button type="submit" disabled={success || !isCurrentModalValid(modal.formData)}>
                       {success ? (isEditMode ? "Updated!" : "Added!") : (isEditMode ? "Update Test Case" : "Submit")}
                     </Button>
                   </div>
