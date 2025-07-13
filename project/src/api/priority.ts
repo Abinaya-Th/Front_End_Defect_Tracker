@@ -29,7 +29,7 @@ export const deletePriority = async (id: number) => {
   return response.data;
 };
 
-export const createPriority = async (data: { priority: string; priorityColor: string }) => {
+export const createPriority = async (data: { priority: string; color: string }) => {
   const response = await axios.post(`${BASE_URL}priority`, data);
   return response.data;
 };
