@@ -102,7 +102,7 @@ const Priority: React.FC = () => {
       resetForm();
       setPendingCreateSuccess(true);
     } catch (err) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create priority' });
+      setCreateAlert({ isOpen: true, message: 'Priority name can only contain alphabets.' });
       console.error('Failed to create priority:', err);
     }
   };
@@ -132,7 +132,7 @@ const Priority: React.FC = () => {
       resetForm();
       setEditAlert({ isOpen: true, message: 'Priority updated successfully!' });
     } catch (err) {
-      setEditAlert({ isOpen: true, message: 'Failed to update priority' });
+      setEditAlert({ isOpen: true, message: 'Priority name can only contain alphabets' });
       console.error('Failed to update priority:', err);
     }
   };

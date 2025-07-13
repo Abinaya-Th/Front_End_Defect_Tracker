@@ -91,7 +91,12 @@ const ReleaseType: React.FC = () => {
       resetForm();
       setPendingCreateSuccess(true);
     } catch (error: any) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create release type' });
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words.' });
+      }
     }
   };
 
@@ -114,7 +119,12 @@ const ReleaseType: React.FC = () => {
       setFormData({ releaseTypeName: '' });
       setEditAlert({ isOpen: true, message: 'Release type updated successfully!' });
     } catch (error: any) {
-      setEditAlert({ isOpen: true, message: 'Failed to update release type' });
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words' });
+      }
     }
   };
 
