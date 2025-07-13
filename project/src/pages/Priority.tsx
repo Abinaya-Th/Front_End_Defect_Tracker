@@ -47,6 +47,15 @@ const Priority: React.FC = () => {
   const [showColorPickerCreate, setShowColorPickerCreate] = useState(false);
   const [showColorPickerEdit, setShowColorPickerEdit] = useState(false);
 
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, color: value });
+  };
+
   useEffect(() => {
     getAllPriorities()
       .then((res) => {
@@ -80,7 +89,7 @@ const Priority: React.FC = () => {
     try {
       const res = await createPriority({
         priority: formData.name,
-        color: formData.color,
+        priorityColor: formData.color,
       });
       const refreshed = await getAllPriorities();
       const mapped = refreshed.data.map((item) => ({
@@ -110,7 +119,7 @@ const Priority: React.FC = () => {
     try {
       await updatePriority(editingPriority.id, {
         priority: formData.name,
-        color: formData.color,
+        priorityColor: formData.color,
       });
       const updatedPriorities = priorities.map(priority =>
         priority.id === editingPriority.id
@@ -304,7 +313,7 @@ const Priority: React.FC = () => {
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
@@ -377,7 +386,7 @@ const Priority: React.FC = () => {
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
