@@ -21,7 +21,7 @@ export interface UpdateUserResponse {
   statusCode: number;
 }
 
-export const updateUser = (userId: string | number, data: UpdateUserPayload): Promise<UpdateUserResponse> => {
+export const updateUser = (userId:  number, data: UpdateUserPayload): Promise<UpdateUserResponse> => {
   return axios.put<UpdateUserResponse>(
     `${BASE_URL}users/${userId}`,
     data

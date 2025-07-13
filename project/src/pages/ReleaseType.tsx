@@ -12,6 +12,7 @@ import {
   deleteReleaseType,
   ReleaseType as ReleaseTypeModel
 } from '../api/Releasetype';
+import AlertModal from '../components/ui/AlertModal';
 
 const ReleaseType: React.FC = () => {
   const navigate = useNavigate();
@@ -25,11 +26,49 @@ const ReleaseType: React.FC = () => {
     releaseTypeName: '',
   });
 
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [deleteAlert, setDeleteAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(releaseTypes.length / pageSize);
+  const paginatedReleaseTypes = releaseTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   useEffect(() => {
     getAllReleaseTypes().then((res) => {
       if (res?.data) setReleaseTypes(res.data);
     });
+    // Reset all alert popups on mount so none show at page load
+    setCreateAlert({ isOpen: false, message: '' });
+    setEditAlert({ isOpen: false, message: '' });
+    setDeleteAlert({ isOpen: false, message: '' });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
+
+  // Show create alert after modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Release type created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const resetForm = () => {
     setFormData({
@@ -50,8 +89,14 @@ const ReleaseType: React.FC = () => {
       }
       setIsCreateModalOpen(false);
       resetForm();
+      setPendingCreateSuccess(true);
     } catch (error: any) {
-      alert(error.message);
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words.' });
+      }
     }
   };
 
@@ -72,8 +117,14 @@ const ReleaseType: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingReleaseType(null);
       setFormData({ releaseTypeName: '' });
+      setEditAlert({ isOpen: true, message: 'Release type updated successfully!' });
     } catch (error: any) {
-      alert(error.message || "Failed to update release type");
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words' });
+      }
     }
   };
 
@@ -84,8 +135,9 @@ const ReleaseType: React.FC = () => {
       setReleaseTypes((prev) => prev.filter((rt) => rt.id !== deletingReleaseType.id));
       setIsDeleteModalOpen(false);
       setDeletingReleaseType(null);
+      setDeleteAlert({ isOpen: true, message: 'Release type deleted successfully!' });
     } catch (error: any) {
-      alert(error.message);
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete release type' });
     }
   };
 
@@ -104,6 +156,27 @@ const ReleaseType: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -140,7 +213,14 @@ const ReleaseType: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {releaseTypes.map((releaseType) => (
+            {paginatedReleaseTypes.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-5 py-3 text-center text-gray-500">
+                  No release types found.
+                </td>
+              </tr>
+            ) : (
+              paginatedReleaseTypes.map((releaseType) => (
               <tr key={releaseType.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{releaseType.releaseTypeName}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
@@ -160,9 +240,38 @@ const ReleaseType: React.FC = () => {
                   </button>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -171,6 +280,7 @@ const ReleaseType: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setCreateAlert({ isOpen: false, message: '' });
         }}
         title="Create New Release Type"
       >
@@ -212,6 +322,7 @@ const ReleaseType: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingReleaseType(null);
           resetForm();
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title="Edit Release Type"
       >
@@ -253,6 +364,7 @@ const ReleaseType: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingReleaseType(null);
+          setDeleteAlert({ isOpen: false, message: '' });
         }}
         title="Delete Release Type"
       >

@@ -76,6 +76,14 @@ export default function BenchAllocate() {
 
     const [roles, setRoles] = useState<{ id: number; roleName: string }[]>([]);
 
+    // Pagination state for bench employees (left panel)
+    const [benchCurrentPage, setBenchCurrentPage] = useState(1);
+    const benchPageSize = 5;
+    
+    // Pagination state for allocated employees (right panel)
+    const [allocatedCurrentPage, setAllocatedCurrentPage] = useState(1);
+    const allocatedPageSize = 5;
+
     // Update selectedProjectId when contextProjectId changes
     useEffect(() => {
         if (contextProjectId && contextProjectId !== selectedProjectId) {
@@ -160,9 +168,29 @@ export default function BenchAllocate() {
         setContextProjectId?.(id); // If provided by context
     };
 
+    // Bench selection handler (left)
+    const handleBenchSelect = (id: string) => {
+        setSelectedBench(sel => {
+            const newSel = sel.includes(id) ? sel.filter(i => i !== id) : [...sel, id];
+            if (newSel.length > 0) setSelectedProjectUsers([]); // Clear right selection
+            return newSel;
+        });
+    };
+    // Project Allocations selection handler (right)
+    const handleProjectUserSelect = (id: string) => {
+        setSelectedProjectUsers(sel => {
+            const newSel = sel.includes(id) ? sel.filter(i => i !== id) : [...sel, id];
+            if (newSel.length > 0) setSelectedBench([]); // Clear left selection
+            return newSel;
+        });
+    };
+
     // Only show active projects
     const availableProjects = useMemo(() => projects.filter(p => p.status === 'active'), [projects]);
-    const currentProject = useMemo(() => availableProjects.find(p => p.id === selectedProjectId), [selectedProjectId, availableProjects]);
+    const currentProject = useMemo(
+  () => projects.find(p => String(p.id) === String(selectedProjectId)),
+  [selectedProjectId, projects]
+);
 
     // Employees not allocated to the current project (or partially allocated)
     const benchEmployees = useMemo(() => {
@@ -185,6 +213,10 @@ export default function BenchAllocate() {
         return matchesSearch && matchesDesignation && matchesAvailability;
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
     
+    // Pagination calculations for bench employees
+    const benchTotalPages = Math.ceil(filteredBench.length / benchPageSize);
+    const paginatedBench = filteredBench.slice((benchCurrentPage - 1) * benchPageSize, benchCurrentPage * benchPageSize);
+    
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
     const filteredAllocatedEmployees = useMemo(() => {
@@ -203,6 +235,19 @@ export default function BenchAllocate() {
             return matchesSearch && matchesRole && matchesAvailability;
         });
     }, [allocatedEmployees, deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
+
+    // Pagination calculations for allocated employees
+    const allocatedTotalPages = Math.ceil(filteredAllocatedEmployees.length / allocatedPageSize);
+    const paginatedAllocatedEmployees = filteredAllocatedEmployees.slice((allocatedCurrentPage - 1) * allocatedPageSize, allocatedCurrentPage * allocatedPageSize);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setBenchCurrentPage(1);
+    }, [benchFilter, designationFilter, availabilityFilter]);
+
+    useEffect(() => {
+        setAllocatedCurrentPage(1);
+    }, [deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
 
     // Handlers
     const handleAllocate = () => {
@@ -286,24 +331,12 @@ export default function BenchAllocate() {
             alert('Deallocation successful!');
         } catch (error) {
             console.error('Deallocation failed:', error);
-            alert('Failed to deallocate selected users.');
+            alert('Failed to deallocate selected users. Select users already assigned to the Module and Submodule.');
         }
     };
 
     // UI
-    React.useEffect(() => {
-        if (allocationModal.open) {
-            setAllocationModal(modal => ({
-                ...modal,
-                employees: modal.employees.map(emp => ({
-                    ...emp,
-                    allocationStartDate: emp.startDate || '',
-                    allocationEndDate: emp.endDate || '',
-                }))
-            }));
-        }
-        // eslint-disable-next-line
-    }, [allocationModal.open]);
+    // (Remove this effect entirely, as the correct values are now set in the Edit handler)
 
     return (
         <div className="min-h-screen bg-[#F9FAFB] text-[#111827] p-6 flex flex-col">
@@ -331,7 +364,7 @@ export default function BenchAllocate() {
             {/* Main Panels */}
             <div className="flex flex-1 gap-6">
                 {/* Left: Bench */}
-                <div className="flex-[1.2] bg-white rounded-lg border border-[#D1D5DB] p-4 flex flex-col min-w-[380px] shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
+                <div className="flex-[1.2] bg-white rounded-lg p-4 flex flex-col min-w-[380px] shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-between mb-2 bg-[#e3f0fa] rounded-xl px-6 py-3 shadow-[0_2px_8px_0_rgba(0,0,0,0.04)]">
                         <div className="font-semibold text-lg flex items-center gap-2"><Users className="w-5 h-5" /> Employee Bench</div>
                         <div className="flex gap-2">
@@ -379,11 +412,15 @@ export default function BenchAllocate() {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {filteredBench.map(emp => (
+                        {paginatedBench.map(emp => (
                             <div
                                 key={emp.id}
-                                className={`flex items-center gap-4 p-2 rounded cursor-pointer border ${selectedBench.includes(emp.id) ? 'border-[#2563EB] bg-[#f6fff8]' : 'border-transparent'} hover:bg-[#f6fff8]`}
-                                onClick={() => setSelectedBench(sel => sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id])}
+                                className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
+    ${selectedBench.includes(emp.id) ? 'border-2 border-blue-500 bg-[#f6fff8]' : 'border border-transparent'}
+    hover:bg-[#f6fff8] ${selectedProjectUsers.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onClick={() => {
+                                    if (selectedProjectUsers.length === 0) handleBenchSelect(emp.id);
+                                }}
                                 draggable
                                 onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
                             >
@@ -392,7 +429,7 @@ export default function BenchAllocate() {
                                     <div className="font-medium">{emp.firstName} {emp.lastName}</div>
                                     <div className="text-sm text-gray-500">{emp.designation} • {emp.experience} yrs</div>
                                     <div className="text-xs text-gray-400 mt-1">
-                                        {currentProject?.name || 'No Project Selected'}
+                                        {currentProject?.name}
                                     </div>
                                 </div>
                                 {/* Available Period section */}
@@ -412,30 +449,59 @@ export default function BenchAllocate() {
                             </div>
                         ))}
                     </div>
+                    
+                    {/* Pagination Controls for Bench */}
+                    {benchTotalPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 py-4">
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setBenchCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={benchCurrentPage === 1}
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: benchTotalPages }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    className={`px-3 py-1 rounded border ${benchCurrentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                    onClick={() => setBenchCurrentPage(i + 1)}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setBenchCurrentPage((p) => Math.min(benchTotalPages, p + 1))}
+                                disabled={benchCurrentPage === benchTotalPages}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
                 {/* Arrows */}
                 <div className="flex flex-col items-center justify-center gap-4">
                     <Button
                         className="bg-[#2563EB] text-white rounded-full p-3 shadow-lg"
-                        disabled={selectedBench.length === 0}
+                        disabled={selectedBench.length === 0 || selectedProjectUsers.length > 0}
                         onClick={handleAllocate}
                     >
                         <ArrowRight className="w-6 h-6" />
                     </Button>
                     <Button
                         className="bg-[#2563EB] text-white rounded-full p-3 shadow-lg"
-                        disabled={selectedProjectUsers.length === 0}
+                        disabled={selectedProjectUsers.length === 0 || selectedBench.length > 0}
                         onClick={handleDeallocate}
                     >
                         <ArrowLeft className="w-6 h-6" />
                     </Button>
                 </div>
                 {/* Right: Project Allocations */}
-                <div className="flex-1 bg-white rounded-lg border border-[#D1D5DB] p-4 flex flex-col shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
+                <div className="flex-1 bg-white rounded-lg p-4 flex flex-col shadow-[0_4px_24px_0_rgba(0,0,0,0.08)]">
                     <div className="flex items-center bg-blue-50 rounded-t-lg px-4 py-2">
                         <User className="w-5 h-5 mr-2" />
                         <span className="font-semibold text-lg text-blue-900">
-                            {currentProject?.name ? currentProject.name : ' Project Selected'}
+                            Project: {currentProject?.name}
                         </span>
                         <div className="flex gap-2 ml-auto">
                             <Button
@@ -481,67 +547,100 @@ export default function BenchAllocate() {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {filteredAllocatedEmployees.length === 0 ? (
+                        {paginatedAllocatedEmployees.length === 0 ? (
                             <div className="text-gray-400 text-center py-8">
                                 {allocatedEmployees.length === 0 ? "No allocations yet" : "No employees match your search"}
                             </div>
                         ) : (
-                            <table className="w-full text-center">
-                                <thead>
-                                    <tr className="border-b border-[#D1D5DB]">
-                                        <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
-                                        <th className="text-center px-4 whitespace-nowrap"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredAllocatedEmployees.map((emp: any) => (
-                                        <tr
-                                            key={emp.id}
-                                            className={`border-b border-[#D1D5DB] hover:bg-[#f6fff8] cursor-pointer ${selectedProjectUsers.includes(emp.id) ? 'bg-[#f6fff8] border-[#2563EB]' : ''}`}
-                                            onClick={() => setSelectedProjectUsers(sel =>
-                                                sel.includes(emp.id) ? sel.filter(id => id !== emp.id) : [...sel, emp.id]
-                                            )}
+                            <>
+                                <table className="w-full text-center">
+                                    <thead>
+                                        <tr className="border-b border-[#D1D5DB]">
+                                            <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
+                                            <th className="text-center px-4 whitespace-nowrap"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedAllocatedEmployees.map((emp: any) => (
+                                            <tr
+                                                key={emp.id}
+                                                className={`border-b hover:bg-[#f6fff8] cursor-pointer transition-all duration-150
+    ${selectedProjectUsers.includes(emp.id) ? 'border-2 border-blue-500 bg-[#f6fff8]' : 'border border-[#D1D5DB]'}
+    ${selectedBench.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                onClick={() => {
+                                                    if (selectedBench.length === 0) handleProjectUserSelect(emp.id);
+                                                }}
+                                            >
+                                                <td>{emp.userFullName}</td>
+                                                <td>{emp.roleName}</td>
+                                                <td>{emp.allocationPercentage}%</td>
+                                                <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
+                                                <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
+                                                <td>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+                                                                // Map the selected allocation to the modal's expected employee object
+                                                                const mappedEmp = {
+                                                                    id: emp.id,
+                                                                    allocationId: emp.id,
+                                                                    firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
+                                                                    lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
+                                                                    designation: emp.designation || '',
+                                                                    roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
+                                                                    roleName: emp.roleName || '',
+                                                                    allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
+                                                                    availability: emp.availability ?? emp.allocationPercentage ?? 0,
+                                                                    allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : '',
+                                                                    allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : '',
+                                                                };
+                                                                setAllocationModal({ open: true, employees: [mappedEmp] });
+                                                            }}
+                                                            title="Edit"
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                
+                                {/* Pagination Controls for Allocated Employees */}
+                                {allocatedTotalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-2 py-4">
+                                        <button
+                                            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                            onClick={() => setAllocatedCurrentPage((p) => Math.max(1, p - 1))}
+                                            disabled={allocatedCurrentPage === 1}
                                         >
-                                            <td>{emp.userFullName}</td>
-                                            <td>{emp.roleName}</td>
-                                            <td>{emp.allocationPercentage}%</td>
-                                            <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
-                                            <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
-                                            <td>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="primary"
-                                                        onClick={e => {
-                                                            e.stopPropagation();
-                                                            // Map the selected allocation to the modal's expected employee object
-                                                            const mappedEmp = {
-                                                                id: emp.id,
-                                                                allocationId: emp.id,
-                                                                firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
-                                                                lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
-                                                                designation: emp.designation || '',
-                                                                roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
-                                                                roleName: emp.roleName || '',
-                                                                allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
-                                                                availability: emp.availability ?? emp.allocationPercentage ?? 0,
-                                                                allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : (emp.allocationStartDate || ''),
-                                                                allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : (emp.allocationEndDate || ''),
-                                                            };
-                                                            setAllocationModal({ open: true, employees: [mappedEmp] });
-                                                        }}
-                                                        title="Edit"
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            Previous
+                                        </button>
+                                        {Array.from({ length: allocatedTotalPages }, (_, i) => (
+                                            <button
+                                                key={i + 1}
+                                                className={`px-3 py-1 rounded border ${allocatedCurrentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                onClick={() => setAllocatedCurrentPage(i + 1)}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                        <button
+                                            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                            onClick={() => setAllocatedCurrentPage((p) => Math.min(allocatedTotalPages, p + 1))}
+                                            disabled={allocatedCurrentPage === allocatedTotalPages}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -560,7 +659,7 @@ export default function BenchAllocate() {
                         <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full">
                             {/* Name and Designation */}
                             <div className="flex flex-col min-w-[180px]">
-                                <span className="text-blue-600 font-semibold underline cursor-pointer text-base leading-tight">{emp.firstName} {emp.lastName}</span>
+                                <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
                                 <span className="text-gray-500 text-sm leading-tight">{emp.designation}</span>
                             </div>
                             {/* Role */}

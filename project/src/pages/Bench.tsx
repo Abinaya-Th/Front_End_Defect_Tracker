@@ -66,6 +66,17 @@ export const Bench: React.FC = () => {
       .sort((a, b) => b.availability - a.availability);
   }, [employees, filters]);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
+  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
     return Array.from(new Set(employees.map(emp => emp.designation)));
@@ -207,93 +218,124 @@ export const Bench: React.FC = () => {
         </CardHeader>
         <CardContent className="p-0">
           {filteredEmployees.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell header>Employee</TableCell>
-                  <TableCell header>Designation</TableCell>
-                  <TableCell header>Availability</TableCell>
-                  <TableCell header>Available Period</TableCell>
-                  <TableCell header>Current Projects</TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEmployees.map((employee: Employee) => {
-                  const availabilityStatus = getAvailabilityStatus(employee.availability);
-                  return (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
-                            </span>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableCell header>Employee</TableCell>
+                    <TableCell header>Designation</TableCell>
+                    <TableCell header>Availability</TableCell>
+                    <TableCell header>Available Period</TableCell>
+                    <TableCell header>Current Projects</TableCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedEmployees.map((employee: Employee) => {
+                    const availabilityStatus = getAvailabilityStatus(employee.availability);
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-sm">
+                                {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <button
+                                onClick={() => handleViewEmployee(employee)}
+                                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                              >
+                                {employee.firstName} {employee.lastName}
+                              </button>
+                              <p className="text-sm text-gray-500">{employee.department}</p>
+                            </div>
                           </div>
-                          <div>
-                            <button
-                              onClick={() => handleViewEmployee(employee)}
-                              className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                            >
-                              {employee.firstName} {employee.lastName}
-                            </button>
-                            <p className="text-sm text-gray-500">{employee.department}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium text-gray-900">{employee.designation}</p>
-                        <p className="text-sm text-gray-500">{employee.experience} years exp</p>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <DonutChart
-                            percentage={employee.availability}
-                            size={50}
-                            strokeWidth={4}
-                          />
-                          <div>
-                            <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
-                              {employee.availability}%
-                            </p>
-                            <Badge variant={availabilityStatus.variant} size="sm">
-                              {availabilityStatus.label}
-                            </Badge>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-600">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>
-                              {employee.joinedDate || 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {employee.currentProjects.length > 0 ? (
-                          <div className="space-y-1">
-                            {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
-                              <Badge key={index} variant="info" size="sm">
-                                {project}
-                              </Badge>
-                            ))}
-                            {employee.currentProjects.length > 2 && (
-                              <p className="text-xs text-gray-500">
-                                +{employee.currentProjects.length - 2} more
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium text-gray-900">{employee.designation}</p>
+                          <p className="text-sm text-gray-500">{employee.experience} years exp</p>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <DonutChart
+                              percentage={employee.availability}
+                              size={50}
+                              strokeWidth={4}
+                            />
+                            <div>
+                              <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
+                                {employee.availability}%
                               </p>
-                            )}
+                              <Badge variant={availabilityStatus.variant} size="sm">
+                                {availabilityStatus.label}
+                              </Badge>
+                            </div>
                           </div>
-                        ) : (
-                          <Badge variant="default" size="sm">No projects</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-gray-600">
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>
+                                {employee.joinedDate || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {employee.currentProjects.length > 0 ? (
+                            <div className="space-y-1">
+                              {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
+                                <Badge key={index} variant="info" size="sm">
+                                  {project}
+                                </Badge>
+                              ))}
+                              {employee.currentProjects.length > 2 && (
+                                <p className="text-xs text-gray-500">
+                                  +{employee.currentProjects.length - 2} more
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <Badge variant="default" size="sm">No projects</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 py-4">
+                  <button
+                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="p-12 text-center">
               <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -303,7 +345,6 @@ export const Bench: React.FC = () => {
           )}
         </CardContent>
       </Card>
-
 
       {/* Employee Details Modal */}
       <Modal

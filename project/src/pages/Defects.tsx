@@ -13,6 +13,7 @@ import {
   ChevronRight,
   History,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -107,6 +108,8 @@ export const Defects: React.FC = () => {
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [viewingSteps, setViewingSteps] = useState<string | null>(null);
+  const [isViewDefectDetailsModalOpen, setIsViewDefectDetailsModalOpen] = useState(false);
+  const [viewingDefectDetails, setViewingDefectDetails] = useState<any>(null);
   const [isRejectionCommentModalOpen, setIsRejectionCommentModalOpen] =
     useState(false);
   const [viewingRejectionComment, setViewingRejectionComment] = useState<
@@ -202,7 +205,6 @@ export const Defects: React.FC = () => {
         });
     }
   }
-  console.log(backendDefects, "==========");
 
   React.useEffect(() => {
     if (!selectedProjectId) return;
@@ -359,7 +361,7 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-      console.log(formData);
+      // console.log(formData);
 
       try {
         const defectIdForApi = Number(formData.id);
@@ -412,9 +414,14 @@ export const Defects: React.FC = () => {
     const assigntoId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_to_name)?.id?.toString() || '';
     const assignbyId = userList.find(u => `${u.firstName} ${u.lastName}` === defect.assigned_by_name)?.id?.toString() || '';
     const statusId = defectStatuses.find(s => s.defectStatusName === defect.defect_status_name)?.id?.toString() || '';
-    const releaseId = projectReleases.find(r => r.name === defect.release_test_case_description)?.id?.toString() || '';
+    const releaseId = releasesData.find(r => r.releaseName === defect.release_test_case_description)?.id?.toString() || '';
     const id = backendDefects.find(x => x.id === defect.id)?.id?.toString() || "";
-    console.log(id);
+    // console.log(id);
+    // console.log('Editing defect:', {
+    //   defectReleaseDesc: defect.release_test_case_description,
+    //   releasesData: releasesData.map(r => r.releaseName),
+    //   foundReleaseId: releaseId
+    // });
 
 
     setEditingDefect(defect);
@@ -456,13 +463,20 @@ export const Defects: React.FC = () => {
   const handleDelete = async (defectId: string) => {
     if (window.confirm("Are you sure you want to delete this defect?")) {
       try {
-        // Call the delete API
-        const response = await deleteDefectById(defectId);
+        // Find the defect to get its numeric ID for the API
+        const defect = backendDefects.find(d => d.defectId === defectId);
+        if (!defect) {
+          alert("Defect not found.");
+          return;
+        }
+
+        // Call the delete API with the numeric ID
+        const response = await deleteDefectById(defect.id.toString());
 
         // Handle successful deletion
-        if (response.status === 'Success') {
+        if (response.status === 'Success' || response.statusCode === 2000) {
           // Filter out the deleted defect from the backendDefects state
-          setBackendDefects(prevDefects => prevDefects.filter(defect => defect.defectId !== defectId));
+          setBackendDefects(prevDefects => prevDefects.filter(d => d.defectId !== defectId));
           alert("Defect deleted successfully.");
         } else {
           console.error("Delete failed:", response.message);
@@ -1288,10 +1302,22 @@ export const Defects: React.FC = () => {
                             className="text-blue-600 hover:text-blue-900 flex items-center"
                             title="View Defect Details"
                             onClick={() => {
-                              setViewingSteps(
-                                `ID: ${defect.defectId}\nDescription: ${defect.description}\nModule: ${defect.module_name}\nSubmodule: ${defect.sub_module_name}\nType: ${defect.defect_type_name}\nSeverity: ${defect.severity_name}\nPriority: ${defect.priority_name}\nStatus: ${defect.defect_status_name}`
-                              );
-                              setIsViewStepsModalOpen(true);
+                              setViewingDefectDetails({
+                                defectId: defect.defectId,
+                                description: defect.description,
+                                steps: defect.steps,
+                                module: defect.module_name,
+                                submodule: defect.sub_module_name,
+                                type: defect.defect_type_name,
+                                severity: defect.severity_name,
+                                priority: defect.priority_name,
+                                status: defect.defect_status_name,
+                                assignedTo: defect.assigned_to_name,
+                                enteredBy: defect.assigned_by_name,
+                                release: (defect as any).release_name?.toString() || releaseMap[(defect as any).releaseId || ''] || '-',
+                                attachment: defect.attachment
+                              });
+                              setIsViewDefectDetailsModalOpen(true);
                             }}
                           >
                             <FileText className="w-4 h-4" />
@@ -1314,11 +1340,11 @@ export const Defects: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            className="relative text-purple-600 hover:text-purple-800 flex items-center"
+                            className="relative text-blue-600 hover:text-blue-800 flex items-center"
                             title="Comments"
                             onClick={() => handleOpenCommentsModal(defect.defectId)}
                           >
-                            <MessageCircle className="w-5 h-5" />
+                            <MessageSquare className="w-5 h-5" />
                             {commentsByDefectId[defect.defectId]?.length > 0 && (
                               <span className="absolute -top-1 -right-2 bg-blue-500 text-white text-xs rounded-full px-1">
                                 {commentsByDefectId[defect.defectId].length}
@@ -1502,7 +1528,11 @@ export const Defects: React.FC = () => {
                 <input
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                  value={releasesData.find(r => r.id === formData.releaseId)?.releaseName || formData.releaseId || '-'}
+                  value={
+                    releasesData.find(r => r.id === String(formData.releaseId))?.releaseName ||
+                    (editingDefect as any).release_name?.toString() ||
+                    '-'
+                  }
                   readOnly
                   disabled
                 />
@@ -1617,24 +1647,132 @@ export const Defects: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal for viewing steps */}
+      {/* Modal for viewing steps only */}
       <Modal
         isOpen={isViewStepsModalOpen}
         onClose={() => setIsViewStepsModalOpen(false)}
-        title="Defect Steps"
+        title="Steps to Reproduce"
         size="md"
       >
-        <div
-          className="whitespace-pre-line text-gray-800 text-base break-words max-w-full overflow-x-auto"
-          style={{ wordBreak: "break-word" }}
-        >
-          {viewingSteps}
+        <div className="overflow-x-auto">
+          {viewingSteps ? (
+            <div className="whitespace-pre-line text-gray-700 p-4 bg-gray-50 rounded-lg">
+              {viewingSteps}
+            </div>
+          ) : (
+            <div className="text-gray-500 text-center py-8">
+              No steps provided
+            </div>
+          )}
         </div>
         <div className="flex justify-end pt-4">
           <Button
             type="button"
             variant="secondary"
             onClick={() => setIsViewStepsModalOpen(false)}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal for viewing defect details */}
+      <Modal
+        isOpen={isViewDefectDetailsModalOpen}
+        onClose={() => setIsViewDefectDetailsModalOpen(false)}
+        title="Defect Details"
+        size="lg"
+      >
+        <div className="overflow-x-auto">
+          {viewingDefectDetails && (
+            <table className="min-w-full divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-1/3">Defect ID</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.defectId}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Description</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{viewingDefectDetails.description}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Steps to Reproduce</td>
+                  <td className="px-6 py-4 text-sm text-gray-700 whitespace-pre-line">{viewingDefectDetails.steps || 'No steps provided'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.module}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Submodule</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.submodule}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Type</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.type}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Severity</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor((viewingDefectDetails.severity || '').toLowerCase())}`}>
+                      {viewingDefectDetails.severity}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Priority</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor((viewingDefectDetails.priority || '').toLowerCase())}`}>
+                      {viewingDefectDetails.priority}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Status</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor((viewingDefectDetails.status || '').toLowerCase())}`}>
+                      {viewingDefectDetails.status}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Assigned To</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.assignedTo || '-'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Entered By</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.enteredBy || '-'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Release</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.release}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Attachment</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {viewingDefectDetails.attachment ? (
+                      <a
+                        href={viewingDefectDetails.attachment}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        View Attachment
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">No attachment</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsViewDefectDetailsModalOpen(false)}
           >
             Close
           </Button>
