@@ -1,4 +1,5 @@
 export interface Project {
+  projectName: string;
 //  clientName: string; 
 //  country:string; 
 //  description:string;
