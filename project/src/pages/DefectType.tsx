@@ -121,8 +121,13 @@ const DefectType: React.FC = () => {
       } else {
         setCreateAlert({ isOpen: true, message: 'Failed to create defect type: ' + response.message });
       }
-    } catch (error) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create defect type: ' + error });
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Defect Type name can only contain alphabets.' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Failed to create defect type: ' + error });
+      }
     }
   };
 
@@ -167,8 +172,13 @@ const DefectType: React.FC = () => {
       } else {
         setEditAlert({ isOpen: true, message: 'Failed to update defect type: ' + response.message });
       }
-    } catch (error) {
-      setEditAlert({ isOpen: true, message: 'Failed to update defect type: ' + error });
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Defect Type name can only contain alphabets.' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Failed to update defect type: ' + error });
+      }
     }
   };
 

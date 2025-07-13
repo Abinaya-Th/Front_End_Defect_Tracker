@@ -136,7 +136,7 @@ const StatusType: React.FC = () => {
       setPendingCreateSuccess(true);
     } catch (error: any) {
       setApiError(error.message);
-      setCreateAlert({ isOpen: true, message: 'Failed to create status type' });
+      setCreateAlert({ isOpen: true, message: '  Status Name can only contain alphabets and spaces.' });
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ const StatusType: React.FC = () => {
       setEditAlert({ isOpen: true, message: 'Status type updated successfully!' });
     } catch (error: any) {
       setApiError(error.message);
-      setEditAlert({ isOpen: true, message: 'Failed to update status type' });
+      setEditAlert({ isOpen: true, message: 'Status Name can only contain alphabets and spaces.' });
     } finally {
       setLoading(false);
     }

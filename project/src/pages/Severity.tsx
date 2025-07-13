@@ -106,7 +106,12 @@ const Severity: React.FC = () => {
       }
     } catch (err: any) {
       setError('Failed to create severity');
-      setCreateAlert({ isOpen: true, message: 'Failed to create severity' });
+      // Check if it's a validation error (400 status)
+      if (err.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -132,7 +137,12 @@ const Severity: React.FC = () => {
       }
     } catch (err: any) {
       setError('Failed to update severity');
-      setEditAlert({ isOpen: true, message: 'Failed to update severity' });
+      // Check if it's a validation error (400 status)
+      if (err.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      }
     } finally {
       setLoading(false);
     }
