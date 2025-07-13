@@ -126,7 +126,7 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await createDefectStatus({
+      const response = await createDefectStatus({
         ...formData,
         colorCode: normalizedColor
       });
@@ -156,7 +156,7 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await updateDefectStatus(editingStatus.id, {
+      const response = await updateDefectStatus(editingStatus.id, {
         ...formData,
         colorCode: normalizedColor
       });
