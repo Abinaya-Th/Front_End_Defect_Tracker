@@ -11,6 +11,7 @@ import { getDefectTypes } from "../api/defectType";
 import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
+import AlertModal from "../components/ui/AlertModal";
 
 // Mock data for modules and submodules
 const mockModules: Record<
@@ -143,6 +144,9 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [modules, setModules] = useState<any[]>([]);
   const [subModules, setSubModules] = useState<any[]>([]);
+  const [alert, setAlert] = useState({ isOpen: false, message: "" });
+  const showAlert = (message: string) => setAlert({ isOpen: true, message });
+  const closeAlert = () => setAlert((a) => ({ ...a, isOpen: false }));
 
   const handleInputChange = (idx: number, field: string, value: string) => {
     setModals((prev) =>
@@ -195,10 +199,10 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
         setSuccess(true);
         setTimeout(() => setSuccess(false), 1200);
       } else {
-        alert("Import succeeded but no data returned.");
+        showAlert("Import succeeded but no data returned.");
       }
     } catch (error: any) {
-      alert("Failed to import test cases: " + (error?.message || error));
+      showAlert("Failed to import test cases: " + (error?.message || error));
     }
   };
 
@@ -249,7 +253,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
       setCurrentModalIdx(0);
     }, 1200);
     if (!allSuccess) {
-      alert("Some test cases could not be added. Please check your input.");
+      showAlert("Some test cases could not be added. Please check your input.");
     }
   };
 
@@ -631,6 +635,11 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
             </Modal>
           );
         })()}
+      <AlertModal
+        isOpen={alert.isOpen}
+        message={alert.message}
+        onClose={closeAlert}
+      />
     </div>
   );
 };

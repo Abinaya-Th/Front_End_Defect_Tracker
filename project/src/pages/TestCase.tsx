@@ -29,6 +29,7 @@ import { getModulesByProjectId } from "../api/module/getModule";
 import { getSubmodulesByModuleId, Submodule } from "../api/submodule/submoduleget";
 import { createTestCase } from "../api/testCase/createTestcase";
 import axios from "axios";
+import AlertModal from "../components/ui/AlertModal";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
@@ -101,6 +102,7 @@ export const TestCase: React.FC = () => {
   // const [filterSeverity, setFilterSeverity] = useState(""); // Unused
 
   // --- Multi-modal state for bulk add like QuickAddTestCase ---
+  // Extend ModalFormData to include moduleId and subModuleId
   interface ModalFormData {
     module: string;
     subModule: string;
@@ -110,6 +112,8 @@ export const TestCase: React.FC = () => {
     severity: string;
     projectId: string | undefined;
     id?: string;
+    moduleId?: string | number;
+    subModuleId?: string | number;
   }
   const [modals, setModals] = useState<{
     open: boolean;
@@ -180,8 +184,10 @@ export const TestCase: React.FC = () => {
       setTestCases(
         (data as any[]).map((tc: any) => ({
           ...tc,
-          module: moduleMap[tc.moduleId] || tc.moduleId,
-          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+          moduleId: tc.moduleId, // always keep the ID
+          module: moduleMap[tc.moduleId] || tc.moduleId, // display name
+          subModuleId: tc.subModuleId, // always keep the ID
+          subModule: submoduleMap[tc.subModuleId] || tc.subModuleId, // display name
           severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
           type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
         })) as TestCaseType[]
@@ -373,6 +379,8 @@ export const TestCase: React.FC = () => {
 
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    let hasErrors = false;
+    let successCount = 0;
     for (const { formData } of modals) {
       // Prepare payload for both create and update
       const payload: any = {
@@ -389,12 +397,26 @@ export const TestCase: React.FC = () => {
       try {
         if (formData.id) {
           // Edit mode: update existing test case
-          await updateTestCase(extractNumericId(formData.id), payload);
+          const response = await updateTestCase(extractNumericId(formData.id), payload);
+          showAlert(response?.message || 'Test case updated successfully!');
+          successCount++;
         } else {
           // Add mode: create new test case
           const response = await createTestCase(payload);
+          showAlert(response?.message || 'Test case created successfully!');
+          successCount++;
         }
-      } catch (error) {
+      } catch (error: any) {
+        hasErrors = true;
+        let errorMessage = 'An error occurred while saving the test case';
+        if (error?.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error?.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        }
+        showAlert(errorMessage);
         console.error("Error saving test case:", error);
       }
     }
@@ -416,7 +438,6 @@ export const TestCase: React.FC = () => {
         },
       ]);
       setCurrentModalIdx(0);
-      // setIsModalOpen(false); // isModalOpen state is removed
       // Refresh test cases after update
       if (selectedProjectId && selectedSubmoduleId !== null) {
         getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
@@ -431,6 +452,12 @@ export const TestCase: React.FC = () => {
               type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
             })) as TestCaseType[]
           );
+        }).catch((error: any) => {
+          let errorMessage = 'Failed to refresh test cases';
+          if (error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          showAlert(errorMessage);
         });
       }
     }, 1200);
@@ -534,14 +561,52 @@ export const TestCase: React.FC = () => {
     }
   }, [modals[currentModalIdx]?.formData.module, projectModules, currentModalIdx]);
 
-  // Helper to get module and submodule names by ID
-  const getModuleNameById = (id: string | null) => projectModules.find(m => m.id === id)?.name || "";
-  const getSubmoduleNameById = (id: string | null) => submodules.find(sm => sm.id === id)?.name || "";
+  // General helper for mapping
+  const getNameByIdOrValue = (value: string | number | undefined | null, list: any[], idKey: string = 'id', nameKey: string = 'name') => {
+    if (!value) return "";
+    const found = list.find(item => String(item[idKey]) === String(value) || item[nameKey] === value);
+    return found ? found[nameKey] : String(value); // fallback to value if not found
+  };
+
+  const getModuleName = (value: string | number | undefined | null) => {
+    if (!value) return "";
+    const found = projectModules.find(m => String(m.id) === String(value) || m.name === value);
+    return found ? found.name : "Unknown Module";
+  };
+  const getSubmoduleName = (value: string | number | undefined | null) => {
+    if (!value) return "";
+    for (const mod of projectModules) {
+      const found = mod.submodules.find(sm => String(sm.id) === String(value) || sm.name === value);
+      if (found) return found.name;
+    }
+    if (Array.isArray(submodules)) {
+      const foundGlobal = submodules.find(sm => String(sm.id) === String(value) || sm.name === value);
+      if (foundGlobal) return foundGlobal.name;
+    }
+    return "Unknown Submodule";
+  };
+  const getTypeName = (value: string | number | undefined | null) => getNameByIdOrValue(value, defectTypes, 'id', 'defectTypeName');
+  const getSeverityName = (value: string | number | undefined | null) => getNameByIdOrValue(value, severities, 'id', 'name');
 
   // Replace all usages of apiDeleteTestCase with this function
   const deleteTestCaseById = async (testCaseId: string) => {
     const url = `http://34.171.115.156:8087/api/v1/testcase/${testCaseId}`;
-    return axios.delete(url);
+    try {
+      const response = await axios.delete(url);
+      showAlert(response?.data?.message || 'Test case deleted successfully!');
+      return response;
+    } catch (error: any) {
+      let errorMessage = 'Failed to delete test case';
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      showAlert(errorMessage);
+      throw error;
+    }
   };
 
   // Pagination state
@@ -563,6 +628,10 @@ export const TestCase: React.FC = () => {
   function extractNumericId(id: string) {
     return id.replace(/\D/g, '').replace(/^0+/, '');
   }
+
+  const [alert, setAlert] = useState({ isOpen: false, message: "" });
+  const showAlert = (message: string) => setAlert({ isOpen: true, message });
+  const closeAlert = () => setAlert((a) => ({ ...a, isOpen: false }));
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -921,18 +990,44 @@ export const TestCase: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
+                                console.log('projectModules:', projectModules);
+                                console.log('submodules:', submodules);
+                                console.log('Editing testCase:', testCase);
+                                // Robustly get module and submodule name using both ID and name
+                                const foundModule = projectModules.find(
+                                  (m: any) => String(m.id) === String((testCase as any)["moduleId"] ?? testCase.module)
+                                );
+                                const moduleName = foundModule ? foundModule.name : "Unknown Module";
+                                let subModuleName = "Unknown Submodule";
+                                if (foundModule) {
+                                  const foundSubmodule = foundModule.submodules.find(
+                                    (sm: any) => String(sm.id) === String((testCase as any)["subModuleId"] ?? testCase.subModule)
+                                  );
+                                  subModuleName = foundSubmodule ? foundSubmodule.name : "Unknown Submodule";
+                                }
+                                const typeName = getTypeName(testCase.type);
+                                const severityName = getSeverityName(testCase.severity);
+                                if (moduleName === 'Unknown Module' || subModuleName === 'Unknown Submodule') {
+                                  console.warn('Module/Submodule mapping failed:', {
+                                    testCase,
+                                    projectModules,
+                                    submodules
+                                  });
+                                }
                                 setModals([
                                   {
                                     open: true,
                                     formData: {
-                                      module: testCase.module || "",
-                                      subModule: testCase.subModule || "",
+                                      module: moduleName || "",
+                                      subModule: subModuleName || "",
                                       description: testCase.description || "",
                                       steps: testCase.steps || "",
-                                      type: testCase.type || "functional",
-                                      severity: testCase.severity || "medium",
+                                      type: typeName || "functional",
+                                      severity: severityName || "medium",
                                       projectId: testCase.projectId,
                                       id: testCase.testCaseId,
+                                      moduleId: (testCase as any)["moduleId"] ?? testCase.module, // fallback for backward compatibility
+                                      subModuleId: (testCase as any)["subModuleId"] ?? testCase.subModule, // fallback for backward compatibility
                                     },
                                   },
                                 ]);
@@ -960,8 +1055,20 @@ export const TestCase: React.FC = () => {
                                             type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
                                           })) as TestCaseType[]
                                         );
+                                      }).catch((error: any) => {
+                                        let errorMessage = 'Failed to refresh test cases';
+                                        if (error?.response?.data?.message) {
+                                          errorMessage = error.response.data.message;
+                                        }
+                                        showAlert(errorMessage);
                                       });
                                     }
+                                  }).catch((error: any) => {
+                                    let errorMessage = 'Failed to delete test case';
+                                    if (error?.response?.data?.message) {
+                                      errorMessage = error.response.data.message;
+                                    }
+                                    showAlert(errorMessage);
                                   });
                                 }
                               }}
@@ -1194,49 +1301,49 @@ export const TestCase: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4">
-                  <div className="flex space-x-2">
-                    {!isEditMode && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => setCurrentModalIdx(idx - 1)}
-                          disabled={idx === 0}
-                          style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => {
-                            if (idx === modals.length - 1) {
-                              setModals((prev) => [
-                                ...prev,
-                                {
-                                  open: true,
-                                  formData: {
-                                    module: modal.formData.module,
-                                    subModule: modal.formData.subModule,
-                                    description: "",
-                                    steps: "",
-                                    type: "functional",
-                                    severity: "medium",
-                                    projectId: modal.formData.projectId,
-                                  },
+                  {/* Only show navigation buttons in add mode */}
+                  {!isEditMode && (
+                    <div className="flex space-x-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setCurrentModalIdx(idx - 1)}
+                        disabled={idx === 0}
+                        style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          if (idx === modals.length - 1) {
+                            setModals((prev) => [
+                              ...prev,
+                              {
+                                open: true,
+                                formData: {
+                                  module: modal.formData.module,
+                                  subModule: modal.formData.subModule,
+                                  description: "",
+                                  steps: "",
+                                  type: "functional",
+                                  severity: "medium",
+                                  projectId: modal.formData.projectId,
                                 },
-                              ]);
-                              setCurrentModalIdx(modals.length);
-                            } else {
-                              setCurrentModalIdx(idx + 1);
-                            }
-                          }}
-                        >
-                          Next
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                              },
+                            ]);
+                            setCurrentModalIdx(modals.length);
+                          } else {
+                            setCurrentModalIdx(idx + 1);
+                          }
+                        }}
+                        disabled={false}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex space-x-3">
                     <Button
                       type="button"
@@ -1253,7 +1360,7 @@ export const TestCase: React.FC = () => {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={success}>
-                      {isEditMode ? (success ? "Updated!" : "Update Test Case") : (success ? "Added!" : "Submit")}
+                      {success ? (isEditMode ? "Updated!" : "Added!") : (isEditMode ? "Update Test Case" : "Submit")}
                     </Button>
                   </div>
                 </div>
@@ -1402,6 +1509,12 @@ export const TestCase: React.FC = () => {
         <QuickAddTestCase selectedProjectId={selectedProjectId} />
         <QuickAddDefect projectModules={projectModules} />
       </div>
+
+      <AlertModal
+        isOpen={alert.isOpen}
+        message={alert.message}
+        onClose={closeAlert}
+      />
     </div>
   );
 };
