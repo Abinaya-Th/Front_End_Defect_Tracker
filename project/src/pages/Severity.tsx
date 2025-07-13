@@ -173,6 +173,15 @@ const Severity: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, color: value });
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-8">
       {/* Create Alert Modal */}
@@ -335,13 +344,13 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Colour
+              Color
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
@@ -409,13 +418,13 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Colour
+              Color
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
