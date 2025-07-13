@@ -108,6 +108,8 @@ export const Defects: React.FC = () => {
 
   const [isViewStepsModalOpen, setIsViewStepsModalOpen] = useState(false);
   const [viewingSteps, setViewingSteps] = useState<string | null>(null);
+  const [isViewDefectDetailsModalOpen, setIsViewDefectDetailsModalOpen] = useState(false);
+  const [viewingDefectDetails, setViewingDefectDetails] = useState<any>(null);
   const [isRejectionCommentModalOpen, setIsRejectionCommentModalOpen] =
     useState(false);
   const [viewingRejectionComment, setViewingRejectionComment] = useState<
@@ -1300,7 +1302,7 @@ export const Defects: React.FC = () => {
                             className="text-blue-600 hover:text-blue-900 flex items-center"
                             title="View Defect Details"
                             onClick={() => {
-                              setViewingSteps(JSON.stringify({
+                              setViewingDefectDetails({
                                 defectId: defect.defectId,
                                 description: defect.description,
                                 steps: defect.steps,
@@ -1314,8 +1316,8 @@ export const Defects: React.FC = () => {
                                 enteredBy: defect.assigned_by_name,
                                 release: (defect as any).release_name?.toString() || releaseMap[(defect as any).releaseId || ''] || '-',
                                 attachment: defect.attachment
-                              }));
-                              setIsViewStepsModalOpen(true);
+                              });
+                              setIsViewDefectDetailsModalOpen(true);
                             }}
                           >
                             <FileText className="w-4 h-4" />
@@ -1645,114 +1647,132 @@ export const Defects: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal for viewing defect details */}
+      {/* Modal for viewing steps only */}
       <Modal
         isOpen={isViewStepsModalOpen}
         onClose={() => setIsViewStepsModalOpen(false)}
-        title="Defect Details"
-        size="lg"
+        title="Steps to Reproduce"
+        size="md"
       >
         <div className="overflow-x-auto">
-          {viewingSteps && (() => {
-            try {
-              const defectData = JSON.parse(viewingSteps);
-              return (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-1/3">Defect ID</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.defectId}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Description</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{defectData.description}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Steps to Reproduce</td>
-                      <td className="px-6 py-4 text-sm text-gray-700 whitespace-pre-line">{defectData.steps || 'No steps provided'}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.module}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Submodule</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.submodule}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Type</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.type}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Severity</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor((defectData.severity || '').toLowerCase())}`}>
-                          {defectData.severity}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Priority</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor((defectData.priority || '').toLowerCase())}`}>
-                          {defectData.priority}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Status</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor((defectData.status || '').toLowerCase())}`}>
-                          {defectData.status}
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Assigned To</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.assignedTo || '-'}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Entered By</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.enteredBy || '-'}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Release</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{defectData.release}</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Attachment</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {defectData.attachment ? (
-                          <a
-                            href={defectData.attachment}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline"
-                          >
-                            View Attachment
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">No attachment</span>
-                        )}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              );
-            } catch (error) {
-              return (
-                <div className="text-gray-500 text-center py-8">
-                  Error displaying defect details
-                </div>
-              );
-            }
-          })()}
+          {viewingSteps ? (
+            <div className="whitespace-pre-line text-gray-700 p-4 bg-gray-50 rounded-lg">
+              {viewingSteps}
+            </div>
+          ) : (
+            <div className="text-gray-500 text-center py-8">
+              No steps provided
+            </div>
+          )}
         </div>
         <div className="flex justify-end pt-4">
           <Button
             type="button"
             variant="secondary"
             onClick={() => setIsViewStepsModalOpen(false)}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Modal for viewing defect details */}
+      <Modal
+        isOpen={isViewDefectDetailsModalOpen}
+        onClose={() => setIsViewDefectDetailsModalOpen(false)}
+        title="Defect Details"
+        size="lg"
+      >
+        <div className="overflow-x-auto">
+          {viewingDefectDetails && (
+            <table className="min-w-full divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 w-1/3">Defect ID</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.defectId}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Description</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{viewingDefectDetails.description}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Steps to Reproduce</td>
+                  <td className="px-6 py-4 text-sm text-gray-700 whitespace-pre-line">{viewingDefectDetails.steps || 'No steps provided'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.module}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Submodule</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.submodule}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Type</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.type}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Severity</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor((viewingDefectDetails.severity || '').toLowerCase())}`}>
+                      {viewingDefectDetails.severity}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Priority</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor((viewingDefectDetails.priority || '').toLowerCase())}`}>
+                      {viewingDefectDetails.priority}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Status</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor((viewingDefectDetails.status || '').toLowerCase())}`}>
+                      {viewingDefectDetails.status}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Assigned To</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.assignedTo || '-'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Entered By</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.enteredBy || '-'}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Release</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{viewingDefectDetails.release}</td>
+                </tr>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Attachment</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {viewingDefectDetails.attachment ? (
+                      <a
+                        href={viewingDefectDetails.attachment}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        View Attachment
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">No attachment</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsViewDefectDetailsModalOpen(false)}
           >
             Close
           </Button>
