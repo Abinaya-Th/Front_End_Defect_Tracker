@@ -289,13 +289,13 @@ export const Projects: React.FC = () => {
                       {project?.projectName}
                     </h3>
                   </div>
-                  <div className="flex items-center space-x-2 text-gray-700 mb-2">
+                  {/*<div className="flex items-center space-x-2 text-gray-700 mb-2">
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="font-medium">Manager:</span>
                     <span className="text-gray-900 font-semibold">
                       {project.manager ? project.manager : "Not Assigned"}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex items-center space-x-2 text-gray-700">
                     <Calendar className="w-5 h-5 text-gray-400" />
                     <span className="font-medium">Timeline:</span>
