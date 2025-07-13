@@ -55,6 +55,9 @@ const Severity: React.FC = () => {
   const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
   const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
 
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -90,6 +93,22 @@ const Severity: React.FC = () => {
       setPendingCreateSuccess(false);
     }
   }, [isCreateModalOpen, pendingCreateSuccess]);
+
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = severities.some(
+        (s) => s.color.toLowerCase() === formData.color.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.color, severities, isCreateModalOpen]);
 
   const handleCreate = async () => {
     try {
@@ -352,7 +371,7 @@ const Severity: React.FC = () => {
               placeholder="Enter severity name"
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
@@ -362,7 +381,7 @@ const Severity: React.FC = () => {
                   value={formData.color}
                   onChange={handleColorInput}
                   placeholder="#000000"
-                  className="flex-1"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
                   maxLength={7}
                 />
                 <div
@@ -372,6 +391,9 @@ const Severity: React.FC = () => {
                   aria-label="Pick color"
                 />
               </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
               {showColorPickerCreate && (
                 <div className="z-50 mt-2">
                   <HexColorPicker
@@ -395,7 +417,7 @@ const Severity: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.name || !!colorError}
             >
               Create
             </Button>

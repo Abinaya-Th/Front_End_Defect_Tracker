@@ -74,6 +74,25 @@ const StatusType: React.FC = () => {
   const totalPages = Math.ceil(statusTypes.length / pageSize);
   const paginatedStatusTypes = statusTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = statusTypes.some(
+        (s) => s.colorCode.toLowerCase() === formData.colorCode.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.colorCode, statusTypes, isCreateModalOpen]);
+
   // Fetch all status types on component mount
   useEffect(() => {
     fetchStatusTypes();
@@ -353,7 +372,7 @@ const StatusType: React.FC = () => {
             onChange={(e) => setFormData({ ...formData, defectStatusName: e.target.value.toUpperCase() })}
             placeholder="e.g., IN PROGRESS"
           />
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
@@ -361,7 +380,7 @@ const StatusType: React.FC = () => {
                   value={formData.colorCode}
                   onChange={handleColorInput}
                   placeholder="#000000"
-                  className="flex-1"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
                   maxLength={7}
                 />
                 <div
@@ -371,6 +390,9 @@ const StatusType: React.FC = () => {
                   aria-label="Pick color"
                 />
               </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
               {showColorPickerCreate && (
                 <div className="z-50 mt-2">
                   <HexColorPicker
@@ -390,7 +412,7 @@ const StatusType: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={loading}>
+            <Button onClick={handleCreate} disabled={loading || !!colorError}>
               {loading ? 'Creating...' : 'Create'}
             </Button>
           </div>
