@@ -6,6 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Bug } from 'lucide-react';
 import { createDefectType, getDefectTypes, getDefectTypeById, updateDefectType, deleteDefectType } from '../api/defectType';
+import AlertModal from '../components/ui/AlertModal';
 
 interface DefectType {
   id: string;
@@ -36,6 +37,31 @@ const DefectType: React.FC = () => {
     isActive: true
   });
 
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [deleteAlert, setDeleteAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(defectTypes.length / pageSize);
+  const paginatedDefectTypes = defectTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   useEffect(() => {
     const fetchDefectTypes = async () => {
       try {
@@ -55,6 +81,11 @@ const DefectType: React.FC = () => {
       }
     };
     fetchDefectTypes();
+    // Reset all alert popups on mount so none show at page load
+    setCreateAlert({ isOpen: false, message: '' });
+    setEditAlert({ isOpen: false, message: '' });
+    setDeleteAlert({ isOpen: false, message: '' });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const resetForm = () => {
@@ -86,15 +117,22 @@ const DefectType: React.FC = () => {
         setDefectTypes([...defectTypes, newDefectType]);
         setIsCreateModalOpen(false);
         resetForm();
+        setPendingCreateSuccess(true);
       } else {
-        console.error('Failed to create defect type:', response.message);
-        // Optionally, show an error message to the user
+        setCreateAlert({ isOpen: true, message: 'Failed to create defect type: ' + response.message });
       }
     } catch (error) {
-      console.error('Error creating defect type:', error);
-      // Optionally, show an error message to the user
+      setCreateAlert({ isOpen: true, message: 'Failed to create defect type: ' + error });
     }
   };
+
+  // Show create alert after modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Defect type created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleEdit = async () => {
     if (!editingDefectType) return;
@@ -125,13 +163,12 @@ const DefectType: React.FC = () => {
         setIsEditModalOpen(false);
         setEditingDefectType(null);
         resetForm();
+        setEditAlert({ isOpen: true, message: 'Defect type updated successfully!' });
       } else {
-        console.error("Failed to update defect type:", response.message);
-        // Optionally, show an error to the user
+        setEditAlert({ isOpen: true, message: 'Failed to update defect type: ' + response.message });
       }
     } catch (error) {
-      console.error("Error updating defect type:", error);
-      // Optionally, show an error to the user
+      setEditAlert({ isOpen: true, message: 'Failed to update defect type: ' + error });
     }
   };
 
@@ -147,13 +184,12 @@ const DefectType: React.FC = () => {
         setDefectTypes(updatedDefectTypes);
         setIsDeleteModalOpen(false);
         setDeletingDefectType(null);
+        setDeleteAlert({ isOpen: true, message: 'Defect type deleted successfully!' });
       } else {
-        console.error('Failed to delete defect type:', response.message);
-        // Optionally, show an error message to the user
+        setDeleteAlert({ isOpen: true, message: 'Failed to delete defect type: ' + response.message });
       }
     } catch (error) {
-      console.error('Error deleting defect type:', error);
-      // Optionally, show an error message to the user
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete defect type: ' + error });
     }
   };
 
@@ -237,6 +273,27 @@ const DefectType: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -273,7 +330,14 @@ const DefectType: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {defectTypes.map((defectType) => (
+            {paginatedDefectTypes.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-5 py-3 text-center text-gray-500">
+                  No defect types found.
+                </td>
+              </tr>
+            ) : (
+              paginatedDefectTypes.map((defectType) => (
               <tr key={defectType.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{defectType.name}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
@@ -293,9 +357,38 @@ const DefectType: React.FC = () => {
                   </button>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -304,6 +397,7 @@ const DefectType: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setCreateAlert({ isOpen: false, message: '' });
         }}
         title="Create New Defect Type"
       >
@@ -345,6 +439,7 @@ const DefectType: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingDefectType(null);
           resetForm();
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title="Edit Defect Type"
       >
@@ -386,6 +481,7 @@ const DefectType: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingDefectType(null);
+          setDeleteAlert({ isOpen: false, message: '' });
         }}
         title="Delete Defect Type"
       >

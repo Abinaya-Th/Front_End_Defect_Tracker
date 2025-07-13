@@ -11,7 +11,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center items-start bg-black bg-opacity-40">
+    <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
       <div
         className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]"
         style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}

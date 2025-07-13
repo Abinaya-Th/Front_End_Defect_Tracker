@@ -76,6 +76,14 @@ export default function BenchAllocate() {
 
     const [roles, setRoles] = useState<{ id: number; roleName: string }[]>([]);
 
+    // Pagination state for bench employees (left panel)
+    const [benchCurrentPage, setBenchCurrentPage] = useState(1);
+    const benchPageSize = 5;
+    
+    // Pagination state for allocated employees (right panel)
+    const [allocatedCurrentPage, setAllocatedCurrentPage] = useState(1);
+    const allocatedPageSize = 5;
+
     // Update selectedProjectId when contextProjectId changes
     useEffect(() => {
         if (contextProjectId && contextProjectId !== selectedProjectId) {
@@ -205,6 +213,10 @@ export default function BenchAllocate() {
         return matchesSearch && matchesDesignation && matchesAvailability;
     }), [benchEmployees, benchFilter, designationFilter, availabilityFilter]);
     
+    // Pagination calculations for bench employees
+    const benchTotalPages = Math.ceil(filteredBench.length / benchPageSize);
+    const paginatedBench = filteredBench.slice((benchCurrentPage - 1) * benchPageSize, benchCurrentPage * benchPageSize);
+    
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
     const filteredAllocatedEmployees = useMemo(() => {
@@ -223,6 +235,19 @@ export default function BenchAllocate() {
             return matchesSearch && matchesRole && matchesAvailability;
         });
     }, [allocatedEmployees, deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
+
+    // Pagination calculations for allocated employees
+    const allocatedTotalPages = Math.ceil(filteredAllocatedEmployees.length / allocatedPageSize);
+    const paginatedAllocatedEmployees = filteredAllocatedEmployees.slice((allocatedCurrentPage - 1) * allocatedPageSize, allocatedCurrentPage * allocatedPageSize);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setBenchCurrentPage(1);
+    }, [benchFilter, designationFilter, availabilityFilter]);
+
+    useEffect(() => {
+        setAllocatedCurrentPage(1);
+    }, [deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
 
     // Handlers
     const handleAllocate = () => {
@@ -306,7 +331,7 @@ export default function BenchAllocate() {
             alert('Deallocation successful!');
         } catch (error) {
             console.error('Deallocation failed:', error);
-            alert('Failed to deallocate selected users.');
+            alert('Failed to deallocate selected users. Select users already assigned to the Module and Submodule.');
         }
     };
 
@@ -387,7 +412,7 @@ export default function BenchAllocate() {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {filteredBench.map(emp => (
+                        {paginatedBench.map(emp => (
                             <div
                                 key={emp.id}
                                 className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
@@ -424,6 +449,35 @@ export default function BenchAllocate() {
                             </div>
                         ))}
                     </div>
+                    
+                    {/* Pagination Controls for Bench */}
+                    {benchTotalPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 py-4">
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setBenchCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={benchCurrentPage === 1}
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: benchTotalPages }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    className={`px-3 py-1 rounded border ${benchCurrentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                    onClick={() => setBenchCurrentPage(i + 1)}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setBenchCurrentPage((p) => Math.min(benchTotalPages, p + 1))}
+                                disabled={benchCurrentPage === benchTotalPages}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
                 {/* Arrows */}
                 <div className="flex flex-col items-center justify-center gap-4">
@@ -493,69 +547,100 @@ export default function BenchAllocate() {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {filteredAllocatedEmployees.length === 0 ? (
+                        {paginatedAllocatedEmployees.length === 0 ? (
                             <div className="text-gray-400 text-center py-8">
                                 {allocatedEmployees.length === 0 ? "No allocations yet" : "No employees match your search"}
                             </div>
                         ) : (
-                            <table className="w-full text-center">
-                                <thead>
-                                    <tr className="border-b border-[#D1D5DB]">
-                                        <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
-                                        <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
-                                        <th className="text-center px-4 whitespace-nowrap"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredAllocatedEmployees.map((emp: any) => (
-                                        <tr
-                                            key={emp.id}
-                                            className={`border-b hover:bg-[#f6fff8] cursor-pointer transition-all duration-150
+                            <>
+                                <table className="w-full text-center">
+                                    <thead>
+                                        <tr className="border-b border-[#D1D5DB]">
+                                            <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
+                                            <th className="text-center px-4 whitespace-nowrap"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedAllocatedEmployees.map((emp: any) => (
+                                            <tr
+                                                key={emp.id}
+                                                className={`border-b hover:bg-[#f6fff8] cursor-pointer transition-all duration-150
     ${selectedProjectUsers.includes(emp.id) ? 'border-2 border-blue-500 bg-[#f6fff8]' : 'border border-[#D1D5DB]'}
     ${selectedBench.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            onClick={() => {
-                                                if (selectedBench.length === 0) handleProjectUserSelect(emp.id);
-                                            }}
+                                                onClick={() => {
+                                                    if (selectedBench.length === 0) handleProjectUserSelect(emp.id);
+                                                }}
+                                            >
+                                                <td>{emp.userFullName}</td>
+                                                <td>{emp.roleName}</td>
+                                                <td>{emp.allocationPercentage}%</td>
+                                                <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
+                                                <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
+                                                <td>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+                                                                // Map the selected allocation to the modal's expected employee object
+                                                                const mappedEmp = {
+                                                                    id: emp.id,
+                                                                    allocationId: emp.id,
+                                                                    firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
+                                                                    lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
+                                                                    designation: emp.designation || '',
+                                                                    roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
+                                                                    roleName: emp.roleName || '',
+                                                                    allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
+                                                                    availability: emp.availability ?? emp.allocationPercentage ?? 0,
+                                                                    allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : '',
+                                                                    allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : '',
+                                                                };
+                                                                setAllocationModal({ open: true, employees: [mappedEmp] });
+                                                            }}
+                                                            title="Edit"
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                
+                                {/* Pagination Controls for Allocated Employees */}
+                                {allocatedTotalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-2 py-4">
+                                        <button
+                                            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                            onClick={() => setAllocatedCurrentPage((p) => Math.max(1, p - 1))}
+                                            disabled={allocatedCurrentPage === 1}
                                         >
-                                            <td>{emp.userFullName}</td>
-                                            <td>{emp.roleName}</td>
-                                            <td>{emp.allocationPercentage}%</td>
-                                            <td>{emp.startDate ? emp.startDate.split('T')[0] : '-'}</td>
-                                            <td>{emp.endDate ? emp.endDate.split('T')[0] : '-'}</td>
-                                            <td>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="primary"
-                                                        onClick={e => {
-                                                            e.stopPropagation();
-                                                            // Map the selected allocation to the modal's expected employee object
-                                                            const mappedEmp = {
-                                                                id: emp.id,
-                                                                allocationId: emp.id,
-                                                                firstName: emp.userFullName?.split(' ')[0] || emp.firstName || '',
-                                                                lastName: emp.userFullName?.split(' ').slice(1).join(' ') || emp.lastName || '',
-                                                                designation: emp.designation || '',
-                                                                roleId: emp.roleId || roles.find(r => r.roleName === emp.roleName)?.id || '',
-                                                                roleName: emp.roleName || '',
-                                                                allocationAvailability: emp.allocationPercentage ?? emp.availability ?? 0,
-                                                                availability: emp.availability ?? emp.allocationPercentage ?? 0,
-                                                                allocationStartDate: emp.startDate ? emp.startDate.split('T')[0] : '',
-                                                                allocationEndDate: emp.endDate ? emp.endDate.split('T')[0] : '',
-                                                            };
-                                                            setAllocationModal({ open: true, employees: [mappedEmp] });
-                                                        }}
-                                                        title="Edit"
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            Previous
+                                        </button>
+                                        {Array.from({ length: allocatedTotalPages }, (_, i) => (
+                                            <button
+                                                key={i + 1}
+                                                className={`px-3 py-1 rounded border ${allocatedCurrentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                onClick={() => setAllocatedCurrentPage(i + 1)}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                        <button
+                                            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                            onClick={() => setAllocatedCurrentPage((p) => Math.min(allocatedTotalPages, p + 1))}
+                                            disabled={allocatedCurrentPage === allocatedTotalPages}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
