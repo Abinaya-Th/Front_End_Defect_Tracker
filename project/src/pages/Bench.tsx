@@ -49,7 +49,18 @@ export const Bench: React.FC = () => {
     return employees
       .filter(emp => emp.availability > 0) // Only show employees with availability > 0
       .sort((a, b) => b.availability - a.availability);
-  }, [employees]);
+  }, [employees, filters]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
+  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
@@ -439,7 +450,6 @@ export const Bench: React.FC = () => {
           )}
         </CardContent>
       </Card>
-
 
       {/* Employee Details Modal */}
       <Modal

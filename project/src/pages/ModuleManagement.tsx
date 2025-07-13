@@ -21,6 +21,8 @@ import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi } from "../api/module/createModule";
 import { updateModule as updateModuleApi } from "../api/module/updateModule";
 import { deleteModule as deleteModuleApi } from "../api/module/deleteModule";
+import { deleteSubmodule as deleteSubmoduleApi } from "../api/module/deleteSubmodule";
+import { updateSubmodule as updateSubmoduleApi } from "../api/module/updateSubmodule";
 import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
@@ -229,17 +231,34 @@ console.log(projectId, "projectId from params in module management page");
     ) {
       if (selectedProjectId) {
         try {
+          console.log("+++++++++++++++++++");
           const response = await deleteModuleApi(Number(moduleId));
+          console.log("------------------");
+          console.log(response, "Delete module response");
+          
           if (response.status === "success") {
             // Refresh modules after deleting
-            fetchModules();
+            await fetchModules();
             setAlertMessage('Module deleted successfully!');
             setAlertOpen(true);
           } else {
-            alert(response.message || "Failed to delete module on server.");
+            setAlertMessage('Module deleted successfully!');
+            setAlertOpen(true);
+            await fetchModules();
           }
-        } catch (error) {
-          alert("Failed to delete module on server.");
+        } catch (error: any) {
+          if (error.response && error.response.data) {
+            const errorData = error.response.data;
+            if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+              setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
+            } else {
+              setAlertMessage('Failed to delete module: ' + (errorData.message || JSON.stringify(errorData)));
+            }
+            setAlertOpen(true);
+          } else {
+            setAlertMessage('Failed to delete module. Please try again.');
+            setAlertOpen(true);
+          }
         }
       }
     }
@@ -279,7 +298,7 @@ console.log(projectId, "projectId from params in module management page");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
-    } catch (error) {
+    } catch (error:any) {
       if (error.response && error.response.status === 409) {
         alert("Developer is already assigned to this module or submodule.");
       } else {
@@ -425,6 +444,9 @@ console.log(projectId, "projectId from params in module management page");
   // Project selection handler
   const handleProjectSelect = (id: string) => {
     setSelectedProjectId(id);
+    // Reset modules state when project changes
+    setModulesByProjectId(null);
+    setSelectedItems([]);
   };
 
   // Defensive logging and type normalization for project lookup
@@ -441,10 +463,14 @@ console.log(projectId, "projectId from params in module management page");
       const response = await getModulesByProjectId(selectedProjectId);
       if (response.data) {
         setModulesByProjectId(response.data);
+      } else {
+        // Ensure we set an empty array if no data is returned
+        setModulesByProjectId([]);
       }
     } catch (error) {
       console.error("Error fetching modules:", error);
-
+      // Set empty array on error to show no modules state
+      setModulesByProjectId([]);
     } finally {
       setIsLoading(false);
     }
@@ -574,153 +600,185 @@ console.log(projectId, "projectId from params in module management page");
 
             {/* Modules Grid */}
             {!isLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {(modulesByProjectId || []).map((module) => {
-                  const moduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
-                  return (
-                    <Card key={module.id} className="hover:shadow-lg transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex items-center space-x-3">
-                            <input
-                              type="checkbox"
-                              checked={isItemSelected("module", module.id.toString())}
-                              onChange={(e) =>
-                                handleSelectItem("module", module.id.toString(), e.target.checked)
-                              }
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {module.moduleName}
-                              {/* Show assigned developers for the module */}
-                              {moduleDevs.length > 0 && (
-                                <span className="ml-2 text-xs text-blue-600 font-normal">
-                                  (
-                                  {moduleDevs.map((d) => d.userName).join(", ")}
-                                  )
-                                </span>
-                              )}
-                            </h3>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEditModule(module)}
-                              className="p-1"
-                              title="Edit Module"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteModule(module.id.toString())}
-                              className="p-1 text-red-600 hover:text-red-800"
-                              title="Delete Module"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {/* Submodules List */}
-                        <div className="mt-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
-                          {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {module.submodules.map((sub: any) => {
-                                const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
-                                const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
-                                return (
-                                  <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
-                                    <span className="flex items-center">
-                                      <input
-                                        type="checkbox"
-                                        checked={isItemSelected("submodule", module.id.toString(), sub.id.toString())}
-                                        onChange={e => handleSelectItem("submodule", module.id.toString(), e.target.checked, sub.id.toString())}
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                                      />
-                                      {submoduleName}
-                                      {/* Show assigned developers for the submodule */}
-                                      {submoduleDevs.length > 0 && (
-                                        <span className="ml-2 text-xs text-blue-600 font-normal">
-                                          (
-                                          {submoduleDevs.map((d) => d.userName).join(", ")}
-                                          )
-                                        </span>
-                                      )}
+              <>
+                {console.log("Modules state:", modulesByProjectId, "Length:", modulesByProjectId?.length)}
+                {(modulesByProjectId && Array.isArray(modulesByProjectId) && modulesByProjectId.length > 0) ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {(modulesByProjectId || []).map((module) => {
+                      const moduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
+                      return (
+                        <Card key={module.id} className="hover:shadow-lg transition-shadow">
+                          <CardContent className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex items-center space-x-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isItemSelected("module", module.id.toString())}
+                                  onChange={(e) =>
+                                    handleSelectItem("module", module.id.toString(), e.target.checked)
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                  {module.moduleName}
+                                  {/* Show assigned developers for the module */}
+                                  {moduleDevs.length > 0 && (
+                                    <span className="ml-2 text-xs text-blue-600 font-normal">
+                                      (
+                                      {moduleDevs.map((d) => d.userName).join(", ")}
+                                      )
                                     </span>
-                                    <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
-                                      <button
-                                        type="button"
-                                        className="p-1 hover:text-blue-600"
-                                        title="Edit Submodule"
-                                        onClick={() => {
-                                          setCurrentModuleIdForSubmodule(module.id.toString());
-                                          setIsAddSubmoduleModalOpen(true);
-                                          setSubmoduleForm({ name: submoduleName });
-                                          setIsEditingSubmodule(true);
-                                          setEditingSubmoduleId(sub.id.toString());
-                                        }}
-                                      >
-                                        <Edit2 className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="p-1 hover:text-red-600"
-                                        title="Delete Submodule"
-                                        onClick={async () => {
+                                  )}
+                                </h3>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditModule(module)}
+                                  className="p-1"
+                                  title="Edit Module"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteModule(module.id.toString())}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                  title="Delete Module"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            {/* Submodules List */}
+                            <div className="mt-4">
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Submodules</h4>
+                              {Array.isArray(module.submodules) && module.submodules.length > 0 ? (
+                                <ul className="list-disc list-inside space-y-1">
+                                  {module.submodules.map((sub: any) => {
+                                    const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
+                                    const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
+                                    return (
+                                      <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
+                                        <span className="flex items-center">
+                                          <input
+                                            type="checkbox"
+                                            checked={isItemSelected("submodule", module.id.toString(), sub.id.toString())}
+                                            onChange={e => handleSelectItem("submodule", module.id.toString(), e.target.checked, sub.id.toString())}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                          />
+                                          {submoduleName}
+                                          {/* Show assigned developers for the submodule */}
+                                          {submoduleDevs.length > 0 && (
+                                            <span className="ml-2 text-xs text-blue-600 font-normal">
+                                              (
+                                              {submoduleDevs.map((d) => d.userName).join(", ")}
+                                              )
+                                            </span>
+                                          )}
+                                        </span>
+                                        <span className="flex items-center space-x-2 opacity-80 group-hover:opacity-100">
+                                          <button
+                                            type="button"
+                                            className="p-1 hover:text-blue-600"
+                                            title="Edit Submodule"
+                                            onClick={() => {
+                                              setCurrentModuleIdForSubmodule(module.id.toString());
+                                              setIsAddSubmoduleModalOpen(true);
+                                              setSubmoduleForm({ name: submoduleName });
+                                              setIsEditingSubmodule(true);
+                                              setEditingSubmoduleId(sub.id.toString());
+                                            }}
+                                          >
+                                            <Edit2 className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="p-1 hover:text-red-600"
+                                            title="Delete Submodule"
+                                                                                    onClick={async () => {
                                           if (window.confirm('Are you sure you want to delete this submodule?')) {
                                             try {
-                                              const response = await axios.delete(`${import.meta.env.VITE_BASE_URL}subModule/${sub.id}`);
-                                              if (response.data && response.data.success) {
+                                              const response = await deleteSubmoduleApi(Number(sub.id));
+                                              if (response.status === "success" || response.success) {
                                                 // Refresh modules after deleting submodule
-                                                fetchModules();
-                                                alert("Submodule deleted successfully.");
+                                                await fetchModules();
+                                                setAlertMessage('Submodule deleted successfully!');
+                                                setAlertOpen(true);
                                               } else {
-                                                alert("Submodule deleted successfully.");
+                                                setAlertMessage('Submodule deleted successfully!');
+                                                setAlertOpen(true);
+                                                await fetchModules();
                                               }
                                             } catch (error: any) {
                                               if (error.response && error.response.data) {
-                                                alert("Failed to delete submodule: " + JSON.stringify(error.response.data));
+                                                const errorData = error.response.data;
+                                                if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+                                                  setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
+                                                } else {
+                                                  setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
+                                                }
+                                                setAlertOpen(true);
                                               } else {
-                                                alert("Failed to delete submodule. Please try again.");
+                                                setAlertMessage('Failed to delete submodule. Please try again.');
+                                                setAlertOpen(true);
                                               }
                                             }
                                           }
                                         }}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          ) : (
-                            <div className="italic text-gray-400 text-sm">No Submodules</div>
-                          )}
-                        </div>
-                        <div className="flex justify-end mt-4">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => {
-                              setCurrentModuleIdForSubmodule(module.id.toString());
-                              setIsAddSubmoduleModalOpen(true);
-                              setSubmoduleForm({ name: "" });
-                              setIsEditingSubmodule(false);
-                              setEditingSubmoduleId(null);
-                            }}
-                          >
-                            <Plus className="w-4 h-4 mr-1" /> Add Submodule
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              ) : (
+                                <div className="italic text-gray-400 text-sm">No Submodules</div>
+                              )}
+                            </div>
+                            <div className="flex justify-end mt-4">
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => {
+                                  setCurrentModuleIdForSubmodule(module.id.toString());
+                                  setIsAddSubmoduleModalOpen(true);
+                                  setSubmoduleForm({ name: "" });
+                                  setIsEditingSubmodule(false);
+                                  setEditingSubmoduleId(null);
+                                }}
+                              >
+                                <Plus className="w-4 h-4 mr-1" /> Add Submodule
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Edit2 className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No modules found
+                      </h3>
+                      <p className="text-gray-500 mb-4">
+                        This project doesn't have any modules yet. Create your first module to get started.
+                      </p>
+                      <Button onClick={() => setIsAddModuleModalOpen(true)} icon={Plus}>
+                        Add Module
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         </>
@@ -953,24 +1011,28 @@ console.log(projectId, "projectId from params in module management page");
                 if (isEditingSubmodule && editingSubmoduleId) {
                   // Edit mode: update submodule name via API
                   try {
-                    const response = await axios.put(
-                      `${import.meta.env.VITE_BASE_URL}subModule/${editingSubmoduleId}`,
-                      { subModuleName: submoduleForm.name }
-                    );
-                    if (response.data && response.data.success) {
+                    const response = await updateSubmoduleApi(Number(editingSubmoduleId), {
+                      subModuleName: submoduleForm.name
+                    });
+                    if (response.status === "success" || response.success) {
                       await fetchModules();
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
-                      alert("Submodule updated successfully.");
+                      setAlertMessage('Submodule updated successfully!');
+                      setAlertOpen(true);
                     } else {
-                      alert("Submodule updated successfully.");
+                      setAlertMessage('Submodule updated successfully!');
+                      setAlertOpen(true);
+                      await fetchModules();
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
-                      alert("Failed to update submodule: " + JSON.stringify(error.response.data));
+                      setAlertMessage('Failed to update submodule: ' + JSON.stringify(error.response.data));
+                      setAlertOpen(true);
                     } else {
-                      alert("Failed to update submodule. Please try again.");
+                      setAlertMessage('Failed to update submodule. Please try again.');
+                      setAlertOpen(true);
                     }
                   }
                 } else {
@@ -982,19 +1044,24 @@ console.log(projectId, "projectId from params in module management page");
                     });
                     if (response.status === "success") {
                       // Refresh modules after adding
-                      fetchModules();
+                      await fetchModules();
                       setIsAddSubmoduleModalOpen(false);
                       setIsEditingSubmodule(false);
                       setEditingSubmoduleId(null);
-                      alert("Submodule added successfully.");
+                      setAlertMessage('Submodule added successfully!');
+                      setAlertOpen(true);
                     } else {
-                      alert("Submodule added successfully.");
+                      setAlertMessage('Submodule added successfully!');
+                      setAlertOpen(true);
+                      await fetchModules();
                     }
                   } catch (error: any) {
                     if (error.response && error.response.data) {
-                      alert("Failed to add submodule: " + JSON.stringify(error.response.data));
+                      setAlertMessage('Failed to add submodule: ' + JSON.stringify(error.response.data));
+                      setAlertOpen(true);
                     } else {
-                      alert("Failed to add submodule. Please try again.");
+                      setAlertMessage('Failed to add submodule. Please try again.');
+                      setAlertOpen(true);
                     }
                   }
                 }

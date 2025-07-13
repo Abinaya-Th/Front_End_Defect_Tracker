@@ -7,6 +7,8 @@ import { Modal } from '../components/ui/Modal';
 import { ChevronLeft, Plus, Edit2, Trash2, Flag, AwardIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getAllPriorities, updatePriority, deletePriority, createPriority } from '../api/priority';
+import AlertModal from '../components/ui/AlertModal';
+import { HexColorPicker } from 'react-colorful';
 
 interface Priority {
   id: number;
@@ -16,8 +18,23 @@ interface Priority {
 
 const Priority: React.FC = () => {
   const navigate = useNavigate();
-  const [priorities, setPriorities] = useState<Priority[]>([
-  ]);
+  const [priorities, setPriorities] = useState<Priority[]>([]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(priorities.length / pageSize);
+  const paginatedPriorities = priorities.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({ isOpen: false, message: '' });
+  const [editAlert, setEditAlert] = useState({ isOpen: false, message: '' });
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, message: '' });
+  const [validationAlert, setValidationAlert] = useState({ isOpen: false, message: '' });
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -28,6 +45,48 @@ const Priority: React.FC = () => {
     name: '',
     color: '#000000',
   });
+  const [showColorPickerCreate, setShowColorPickerCreate] = useState(false);
+  const [showColorPickerEdit, setShowColorPickerEdit] = useState(false);
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+  // Add state for name validation error
+  const [nameError, setNameError] = useState('');
+
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = priorities.some(
+        (p) => p.color.toLowerCase() === formData.color.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.color, priorities, isCreateModalOpen]);
+
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, color: value });
+  };
+
+  // Validation function for priority name
+  const validateName = (name: string) => {
+    // Only alphabets and spaces, at least one letter
+    return /^[A-Za-z ]+$/.test(name.trim());
+  };
+
+  // Handle name input change with validation
+  const handleNameChange = (value: string) => {
+    setFormData({ ...formData, name: value });
+  };
 
   useEffect(() => {
     getAllPriorities()
@@ -48,6 +107,7 @@ const Priority: React.FC = () => {
         setPriorities([]);
         console.error("Failed to fetch priorities:", err);
       });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const resetForm = () => {
@@ -58,6 +118,12 @@ const Priority: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    // Validate name before creating
+    if (formData.name && !validateName(formData.name)) {
+      setValidationAlert({ isOpen: true, message: 'Priority name can only contain alphabets and spaces.' });
+      return;
+    }
+    
     try {
       const res = await createPriority({
         priority: formData.name,
@@ -70,16 +136,31 @@ const Priority: React.FC = () => {
         color: item.color.startsWith('#') ? item.color : `#${item.color}`,
       }));
       setPriorities(mapped);
-
       setIsCreateModalOpen(false);
       resetForm();
-    } catch (err) {
+      setPendingCreateSuccess(true);
+    } catch (err: any) {
+      setCreateAlert({ isOpen: true, message: err?.response?.data?.message || 'Failed to create priority.' });
       console.error('Failed to create priority:', err);
     }
   };
 
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Priority created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
+
   const handleEdit = async () => {
     if (!editingPriority) return;
+    
+    // Validate name before updating
+    if (formData.name && !validateName(formData.name)) {
+      setValidationAlert({ isOpen: true, message: 'Priority name can only contain alphabets and spaces.' });
+      return;
+    }
+    
     try {
       await updatePriority(editingPriority.id, {
         priority: formData.name,
@@ -94,7 +175,9 @@ const Priority: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingPriority(null);
       resetForm();
-    } catch (err) {
+      setEditAlert({ isOpen: true, message: 'Priority updated successfully!' });
+    } catch (err: any) {
+      setEditAlert({ isOpen: true, message: err?.response?.data?.message || 'Failed to update priority.' });
       console.error('Failed to update priority:', err);
     }
   };
@@ -103,15 +186,16 @@ const Priority: React.FC = () => {
     if (!deletingPriority) return;
     try {
       await deletePriority(deletingPriority.id);
+      const updatedPriorities = priorities.filter(
+        priority => priority.id !== deletingPriority.id
+      );
+      setPriorities(updatedPriorities);
+      setIsDeleteModalOpen(false);
+      setDeletingPriority(null);
+      setDeleteAlert({ isOpen: true, message: 'Priority deleted successfully!' });
     } catch {
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete priority' });
     }
-
-    const updatedPriorities = priorities.filter(
-      priority => priority.id !== deletingPriority.id
-    );
-    setPriorities(updatedPriorities);
-    setIsDeleteModalOpen(false);
-    setDeletingPriority(null);
   };
 
   const openEditModal = (priority: Priority) => {
@@ -171,43 +255,79 @@ const Priority: React.FC = () => {
               </TableRow>
             </thead>
             <TableBody>
-              {priorities.map((priority) => (
-                <TableRow key={priority.id}>
-                  <TableCell className="font-medium">{priority.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: priority.color }}
-                      />
-                      <span className="text-sm text-gray-600">{priority.color}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditModal(priority)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(priority)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {paginatedPriorities.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center text-gray-500 py-4">
+                    No priorities found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedPriorities.map((priority) => (
+                  <TableRow key={priority.id}>
+                    <TableCell className="font-medium">{priority.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: priority.color }}
+                        />
+                        <span className="text-sm text-gray-600">{priority.color}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditModal(priority)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openDeleteModal(priority)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-4">
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Create Modal */}
       <Modal
@@ -215,6 +335,7 @@ const Priority: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setShowColorPickerCreate(false);
         }}
         title="Create New Priority"
       >
@@ -225,26 +346,41 @@ const Priority: React.FC = () => {
             </label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter priority name"
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-16 h-10 p-1"
-              />
-              <Input
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                placeholder="#000000"
-              />
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.color}
+                  onChange={handleColorInput}
+                  placeholder="#000000"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.color }}
+                  onClick={() => setShowColorPickerCreate((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
+              {showColorPickerCreate && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.color}
+                    onChange={color => setFormData({ ...formData, color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -253,13 +389,14 @@ const Priority: React.FC = () => {
               onClick={() => {
                 setIsCreateModalOpen(false);
                 resetForm();
+                setShowColorPickerCreate(false);
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.name || !!colorError || !!nameError}
             >
               Create
             </Button>
@@ -274,6 +411,7 @@ const Priority: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingPriority(null);
           resetForm();
+          setShowColorPickerEdit(false);
         }}
         title="Edit Priority"
       >
@@ -284,7 +422,7 @@ const Priority: React.FC = () => {
             </label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter priority name"
             />
           </div>
@@ -292,18 +430,30 @@ const Priority: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-16 h-10 p-1"
-              />
-              <Input
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                placeholder="#000000"
-              />
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.color}
+                  onChange={handleColorInput}
+                  placeholder="#000000"
+                  className="flex-1"
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.color }}
+                  onClick={() => setShowColorPickerEdit((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {showColorPickerEdit && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.color}
+                    onChange={color => setFormData({ ...formData, color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -313,13 +463,14 @@ const Priority: React.FC = () => {
                 setIsEditModalOpen(false);
                 setEditingPriority(null);
                 resetForm();
+                setShowColorPickerEdit(false);
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name}
+              disabled={!formData.name || !!nameError}
             >
               Update
             </Button>
@@ -360,6 +511,31 @@ const Priority: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+      {/* Validation Alert Modal */}
+      <AlertModal
+        isOpen={validationAlert.isOpen}
+        message={validationAlert.message}
+        onClose={() => setValidationAlert({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };

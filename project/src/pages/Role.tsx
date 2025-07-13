@@ -9,6 +9,7 @@ import { createRole } from '../api/role/createrole';
 import { getAllRoles } from '../api/role/viewrole';
 import { updateRoleById } from '../api/role/updaterole';
 import { deleteRoleById } from '../api/role/deleterole';
+import AlertModal from '../components/ui/AlertModal';
 
 interface Role {
   id: string;
@@ -38,6 +39,31 @@ const Role: React.FC = () => {
     department: ''
   });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(roles.length / pageSize);
+  const paginatedRoles = roles.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [deleteAlert, setDeleteAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+
   // Available permissions
   const availablePermissions = [
     'View Dashboard',
@@ -66,6 +92,11 @@ const Role: React.FC = () => {
       }
     };
     fetchRoles();
+    // Reset all alert popups on mount so none show at page load
+    setCreateAlert({ isOpen: false, message: '' });
+    setEditAlert({ isOpen: false, message: '' });
+    setDeleteAlert({ isOpen: false, message: '' });
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const resetForm = () => {
@@ -87,10 +118,24 @@ const Role: React.FC = () => {
       setRoles(rolesArray);
       setIsCreateModalOpen(false);
       resetForm();
-    } catch (error) {
-      alert('Failed to create role: ' + error);
+      setPendingCreateSuccess(true);
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Role name contains invalid characters. Allowed: letters, space, . , & - / ( ) \' " #' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Failed to create role: ' + error });
+      }
     }
   };
+
+  // Show create alert after modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Role created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleEdit = async () => {
     if (!editingRole) return;
@@ -106,8 +151,14 @@ const Role: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingRole(null);
       resetForm();
-    } catch (error) {
-      alert('Failed to update role: ' + error);
+      setEditAlert({ isOpen: true, message: 'Role updated successfully!' });
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Role name contains invalid characters. Allowed: letters, space, . , & - / ( ) \' " #' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Failed to update role: ' + error });
+      }
     }
   };
 
@@ -124,8 +175,9 @@ const Role: React.FC = () => {
       setRoles(rolesArray);
       setIsDeleteModalOpen(false);
       setDeletingRole(null);
+      setDeleteAlert({ isOpen: true, message: 'Role deleted successfully!' });
     } catch (error) {
-      alert('Failed to delete role: ' + error);
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete role: ' + error });
     }
   };
 
@@ -175,6 +227,27 @@ const Role: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-8">
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -211,7 +284,7 @@ const Role: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {roles.map((role) => (
+            {paginatedRoles.map((role) => (
               <tr key={role.id}>
                 <td className="px-5 py-3 whitespace-nowrap font-semibold text-gray-900 text-base">{role.roleName}</td>
                 <td className="px-5 py-3 whitespace-nowrap text-center">
@@ -234,6 +307,35 @@ const Role: React.FC = () => {
             ))}
           </tbody>
         </table>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -242,6 +344,7 @@ const Role: React.FC = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           resetForm();
+          setCreateAlert({ isOpen: false, message: '' });
         }}
         title="Create New Role"
         size="sm"
@@ -284,6 +387,7 @@ const Role: React.FC = () => {
           setIsEditModalOpen(false);
           setEditingRole(null);
           resetForm();
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title="Edit Role"
         size="sm"
@@ -326,6 +430,7 @@ const Role: React.FC = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingRole(null);
+          setDeleteAlert({ isOpen: false, message: '' });
         }}
         title="Delete Role"
       >
