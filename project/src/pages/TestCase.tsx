@@ -11,6 +11,7 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
+import AlertModal from "../components/ui/AlertModal";
 import { useParams, useNavigate } from "react-router-dom";
 import QuickAddTestCase from "./QuickAddTestCase";
 import QuickAddDefect from "./QuickAddDefect";
@@ -169,10 +170,29 @@ export const TestCase: React.FC = () => {
       });
   }, [selectedModuleId]);
 
-
   // Add state for severities and defect types
   const [severities, setSeverities] = useState<{ id: number; name: string; color: string }[]>([]);
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
+
+  // Add toast state for notifications
+  const [toast, setToast] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'success' | 'error';
+  }>({
+    isOpen: false,
+    message: '',
+    type: 'success'
+  });
+
+  // Alert states for test case operations
+  const [createAlert, setCreateAlert] = useState({ isOpen: false, message: '' });
+  const [updateAlert, setUpdateAlert] = useState({ isOpen: false, message: '' });
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, message: '' });
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingUpdateSuccess, setPendingUpdateSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
 
   // Fetch test cases when projectId and submoduleId are selected
   useEffect(() => {
@@ -267,15 +287,6 @@ export const TestCase: React.FC = () => {
   //       setTestCases(mapped);
   //     });
   // };
-
-  // Handle submodule selection (just highlight, no fetch)
-  //noneeded
-  const handleSubmoduleSelect = (submoduleId: string | null) => {
-    setSelectedSubmoduleId(submoduleId);
-    // setSelectedTestCases([]); // Removed
-    setSearchResults(null);
-    setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
-  };
 
   // When selection changes, update selectedTestCases for bulk actions
   // useEffect(() => {
@@ -380,7 +391,9 @@ export const TestCase: React.FC = () => {
   const handleSubmitAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     let hasErrors = false;
-    let successCount = 0;
+    let createCount = 0;
+    let updateCount = 0;
+
     for (const { formData } of modals) {
       // Prepare payload for both create and update
       const payload: any = {
@@ -394,73 +407,88 @@ export const TestCase: React.FC = () => {
       if (typeof severityId === 'number') payload.severityId = severityId;
       const defectTypeId = defectTypes.find(dt => dt.defectTypeName === formData.type)?.id;
       if (typeof defectTypeId === 'number') payload.defectTypeId = defectTypeId;
+      
       try {
         if (formData.id) {
           // Edit mode: update existing test case
-          const response = await updateTestCase(extractNumericId(formData.id), payload);
-          showAlert(response?.message || 'Test case updated successfully!');
-          successCount++;
+          await updateTestCase(extractNumericId(formData.id), payload);
+          updateCount++;
         } else {
           // Add mode: create new test case
-          const response = await createTestCase(payload);
-          showAlert(response?.message || 'Test case created successfully!');
-          successCount++;
+          await createTestCase(payload);
+          createCount++;
         }
       } catch (error: any) {
-        hasErrors = true;
-        let errorMessage = 'An error occurred while saving the test case';
-        if (error?.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error?.response?.data?.error) {
-          errorMessage = error.response.data.error;
-        } else if (error?.message) {
-          errorMessage = error.message;
-        }
-        showAlert(errorMessage);
         console.error("Error saving test case:", error);
+        hasErrors = true;
+        
+        // Reset success flags immediately when error occurs
+        setPendingCreateSuccess(false);
+        setPendingUpdateSuccess(false);
+        
+        // Check for specific backend validation error
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save test case. Please try again.';
+        
+        console.log("Setting alert with message:", errorMessage);
+        
+        if (formData.id) {
+          setUpdateAlert({ isOpen: true, message: errorMessage });
+          console.log("Update alert set to:", { isOpen: true, message: errorMessage });
+        } else {
+          setCreateAlert({ isOpen: true, message: errorMessage });
+          console.log("Create alert set to:", { isOpen: true, message: errorMessage });
+        }
       }
     }
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      setModals([
-        {
-          open: false,
-          formData: {
-            module: "",
-            subModule: "",
-            description: "",
-            steps: "",
-            type: "functional",
-            severity: "medium",
-            projectId: selectedProjectId,
-          },
-        },
-      ]);
-      setCurrentModalIdx(0);
-      // Refresh test cases after update
-      if (selectedProjectId && selectedSubmoduleId !== null) {
-        getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-          const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-          const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-          setTestCases(
-            (data as any[]).map((tc: any) => ({
-              ...tc,
-              module: moduleMap[tc.moduleId] || tc.moduleId,
-              subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
-              severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-              type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-            })) as TestCaseType[]
-          );
-        }).catch((error: any) => {
-          let errorMessage = 'Failed to refresh test cases';
-          if (error?.response?.data?.message) {
-            errorMessage = error.response.data.message;
-          }
-          showAlert(errorMessage);
-        });
+
+    if (!hasErrors) {
+      setSuccess(true);
+      if (createCount > 0) {
+        setPendingCreateSuccess(true);
       }
-    }, 1200);
+      if (updateCount > 0) {
+        setPendingUpdateSuccess(true);
+      }
+      
+      setTimeout(() => {
+        setSuccess(false);
+        setModals([
+          {
+            open: false,
+            formData: {
+              module: "",
+              subModule: "",
+              description: "",
+              steps: "",
+              type: "functional",
+              severity: "medium",
+              projectId: selectedProjectId,
+            },
+          },
+        ]);
+        setCurrentModalIdx(0);
+        // Refresh test cases after update
+        if (selectedProjectId && selectedSubmoduleId !== null) {
+          getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+            const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+            const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+            setTestCases(
+              (data as any[]).map((tc: any) => ({
+                ...tc,
+                module: moduleMap[tc.moduleId] || tc.moduleId,
+                subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+                severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+                type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+              })) as TestCaseType[]
+            );
+          });
+        }
+      }, 1200);
+    } else {
+      // Reset success flags when there are errors
+      setPendingCreateSuccess(false);
+      setPendingUpdateSuccess(false);
+    }
   };
 
   const getSeverityColor = (severity: string) => {
@@ -531,6 +559,13 @@ export const TestCase: React.FC = () => {
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Handle submodule selection (just highlight, no fetch)
+  const handleSubmoduleSelect = (submoduleId: string | null) => {
+    setSelectedSubmoduleId(submoduleId);
+    setSearchResults(null);
+    setSearchFilters({ description: "", typeId: "", severityId: "", submoduleId: "" });
+  };
 
   // Add state to track submodules for each modal
   const [modalSubmodules, setModalSubmodules] = useState<Submodule[][]>([]);
@@ -623,6 +658,30 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchResults, filteredTestCases, rowsPerPage]);
+
+  // Alert state handlers
+  useEffect(() => {
+    if (!modals[currentModalIdx]?.open && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Test case created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [modals[currentModalIdx]?.open, pendingCreateSuccess]);
+
+  useEffect(() => {
+    if (!modals[currentModalIdx]?.open && pendingUpdateSuccess) {
+      setUpdateAlert({ isOpen: true, message: 'Test case updated successfully!' });
+      setPendingUpdateSuccess(false);
+    }
+  }, [modals[currentModalIdx]?.open, pendingUpdateSuccess]);
+
+  // Debug alert state changes
+  useEffect(() => {
+    console.log("Create alert state changed:", createAlert);
+  }, [createAlert]);
+
+  useEffect(() => {
+    console.log("Update alert state changed:", updateAlert);
+  }, [updateAlert]);
 
   // Add helper function at the top (after imports)
   function extractNumericId(id: string) {
@@ -982,13 +1041,6 @@ export const TestCase: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleViewTestCase(testCase)}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
                               onClick={() => {
                                 console.log('projectModules:', projectModules);
                                 console.log('submodules:', submodules);
@@ -1055,20 +1107,12 @@ export const TestCase: React.FC = () => {
                                             type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
                                           })) as TestCaseType[]
                                         );
-                                      }).catch((error: any) => {
-                                        let errorMessage = 'Failed to refresh test cases';
-                                        if (error?.response?.data?.message) {
-                                          errorMessage = error.response.data.message;
-                                        }
-                                        showAlert(errorMessage);
                                       });
                                     }
-                                  }).catch((error: any) => {
-                                    let errorMessage = 'Failed to delete test case';
-                                    if (error?.response?.data?.message) {
-                                      errorMessage = error.response.data.message;
-                                    }
-                                    showAlert(errorMessage);
+                                    setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
+                                  }).catch((error) => {
+                                    console.error("Error deleting test case:", error);
+                                    setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. Please try again.' });
                                   });
                                 }
                               }}
@@ -1102,6 +1146,7 @@ export const TestCase: React.FC = () => {
                       className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
+                      //style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                     >
                       Previous
                     </button>
@@ -1132,9 +1177,12 @@ export const TestCase: React.FC = () => {
       {modals[currentModalIdx]?.open &&
         (() => {
           const idx = currentModalIdx;
+          console.log("Rendering modal for index:", idx, "with data:", modals[idx]);
+          
           const modal = modals[idx];
           return (
             <Modal
+              key={idx}
               isOpen={modal.open}
               onClose={() => {
                 if (modals.length === 1) {
@@ -1275,6 +1323,7 @@ export const TestCase: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Description
                     </label>
+                    <p className="text-xs text-gray-500 mb-1">Description must contain letters and at least one number or special character</p>
                     <textarea
                       value={modal.formData.description}
                       onChange={(e) =>
@@ -1289,6 +1338,7 @@ export const TestCase: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Test Steps
                     </label>
+                    <p className="text-xs text-gray-500 mb-1">Steps must contain letters and at least one number or special character (e.g., "1. Step one", "Step 1!")</p>
                     <textarea
                       value={modal.formData.steps}
                       onChange={(e) =>
@@ -1301,49 +1351,49 @@ export const TestCase: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4">
-                  {/* Only show navigation buttons in add mode */}
-                  {!isEditMode && (
-                    <div className="flex space-x-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setCurrentModalIdx(idx - 1)}
-                        disabled={idx === 0}
-                        style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          if (idx === modals.length - 1) {
-                            setModals((prev) => [
-                              ...prev,
-                              {
-                                open: true,
-                                formData: {
-                                  module: modal.formData.module,
-                                  subModule: modal.formData.subModule,
-                                  description: "",
-                                  steps: "",
-                                  type: "functional",
-                                  severity: "medium",
-                                  projectId: modal.formData.projectId,
+                  <div className="flex space-x-2">
+                    {!isEditMode && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setCurrentModalIdx(idx - 1)}
+                          disabled={idx === 1}
+                          // style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            if (idx === modals.length - 1) {
+                              setModals((prev) => [
+                                ...prev,
+                                {
+                                  open: true,
+                                  formData: {
+                                    module: modal.formData.module,
+                                    subModule: modal.formData.subModule,
+                                    description: "",
+                                    steps: "",
+                                    type: "functional",
+                                    severity: "medium",
+                                    projectId: modal.formData.projectId,
+                                  },
                                 },
-                              },
-                            ]);
-                            setCurrentModalIdx(modals.length);
-                          } else {
-                            setCurrentModalIdx(idx + 1);
-                          }
-                        }}
-                        disabled={false}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
+                              ]);
+                              setCurrentModalIdx(modals.length);
+                            } else {
+                              setCurrentModalIdx(idx + 1);
+                            }
+                          }}
+                        >
+                          Next
+                        </Button>
+                      </>
+                    )}
+                  </div>
                   <div className="flex space-x-3">
                     <Button
                       type="button"
@@ -1510,10 +1560,32 @@ export const TestCase: React.FC = () => {
         <QuickAddDefect projectModules={projectModules} />
       </div>
 
+      {/* Create Alert Modal */}
       <AlertModal
-        isOpen={alert.isOpen}
-        message={alert.message}
-        onClose={closeAlert}
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => {
+          console.log("Closing create alert");
+          setCreateAlert({ isOpen: false, message: '' });
+        }}
+      />
+      {/* Update Alert Modal */}
+      <AlertModal
+        isOpen={updateAlert.isOpen}
+        message={updateAlert.message}
+        onClose={() => {
+          console.log("Closing update alert");
+          setUpdateAlert({ isOpen: false, message: '' });
+        }}
+      />
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => {
+          console.log("Closing delete alert");
+          setDeleteAlert({ isOpen: false, message: '' });
+        }}
       />
     </div>
   );

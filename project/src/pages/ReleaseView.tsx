@@ -28,6 +28,7 @@ import { getTestCasesByFilter } from "../api/releasetestcase";
 import { getSubmodulesByModuleId } from "../api/submodule/submoduleget";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
+import { getAllReleaseTypes } from "../api/Releasetype";
 import axios from 'axios';
 import AlertModal from '../components/ui/AlertModal';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -55,7 +56,7 @@ interface TestCase {
 interface Module {
   id: string;
   name: string;
-  submodules: string[]; // Not used, but kept for type compatibility
+  submodules: { id: string; name: string }[];
 }
 
 export const ReleaseView: React.FC = () => {
@@ -99,6 +100,8 @@ export const ReleaseView: React.FC = () => {
   const [defectTypes, setDefectTypes] = useState<{ id: number; defectTypeName: string }[]>([]);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [editingReleaseId, setEditingReleaseId] = useState<string | null>(null);
+  const [releaseTypes, setReleaseTypes] = useState<any[]>([]);
 
   // Fetch modules when project changes
   useEffect(() => {
@@ -316,21 +319,8 @@ export const ReleaseView: React.FC = () => {
                       <h3 className={`text-lg font-semibold mb-1 ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}>
                         {release.releaseName}
                       </h3>
-                      <p className={`text-sm ${selectedRelease === release.id ? 'text-white' : 'text-gray-500'}`}>
-                        v{release.releaseId}
-                      </p>
                     </div>
-                    <p className={`text-sm mb-4 line-clamp-2 ${selectedRelease === release.id ? 'text-white' : 'text-gray-600'}`}>
-                      {release.description}
-                    </p>
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <FileText className={`w-4 h-4 ${selectedRelease === release.id ? 'text-white' : 'text-gray-400'}`} />
-                        <div>
-                          <p className={`text-xs ${selectedRelease === release.id ? 'text-white' : 'text-gray-500'}`}>Test Cases</p>
-                          <p className={`text-sm font-medium ${selectedRelease === release.id ? 'text-white' : 'text-gray-900'}`}></p>
-                        </div>
-                      </div>
                       <div className="flex items-center space-x-2">
                         <Calendar className={`w-4 h-4 ${selectedRelease === release.id ? 'text-white' : 'text-gray-400'}`} />
                         <div>
@@ -730,7 +720,7 @@ export const ReleaseView: React.FC = () => {
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProject || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={projectModules} />
       </div>
       <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
     </div>
