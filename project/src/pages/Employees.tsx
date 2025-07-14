@@ -28,7 +28,7 @@ import { Designations, getDesignations } from "../api/designation/designation";
 import { useParams } from "react-router-dom";
 import { getAllUsers, User as BackendUser } from "../api/users/getallusers";
 import { getUsersByFilter, UserFilter } from "../api/users/filter";
-import { updateUser } from "../api/users/updateuser";
+import { updateUser, UpdateUserPayload } from "../api/users/updateuser";
 import { searchUsers, SearchUserData } from "../api/users/searchuser";
 import AlertModal from "../components/ui/AlertModal";
 
@@ -274,18 +274,46 @@ export const Employees: React.FC = () => {
     };
 
     if (editingEmployee) {
-      console.log("Editing existing employee:", editingEmployee);
-      
-      // Only update, do not create
+      // Prepare the payload for backend update
+      const numericId = Number(editingEmployee.id);
+      if (!numericId || isNaN(numericId)) {
+        showEditAlert("Invalid user ID for update.");
+        setEditingEmployee(null);
+        resetForm();
+        setIsModalOpen(false);
+        return;
+      }
+      const updatePayload: UpdateUserPayload = {
+        id: numericId,
+        userId: (editingEmployee as any).userId ? String((editingEmployee as any).userId) : String(editingEmployee.id),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: null,
+        phoneNo: formData.phone,
+        joinDate: formData.joinedDate
+          ? new Date(formData.joinedDate + 'T00:00:00.000+05:30').toISOString()
+          : "",
+        userGender: formData.gender as "Male" | "Female",
+        userStatus: formData.status ? "Active" : "Inactive",
+        designationId: designationId ? Number(designationId) : 0,
+        designationName: formData.designation
+      };
       try {
-        await updateUser(Number(editingEmployee.id), backendEmployeeData);
+        await updateUser(numericId, updatePayload);
+        // Fetch latest users after update
+        const res = await getAllUsers(currentPage - 1, rowsPerPage);
+        setUsers(res.data.content);
+        setTotalPages(res.data.totalPages);
         setPendingEditSuccess(true);
         updateEmployee(editingEmployee.id, frontendEmployeeData);
-      } catch (error) {
-        console.log("Failed to update user", error);
-        showEditAlert("Failed to update user");
+      } catch (error: any) {
+        showEditAlert(error?.response?.data?.message || error.message || "Failed to update user");
       }
       setEditingEmployee(null);
+      resetForm();
+      setIsModalOpen(false);
+      return;
     } else {
       // Only create, do not update
       try {
@@ -386,23 +414,16 @@ export const Employees: React.FC = () => {
           const mappedUsers = res.data.map((user) => {
             const designationObj = designations.find(d => String(d.id) === String(user.designationId));
             return {
-              userId: user.userId,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              userGender: user.userGender,
-              email: user.email,
-              phoneNo: user.phoneNo,
-              joinDate: user.joinDate,
-              userStatus: user.userStatus,
-              designationId: user.designationId ? String(user.designationId) : null,
-              id: user.userId,
+              ...user,
+              id: user.userId, // Use userId as id for UserFilter type
               designationName: designationObj ? designationObj.name : '',
             };
           });
-          setUsers(mappedUsers);
+          setUsers(mappedUsers as any); // Type assertion to handle UserFilter to User conversion
           setTotalPages(1);
         } else {
           const allRes = await getAllUsers(currentPage - 1, rowsPerPage);
+          // No id conversion here, keep as string | null
           setUsers(allRes.data.content);
           setTotalPages(allRes.data.totalPages);
         }
@@ -412,6 +433,14 @@ export const Employees: React.FC = () => {
     }
     fetchUsers();
   }, [currentPage, genderFilter, statusFilter, designationFilter, designations]);
+
+  // Helper function to format Employee ID
+  function formatEmployeeId(id: string | number): string {
+    if (!id) return '';
+    const num = typeof id === 'string' ? parseInt(id, 10) : id;
+    if (isNaN(num)) return String(id);
+    return `US${num.toString().padStart(4, '0')}`;
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -549,10 +578,17 @@ export const Employees: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {/* Display search results if available, otherwise show regular users */}
-                    {(searchResults.length > 0 ? searchResults : users).map((user) => {
+                    {(searchResults.length > 0 ? searchResults : users).map((user: any) => {
+                      // Helper function to get the correct ID
+                      const getUserId = (user: any) => {
+                        if ('id' in user && user.id) return user.id;
+                        if ('userId' in user) return user.userId;
+                        return 'Unknown';
+                      };
+                      
                       // Map backend user to Employee shape for edit/delete
                       const mappedEmployee = {
-                        id: user.userId,
+                        id: getUserId(user),
                         firstName: user.firstName,
                         lastName: user.lastName,
                         gender: (user.userGender as "Male" | "Female") || "Male",
@@ -571,8 +607,8 @@ export const Employees: React.FC = () => {
                         updatedAt: "",
                       } as Employee;
                       return (
-                        <TableRow key={user.userId}>
-                          <TableCell>{user.userId}</TableCell>
+                        <TableRow key={getUserId(user)}>
+                          <TableCell>{formatEmployeeId(getUserId(user))}</TableCell>
                           <TableCell>{user.firstName}</TableCell>
                           <TableCell>{user.lastName}</TableCell>
                           <TableCell>{user.userGender || "-"}</TableCell>

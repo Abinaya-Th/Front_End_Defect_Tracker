@@ -58,6 +58,10 @@ const Role: React.FC = () => {
     isOpen: false,
     message: '',
   });
+  const [validationAlert, setValidationAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
 
   // Pending success flags
   const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
@@ -110,6 +114,12 @@ const Role: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    // Duplicate name check (case-insensitive, trimmed)
+    const exists = roles.some(role => role.roleName.trim().toLowerCase() === formData.name.trim().toLowerCase());
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Role name already exists.' });
+      return;
+    }
     try {
       await createRole({ roleName: formData.name });
       // Add this:
@@ -139,7 +149,12 @@ const Role: React.FC = () => {
 
   const handleEdit = async () => {
     if (!editingRole) return;
-
+    // Duplicate name check (case-insensitive, trimmed, ignore self)
+    const exists = roles.some(role => role.roleName.trim().toLowerCase() === formData.name.trim().toLowerCase() && role.id !== editingRole.id);
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Role name already exists.' });
+      return;
+    }
     try {
       // Call backend API to update role
       await updateRoleById(editingRole.id, formData.name);
@@ -246,6 +261,13 @@ const Role: React.FC = () => {
         isOpen={deleteAlert.isOpen}
         message={deleteAlert.message}
         onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Validation Alert Modal */}
+      <AlertModal
+        isOpen={validationAlert.isOpen}
+        message={validationAlert.message}
+        onClose={() => setValidationAlert({ isOpen: false, message: '' })}
       />
 
       {/* Back Button */}

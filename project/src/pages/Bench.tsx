@@ -51,17 +51,6 @@ export const Bench: React.FC = () => {
       .sort((a, b) => b.availability - a.availability);
   }, [employees, filters]);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
-  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
-  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
-
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
     return allDesignations;

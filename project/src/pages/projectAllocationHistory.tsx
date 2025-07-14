@@ -9,71 +9,51 @@ import { getAllProjects } from '../api/projectget';
 import { Project } from '../types';
 import { getProjectAllocationHistory } from '../api/projectAllocationHistory/projectAllocationHistory';
 
-interface ProjectAllocationHistory {
-  allocations: any;
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  designation: string;
-  action: 'allocated' | 'deallocated' | 'percentage_changed' | 'role_changed' | 'period_changed';
-  fromPercentage: number;
-  toPercentage: number;
-  fromRole: string;
-  toRole: string;
-  fromStartDate: string;
-  toStartDate: string;
-  fromEndDate: string;
-  toEndDate: string;
-  date: string;
-  reason: string;
-  allocatedBy: string;
+interface AllocationRecord {
+  id: number;
+  percentage: number;
+  userFullName: string;
+  email: string;
+  projectName: string;
+  roleName: string;
+  startDate: string;
+  endDate: string;
+  projectId: number;
+  userId: number;
+  roleId: number;
+  status: boolean;
+  allocationPercentage: number;
+  firstName: string;
+  lastName: string;
 }
 
-interface UserProjectAllocation {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  designation: string;
-  currentPercentage: number;
-  currentRole: string;
-  currentStartDate: string;
-  currentEndDate: string;
-  status: 'active' | 'deallocated' | 'partially_allocated';
-  totalAllocations: number;
-  lastModified: string;
+interface ProjectAllocationHistory {
+  userId: number;
+  allocations: AllocationRecord[];
+  deallocations: AllocationRecord[];
 }
+
+
 
 const ProjectAllocationHistory: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { employees, selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId } = useApp();
-  
+  const { selectedProjectId: contextProjectId, setSelectedProjectId: setContextProjectId } = useApp();
+
   // State for projects from API (same pattern as BenchAllocate)
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  
+
   // Always call useState - don't use conditional logic
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(contextProjectId || null);
-  
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+
+  const [expandedUser, setExpandedUser] = useState<number | null>(null);
   const [allocationHistory, setAllocationHistory] = useState<ProjectAllocationHistory[]>([]);
-  const [userAllocations, setUserAllocations] = useState<UserProjectAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const scrollRef = React.useRef<HTMLDivElement>(null);
- 
-  const fetchProjectAllocations = async (projectId: string) => {
-   try {
-     const response = await getProjectAllocationHistory(Number(projectId));
-
-     setAllocationHistory(response.data);
-   } catch (error) {
-    console.log("Failed to fetch project allocation history:", error);
-   }
-  }
   useEffect(() => {
     if (selectedProjectId) {
       setLoading(true);
@@ -81,17 +61,11 @@ const ProjectAllocationHistory: React.FC = () => {
         .then((response: any) => {
           // Expecting response.data to be an array of allocation history objects
           setAllocationHistory(Array.isArray(response.data) ? response.data : []);
-          // If the API also returns user allocations, set them here
-          if (Array.isArray(response.userAllocations)) {
-            setUserAllocations(response.userAllocations);
-          } else {
-            setUserAllocations([]);
-          }
+
         })
         .catch((error) => {
           console.log("Failed to fetch project allocation history:", error);
           setAllocationHistory([]);
-          setUserAllocations([]);
         })
         .finally(() => setLoading(false));
     }
@@ -147,12 +121,11 @@ const ProjectAllocationHistory: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    // Only show allocated (green) or deallocated (red)
-    if (status === true || status === 'allocated') {
+  const getStatusColor = (status: boolean) => {
+    if (status === true) {
       return 'bg-green-100 text-green-800';
     }
-    if (status === false || status === 'deallocated') {
+    if (status === false) {
       return 'bg-red-100 text-red-800';
     }
     return 'bg-gray-100 text-gray-800';
@@ -175,17 +148,9 @@ const ProjectAllocationHistory: React.FC = () => {
     }
   };
 
-  const filteredUsers = userAllocations.filter(user => {
-    const matchesSearch = user.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.designation.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
-  const getUserHistory = (userId: string) => {
-    return allocationHistory.filter(item => item.userId === userId);
-  };
+
+  // Removed unused getUserHistory
 
   // Project selection handler (same pattern as BenchAllocate)
   const handleProjectSelect = (id: string) => {
@@ -346,124 +311,94 @@ const ProjectAllocationHistory: React.FC = () => {
           ) : (
             <div className="space-y-4">
               {Array.isArray(allocationHistory) && allocationHistory.map((user, userIdx) => {
-                const userHistory = getUserHistory(user.userId);
                 const isExpanded = expandedUser === user.userId;
-                
                 return (
                   <Card key={user.userId + '-' + userIdx} className="border border-gray-200">
                     <CardContent className="p-0">
-                      {/* User Row */}
-                      {user && Array.isArray(user.allocations) && user.allocations.map((allocation:any, allocIdx:number) => (
-                      <div 
-                        key={user.userId + '-' + allocation.id + '-' + allocIdx}
-                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                        onClick={() => setExpandedUser(isExpanded ? null : user.userId)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 text-gray-400" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                              )}
-                              <User className="w-5 h-5 text-blue-500" />
+                      {/* User Row: show latest allocation */}
+                      {user && Array.isArray(user.allocations) && user.allocations.length > 0 && (
+                        <div 
+                          key={user.userId + '-' + user.allocations[0].id}
+                          className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => setExpandedUser(isExpanded ? null : user.userId)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                                )}
+                                <User className="w-5 h-5 text-blue-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{user.allocations[0].firstName} {user.allocations[0].lastName}</h4>
+                                <p className="text-sm text-gray-600">{user.allocations[0].email}</p>
+                                <p className="text-xs text-gray-500">{user.allocations[0].roleName}</p>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900">{allocation.firstName}</h4>
-                              <p className="text-sm text-gray-600">{allocation.email}</p>
-                              <p className="text-xs text-gray-500">{allocation.roleName}</p>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-gray-900">{user.allocations[0].roleName}</p>
+                                <p className="text-xs text-gray-600">{user.allocations[0].percentage}% allocated</p>
+                                <p className="text-xs text-gray-500">
+                                  {user.allocations[0].startDate && user.allocations[0].endDate
+                                    ? `${new Date(user.allocations[0].startDate).toLocaleDateString()} to ${new Date(user.allocations[0].endDate).toLocaleDateString()}`
+                                    : 'No period set'
+                                  }
+                                </p>
+                              </div>
+                              <Badge className={getStatusColor(user.allocations[0].status)}>
+                                {user.allocations[0].status === true
+                                  ? 'Allocated'
+                                  : user.allocations[0].status === false
+                                    ? 'Deallocated'
+                                    : ''}
+                              </Badge>
                             </div>
                           </div>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">{allocation.roleName}</p>
-                              <p className="text-xs text-gray-600">{allocation.percentage}% allocated</p>
-                              <p className="text-xs text-gray-500">
-                                {allocation.startDate && allocation.endDate
-                                  ? `${allocation.startDate} to ${allocation.endDate}`
-                                  : 'No period set'
-                                }
-                              </p>
-                            </div>
-                            <Badge className={getStatusColor(allocation.status)}>
-                              {allocation.status === true || allocation.status === 'allocated'
-                                ? 'Allocated'
-                                : (allocation.status === false || allocation.status === 'deallocated')
-                                  ? 'Deallocated'
-                                  : 'Unknown'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      ))}
+                      )}
 
-                      {/* Expanded History */}
+                      {/* Expanded History: allocations and deallocations sorted by startDate */}
                       {isExpanded && (
                         <div className="border-t border-gray-200 bg-gray-50">
                           <div className="p-4">
                             <h5 className="font-semibold text-gray-900 mb-3">Allocation History</h5>
-                            {Array.isArray(userHistory) && userHistory.length === 0 ? (
-                              <p className="text-gray-500 text-sm">No allocation history available.</p>
-                            ) : (
+                            {((user.allocations && user.allocations.length > 0) || (user.deallocations && user.deallocations.length > 0)) ? (
                               <div className="space-y-3">
-                                {Array.isArray(userHistory) && userHistory.map((history, histIdx) => (
-                                  <div key={user.userId + '-' + history.id + '-' + histIdx} className="bg-white p-3 rounded-lg border">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
-                                        <Badge className={getActionColor(history.action)}>
-                                          {typeof history.action === 'string' && history.action
-                                            ? history.action.replace('_', ' ')
-                                            : (history.action !== undefined && history.action !== null ? String(history.action) : 'Unknown')}
-                                        </Badge>
-                                        <span className="text-sm text-gray-600">
-                                          {history.date ? new Date(history.date).toLocaleDateString() : 'Unknown date'}
-                                        </span>
+                                {[...(user.allocations || []), ...(user.deallocations || [])]
+                                  .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                                  .map((record, idx) => (
+                                    <div key={user.userId + '-' + record.id + '-' + idx} className="bg-white p-3 rounded-lg border">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <Badge className={getStatusColor(record.status)}>
+                                            {record.status === true ? 'Allocated' : record.status === false ? 'Deallocated' : ''}
+                                          </Badge>
+                                          <span className="text-sm text-gray-600">
+                                            {record.startDate ? new Date(record.startDate).toLocaleDateString() : ''}
+                                          </span>
+                                        </div>
+                                        <span className="text-sm font-medium">{record.roleName || ''}</span>
                                       </div>
-                                      <span className="text-sm font-medium">{history.allocatedBy || 'Unknown'}</span>
+                                      <div className="space-y-2">
+                                        <div className="text-sm">
+                                          <p><span className="font-medium">User:</span> {record.firstName} {record.lastName}</p>
+                                          <p><span className="font-medium">Email:</span> {record.email}</p>
+                                          <p><span className="font-medium">Role:</span> {record.roleName}</p>
+                                          <p><span className="font-medium">Percentage:</span> {record.percentage}%</p>
+                                          <p><span className="font-medium">Period:</span> {record.startDate ? new Date(record.startDate).toLocaleDateString() : ''} to {record.endDate ? new Date(record.endDate).toLocaleDateString() : ''}</p>
+                                        </div>
+                                      </div>
                                     </div>
-                                    {/* Allocation Details - formatted for clarity */}
-                                    <div className="space-y-2">
-                                      {history.action === 'percentage_changed' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Percentage:</span> {history.fromPercentage}% → {history.toPercentage}%</p>
-                                          <p><span className="font-medium">Role:</span> {history.fromRole}</p>
-                                          <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
-                                        </div>
-                                      )}
-                                      {history.action === 'allocated' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Allocated:</span> {history.toPercentage}% as {history.toRole}</p>
-                                          <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
-                                        </div>
-                                      )}
-                                      {history.action === 'deallocated' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Deallocated:</span> {history.fromPercentage}% from {history.fromRole}</p>
-                                          <p><span className="font-medium">Previous Period:</span> {history.fromStartDate} to {history.fromEndDate}</p>
-                                        </div>
-                                      )}
-                                      {history.action === 'role_changed' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Role:</span> {history.fromRole} → {history.toRole}</p>
-                                          <p><span className="font-medium">Percentage:</span> {history.toPercentage}%</p>
-                                          <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
-                                        </div>
-                                      )}
-                                      {history.action === 'period_changed' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Period:</span> {history.fromStartDate} to {history.fromEndDate} → {history.toStartDate} to {history.toEndDate}</p>
-                                          <p><span className="font-medium">Role:</span> {history.toRole}</p>
-                                          <p><span className="font-medium">Percentage:</span> {history.toPercentage}%</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <p className="text-sm text-gray-700 mt-2">{history.reason}</p>
-                                  </div>
-                                ))}
+                                  ))}
                               </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">No allocation history available.</p>
                             )}
                           </div>
                         </div>

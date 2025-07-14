@@ -50,6 +50,10 @@ const DefectType: React.FC = () => {
     isOpen: false,
     message: '',
   });
+  const [validationAlert, setValidationAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
 
   // Pending success flags
   const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
@@ -85,6 +89,7 @@ const DefectType: React.FC = () => {
     setCreateAlert({ isOpen: false, message: '' });
     setEditAlert({ isOpen: false, message: '' });
     setDeleteAlert({ isOpen: false, message: '' });
+    setValidationAlert({ isOpen: false, message: '' });
     setCurrentPage(1); // Reset to first page on mount
   }, []);
 
@@ -100,6 +105,12 @@ const DefectType: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    // Duplicate name check (case-insensitive, trimmed)
+    const exists = defectTypes.some(dt => dt.name.trim().toLowerCase() === formData.name.trim().toLowerCase());
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Defect Type Name already exists.' });
+      return;
+    }
     try {
       const response = await createDefectType({ defectTypeName: formData.name });
       if (response.status === 'success') {
@@ -141,7 +152,12 @@ const DefectType: React.FC = () => {
 
   const handleEdit = async () => {
     if (!editingDefectType) return;
-    
+    // Duplicate name check (case-insensitive, trimmed, ignore self)
+    const exists = defectTypes.some(dt => dt.name.trim().toLowerCase() === formData.name.trim().toLowerCase() && dt.id !== editingDefectType.id);
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Defect Type Name already exists.' });
+      return;
+    }
     try {
       const payload = {
         defectTypeName: formData.name,
@@ -304,6 +320,13 @@ const DefectType: React.FC = () => {
         onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
       />
 
+      {/* Validation Alert Modal */}
+      <AlertModal
+        isOpen={validationAlert.isOpen}
+        message={validationAlert.message}
+        onClose={() => setValidationAlert({ isOpen: false, message: '' })}
+      />
+
       {/* Back Button */}
       <div className="mb-6 flex justify-end">
         <Button
@@ -408,6 +431,7 @@ const DefectType: React.FC = () => {
           setIsCreateModalOpen(false);
           resetForm();
           setCreateAlert({ isOpen: false, message: '' });
+          setValidationAlert({ isOpen: false, message: '' });
         }}
         title="Create New Defect Type"
       >
@@ -428,6 +452,7 @@ const DefectType: React.FC = () => {
               onClick={() => {
                 setIsCreateModalOpen(false);
                 resetForm();
+                setValidationAlert({ isOpen: false, message: '' });
               }}
             >
               Cancel
@@ -450,6 +475,7 @@ const DefectType: React.FC = () => {
           setEditingDefectType(null);
           resetForm();
           setEditAlert({ isOpen: false, message: '' });
+          setValidationAlert({ isOpen: false, message: '' });
         }}
         title="Edit Defect Type"
       >
@@ -471,6 +497,7 @@ const DefectType: React.FC = () => {
                 setIsEditModalOpen(false);
                 setEditingDefectType(null);
                 resetForm();
+                setValidationAlert({ isOpen: false, message: '' });
               }}
             >
               Cancel
