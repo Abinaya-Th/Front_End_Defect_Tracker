@@ -439,7 +439,7 @@ export const TestCase: React.FC = () => {
             setPendingUpdateSuccess(false);
             hasErrors = true;
           } else {
-            setUpdateAlert({ isOpen: true, message: response?.message || 'Test case updated successfully!' });
+            setUpdateAlert({ isOpen: true, message: response?.message });
             setPendingUpdateSuccess(true);
             // After update, close modal and refresh table
             setTimeout(() => {
@@ -768,12 +768,7 @@ export const TestCase: React.FC = () => {
     }
   }, [modals[currentModalIdx]?.open, pendingCreateSuccess]);
 
-  useEffect(() => {
-    if (!modals[currentModalIdx]?.open && pendingUpdateSuccess) {
-      setUpdateAlert({ isOpen: true, message: 'Test case updated successfully!' });
-      setPendingUpdateSuccess(false);
-    }
-  }, [modals[currentModalIdx]?.open, pendingUpdateSuccess]);
+  
 
   // Debug alert state changes
   useEffect(() => {
@@ -798,8 +793,8 @@ export const TestCase: React.FC = () => {
     return (
       modal.module &&
       modal.subModule &&
-      modal.description &&
-      modal.steps &&
+      modal.description && modal.description.trim() !== "" &&
+      modal.steps && modal.steps.trim() !== "" &&
       modal.type &&
       modal.severity
     );
@@ -1152,44 +1147,45 @@ export const TestCase: React.FC = () => {
                           <div className="flex space-x-2">
                             <button
                               onClick={() => {
-                                console.log('projectModules:', projectModules);
-                                console.log('submodules:', submodules);
-                                console.log('Editing testCase:', testCase);
+                                console.log('Available projectModules:', projectModules);
+                                console.log('Test case to edit:', testCase);
                                 // Robustly get module and submodule name using both ID and name
-                                const foundModule = projectModules.find(
-                                  (m: any) => String(m.id) === String((testCase as any)["moduleId"] ?? testCase.module)
-                                );
-                                const moduleName = foundModule ? foundModule.name : "Unknown Module";
+                                let moduleId = (testCase as any).moduleId ?? testCase.module;
+                                let subModuleId = (testCase as any).subModuleId ?? testCase.subModule;
+                                let moduleName = "Unknown Module";
                                 let subModuleName = "Unknown Submodule";
-                                if (foundModule) {
-                                  const foundSubmodule = foundModule.submodules.find(
-                                    (sm: any) => String(sm.id) === String((testCase as any)["subModuleId"] ?? testCase.subModule)
-                                  );
-                                  subModuleName = foundSubmodule ? foundSubmodule.name : "Unknown Submodule";
+                                if (moduleId) {
+                                  const foundModule = projectModules.find((m: any) => String(m.id) === String(moduleId) || m.name === moduleId);
+                                  console.log('Found module:', foundModule);
+                                  if (foundModule) {
+                                    moduleName = foundModule.name;
+                                    if (subModuleId) {
+                                      const foundSubmodule = foundModule.submodules.find((sm: any) => String(sm.id) === String(subModuleId) || sm.name === subModuleId);
+                                      console.log('Found submodule:', foundSubmodule);
+                                      if (foundSubmodule) subModuleName = foundSubmodule.name;
+                                    }
+                                  }
                                 }
+                                // fallback to names if IDs are not available
+                                if (moduleName === "Unknown Module" && testCase.module) moduleName = String(testCase.module);
+                                if (subModuleName === "Unknown Submodule" && testCase.subModule) subModuleName = String(testCase.subModule);
+                                console.log('Resolved moduleName:', moduleName, 'subModuleName:', subModuleName);
                                 const typeName = getTypeName(testCase.type);
                                 const severityName = getSeverityName(testCase.severity);
-                                if (moduleName === 'Unknown Module' || subModuleName === 'Unknown Submodule') {
-                                  console.warn('Module/Submodule mapping failed:', {
-                                    testCase,
-                                    projectModules,
-                                    submodules
-                                  });
-                                }
                                 setModals([
                                   {
                                     open: true,
                                     formData: {
-                                      module: moduleName || "",
-                                      subModule: subModuleName || "",
+                                      module: moduleName, // always the name
+                                      subModule: subModuleName, // always the name
                                       description: testCase.description || "",
                                       steps: testCase.steps || "",
                                       type: typeName || "functional",
                                       severity: severityName || "", // changed from "medium"
                                       projectId: testCase.projectId,
                                       id: testCase.testCaseId,
-                                      moduleId: (testCase as any)["moduleId"] ?? testCase.module, // fallback for backward compatibility
-                                      subModuleId: (testCase as any)["subModuleId"] ?? testCase.subModule, // fallback for backward compatibility
+                                      moduleId: moduleId, // keep for reference
+                                      subModuleId: subModuleId, // keep for reference
                                     },
                                   },
                                 ]);
