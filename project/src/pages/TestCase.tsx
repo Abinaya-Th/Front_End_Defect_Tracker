@@ -229,8 +229,8 @@ console.log({submodules});
   // Add after state declarations
   const [allSubmoduleTestCases, setAllSubmoduleTestCases] = useState<{ [submoduleId: string]: TestCaseType[] }>({});
 
-  // Fetch all test cases for all submodules of the selected module
-  useEffect(() => {
+  // Extract fetchAllSubmoduleTestCases as a callback
+  const fetchAllSubmoduleTestCases = React.useCallback(() => {
     if (!selectedProjectId || !selectedModuleId) return;
     const moduleObj = projectModules.find((m) => m.id === selectedModuleId);
     if (moduleObj && Array.isArray(moduleObj.submodules)) {
@@ -248,6 +248,11 @@ console.log({submodules});
       });
     }
   }, [selectedProjectId, selectedModuleId, projectModules]);
+
+  // Replace the useEffect for allSubmoduleTestCases with a call to this function
+  useEffect(() => {
+    fetchAllSubmoduleTestCases();
+  }, [fetchAllSubmoduleTestCases]);
 
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
@@ -537,6 +542,7 @@ console.log({submodules});
                   );
                 });
               }
+              fetchAllSubmoduleTestCases();
             }, 1200);
           }
         }
@@ -808,8 +814,8 @@ console.log("paginatedTestCases", paginatedTestCases);
     return (
       modal.module &&
       modal.subModule &&
-      modal.description && modal.description.trim() !== "" &&
-      modal.steps && modal.steps.trim() !== "" &&
+      modal.description &&
+      modal.steps &&
       modal.type &&
       modal.severity
     );
