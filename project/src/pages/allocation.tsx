@@ -24,6 +24,8 @@ import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { TestCase as TestCaseType } from "../types/index";
 import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
+import { getAllocatedUsersByModuleId, getModulesByProjectId } from "../api/module/getModule";
+import AlertModal from "../components/ui/AlertModal";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 //integration
@@ -55,8 +57,8 @@ export const Allocation: React.FC = () => {
     releases,
     employees,
     testCases,
-    modulesByProject,
   } = useApp();
+  const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds]=useState<number[]>([]);
@@ -93,6 +95,9 @@ export const Allocation: React.FC = () => {
   const [allocationError, setAllocationError] = useState<string | null>(null);
   const [allocationProgress, setAllocationProgress] = useState<{ current: number; total: number } | null>(null);
   const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk">("one-to-one");
+  const [alert, setAlert] = useState({ isOpen: false, message: "" });
+  const showAlert = (message: string) => setAlert({ isOpen: true, message });
+  const closeAlert = () => setAlert((a) => ({ ...a, isOpen: false }));
 
   React.useEffect(() => {
     if (projectId) {
@@ -165,12 +170,12 @@ export const Allocation: React.FC = () => {
   const projectTestCases = testCases.filter((tc) => tc.projectId === projectId);
 
   // Get modules for selected project from context
-  const projectModules = projectId ? modulesByProject[projectId] || [] : [];
+  const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
 
   // Use mock data if API/server is not working
   const effectiveProjectRelease = projectRelease;
   const effectiveTestCases = allocatedTestCases.length > 0 ? allocatedTestCases : projectTestCases;
-  const effectiveModules = projectModules;
+  const effectiveModules = projectModules?projectModules || []: []; // Use modulesByProject state
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -178,16 +183,46 @@ export const Allocation: React.FC = () => {
       loadExistingQAAllocations();
     }
   }, [effectiveProjectRelease, selectedProject]);
+  const fetchModules = async () => {
+    console.log("Fetching modules for project ID:", selectedProjectId);
+    
+    if (!selectedProjectId) return;
+    try {
+      const response = await getModulesByProjectId(selectedProjectId);
+      if (response.data) {
+        const modules = (response.data || []).map((mod: any) => ({
+          id: mod.id,
+          name: mod.moduleName,
+          submodules: (mod.submodules || []).map((sm: any) => ({
+            id: String(sm.id),
+            name: sm.subModuleName || sm.name,
+          })),
+      }))
+        setModulesByProject((prev: any) => ({ ...prev, [selectedProjectId]: modules }));
+      }
+    } catch (error) {
+      console.error("Error fetching modules:", error);
 
+    }
+  };
+  console.log("Modules fetched:", modulesByProject);
+  
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchModules();}
+    },[selectedProjectId]);
   // Fetch submodules when selectedModule changes
   useEffect(() => {
+    
     if (!selectedModule) {
       setSubmodules([]);
       setSubmoduleError("");
       return;
     }
+   
     // Find the module ID from effectiveModules
     const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
+  
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id)
         .then((res) => {
@@ -212,7 +247,8 @@ export const Allocation: React.FC = () => {
       setSubmodules([]);
       setSubmoduleError("Module not found.");
     }
-  }, [selectedModule, effectiveModules]);
+  }, [selectedModule]);
+  
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
@@ -401,14 +437,10 @@ export const Allocation: React.FC = () => {
         });
         try {
           const response = await bulkAllocateTestCasesToReleases(payload);
-          if (response.status === "success") {
-            setAllocationSuccess(response.message || "Success");
-          } else {
-            setAllocationError(response.message || "Failed");
-          }
+          showAlert(response.message || (response.status === "success" ? "Success" : "Failed"));
           setAllocationProgress({ current: 1, total: 1 });
         } catch (allocationError: any) {
-          setAllocationError(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
+          showAlert(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
           setAllocationProgress({ current: 1, total: 1 });
         }
       } else if (allocationMode === "one-to-many") {
@@ -441,13 +473,7 @@ export const Allocation: React.FC = () => {
           setAllocationProgress({ current: completedAllocations, total: totalAllocations });
         }
         if (firstMessage) {
-          if (firstIsSuccess) {
-            setAllocationSuccess(firstMessage);
-            setAllocationError(null);
-          } else {
-            setAllocationError(firstMessage);
-            setAllocationSuccess(null);
-          }
+          showAlert(firstMessage);
         }
       } else {
         const totalAllocations = selectedReleaseIds.length * selectedTestCases.length;
@@ -480,8 +506,7 @@ export const Allocation: React.FC = () => {
           }
         }
         if (firstMessage) {
-          if (firstIsSuccess) setAllocationSuccess(firstMessage);
-          else setAllocationError(firstMessage);
+          showAlert(firstMessage);
         }
       }
       setQaAllocatedTestCases(prev => {
@@ -501,7 +526,7 @@ export const Allocation: React.FC = () => {
       }, 2000);
     } catch (error: any) {
       let errorMessage = error.response?.data?.message || error.message || "Failed to allocate test cases to releases. Please try again.";
-      setAllocationError(errorMessage);
+      showAlert(errorMessage);
     } finally {
       setAllocationLoading(false);
     }
@@ -848,9 +873,7 @@ export const Allocation: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Severity
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -905,38 +928,7 @@ export const Allocation: React.FC = () => {
                     {tc.severity}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        setViewingTestCase(tc);
-                        setIsViewTestCaseModalOpen(true);
-                      }}
-                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                      title="View"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        /* handleEdit(tc) */
-                      }}
-                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        /* handleDelete(tc.id) */
-                      }}
-                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                
               </tr>
             ))}
           </tbody>
@@ -1776,6 +1768,11 @@ export const Allocation: React.FC = () => {
         <QuickAddTestCase selectedProjectId={projectId || ""} />
         <QuickAddDefect projectModules={[]} />
       </div>
+      <AlertModal
+        isOpen={alert.isOpen}
+        message={alert.message}
+        onClose={closeAlert}
+      />
     </div>
   );
 };

@@ -28,7 +28,9 @@ import { Designations, getDesignations } from "../api/designation/designation";
 import { useParams } from "react-router-dom";
 import { getAllUsers, User as BackendUser } from "../api/users/getallusers";
 import { getUsersByFilter, UserFilter } from "../api/users/filter";
-import { updateUser } from "../api/users/updateuser";
+import { updateUser, UpdateUserPayload } from "../api/users/updateuser";
+import { searchUsers, SearchUserData } from "../api/users/searchuser";
+import AlertModal from "../components/ui/AlertModal";
 
 export const Employees: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useApp();
@@ -62,6 +64,32 @@ export const Employees: React.FC = () => {
   const [designationFilter, setDesignationFilter] = useState("");
   const [userData, setUserData] = useState<any>(null);
   const [designations, setDesignations] = useState<Designations[]>([]);
+  
+  // Alert state variables
+  const [createAlert, setCreateAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [editAlert, setEditAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  
+  // Search state variables
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchUserData[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  
+  // Alert helper functions
+  const showCreateAlert = (message: string) => {
+    setCreateAlert({ isOpen: true, message });
+  };
+  const showEditAlert = (message: string) => {
+    setEditAlert({ isOpen: true, message });
+  };
+  
   // Get unique designations for the filter dropdown
   const uniqueDesignations = Array.from(
     new Set(employees.map((emp) => emp.designation))
@@ -92,9 +120,72 @@ export const Employees: React.FC = () => {
        console.error("Error fetching designations:", err);
       }
     };
-    useEffect(() => {
-      fetchDesignations();  
-    }, [name]);
+      useEffect(() => {
+    fetchDesignations();  
+  }, [name]);
+
+  // Handle success alerts
+  useEffect(() => {
+    if (!isModalOpen && pendingCreateSuccess) {
+      showCreateAlert('Employee created successfully!');
+      setPendingCreateSuccess(false);
+    }
+  }, [isModalOpen, pendingCreateSuccess]);
+
+  useEffect(() => {
+    if (!isModalOpen && pendingEditSuccess) {
+      showEditAlert('Employee updated successfully!');
+      setPendingEditSuccess(false);
+    }
+  }, [isModalOpen, pendingEditSuccess]);
+
+  // Search function
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearchError(null);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    try {
+      const response = await searchUsers(query);
+      if (response.statusCode === 200 || response.statusCode === 2000) {
+        setSearchResults(response.data || []);
+        // Only set error if no results and there is a message
+        if ((!response.data || response.data.length === 0) && response.message) {
+          setSearchError(response.message);
+        } else {
+          setSearchError(null);
+        }
+      } else {
+        setSearchError(response.message || 'Search failed');
+        setSearchResults([]);
+      }
+    } catch (error: any) {
+      console.error('Search error:', error);
+      setSearchError(error.message || 'Search failed');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim()) {
+        handleSearch(searchTerm);
+      } else {
+        setSearchResults([]);
+        setSearchError(null);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
     
   function generateRandomPassword(length = 12) {
     const chars =
@@ -136,7 +227,7 @@ export const Employees: React.FC = () => {
       const response = await createUser(payload);
       if (response.statusCode === 201) {
         setUserData(response.data);
-        alert("User created successfully!");
+        setPendingCreateSuccess(true);
         // Refresh the user list after successful creation
         const res = await getAllUsers(currentPage - 1, rowsPerPage);
         setUsers(res.data.content);
@@ -145,7 +236,7 @@ export const Employees: React.FC = () => {
     } catch (error: any) {
       console.error("Error creating user:", error);
       const errorMessage = error.response?.data?.message || error.message || "Failed to create user";
-      alert(`Failed to create user: ${errorMessage}`);
+      showCreateAlert(`Failed to create user: ${errorMessage}`);
     }
   };
 
@@ -183,25 +274,53 @@ export const Employees: React.FC = () => {
     };
 
     if (editingEmployee) {
-      console.log("Editing existing employee:", editingEmployee);
-      
-      // Only update, do not create
+      // Prepare the payload for backend update
+      const numericId = Number(editingEmployee.id);
+      if (!numericId || isNaN(numericId)) {
+        showEditAlert("Invalid user ID for update.");
+        setEditingEmployee(null);
+        resetForm();
+        setIsModalOpen(false);
+        return;
+      }
+      const updatePayload: UpdateUserPayload = {
+        id: numericId,
+        userId: (editingEmployee as any).userId ? String((editingEmployee as any).userId) : String(editingEmployee.id),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: null,
+        phoneNo: formData.phone,
+        joinDate: formData.joinedDate
+          ? new Date(formData.joinedDate + 'T00:00:00.000+05:30').toISOString()
+          : "",
+        userGender: formData.gender as "Male" | "Female",
+        userStatus: formData.status ? "Active" : "Inactive",
+        designationId: designationId ? Number(designationId) : 0,
+        designationName: formData.designation
+      };
       try {
-        await updateUser(Number(editingEmployee.id), backendEmployeeData);
-        alert("User updated successfully!");
+        await updateUser(numericId, updatePayload);
+        // Fetch latest users after update
+        const res = await getAllUsers(currentPage - 1, rowsPerPage);
+        setUsers(res.data.content);
+        setTotalPages(res.data.totalPages);
+        setPendingEditSuccess(true);
         updateEmployee(editingEmployee.id, frontendEmployeeData);
-      } catch (error) {
-        console.log("Failed to update user", error);  
+      } catch (error: any) {
+        showEditAlert(error?.response?.data?.message || error.message || "Failed to update user");
       }
       setEditingEmployee(null);
+      resetForm();
+      setIsModalOpen(false);
+      return;
     } else {
       // Only create, do not update
       try {
         await fetchCreate(); // This should call createUser in the backend
-        alert("User created successfully!");
         addEmployee(frontendEmployeeData as Omit<Employee, "id" | "createdAt" | "updatedAt">);
       } catch (err) {
-        alert("Failed to create user");
+        showCreateAlert("Failed to create user");
       }
     }
     resetForm();
@@ -295,23 +414,16 @@ export const Employees: React.FC = () => {
           const mappedUsers = res.data.map((user) => {
             const designationObj = designations.find(d => String(d.id) === String(user.designationId));
             return {
-              userId: user.userId,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              userGender: user.userGender,
-              email: user.email,
-              phoneNo: user.phoneNo,
-              joinDate: user.joinDate,
-              userStatus: user.userStatus,
-              designationId: user.designationId ? String(user.designationId) : null,
-              id: user.userId,
+              ...user,
+              id: user.userId, // Use userId as id for UserFilter type
               designationName: designationObj ? designationObj.name : '',
             };
           });
-          setUsers(mappedUsers);
+          setUsers(mappedUsers as any); // Type assertion to handle UserFilter to User conversion
           setTotalPages(1);
         } else {
           const allRes = await getAllUsers(currentPage - 1, rowsPerPage);
+          // No id conversion here, keep as string | null
           setUsers(allRes.data.content);
           setTotalPages(allRes.data.totalPages);
         }
@@ -321,6 +433,14 @@ export const Employees: React.FC = () => {
     }
     fetchUsers();
   }, [currentPage, genderFilter, statusFilter, designationFilter, designations]);
+
+  // Helper function to format Employee ID
+  function formatEmployeeId(id: string | number): string {
+    if (!id) return '';
+    const num = typeof id === 'string' ? parseInt(id, 10) : id;
+    if (isNaN(num)) return String(id);
+    return `US${num.toString().padStart(4, '0')}`;
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -349,16 +469,36 @@ export const Employees: React.FC = () => {
 
       {/* Search and Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 mt-4">
-        <input
-          type="text"
-          placeholder="Search by name or ID..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-300 rounded-lg px-3 py-2 w-full md:w-64"
-        />
+        <div className="relative w-full md:w-64">
+          <input
+            type="text"
+            placeholder="Search by Employee ID, First Name, or Last Name..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded-lg px-3 py-2 w-full pr-8"
+          />
+          {isSearching && (
+            <div className="absolute right-2 top-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+          {searchTerm.trim() && !isSearching && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setSearchResults([]);
+                setSearchError(null);
+              }}
+              className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <select
             value={statusFilter}
@@ -412,7 +552,15 @@ export const Employees: React.FC = () => {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="min-w-[1100px]">
-              {users.length > 0 ? (
+              {/* Show search error if any */}
+              {searchError && searchResults.length === 0 && (
+                <div className="p-4 text-center text-red-500 bg-red-50 rounded-lg mb-4">
+                  {searchError}
+                </div>
+              )}
+              
+              {/* Show search results or regular users */}
+              {(searchResults.length > 0 || users.length > 0) ? (
                 <table className="w-full">
                   <TableHeader>
                     <TableRow>
@@ -429,16 +577,24 @@ export const Employees: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => {
+                    {/* Display search results if available, otherwise show regular users */}
+                    {(searchResults.length > 0 ? searchResults : users).map((user: any) => {
+                      // Helper function to get the correct ID
+                      const getUserId = (user: any) => {
+                        if ('id' in user && user.id) return user.id;
+                        if ('userId' in user) return user.userId;
+                        return 'Unknown';
+                      };
+                      
                       // Map backend user to Employee shape for edit/delete
                       const mappedEmployee = {
-                        id: user.userId,
+                        id: getUserId(user),
                         firstName: user.firstName,
                         lastName: user.lastName,
                         gender: (user.userGender as "Male" | "Female") || "Male",
                         email: user.email,
                         phone: user.phoneNo,
-                        designation: user.designationName,
+                        designation: user.designationName || "",
                         experience: 0,
                         joinedDate: user.joinDate,
                         skills: [],
@@ -451,8 +607,8 @@ export const Employees: React.FC = () => {
                         updatedAt: "",
                       } as Employee;
                       return (
-                        <TableRow key={user.userId}>
-                          <TableCell>{user.userId}</TableCell>
+                        <TableRow key={getUserId(user)}>
+                          <TableCell>{formatEmployeeId(getUserId(user))}</TableCell>
                           <TableCell>{user.firstName}</TableCell>
                           <TableCell>{user.lastName}</TableCell>
                           <TableCell>{user.userGender || "-"}</TableCell>
@@ -486,19 +642,24 @@ export const Employees: React.FC = () => {
                 <div className="p-12 text-center">
                   <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No employees yet
+                    {searchTerm.trim() ? 'No search results found' : 'No employees yet'}
                   </h3>
                   <p className="text-gray-500 mb-4">
-                    Get started by adding your first employee
+                    {searchTerm.trim() 
+                      ? 'Try searching with different keywords'
+                      : 'Get started by adding your first employee'
+                    }
                   </p>
-                  <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
-                    Add Employee
-                  </Button>
+                  {!searchTerm.trim() && (
+                    <Button onClick={() => setIsModalOpen(true)} icon={Plus}>
+                      Add Employee
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
+            {/* Pagination Controls - Only show when not searching */}
+            {totalPages > 1 && !searchTerm.trim() && (
               <div className="flex justify-center items-center gap-2 py-4">
                 <button
                   className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
@@ -536,6 +697,8 @@ export const Employees: React.FC = () => {
           setIsModalOpen(false);
           setEditingEmployee(null);
           resetForm();
+          setCreateAlert({ isOpen: false, message: '' });
+          setEditAlert({ isOpen: false, message: '' });
         }}
         title={editingEmployee ? "Edit Employee" : "Add New Employee"}
         size="2xl"
@@ -728,6 +891,20 @@ export const Employees: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };

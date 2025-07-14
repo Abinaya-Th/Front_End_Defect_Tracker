@@ -13,6 +13,8 @@ import {
   deleteDefectStatus,
   DefectStatus 
 } from '../api/defectStatus';
+import AlertModal from '../components/ui/AlertModal';
+import { HexColorPicker } from 'react-colorful';
 
 // Utility function to normalize color values
 const normalizeColor = (color: string): string => {
@@ -57,10 +59,44 @@ const StatusType: React.FC = () => {
   });
   const [error, setError] = useState('');
   const [apiError, setApiError] = useState('');
+  // Alert state for different actions
+  const [createAlert, setCreateAlert] = useState({ isOpen: false, message: '' });
+  const [editAlert, setEditAlert] = useState({ isOpen: false, message: '' });
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, message: '' });
+  // Pending success flags
+  const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
+  const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
+  const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(statusTypes.length / pageSize);
+  const paginatedStatusTypes = statusTypes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = statusTypes.some(
+        (s) => s.colorCode.toLowerCase() === formData.colorCode.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.colorCode, statusTypes, isCreateModalOpen]);
 
   // Fetch all status types on component mount
   useEffect(() => {
     fetchStatusTypes();
+    setCurrentPage(1); // Reset to first page on mount
   }, []);
 
   const fetchStatusTypes = async () => {
@@ -109,19 +145,28 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await createDefectStatus({
+      const response = await createDefectStatus({
         ...formData,
         colorCode: normalizedColor
       });
       await fetchStatusTypes(); // Refresh the list
       setIsCreateModalOpen(false);
       resetForm();
+      setPendingCreateSuccess(true);
     } catch (error: any) {
       setApiError(error.message);
+      setCreateAlert({ isOpen: true, message: '  Status Name can only contain alphabets and spaces.' });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isCreateModalOpen && pendingCreateSuccess) {
+      setCreateAlert({ isOpen: true, message: 'Status type created successfully!' });
+      setPendingCreateSuccess(false);
+    }
+  }, [isCreateModalOpen, pendingCreateSuccess]);
 
   const handleEdit = async () => {
     if (!validateForm()) return;
@@ -130,7 +175,7 @@ const StatusType: React.FC = () => {
     try {
       setLoading(true);
       const normalizedColor = normalizeColor(formData.colorCode);
-      await updateDefectStatus(editingStatus.id, {
+      const response = await updateDefectStatus(editingStatus.id, {
         ...formData,
         colorCode: normalizedColor
       });
@@ -138,8 +183,10 @@ const StatusType: React.FC = () => {
       setIsEditModalOpen(false);
       setEditingStatus(null);
       resetForm();
+      setEditAlert({ isOpen: true, message: 'Status type updated successfully!' });
     } catch (error: any) {
       setApiError(error.message);
+      setEditAlert({ isOpen: true, message: 'Status Name can only contain alphabets and spaces.' });
     } finally {
       setLoading(false);
     }
@@ -154,8 +201,10 @@ const StatusType: React.FC = () => {
       await fetchStatusTypes(); // Refresh the list
       setIsDeleteModalOpen(false);
       setDeletingStatus(null);
+      setDeleteAlert({ isOpen: true, message: 'Status type deleted successfully!' });
     } catch (error: any) {
       setApiError(error.message);
+      setDeleteAlert({ isOpen: true, message: 'Failed to delete status type' });
     } finally {
       setLoading(false);
     }
@@ -176,10 +225,16 @@ const StatusType: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleColorChange = (color: string) => {
-    const normalizedColor = normalizeColor(color);
-    setFormData({ ...formData, colorCode: normalizedColor });
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, colorCode: value });
   };
+  const [showColorPickerCreate, setShowColorPickerCreate] = useState(false);
+  const [showColorPickerEdit, setShowColorPickerEdit] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto p-8">
@@ -212,11 +267,11 @@ const StatusType: React.FC = () => {
       </div>
 
       {/* API Error Display */}
-      {apiError && (
+      {/* {apiError && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-600">{apiError}</p>
         </div>
-      )}
+      )} */}
 
       <div className="bg-white p-6 rounded-lg shadow-md">
         {loading ? (
@@ -234,46 +289,82 @@ const StatusType: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {statusTypes.map((status) => (
-                <TableRow key={status.id}>
-                  <TableCell className="font-medium">{status.defectStatusName}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div
-                        className="w-6 h-6 rounded-full border border-gray-300 mr-3"
-                        style={{ backgroundColor: status.colorCode }}
-                      />
-                      <span>{status.colorCode}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => openEditModal(status)} 
-                      className="mr-2"
-                      disabled={loading}
-                    >
-                      <Edit2 className="w-4 h-4 text-blue-500" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => openDeleteModal(status)}
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {paginatedStatusTypes.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="text-center text-gray-500 py-4">
+                    No status types found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedStatusTypes.map((status) => (
+                  <TableRow key={status.id}>
+                    <TableCell className="font-medium">{status.defectStatusName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <div
+                          className="w-6 h-6 rounded-full border border-gray-300 mr-3"
+                          style={{ backgroundColor: status.colorCode }}
+                        />
+                        <span>{status.colorCode}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => openEditModal(status)} 
+                        className="mr-2"
+                        disabled={loading}
+                      >
+                        <Edit2 className="w-4 h-4 text-blue-500" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => openDeleteModal(status)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         )}
       </div>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-4">
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Create Modal */}
-      <Modal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); resetForm(); }} title="Create Status Type">
+      <Modal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); resetForm(); setShowColorPickerCreate(false); }} title="Create Status Type">
         <div className="space-y-4">
           <Input
             label="Status Name"
@@ -281,39 +372,47 @@ const StatusType: React.FC = () => {
             onChange={(e) => setFormData({ ...formData, defectStatusName: e.target.value.toUpperCase() })}
             placeholder="e.g., IN PROGRESS"
           />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Colour</label>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
-                style={{ backgroundColor: formData.colorCode }}
-                onClick={() => colorInputRef.current?.click()}
-              />
-              <Input
-                type="text"
-                value={formData.colorCode}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="flex-grow"
-              />
-              <input
-                type="color"
-                ref={colorInputRef}
-                value={formData.colorCode}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="opacity-0 w-0 h-0 absolute"
-              />
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.colorCode}
+                  onChange={handleColorInput}
+                  placeholder="#000000"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.colorCode }}
+                  onClick={() => setShowColorPickerCreate((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
+              {showColorPickerCreate && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.colorCode}
+                    onChange={color => setFormData({ ...formData, colorCode: color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end space-x-2">
             <Button 
               variant="secondary" 
-              onClick={() => { setIsCreateModalOpen(false); resetForm(); }}
+              onClick={() => { setIsCreateModalOpen(false); resetForm(); setShowColorPickerCreate(false); }}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={loading}>
+            <Button onClick={handleCreate} disabled={loading || !!colorError}>
               {loading ? 'Creating...' : 'Create'}
             </Button>
           </div>
@@ -321,7 +420,7 @@ const StatusType: React.FC = () => {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); resetForm(); }} title="Edit Status Type">
+      <Modal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); resetForm(); setShowColorPickerEdit(false); }} title="Edit Status Type">
         <div className="space-y-4">
           <Input
             label="Status Name"
@@ -330,33 +429,38 @@ const StatusType: React.FC = () => {
             placeholder="e.g., IN PROGRESS"
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Colour</label>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
-                style={{ backgroundColor: formData.colorCode }}
-                onClick={() => colorInputRef.current?.click()}
-              />
-              <Input
-                type="text"
-                value={formData.colorCode}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="flex-grow"
-              />
-              <input
-                type="color"
-                ref={colorInputRef}
-                value={formData.colorCode}
-                onChange={(e) => handleColorChange(e.target.value)}
-                className="opacity-0 w-0 h-0 absolute"
-              />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
+                <Input
+                  value={formData.colorCode}
+                  onChange={handleColorInput}
+                  placeholder="#000000"
+                  className="flex-1"
+                  maxLength={7}
+                />
+                <div
+                  className="w-10 h-10 rounded-md border border-gray-300 cursor-pointer"
+                  style={{ backgroundColor: formData.colorCode }}
+                  onClick={() => setShowColorPickerEdit((v) => !v)}
+                  aria-label="Pick color"
+                />
+              </div>
+              {showColorPickerEdit && (
+                <div className="z-50 mt-2">
+                  <HexColorPicker
+                    color={formData.colorCode}
+                    onChange={color => setFormData({ ...formData, colorCode: color })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end space-x-2">
             <Button 
               variant="secondary" 
-              onClick={() => { setIsEditModalOpen(false); resetForm(); }}
+              onClick={() => { setIsEditModalOpen(false); resetForm(); setShowColorPickerEdit(false); }}
               disabled={loading}
             >
               Cancel
@@ -390,6 +494,24 @@ const StatusType: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Create Alert Modal */}
+      <AlertModal
+        isOpen={createAlert.isOpen}
+        message={createAlert.message}
+        onClose={() => setCreateAlert({ isOpen: false, message: '' })}
+      />
+      {/* Edit Alert Modal */}
+      <AlertModal
+        isOpen={editAlert.isOpen}
+        message={editAlert.message}
+        onClose={() => setEditAlert({ isOpen: false, message: '' })}
+      />
+      {/* Delete Alert Modal */}
+      <AlertModal
+        isOpen={deleteAlert.isOpen}
+        message={deleteAlert.message}
+        onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };

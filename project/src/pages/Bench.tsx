@@ -440,7 +440,6 @@ export const Bench: React.FC = () => {
         </CardContent>
       </Card>
 
-
       {/* Employee Details Modal */}
       <Modal
         isOpen={isEmployeeModalOpen}
