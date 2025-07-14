@@ -437,10 +437,20 @@ export const Allocation: React.FC = () => {
         });
         try {
           const response = await bulkAllocateTestCasesToReleases(payload);
-          showAlert(response.message || (response.status === "success" ? "Success" : "Failed"));
+          // Always show a frontend message for bulk allocation success
+          showAlert("Bulk allocation completed.");
           setAllocationProgress({ current: 1, total: 1 });
         } catch (allocationError: any) {
-          showAlert(allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.");
+          let errorMessage = allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.";
+          if (
+            errorMessage.includes("Duplicate entry") ||
+            errorMessage.includes("release_test_case.UK4sej21crg7br73a3lsjwufpo1")
+          ) {
+            errorMessage = "Allocation failed! Some test cases were already allocated.";
+          } else if (errorMessage.length > 200) {
+            errorMessage = "An error occurred during allocation. Please try again or contact support.";
+          }
+          showAlert(errorMessage);
           setAllocationProgress({ current: 1, total: 1 });
         }
       } else if (allocationMode === "one-to-many") {
@@ -488,16 +498,26 @@ export const Allocation: React.FC = () => {
               const response = await allocateTestCaseToRelease(releaseId, Number(testCaseId));
               if (!firstMessage) {
                 if (response.status === "success") {
-                  firstMessage = response.message || "Success";
+                  // Always show a frontend message for one-to-one allocation success
+                  firstMessage = "Test case allocated successfully.";
                   firstIsSuccess = true;
                 } else {
-                  firstMessage = response.message || "Failed";
+                  firstMessage = "Failed to allocate test case.";
                   firstIsSuccess = false;
                 }
               }
             } catch (allocationError: any) {
               if (!firstMessage) {
-                firstMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+                let errorMessage = allocationError?.response?.data?.message || allocationError?.message || "Failed";
+                if (
+                  errorMessage.includes("Duplicate entry") ||
+                  errorMessage.includes("release_test_case.UK4sej21crg7br73a3lsjwufpo1")
+                ) {
+                  errorMessage = "Some test cases are already allocated to the selected release(s).";
+                } else if (errorMessage.length > 200) {
+                  errorMessage = "An error occurred during allocation. Please try again or contact support.";
+                }
+                firstMessage = errorMessage;
                 firstIsSuccess = false;
               }
             }
@@ -526,6 +546,16 @@ export const Allocation: React.FC = () => {
       }, 2000);
     } catch (error: any) {
       let errorMessage = error.response?.data?.message || error.message || "Failed to allocate test cases to releases. Please try again.";
+      // Always show a short message for duplicate entry errors
+      if (
+        errorMessage.includes("Duplicate entry") ||
+        errorMessage.includes("release_test_case.UK4sej21crg7br73a3lsjwufpo1")
+      ) {
+        errorMessage = "Some test cases are already allocated to the selected release(s).";
+      } else if (errorMessage.length > 200) {
+        // For any other very long backend error, show a generic message
+        errorMessage = "An error occurred during allocation. Please try again or contact support.";
+      }
       showAlert(errorMessage);
     } finally {
       setAllocationLoading(false);
