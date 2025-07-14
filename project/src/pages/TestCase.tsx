@@ -214,6 +214,29 @@ export const TestCase: React.FC = () => {
     });
   }, [selectedProjectId, selectedSubmoduleId, severities, defectTypes]); // Removed projectModules from dependencies
 
+  // Add after state declarations
+  const [allSubmoduleTestCases, setAllSubmoduleTestCases] = useState<{ [submoduleId: string]: TestCaseType[] }>({});
+
+  // Fetch all test cases for all submodules of the selected module
+  useEffect(() => {
+    if (!selectedProjectId || !selectedModuleId) return;
+    const moduleObj = projectModules.find((m) => m.id === selectedModuleId);
+    if (moduleObj && Array.isArray(moduleObj.submodules)) {
+      Promise.all(
+        moduleObj.submodules.map((sm) =>
+          getTestCasesByProjectAndSubmodule(selectedProjectId, String(sm.id))
+            .then((data) => ({ submoduleId: String(sm.id), testCases: data }))
+        )
+      ).then((results) => {
+        const testCaseMap: { [submoduleId: string]: TestCaseType[] } = {};
+        results.forEach(({ submoduleId, testCases }) => {
+          testCaseMap[submoduleId] = testCases;
+        });
+        setAllSubmoduleTestCases(testCaseMap);
+      });
+    }
+  }, [selectedProjectId, selectedModuleId, projectModules]);
+
   // If no selectedProjectId, show a message or redirect
   if (!selectedProjectId) {
     return (
@@ -880,9 +903,7 @@ export const TestCase: React.FC = () => {
                   >
                     {submodules.map((module: any) => {
                       // Count all test cases for this submodule, regardless of selection
-                      const submoduleTestCases = testCases.filter(
-                        (tc) => String((tc as any)["subModuleId"]) === String(module.subModuleId)
-                      );
+                      const submoduleTestCases = allSubmoduleTestCases[String(module.subModuleId)] || [];
                       return (
                         <div key={module.subModuleId} className="flex items-center">
                           <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
