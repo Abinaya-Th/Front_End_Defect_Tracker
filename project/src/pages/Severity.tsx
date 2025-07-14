@@ -55,6 +55,9 @@ const Severity: React.FC = () => {
   const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
   const [pendingDeleteSuccess, setPendingDeleteSuccess] = useState(false);
 
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -91,6 +94,22 @@ const Severity: React.FC = () => {
     }
   }, [isCreateModalOpen, pendingCreateSuccess]);
 
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = severities.some(
+        (s) => s.color.toLowerCase() === formData.color.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.color, severities, isCreateModalOpen]);
+
   const handleCreate = async () => {
     try {
       setLoading(true);
@@ -106,7 +125,12 @@ const Severity: React.FC = () => {
       }
     } catch (err: any) {
       setError('Failed to create severity');
-      setCreateAlert({ isOpen: true, message: 'Failed to create severity' });
+      // Check if it's a validation error (400 status)
+      if (err.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -132,7 +156,12 @@ const Severity: React.FC = () => {
       }
     } catch (err: any) {
       setError('Failed to update severity');
-      setEditAlert({ isOpen: true, message: 'Failed to update severity' });
+      // Check if it's a validation error (400 status)
+      if (err.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Severity name can only contain alphabets and spaces.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -171,6 +200,15 @@ const Severity: React.FC = () => {
   const openDeleteModal = (severity: SeverityType) => {
     setDeletingSeverity(severity);
     setIsDeleteModalOpen(true);
+  };
+
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, color: value });
   };
 
   return (
@@ -333,17 +371,17 @@ const Severity: React.FC = () => {
               placeholder="Enter severity name"
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Colour
+              Color
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
-                  className="flex-1"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
                   maxLength={7}
                 />
                 <div
@@ -353,6 +391,9 @@ const Severity: React.FC = () => {
                   aria-label="Pick color"
                 />
               </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
               {showColorPickerCreate && (
                 <div className="z-50 mt-2">
                   <HexColorPicker
@@ -376,7 +417,7 @@ const Severity: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.name || !!colorError}
             >
               Create
             </Button>
@@ -409,13 +450,13 @@ const Severity: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Colour
+              Color
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}

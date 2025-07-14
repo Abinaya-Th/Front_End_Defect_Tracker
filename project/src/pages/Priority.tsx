@@ -30,6 +30,7 @@ const Priority: React.FC = () => {
   const [createAlert, setCreateAlert] = useState({ isOpen: false, message: '' });
   const [editAlert, setEditAlert] = useState({ isOpen: false, message: '' });
   const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, message: '' });
+  const [validationAlert, setValidationAlert] = useState({ isOpen: false, message: '' });
   // Pending success flags
   const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
   const [pendingEditSuccess, setPendingEditSuccess] = useState(false);
@@ -46,6 +47,46 @@ const Priority: React.FC = () => {
   });
   const [showColorPickerCreate, setShowColorPickerCreate] = useState(false);
   const [showColorPickerEdit, setShowColorPickerEdit] = useState(false);
+  // Duplicate color validation state
+  const [colorError, setColorError] = useState('');
+  // Add state for name validation error
+  const [nameError, setNameError] = useState('');
+
+  // Check for duplicate color on color input change
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const isDuplicate = priorities.some(
+        (p) => p.color.toLowerCase() === formData.color.toLowerCase()
+      );
+      if (isDuplicate) {
+        setColorError('This color is already in use. Please choose a different color.');
+      } else {
+        setColorError('');
+      }
+    } else {
+      setColorError('');
+    }
+  }, [formData.color, priorities, isCreateModalOpen]);
+
+  // Color input handler: only allow # and hex digits, max 7 chars
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith('#')) value = '#' + value.replace(/[^0-9A-Fa-f]/gi, '');
+    value = '#' + value.slice(1).replace(/[^0-9A-Fa-f]/gi, '');
+    value = value.slice(0, 7);
+    setFormData({ ...formData, color: value });
+  };
+
+  // Validation function for priority name
+  const validateName = (name: string) => {
+    // Only alphabets and spaces, at least one letter
+    return /^[A-Za-z ]+$/.test(name.trim());
+  };
+
+  // Handle name input change with validation
+  const handleNameChange = (value: string) => {
+    setFormData({ ...formData, name: value });
+  };
 
   useEffect(() => {
     getAllPriorities()
@@ -77,6 +118,12 @@ const Priority: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    // Validate name before creating
+    if (formData.name && !validateName(formData.name)) {
+      setValidationAlert({ isOpen: true, message: 'Priority name can only contain alphabets and spaces.' });
+      return;
+    }
+    
     try {
       const res = await createPriority({
         priority: formData.name,
@@ -92,8 +139,8 @@ const Priority: React.FC = () => {
       setIsCreateModalOpen(false);
       resetForm();
       setPendingCreateSuccess(true);
-    } catch (err) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create priority' });
+    } catch (err: any) {
+      setCreateAlert({ isOpen: true, message: err?.response?.data?.message || 'Failed to create priority.' });
       console.error('Failed to create priority:', err);
     }
   };
@@ -107,6 +154,13 @@ const Priority: React.FC = () => {
 
   const handleEdit = async () => {
     if (!editingPriority) return;
+    
+    // Validate name before updating
+    if (formData.name && !validateName(formData.name)) {
+      setValidationAlert({ isOpen: true, message: 'Priority name can only contain alphabets and spaces.' });
+      return;
+    }
+    
     try {
       await updatePriority(editingPriority.id, {
         priority: formData.name,
@@ -122,8 +176,8 @@ const Priority: React.FC = () => {
       setEditingPriority(null);
       resetForm();
       setEditAlert({ isOpen: true, message: 'Priority updated successfully!' });
-    } catch (err) {
-      setEditAlert({ isOpen: true, message: 'Failed to update priority' });
+    } catch (err: any) {
+      setEditAlert({ isOpen: true, message: err?.response?.data?.message || 'Failed to update priority.' });
       console.error('Failed to update priority:', err);
     }
   };
@@ -292,11 +346,11 @@ const Priority: React.FC = () => {
             </label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter priority name"
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Color
             </label>
@@ -304,9 +358,9 @@ const Priority: React.FC = () => {
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
-                  className="flex-1"
+                  className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
                   maxLength={7}
                 />
                 <div
@@ -316,6 +370,9 @@ const Priority: React.FC = () => {
                   aria-label="Pick color"
                 />
               </div>
+              {colorError && (
+                <div className="text-red-600 text-sm w-full mt-1">{colorError}</div>
+              )}
               {showColorPickerCreate && (
                 <div className="z-50 mt-2">
                   <HexColorPicker
@@ -339,7 +396,7 @@ const Priority: React.FC = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name}
+              disabled={!formData.name || !!colorError || !!nameError}
             >
               Create
             </Button>
@@ -365,7 +422,7 @@ const Priority: React.FC = () => {
             </label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Enter priority name"
             />
           </div>
@@ -377,7 +434,7 @@ const Priority: React.FC = () => {
               <div className="flex items-center gap-3 w-full">
                 <Input
                   value={formData.color}
-                  onChange={e => setFormData({ ...formData, color: e.target.value })}
+                  onChange={handleColorInput}
                   placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
@@ -413,7 +470,7 @@ const Priority: React.FC = () => {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name}
+              disabled={!formData.name || !!nameError}
             >
               Update
             </Button>
@@ -472,6 +529,12 @@ const Priority: React.FC = () => {
         isOpen={deleteAlert.isOpen}
         message={deleteAlert.message}
         onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+      {/* Validation Alert Modal */}
+      <AlertModal
+        isOpen={validationAlert.isOpen}
+        message={validationAlert.message}
+        onClose={() => setValidationAlert({ isOpen: false, message: '' })}
       />
     </div>
   );

@@ -131,11 +131,12 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
       attachment: formData.attachment || undefined,
       assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // Ensure number or null
       steps: formData.steps || undefined,
-      projectId: selectedProjectId || "",
-      modulesId: formData.moduleId,
-      subModuleId: formData.subModuleId ? formData.subModuleId : null,
+      projectId: Number(selectedProjectId),
+      modulesId: Number(formData.moduleId),
+      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
       defectStatusId: formData.statusId ? Number(formData.statusId) : null,
       reOpenCount: 0,
+      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // Add releaseId to payload
     };
     try {
       const response = await addDefects(payload as any);

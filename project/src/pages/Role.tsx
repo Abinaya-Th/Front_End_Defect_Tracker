@@ -119,8 +119,13 @@ const Role: React.FC = () => {
       setIsCreateModalOpen(false);
       resetForm();
       setPendingCreateSuccess(true);
-    } catch (error) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create role: ' + error });
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Role name contains invalid characters. Allowed: letters, space, . , & - / ( ) \' " #' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Failed to create role: ' + error });
+      }
     }
   };
 
@@ -147,8 +152,13 @@ const Role: React.FC = () => {
       setEditingRole(null);
       resetForm();
       setEditAlert({ isOpen: true, message: 'Role updated successfully!' });
-    } catch (error) {
-      setEditAlert({ isOpen: true, message: 'Failed to update role: ' + error });
+    } catch (error: any) {
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Role name contains invalid characters. Allowed: letters, space, . , & - / ( ) \' " #' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Failed to update role: ' + error });
+      }
     }
   };
 
