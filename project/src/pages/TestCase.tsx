@@ -990,20 +990,26 @@ export const TestCase: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  {/* Designation-style pagination */}
+                  <div className="flex items-center gap-2">
                     <button
-                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      //style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                     >
                       Previous
                     </button>
-                    <span className="text-sm text-gray-700">
-                      Page {currentPage} of {totalPages}
-                    </span>
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                        key={i + 1}
+                        className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                        onClick={() => setCurrentPage(i + 1)}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
                     <button
-                      className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
+                      className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                     >
@@ -1210,34 +1216,40 @@ export const TestCase: React.FC = () => {
                         >
                           Previous
                         </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => {
-                            if (idx === modals.length - 1) {
-                              setModals((prev) => [
-                                ...prev,
-                                {
-                                  open: true,
-                                  formData: {
-                                    module: modal.formData.module,
-                                    subModule: modal.formData.subModule,
-                                    description: "",
-                                    steps: "",
-                                    type: "functional",
-                                    severity: "medium",
-                                    projectId: modal.formData.projectId,
+                        {/* Only show Next button if all required fields are filled */}
+                        {modal.formData.description.trim() && 
+                         modal.formData.steps.trim() && 
+                         modal.formData.type && modal.formData.type !== "" && 
+                         modal.formData.severity && modal.formData.severity !== "" && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                              if (idx === modals.length - 1) {
+                                setModals((prev) => [
+                                  ...prev,
+                                  {
+                                    open: true,
+                                    formData: {
+                                      module: modal.formData.module,
+                                      subModule: modal.formData.subModule,
+                                      description: "",
+                                      steps: "",
+                                      type: "functional",
+                                      severity: "medium",
+                                      projectId: modal.formData.projectId,
+                                    },
                                   },
-                                },
-                              ]);
-                              setCurrentModalIdx(modals.length);
-                            } else {
-                              setCurrentModalIdx(idx + 1);
-                            }
-                          }}
-                        >
-                          Next
-                        </Button>
+                                ]);
+                                setCurrentModalIdx(modals.length);
+                              } else {
+                                setCurrentModalIdx(idx + 1);
+                              }
+                            }}
+                          >
+                            Next
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>
