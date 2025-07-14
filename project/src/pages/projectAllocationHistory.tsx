@@ -148,16 +148,14 @@ const ProjectAllocationHistory: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'partially_allocated':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'deallocated':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    // Only show allocated (green) or deallocated (red)
+    if (status === true || status === 'allocated') {
+      return 'bg-green-100 text-green-800';
     }
+    if (status === false || status === 'deallocated') {
+      return 'bg-red-100 text-red-800';
+    }
+    return 'bg-gray-100 text-gray-800';
   };
 
   const getActionColor = (action: string) => {
@@ -391,7 +389,11 @@ const ProjectAllocationHistory: React.FC = () => {
                               </p>
                             </div>
                             <Badge className={getStatusColor(allocation.status)}>
-                              {typeof allocation.status === 'string' && allocation.status ? allocation.status.replace('_', ' ') : String(allocation.status)}
+                              {allocation.status === true || allocation.status === 'allocated'
+                                ? 'Allocated'
+                                : (allocation.status === false || allocation.status === 'deallocated')
+                                  ? 'Deallocated'
+                                  : 'Unknown'}
                             </Badge>
                           </div>
                         </div>
@@ -422,23 +424,8 @@ const ProjectAllocationHistory: React.FC = () => {
                                       </div>
                                       <span className="text-sm font-medium">{history.allocatedBy || 'Unknown'}</span>
                                     </div>
-                                    
-                                    {/* Allocation Details */}
+                                    {/* Allocation Details - formatted for clarity */}
                                     <div className="space-y-2">
-                                      {history.action === 'allocated' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Allocated:</span> {history.toPercentage}% as {history.toRole}</p>
-                                          <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
-                                        </div>
-                                      )}
-                                      
-                                      {history.action === 'deallocated' && (
-                                        <div className="text-sm">
-                                          <p><span className="font-medium">Deallocated:</span> {history.fromPercentage}% from {history.fromRole}</p>
-                                          <p><span className="font-medium">Previous Period:</span> {history.fromStartDate} to {history.fromEndDate}</p>
-                                        </div>
-                                      )}
-                                      
                                       {history.action === 'percentage_changed' && (
                                         <div className="text-sm">
                                           <p><span className="font-medium">Percentage:</span> {history.fromPercentage}% → {history.toPercentage}%</p>
@@ -446,7 +433,18 @@ const ProjectAllocationHistory: React.FC = () => {
                                           <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
                                         </div>
                                       )}
-                                      
+                                      {history.action === 'allocated' && (
+                                        <div className="text-sm">
+                                          <p><span className="font-medium">Allocated:</span> {history.toPercentage}% as {history.toRole}</p>
+                                          <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
+                                        </div>
+                                      )}
+                                      {history.action === 'deallocated' && (
+                                        <div className="text-sm">
+                                          <p><span className="font-medium">Deallocated:</span> {history.fromPercentage}% from {history.fromRole}</p>
+                                          <p><span className="font-medium">Previous Period:</span> {history.fromStartDate} to {history.fromEndDate}</p>
+                                        </div>
+                                      )}
                                       {history.action === 'role_changed' && (
                                         <div className="text-sm">
                                           <p><span className="font-medium">Role:</span> {history.fromRole} → {history.toRole}</p>
@@ -454,7 +452,6 @@ const ProjectAllocationHistory: React.FC = () => {
                                           <p><span className="font-medium">Period:</span> {history.toStartDate} to {history.toEndDate}</p>
                                         </div>
                                       )}
-                                      
                                       {history.action === 'period_changed' && (
                                         <div className="text-sm">
                                           <p><span className="font-medium">Period:</span> {history.fromStartDate} to {history.fromEndDate} → {history.toStartDate} to {history.toEndDate}</p>
@@ -463,7 +460,6 @@ const ProjectAllocationHistory: React.FC = () => {
                                         </div>
                                       )}
                                     </div>
-                                    
                                     <p className="text-sm text-gray-700 mt-2">{history.reason}</p>
                                   </div>
                                 ))}
@@ -481,43 +477,7 @@ const ProjectAllocationHistory: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Summary Statistics */}
-      <Card className="mt-6">
-        <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Allocation Summary
-          </h3>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
-                {Array.isArray(userAllocations) ? userAllocations.filter(u => u.status === 'active').length : 0}
-              </div>
-              <div className="text-sm text-green-600">Active Users</div>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">
-                {Array.isArray(userAllocations) ? userAllocations.filter(u => u.status === 'partially_allocated').length : 0}
-              </div>
-              <div className="text-sm text-yellow-600">Partially Allocated</div>
-            </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">
-                {Array.isArray(userAllocations) ? userAllocations.filter(u => u.status === 'deallocated').length : 0}
-              </div>
-              <div className="text-sm text-red-600">Deallocated</div>
-            </div>
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
-                {Array.isArray(allocationHistory) ? allocationHistory.length : 0}
-              </div>
-              <div className="text-sm text-blue-600">Total Changes</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Summary Statistics panel removed as requested */}
     </div>
   );
 };
