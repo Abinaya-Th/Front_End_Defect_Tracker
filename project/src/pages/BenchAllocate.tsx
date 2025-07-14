@@ -281,6 +281,10 @@ export default function BenchAllocate() {
         });
     }, [allocatedEmployees, deallocationFilter, deallocationRoleFilter, deallocationAvailabilityFilter]);
 
+    // Pagination calculations for bench employees
+    const benchTotalPages = Math.ceil(filteredBench.length / benchPageSize);
+    const paginatedBenchEmployees = filteredBench.slice((benchCurrentPage - 1) * benchPageSize, benchCurrentPage * benchPageSize);
+    
     // Pagination calculations for allocated employees
     const allocatedTotalPages = Math.ceil(filteredAllocatedEmployees.length / allocatedPageSize);
     const paginatedAllocatedEmployees = filteredAllocatedEmployees.slice((allocatedCurrentPage - 1) * allocatedPageSize, allocatedCurrentPage * allocatedPageSize);
@@ -470,8 +474,8 @@ export default function BenchAllocate() {
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                                 <p className="text-gray-500">Searching employees...</p>
                             </div>
-                        ) : filteredBench.length > 0 ? (
-                            filteredBench.map(emp => (
+                        ) : paginatedBenchEmployees.length > 0 ? (
+                            paginatedBenchEmployees.map(emp => (
                             <div
                                 key={emp.id}
                                 className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
