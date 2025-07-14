@@ -39,6 +39,10 @@ const ReleaseType: React.FC = () => {
     isOpen: false,
     message: '',
   });
+  const [validationAlert, setValidationAlert] = useState({
+    isOpen: false,
+    message: '',
+  });
 
   // Pending success flags
   const [pendingCreateSuccess, setPendingCreateSuccess] = useState(false);
@@ -59,6 +63,7 @@ const ReleaseType: React.FC = () => {
     setCreateAlert({ isOpen: false, message: '' });
     setEditAlert({ isOpen: false, message: '' });
     setDeleteAlert({ isOpen: false, message: '' });
+    setValidationAlert({ isOpen: false, message: '' });
     setCurrentPage(1); // Reset to first page on mount
   }, []);
 
@@ -77,6 +82,12 @@ const ReleaseType: React.FC = () => {
   };
 
   const handleCreate = async () => {
+    // Duplicate name check (case-insensitive, trimmed)
+    const exists = releaseTypes.some(rt => rt.releaseTypeName.trim().toLowerCase() === formData.releaseTypeName.trim().toLowerCase());
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Release Type Name already exists.' });
+      return;
+    }
     try {
       const created = await createReleaseType(formData);
       // Defensive: If backend returns only id, fetch all again; else, add to list
@@ -91,12 +102,23 @@ const ReleaseType: React.FC = () => {
       resetForm();
       setPendingCreateSuccess(true);
     } catch (error: any) {
-      setCreateAlert({ isOpen: true, message: 'Failed to create release type' });
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setCreateAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setCreateAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words.' });
+      }
     }
   };
 
   const handleEdit = async () => {
     if (!editingReleaseType) return;
+    // Duplicate name check (case-insensitive, trimmed, ignore self)
+    const exists = releaseTypes.some(rt => rt.releaseTypeName.trim().toLowerCase() === formData.releaseTypeName.trim().toLowerCase() && rt.id !== editingReleaseType.id);
+    if (exists) {
+      setValidationAlert({ isOpen: true, message: 'Release Type Name already exists.' });
+      return;
+    }
     try {
       const updated = await updateReleaseType(editingReleaseType.id, {
         releaseTypeName: formData.releaseTypeName,
@@ -114,7 +136,12 @@ const ReleaseType: React.FC = () => {
       setFormData({ releaseTypeName: '' });
       setEditAlert({ isOpen: true, message: 'Release type updated successfully!' });
     } catch (error: any) {
-      setEditAlert({ isOpen: true, message: 'Failed to update release type' });
+      // Check if it's a validation error (400 status)
+      if (error.response?.status === 400) {
+        setEditAlert({ isOpen: true, message: 'Release Type Name must contain only letters, may have multiple words separated by a single space, and must be 2 to 50 letters long (excluding spaces).' });
+      } else {
+        setEditAlert({ isOpen: true, message: 'Release type name must be 2–50 letters (A–Z only, single spaces between words' });
+      }
     }
   };
 
@@ -165,6 +192,13 @@ const ReleaseType: React.FC = () => {
         isOpen={deleteAlert.isOpen}
         message={deleteAlert.message}
         onClose={() => setDeleteAlert({ isOpen: false, message: '' })}
+      />
+
+      {/* Validation Alert Modal */}
+      <AlertModal
+        isOpen={validationAlert.isOpen}
+        message={validationAlert.message}
+        onClose={() => setValidationAlert({ isOpen: false, message: '' })}
       />
 
       {/* Back Button */}
@@ -271,6 +305,7 @@ const ReleaseType: React.FC = () => {
           setIsCreateModalOpen(false);
           resetForm();
           setCreateAlert({ isOpen: false, message: '' });
+          setValidationAlert({ isOpen: false, message: '' });
         }}
         title="Create New Release Type"
       >
@@ -291,6 +326,7 @@ const ReleaseType: React.FC = () => {
               onClick={() => {
                 setIsCreateModalOpen(false);
                 resetForm();
+                setValidationAlert({ isOpen: false, message: '' });
               }}
             >
               Cancel
@@ -313,6 +349,7 @@ const ReleaseType: React.FC = () => {
           setEditingReleaseType(null);
           resetForm();
           setEditAlert({ isOpen: false, message: '' });
+          setValidationAlert({ isOpen: false, message: '' });
         }}
         title="Edit Release Type"
       >
@@ -334,6 +371,7 @@ const ReleaseType: React.FC = () => {
                 setIsEditModalOpen(false);
                 setEditingReleaseType(null);
                 resetForm();
+                setValidationAlert({ isOpen: false, message: '' });
               }}
             >
               Cancel
