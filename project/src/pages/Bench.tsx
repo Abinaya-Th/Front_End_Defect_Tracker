@@ -219,93 +219,93 @@ export const Bench: React.FC = () => {
         <CardContent className="p-0">
           {filteredEmployees.length > 0 ? (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableCell header>Employee</TableCell>
-                    <TableCell header>Designation</TableCell>
-                    <TableCell header>Availability</TableCell>
-                    <TableCell header>Available Period</TableCell>
-                    <TableCell header>Current Projects</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell header>Employee</TableCell>
+                  <TableCell header>Designation</TableCell>
+                  <TableCell header>Availability</TableCell>
+                  <TableCell header>Available Period</TableCell>
+                  <TableCell header>Current Projects</TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                   {paginatedEmployees.map((employee: Employee) => {
-                    const availabilityStatus = getAvailabilityStatus(employee.availability);
-                    return (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white font-semibold text-sm">
-                                {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <button
-                                onClick={() => handleViewEmployee(employee)}
-                                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                              >
-                                {employee.firstName} {employee.lastName}
-                              </button>
-                              <p className="text-sm text-gray-500">{employee.department}</p>
-                            </div>
+                  const availabilityStatus = getAvailabilityStatus(employee.availability);
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium text-gray-900">{employee.designation}</p>
-                          <p className="text-sm text-gray-500">{employee.experience} years exp</p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <DonutChart
-                              percentage={employee.availability}
-                              size={50}
-                              strokeWidth={4}
-                            />
-                            <div>
-                              <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
-                                {employee.availability}%
-                              </p>
-                              <Badge variant={availabilityStatus.variant} size="sm">
-                                {availabilityStatus.label}
+                          <div>
+                            <button
+                              onClick={() => handleViewEmployee(employee)}
+                              className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                            >
+                              {employee.firstName} {employee.lastName}
+                            </button>
+                            <p className="text-sm text-gray-500">{employee.department}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium text-gray-900">{employee.designation}</p>
+                        <p className="text-sm text-gray-500">{employee.experience} years exp</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <DonutChart
+                            percentage={employee.availability}
+                            size={50}
+                            strokeWidth={4}
+                          />
+                          <div>
+                            <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
+                              {employee.availability}%
+                            </p>
+                            <Badge variant={availabilityStatus.variant} size="sm">
+                              {availabilityStatus.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-600">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {employee.joinedDate || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {employee.currentProjects.length > 0 ? (
+                          <div className="space-y-1">
+                            {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
+                              <Badge key={index} variant="info" size="sm">
+                                {project}
                               </Badge>
-                            </div>
+                            ))}
+                            {employee.currentProjects.length > 2 && (
+                              <p className="text-xs text-gray-500">
+                                +{employee.currentProjects.length - 2} more
+                              </p>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-gray-600">
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {employee.joinedDate || 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {employee.currentProjects.length > 0 ? (
-                            <div className="space-y-1">
-                              {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
-                                <Badge key={index} variant="info" size="sm">
-                                  {project}
-                                </Badge>
-                              ))}
-                              {employee.currentProjects.length > 2 && (
-                                <p className="text-xs text-gray-500">
-                                  +{employee.currentProjects.length - 2} more
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <Badge variant="default" size="sm">No projects</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        ) : (
+                          <Badge variant="default" size="sm">No projects</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
               
               {/* Pagination Controls */}
               {totalPages > 1 && (

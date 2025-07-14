@@ -186,12 +186,12 @@ const Priority: React.FC = () => {
     if (!deletingPriority) return;
     try {
       await deletePriority(deletingPriority.id);
-      const updatedPriorities = priorities.filter(
-        priority => priority.id !== deletingPriority.id
-      );
-      setPriorities(updatedPriorities);
-      setIsDeleteModalOpen(false);
-      setDeletingPriority(null);
+    const updatedPriorities = priorities.filter(
+      priority => priority.id !== deletingPriority.id
+    );
+    setPriorities(updatedPriorities);
+    setIsDeleteModalOpen(false);
+    setDeletingPriority(null);
       setDeleteAlert({ isOpen: true, message: 'Priority deleted successfully!' });
     } catch {
       setDeleteAlert({ isOpen: true, message: 'Failed to delete priority' });
@@ -263,37 +263,37 @@ const Priority: React.FC = () => {
                 </tr>
               ) : (
                 paginatedPriorities.map((priority) => (
-                  <TableRow key={priority.id}>
-                    <TableCell className="font-medium">{priority.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: priority.color }}
-                        />
-                        <span className="text-sm text-gray-600">{priority.color}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditModal(priority)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDeleteModal(priority)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                <TableRow key={priority.id}>
+                  <TableCell className="font-medium">{priority.name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded-full border border-gray-300"
+                        style={{ backgroundColor: priority.color }}
+                      />
+                      <span className="text-sm text-gray-600">{priority.color}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditModal(priority)}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openDeleteModal(priority)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
                 ))
               )}
             </TableBody>
@@ -356,10 +356,10 @@ const Priority: React.FC = () => {
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
-                <Input
-                  value={formData.color}
+              <Input
+                value={formData.color}
                   onChange={handleColorInput}
-                  placeholder="#000000"
+                placeholder="#000000"
                   className={`flex-1 ${colorError ? 'border-red-500 focus:ring-red-500' : ''}`}
                   maxLength={7}
                 />
@@ -432,10 +432,10 @@ const Priority: React.FC = () => {
             </label>
             <div className="flex flex-col items-center gap-2 w-full">
               <div className="flex items-center gap-3 w-full">
-                <Input
-                  value={formData.color}
+              <Input
+                value={formData.color}
                   onChange={handleColorInput}
-                  placeholder="#000000"
+                placeholder="#000000"
                   className="flex-1"
                   maxLength={7}
                 />

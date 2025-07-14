@@ -1362,7 +1362,7 @@ export const TestCase: React.FC = () => {
                         Module
                       </label>
                       <div className="w-full px-3 py-2 rounded-lg bg-gray-100 text-gray-800 border border-gray-300">
-                        {modal.formData.module}
+                        {getModuleName(modal.formData.moduleId) || getModuleName(modal.formData.module)}
                       </div>
                     </div>
                     <div>
@@ -1370,7 +1370,7 @@ export const TestCase: React.FC = () => {
                         Sub Module
                       </label>
                       <div className="w-full px-3 py-2 rounded-lg bg-gray-100 text-gray-800 border border-gray-300">
-                        {modal.formData.subModule}
+                        {getSubmoduleName(modal.formData.subModuleId) || getSubmoduleName(modal.formData.subModule)}
                       </div>
                     </div>
                     <div>
