@@ -11,21 +11,25 @@ import { useApp } from '../context/AppContext';
 import { Employee } from '../types/index';
 import { useNavigate } from 'react-router-dom';
 import { getBenchList } from '../api/bench/bench';
+import { searchBenchEmployees, BenchSearchParams } from '../api/bench/filterbench';
 
 export const Bench: React.FC = () => {
   const { projects, allocateEmployee } = useApp();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allDesignations, setAllDesignations] = useState<string[]>([]);
   const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [filters, setFilters] = useState({
-    search: '',
+    firstName: '',
+    lastName: '',
     designation: '',
     availability: '',
     fromDate: '',
     toDate: '',
   });
+  const [isSearching, setIsSearching] = useState(false);
   const [allocationData, setAllocationData] = useState({
     projectId: '',
     allocationPercentage: 50,
@@ -37,53 +41,121 @@ export const Bench: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getBenchList()
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setEmployees(data);
-        } else {
-          setEmployees([]);
-        }
-      })
-      .catch(() => setEmployees([]));
+    loadAllBenchEmployees();
   }, []);
 
-  // Filter employees based on criteria
+  // Filter employees based on criteria (now handled by API, but keeping local filtering as fallback)
   const filteredEmployees = useMemo(() => {
     return employees
       .filter(emp => emp.availability > 0) // Only show employees with availability > 0
-      .filter(emp => {
-        const matchesSearch = emp.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
-          emp.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
-          emp.designation.toLowerCase().includes(filters.search.toLowerCase());
-        const matchesDesignation = !filters.designation || emp.designation === filters.designation;
-        const matchesAvailability = !filters.availability || emp.availability >= parseInt(filters.availability);
-        const matchesDateRange = (!filters.fromDate || new Date(emp.joinedDate) >= new Date(filters.fromDate)) &&
-          (!filters.toDate || new Date(emp.joinedDate) <= new Date(filters.toDate));
-
-        return matchesSearch && matchesDesignation && matchesAvailability && matchesDateRange;
-      })
       .sort((a, b) => b.availability - a.availability);
   }, [employees, filters]);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
-  const totalPages = Math.ceil(filteredEmployees.length / pageSize);
-  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
-
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
-    return Array.from(new Set(employees.map(emp => emp.designation)));
-  }, [employees]);
+    return allDesignations;
+  }, [allDesignations]);
 
-  const handleFilterChange = (field: string, value: string) => {
+  const handleFilterChange = async (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
+    
+    // For search field, don't trigger API call immediately
+    if (field === 'firstName' || field === 'lastName') {
+      return;
+    }
+    
+    // For other filters, perform search immediately
+    const newFilters = { ...filters, [field]: value };
+    const hasActiveFilters = Object.values(newFilters).some(filter => filter !== '');
+    
+    if (hasActiveFilters) {
+      await performSearch(newFilters);
+    } else {
+      // If no filters, load all bench employees
+      loadAllBenchEmployees();
+    }
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+    
+    if (hasActiveFilters) {
+      await performSearch(filters);
+    } else {
+      loadAllBenchEmployees();
+    }
+  };
+
+  const handleSearchKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+      
+      if (hasActiveFilters) {
+        await performSearch(filters);
+      } else {
+        loadAllBenchEmployees();
+      }
+    }
+  };
+
+  const performSearch = async (searchFilters: typeof filters) => {
+    setIsSearching(true);
+    try {
+      const searchParams: BenchSearchParams = {};
+      if (searchFilters.firstName) {
+        searchParams.firstName = searchFilters.firstName;
+      }
+      if (searchFilters.lastName) {
+        searchParams.lastName = searchFilters.lastName;
+      }
+      if (searchFilters.designation) {
+        searchParams.designation = searchFilters.designation;
+      }
+      if (searchFilters.availability) {
+        searchParams.availability = parseInt(searchFilters.availability);
+      }
+      if (searchFilters.fromDate) {
+        searchParams.startDate = searchFilters.fromDate;
+      }
+      if (searchFilters.toDate) {
+        searchParams.endDate = searchFilters.toDate;
+      }
+
+      console.log('Search params:', searchParams);
+      const searchResults = await searchBenchEmployees(searchParams);
+      console.log('Search results:', searchResults);
+      
+      // If searchResults is not an array or is empty, clear employees
+      if (Array.isArray(searchResults) && searchResults.length > 0) {
+        setEmployees(searchResults);
+      } else {
+        setEmployees([]); // Clear the table if no results
+      }
+    } catch (error) {
+      console.error('Error searching bench employees:', error);
+      setEmployees([]); // Also clear on error
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const loadAllBenchEmployees = async () => {
+    try {
+      const data = await getBenchList();
+      if (Array.isArray(data)) {
+        setEmployees(data);
+        setAllDesignations(Array.from(new Set(data.map(emp => emp.designation))));
+      } else {
+        setEmployees([]);
+        setAllDesignations([]);
+      }
+    } catch (error) {
+      console.error('Error loading bench employees:', error);
+      setEmployees([]);
+      setAllDesignations([]);
+    }
   };
 
   const handleAllocate = (employee: Employee) => {
@@ -144,13 +216,26 @@ export const Bench: React.FC = () => {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search employees..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
+                placeholder="First Name"
+                value={filters.firstName}
+                onChange={(e) => handleFilterChange('firstName', e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="pl-10"
+                disabled={isSearching}
+              />
+            </div>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Last Name"
+                value={filters.lastName}
+                onChange={(e) => handleFilterChange('lastName', e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-10"
+                disabled={isSearching}
               />
             </div>
 
@@ -158,19 +243,25 @@ export const Bench: React.FC = () => {
               value={filters.designation}
               onChange={(e) => handleFilterChange('designation', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
+              disabled={isSearching}
             >
               <option value="">All Designations</option>
-              {designations.map((designation) => (
-                <option key={designation} value={designation}>
-                  {designation}
-                </option>
-              ))}
+              {designations.length > 0 ? (
+                designations.map((designation) => (
+                  <option key={designation} value={designation}>
+                    {designation}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Loading designations...</option>
+              )}
             </select>
 
             <select
               value={filters.availability}
               onChange={(e) => handleFilterChange('availability', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px]"
+              disabled={isSearching}
             >
               <option value="">All Availability</option>
               <option value="80">80% and above</option>
@@ -186,6 +277,7 @@ export const Bench: React.FC = () => {
                 onChange={(e) => handleFilterChange('fromDate', e.target.value)}
                 placeholder="From Date"
                 className="flex-1"
+                disabled={isSearching}
               />
               <Input
                 type="date"
@@ -193,8 +285,28 @@ export const Bench: React.FC = () => {
                 onChange={(e) => handleFilterChange('toDate', e.target.value)}
                 placeholder="To Date"
                 className="flex-1"
+                disabled={isSearching}
               />
             </div>
+
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilters({
+                  firstName: '',
+                  lastName: '',
+                  designation: '',
+                  availability: '',
+                  fromDate: '',
+                  toDate: '',
+                });
+                loadAllBenchEmployees();
+              }}
+              disabled={isSearching}
+              className="px-4 py-2"
+            >
+              Clear Filters
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -217,130 +329,112 @@ export const Bench: React.FC = () => {
           <p className="text-gray-600">Click on employee names to view detailed information</p>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredEmployees.length > 0 ? (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableCell header>Employee</TableCell>
-                    <TableCell header>Designation</TableCell>
-                    <TableCell header>Availability</TableCell>
-                    <TableCell header>Available Period</TableCell>
-                    <TableCell header>Current Projects</TableCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedEmployees.map((employee: Employee) => {
-                    const availabilityStatus = getAvailabilityStatus(employee.availability);
-                    return (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white font-semibold text-sm">
-                                {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <button
-                                onClick={() => handleViewEmployee(employee)}
-                                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                              >
-                                {employee.firstName} {employee.lastName}
-                              </button>
-                              <p className="text-sm text-gray-500">{employee.department}</p>
-                            </div>
+          {isSearching ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-500">Searching employees...</p>
+            </div>
+          ) : filteredEmployees.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell header>Employee</TableCell>
+                  <TableCell header>Designation</TableCell>
+                  <TableCell header>Availability</TableCell>
+                  <TableCell header>Available Period</TableCell>
+                  <TableCell header>Current Projects</TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredEmployees.map((employee: Employee) => {
+                  const availabilityStatus = getAvailabilityStatus(employee.availability);
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium text-gray-900">{employee.designation}</p>
-                          <p className="text-sm text-gray-500">{employee.experience} years exp</p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <DonutChart
-                              percentage={employee.availability}
-                              size={50}
-                              strokeWidth={4}
-                            />
-                            <div>
-                              <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
-                                {employee.availability}%
-                              </p>
-                              <Badge variant={availabilityStatus.variant} size="sm">
-                                {availabilityStatus.label}
+                          <div>
+                            <button
+                              onClick={() => handleViewEmployee(employee)}
+                              className="font-semibold text-blue-600 hover:text-blue-800 transition-colors duration-200"
+                            >
+                              {employee.firstName} {employee.lastName}
+                            </button>
+                            <p className="text-sm text-gray-500">{employee.department}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium text-gray-900">{employee.designation}</p>
+                        <p className="text-sm text-gray-500">{employee.experience} years exp</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <DonutChart
+                            percentage={employee.availability}
+                            size={50}
+                            strokeWidth={4}
+                          />
+                          <div>
+                            <p className={`font-semibold ${getAvailabilityColor(employee.availability)}`}>
+                              {employee.availability}%
+                            </p>
+                            <Badge variant={availabilityStatus.variant} size="sm">
+                              {availabilityStatus.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-600">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {employee.joinedDate || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {employee.currentProjects.length > 0 ? (
+                          <div className="space-y-1">
+                            {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
+                              <Badge key={index} variant="info" size="sm">
+                                {project}
                               </Badge>
-                            </div>
+                            ))}
+                            {employee.currentProjects.length > 2 && (
+                              <p className="text-xs text-gray-500">
+                                +{employee.currentProjects.length - 2} more
+                              </p>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-gray-600">
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {employee.joinedDate || 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {employee.currentProjects.length > 0 ? (
-                            <div className="space-y-1">
-                              {employee.currentProjects.slice(0, 2).map((project: string, index: number) => (
-                                <Badge key={index} variant="info" size="sm">
-                                  {project}
-                                </Badge>
-                              ))}
-                              {employee.currentProjects.length > 2 && (
-                                <p className="text-xs text-gray-500">
-                                  +{employee.currentProjects.length - 2} more
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <Badge variant="default" size="sm">No projects</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 py-4">
-                  <button
-                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
+                        ) : (
+                          <Badge variant="default" size="sm">No projects</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           ) : (
             <div className="p-12 text-center">
               <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
-              <p className="text-gray-500">Try adjusting your filters or add employees to the bench</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {Object.values(filters).some(filter => filter !== '')
+                  ? 'User not found'
+                  : 'No employees found'}
+              </h3>
+              <p className="text-gray-500">
+                {Object.values(filters).some(filter => filter !== '') 
+                  ? 'Try adjusting your search filters' 
+                  : 'Try adjusting your filters or add employees to the bench'}
+              </p>
             </div>
           )}
         </CardContent>

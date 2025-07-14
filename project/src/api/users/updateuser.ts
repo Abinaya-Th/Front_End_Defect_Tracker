@@ -3,15 +3,18 @@ import axios from "axios";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface UpdateUserPayload {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phoneNo?: string;
-  joinDate?: string;
-  userGender?: string;
-  userStatus?: string;
-  designationId?: number;
-  // Add other fields as needed
+  id: number;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string | null;
+  phoneNo: string;
+  joinDate: string;
+  userGender: string;
+  userStatus: string;
+  designationId: number;
+  designationName: string;
 }
 
 export interface UpdateUserResponse {
@@ -21,9 +24,8 @@ export interface UpdateUserResponse {
   statusCode: number;
 }
 
-export const updateUser = (userId:  number, data: UpdateUserPayload): Promise<UpdateUserResponse> => {
-  return axios.put<UpdateUserResponse>(
-    `${BASE_URL}users/${userId}`,
-    data
-  ).then(({ data }) => data);
+export const updateUser = async (userId: number, data: UpdateUserPayload): Promise<UpdateUserResponse> => {
+  const url = `${BASE_URL}users/${userId}`;
+  const response = await axios.put<UpdateUserResponse>(url, data);
+  return response.data;
 };
