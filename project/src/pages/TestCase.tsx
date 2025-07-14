@@ -782,6 +782,27 @@ export const TestCase: React.FC = () => {
     );
   };
 
+  // Add the refreshTestCases function
+  const refreshTestCases = () => {
+    if (selectedProjectId && selectedSubmoduleId !== null) {
+      getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
+        const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
+        const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
+        setTestCases(
+          (data as any[]).map((tc: any) => ({
+            ...tc,
+            moduleId: tc.moduleId,
+            module: moduleMap[tc.moduleId] || tc.moduleId,
+            subModuleId: tc.subModuleId,
+            subModule: submoduleMap[tc.subModuleId] || tc.subModuleId,
+            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
+            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
+          })) as TestCaseType[]
+        );
+      });
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -1648,7 +1669,7 @@ export const TestCase: React.FC = () => {
           gap: 12,
         }}
       >
-        <QuickAddTestCase selectedProjectId={selectedProjectId} />
+        <QuickAddTestCase selectedProjectId={selectedProjectId} onTestCaseAdded={refreshTestCases} />
         <QuickAddDefect projectModules={projectModules} />
       </div>
 

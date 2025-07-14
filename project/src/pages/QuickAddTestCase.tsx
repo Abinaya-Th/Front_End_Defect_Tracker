@@ -121,7 +121,7 @@ const mockModules: Record<
   ],
 };
 
-const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedProjectId }) => {
+const QuickAddTestCase: React.FC<{ selectedProjectId: string, onTestCaseAdded?: () => void }> = ({ selectedProjectId, onTestCaseAdded }) => {
   const { projects, addTestCase, modulesByProject } =
     useApp();
   const [modals, setModals] = useState([
@@ -235,6 +235,7 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string }> = ({ selectedPro
           allSuccess = false;
         } else {
           showAlert(response?.message || 'Test case created successfully!');
+          if (onTestCaseAdded) onTestCaseAdded();
         }
       } catch (error: any) {
         showAlert(error?.response?.data?.message || error?.message || 'Failed to create test case.');
