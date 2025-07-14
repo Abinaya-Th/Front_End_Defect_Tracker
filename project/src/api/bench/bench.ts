@@ -7,8 +7,14 @@ export async function getBenchList(): Promise<Employee[]> {
   const response = await axios.get(BASE_URL, {
     headers: { "Content-Type": "application/json" },
   });
+  
+  console.log('Main bench API response:', response.data);
+  
   // Map backend fields to Employee type
-  return (response.data.data || []).map((item: any) => {
+  const data = response.data.data || [];
+  console.log('Main bench data:', data);
+  
+  return data.map((item: any) => {
     const [firstName, ...rest] = (item.fullName || '').split(' ');
     const lastName = rest.join(' ');
     return {
