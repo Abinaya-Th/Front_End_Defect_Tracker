@@ -38,6 +38,7 @@ import StatusType from "./pages/StatusType";
 import BenchAllocate from './pages/BenchAllocate';
 import Status from "./pages/Status";
 import ReleaseDetails from "./pages/ReleaseDetails";
+import { ProjectDashboard } from "./pages/ProjectDashboard";
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, noLayout?: boolean }> = ({ children, noLayout }) => {
@@ -102,14 +103,14 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        {/* <Route
+        <Route
           path="/projects/:projectId"
           element={
             <ProtectedRoute>
               <ProjectDashboard />
             </ProtectedRoute>
           }
-        /> */}
+        />
         <Route
           path="/projects/:projectId/test-cases"
           element={
