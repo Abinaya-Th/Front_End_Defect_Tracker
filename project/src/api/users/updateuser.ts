@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://34.171.115.156:8087/api/v1/";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface UpdateUserPayload {
   id: number;

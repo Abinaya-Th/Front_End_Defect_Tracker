@@ -49,7 +49,7 @@ export const Bench: React.FC = () => {
     return employees
       .filter(emp => emp.availability > 0) // Only show employees with availability > 0
       .sort((a, b) => b.availability - a.availability);
-  }, [employees]);
+  }, [employees, filters]);
 
   // Get unique designations for filter dropdown
   const designations = useMemo(() => {
