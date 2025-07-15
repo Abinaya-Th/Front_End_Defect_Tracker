@@ -256,6 +256,46 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Summary Metric Boxes - update backgrounds to match project card outlines */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="rounded-xl p-6 bg-gradient-to-r from-red-500 to-red-600 text-white flex items-center justify-between shadow-lg">
+          <div>
+            <div className="text-base font-medium">Total Defects</div>
+            <div className="text-3xl font-extrabold mt-1">{totalDefects}</div>
+          </div>
+          <div className="bg-white/20 rounded-xl p-3 flex items-center justify-center">
+            <Bug className="w-7 h-7 text-white" />
+          </div>
+        </div>
+        <div className="rounded-xl p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white flex items-center justify-between shadow-lg">
+          <div>
+            <div className="text-base font-medium">KLOC</div>
+            <div className="text-3xl font-extrabold mt-1">{totalKLOC}</div>
+          </div>
+          <div className="bg-white/20 rounded-xl p-3 flex items-center justify-center">
+            <Activity className="w-7 h-7 text-white" />
+          </div>
+        </div>
+        <div className="rounded-xl p-6 bg-gradient-to-r from-green-500 to-green-600 text-white flex items-center justify-between shadow-lg">
+          <div>
+            <div className="text-base font-medium">Defect Density</div>
+            <div className="text-3xl font-extrabold mt-1">{defectDensity}</div>
+          </div>
+          <div className="bg-white/20 rounded-xl p-3 flex items-center justify-center">
+            <Gauge className="w-7 h-7 text-white" />
+          </div>
+        </div>
+        <div className="rounded-xl p-6 bg-gradient-to-r from-purple-500 to-purple-600 text-white flex items-center justify-between shadow-lg">
+          <div>
+            <div className="text-base font-medium">Removal Efficiency</div>
+            <div className="text-3xl font-extrabold mt-1">{calculateDRE()}%</div>
+          </div>
+          <div className="bg-white/20 rounded-xl p-3 flex items-center justify-center">
+            <TrendingUp className="w-7 h-7 text-white" />
+          </div>
+        </div>
+      </div>
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
@@ -372,92 +412,6 @@ export const Dashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Defect Quality Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Defect Removal Efficiency */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Activity className="w-5 h-5 text-blue-500" />
-                <h3 className="text-sm font-medium text-gray-700">Defect Removal Efficiency</h3>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600 mb-1">
-                {calculateDRE()}%
-              </div>
-              <div className="text-sm text-gray-500">
-                {defectsInDevelopment} defects caught in development
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Defect Severity Index */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-orange-500" />
-                <h3 className="text-sm font-medium text-gray-700">Defect Severity Index</h3>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600 mb-1">
-                {calculateDSI()}
-              </div>
-              <div className="text-sm text-gray-500">
-                Weighted severity score
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Defect Leakage */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-red-500" />
-                <h3 className="text-sm font-medium text-gray-700">Defect Leakage</h3>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600 mb-1">
-                {calculateDefectLeakage()}%
-              </div>
-              <div className="text-sm text-gray-500">
-                {defectsAfterRelease} defects leaked to production
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Defect Density */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Gauge className="w-5 h-5 text-green-500" />
-                <h3 className="text-sm font-medium text-gray-700">Defect Density</h3>
-              </div>
-            </div>
-            <div className="relative h-24">
-              <Doughnut data={densityGaugeData} options={gaugeOptions} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {calculateDefectDensity()}
-                  </div>
-                  <div className="text-xs text-gray-500">defects/KLOC</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Defect Analytics Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1">
@@ -555,41 +509,42 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-orange-50 via-yellow-50 to-red-100 shadow-xl">
           <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">Defect Severity Index</h3>
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <span className="inline-block animate-spin-slow"><AlertTriangle className="w-6 h-6 text-orange-500 drop-shadow-glow" /></span>
+              Defect Severity Index
+            </h3>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-4xl font-bold text-gray-900">{severityIndex}</div>
-              <div className="w-32 h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={defectDistributionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={30}
-                      outerRadius={50}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {defectDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              {defectDistributionData.map((item, index) => (
-                <div key={item.name} className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                  <span className="text-sm text-gray-600">{item.name}</span>
-                  <span className="text-sm font-medium">{item.value}</span>
+            <div className="flex flex-col items-center justify-center py-4">
+              {/* Circular Progress Indicator with Glow */}
+              <div className="relative w-32 h-32 mb-2">
+                <svg className="w-full h-full drop-shadow-glow" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" stroke="#f3f4f6" strokeWidth="10" fill="none" />
+                  <circle
+                    cx="50" cy="50" r="42"
+                    stroke="url(#severityMultiGradient)"
+                    strokeWidth="10"
+                    fill="none"
+                    strokeDasharray={264}
+                    strokeDashoffset={264 - (264 * Math.min(Number(severityIndex), 4) / 4)}
+                    strokeLinecap="round"
+                    style={{ filter: 'drop-shadow(0 0 12px #fbbf24)', transition: 'stroke-dashoffset 0.6s' }}
+                  />
+                  <defs>
+                    <linearGradient id="severityMultiGradient" x1="0" y1="0" x2="100" y2="0">
+                      <stop offset="0%" stopColor="#fbbf24" />
+                      <stop offset="50%" stopColor="#f97316" />
+                      <stop offset="100%" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-5xl font-extrabold text-orange-600 drop-shadow animate-pulse-slow" style={{textShadow: '0 0 16px #fbbf24, 0 0 8px #f97316'}}>{severityIndex}</span>
                 </div>
-              ))}
+              </div>
+              <div className="text-sm text-gray-700 font-semibold mt-2">Weighted severity score for this project</div>
             </div>
           </CardContent>
         </Card>
@@ -631,100 +586,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Trend Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">Defect Trend by Severity</h3>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={defectTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="critical" name="Critical" fill="#EF4444" />
-                  <Bar dataKey="high" name="High" fill="#F97316" />
-                  <Bar dataKey="medium" name="Medium" fill="#FBBF24" />
-                  <Bar dataKey="low" name="Low" fill="#34D399" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">Time to Fix Trend</h3>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeToFixData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="avgTime" 
-                    name="Average Time" 
-                    stroke="#3B82F6" 
-                    fill="#93C5FD" 
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="target" 
-                    name="Target" 
-                    stroke="#EF4444" 
-                    strokeDasharray="5 5" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Defect to Remark Ratio Trend */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">Defect to Remark Ratio Trend</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={defectRemarkData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="defects" 
-                  name="Defects" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="remarks" 
-                  name="Remarks" 
-                  stroke="#10B981" 
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Removed BarChart, AreaChart, and LineChart visualizations for a cleaner dashboard as requested. */}
     </div>
   );
 };

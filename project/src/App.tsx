@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AppProvider } from "./context/AppContext";
 import { Layout } from "./components/layout/Layout";
 import { Login } from "./pages/Login";
-import { Dashboard } from "./pages/Dashboard";
+import Dashboard1 from "./pages/Dashboard1";
 import { Employees } from "./pages/Employees";
 import { Bench } from "./pages/Bench";
 import { Projects } from "./pages/Projects";
@@ -38,6 +38,7 @@ import StatusType from "./pages/StatusType";
 import BenchAllocate from './pages/BenchAllocate';
 import Status from "./pages/Status";
 import ReleaseDetails from "./pages/ReleaseDetails";
+import ProjectMetrics from "./pages/ProjectMetrics";
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode, noLayout?: boolean }> = ({ children, noLayout }) => {
@@ -74,7 +75,7 @@ const AppRoutes: React.FC = () => {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Dashboard1 />
             </ProtectedRoute>
           }
         />
@@ -110,6 +111,14 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         /> */}
+        <Route
+          path="/projects/:projectId/metrics"
+          element={
+            <ProtectedRoute>
+              <ProjectMetrics />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/projects/:projectId/test-cases"
           element={
