@@ -56,6 +56,17 @@ export const Bench: React.FC = () => {
     return allDesignations;
   }, [allDesignations]);
 
+  // Utility to normalize filter values (trim and collapse spaces)
+  const normalizeFilterValue = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const normalizeFilters = (filtersObj: typeof filters): typeof filters => ({
+    firstName: normalizeFilterValue(filtersObj.firstName),
+    lastName: normalizeFilterValue(filtersObj.lastName),
+    designation: normalizeFilterValue(filtersObj.designation),
+    availability: normalizeFilterValue(filtersObj.availability),
+    fromDate: normalizeFilterValue(filtersObj.fromDate),
+    toDate: normalizeFilterValue(filtersObj.toDate),
+  });
+
   const handleFilterChange = async (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
     
@@ -65,11 +76,13 @@ export const Bench: React.FC = () => {
     }
     
     // For other filters, perform search immediately
+    // Normalize all filters before searching
     const newFilters = { ...filters, [field]: value };
-    const hasActiveFilters = Object.values(newFilters).some(filter => filter !== '');
+    const normalizedFilters = normalizeFilters(newFilters);
+    const hasActiveFilters = Object.values(normalizedFilters).some(filter => filter !== '');
     
     if (hasActiveFilters) {
-      await performSearch(newFilters);
+      await performSearch(normalizedFilters);
     } else {
       // If no filters, load all bench employees
       loadAllBenchEmployees();
@@ -78,10 +91,12 @@ export const Bench: React.FC = () => {
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+    // Normalize all filters before searching
+    const normalizedFilters = normalizeFilters(filters);
+    const hasActiveFilters = Object.values(normalizedFilters).some(filter => filter !== '');
     
     if (hasActiveFilters) {
-      await performSearch(filters);
+      await performSearch(normalizedFilters);
     } else {
       loadAllBenchEmployees();
     }
@@ -90,10 +105,12 @@ export const Bench: React.FC = () => {
   const handleSearchKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
-      const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
+      // Normalize all filters before searching
+      const normalizedFilters = normalizeFilters(filters);
+      const hasActiveFilters = Object.values(normalizedFilters).some(filter => filter !== '');
       
       if (hasActiveFilters) {
-        await performSearch(filters);
+        await performSearch(normalizedFilters);
       } else {
         loadAllBenchEmployees();
       }
@@ -103,24 +120,26 @@ export const Bench: React.FC = () => {
   const performSearch = async (searchFilters: typeof filters) => {
     setIsSearching(true);
     try {
+      // Normalize all filters before sending to API
+      const normalizedFilters = normalizeFilters(searchFilters);
       const searchParams: BenchSearchParams = {};
-      if (searchFilters.firstName) {
-        searchParams.firstName = searchFilters.firstName;
+      if (normalizedFilters.firstName) {
+        searchParams.firstName = normalizedFilters.firstName;
       }
-      if (searchFilters.lastName) {
-        searchParams.lastName = searchFilters.lastName;
+      if (normalizedFilters.lastName) {
+        searchParams.lastName = normalizedFilters.lastName;
       }
-      if (searchFilters.designation) {
-        searchParams.designation = searchFilters.designation;
+      if (normalizedFilters.designation) {
+        searchParams.designation = normalizedFilters.designation;
       }
-      if (searchFilters.availability) {
-        searchParams.availability = parseInt(searchFilters.availability);
+      if (normalizedFilters.availability) {
+        searchParams.availability = parseInt(normalizedFilters.availability);
       }
-      if (searchFilters.fromDate) {
-        searchParams.startDate = searchFilters.fromDate;
+      if (normalizedFilters.fromDate) {
+        searchParams.startDate = normalizedFilters.fromDate;
       }
-      if (searchFilters.toDate) {
-        searchParams.endDate = searchFilters.toDate;
+      if (normalizedFilters.toDate) {
+        searchParams.endDate = normalizedFilters.toDate;
       }
 
       console.log('Search params:', searchParams);
