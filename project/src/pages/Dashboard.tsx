@@ -180,6 +180,18 @@ export const Dashboard: React.FC = () => {
   return (
     <>
       <div className="max-w-6xl mx-auto px-4 pt-8">
+        {/* Back Button for Project Dashboard */}
+        {selectedProject && (
+          <div className="flex justify-end mb-4">
+            <button
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold shadow-sm border border-gray-200 transition"
+              onClick={() => setSelectedProjectId(null)}
+            >
+              <ChevronLeft className="w-5 h-5" />
+              Back
+            </button>
+          </div>
+        )}
         {/* Project Selection Panel (shared component) */}
         <div className="mb-6">
           <ProjectSelector
@@ -342,14 +354,14 @@ export const Dashboard: React.FC = () => {
         {/* Defect Density Meter & Defect Severity Index Row */}
         <div className="mb-16 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {/* Defect Density Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full">
+          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
             <div className="flex-1 flex flex-col justify-center">
               <DefectDensityMeter kloc={kloc} defectCount={projectDefects.length} />
             </div>
           </div>
           {/* Defect Severity Index Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full">
+          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Severity Index</h2>
             <div className="flex-1 flex flex-col items-center justify-center">
               {(() => {
@@ -369,7 +381,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           {/* Defect to Remark Ratio Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full">
+          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect to Remark Ratio</h2>
             <div className="flex-1 flex flex-col items-center justify-center">
               <DefectToRemarkRatio defectCount={projectDefects.length} remarkCount={150} />
@@ -458,42 +470,62 @@ export const Dashboard: React.FC = () => {
                     <ChartJSPie ref={reopenedChartRef} data={data} options={pieOptions} />
                   </div>
                   {/* Floating hover detail card */}
-                  {(reopenedHoveredIdx !== null || isOverlayHovered) && (
-                    <div
-                      className="absolute left-1/2 top-8 z-20 w-[420px] -translate-x-1/2 bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
-                      onMouseEnter={() => setIsOverlayHovered(true)}
-                      onMouseLeave={() => setIsOverlayHovered(false)}
-                    >
-                      <div className="font-bold text-lg mb-2 text-gray-900">Defects Reopened {labels[reopenedHoveredIdx ?? 0]}</div>
-                      <table className="min-w-full text-xs mb-2">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-1 px-2">ID</th>
-                            <th className="text-left py-1 px-2">Title</th>
-                            <th className="text-left py-1 px-2">Assignee</th>
-                            <th className="text-left py-1 px-2">Reporter</th>
-                            <th className="text-left py-1 px-2">Release</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {defectBuckets[(reopenedHoveredIdx ?? 0)].length === 0 ? (
-                            <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
-                          ) : (
-                            defectBuckets[(reopenedHoveredIdx ?? 0)].map((defect, idx) => (
-                              <tr key={defect.id || idx} className="border-b">
-                                <td className="py-1 px-2 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
-                                <td className="py-1 px-2">{defect.title}</td>
-                                <td className="py-1 px-2">{defect.assignee}</td>
-                                <td className="py-1 px-2">{defect.reporter}</td>
-                                <td className="py-1 px-2">{defect.release}</td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                      <div className="text-xs text-gray-400">Click segment for detailed view</div>
-                    </div>
-                  )}
+                  {(reopenedHoveredIdx !== null || isOverlayHovered) && (() => {
+                    // Pie chart geometry (match your chart size)
+                    const pieCenterX = 128; // SVG center X (w-64 = 256px)
+                    const pieCenterY = 128; // SVG center Y
+                    const pieRadius = 100; // Pie outer radius
+                    const cardOffset = 60; // Distance from pie edge to card
+                    const totalSegments = data.datasets[0].data.length;
+                    const segmentAngle = 360 / totalSegments;
+                    const idx = reopenedHoveredIdx ?? 0;
+                    const angle = (idx + 0.5) * segmentAngle - 90; // -90 to start from top
+                    const rad = (angle * Math.PI) / 180;
+                    const cardX = pieCenterX + (pieRadius + cardOffset) * Math.cos(rad);
+                    const cardY = pieCenterY + (pieRadius + cardOffset) * Math.sin(rad);
+                    return (
+                      <div
+                        className="absolute z-20 w-[420px] bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
+                        style={{
+                          left: cardX,
+                          top: cardY,
+                          transform: 'translateY(-50%)',
+                          minWidth: 280,
+                        }}
+                        onMouseEnter={() => setIsOverlayHovered(true)}
+                        onMouseLeave={() => setIsOverlayHovered(false)}
+                      >
+                        <div className="font-bold text-lg mb-2 text-gray-900">Defects Reopened {labels[reopenedHoveredIdx ?? 0]}</div>
+                        <table className="min-w-full text-xs mb-2">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-1 px-2">ID</th>
+                              <th className="text-left py-1 px-2">Title</th>
+                              <th className="text-left py-1 px-2">Assignee</th>
+                              <th className="text-left py-1 px-2">Reporter</th>
+                              <th className="text-left py-1 px-2">Release</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {defectBuckets[(reopenedHoveredIdx ?? 0)].length === 0 ? (
+                              <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
+                            ) : (
+                              defectBuckets[(reopenedHoveredIdx ?? 0)].map((defect, idx) => (
+                                <tr key={defect.id || idx} className="border-b">
+                                  <td className="py-1 px-2 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
+                                  <td className="py-1 px-2">{defect.title}</td>
+                                  <td className="py-1 px-2">{defect.assignee}</td>
+                                  <td className="py-1 px-2">{defect.reporter}</td>
+                                  <td className="py-1 px-2">{defect.release}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                        <div className="text-xs text-gray-400">Click segment for detailed view</div>
+                      </div>
+                    );
+                  })()}
                   <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
                     {labels.map((label, idx) => (
                       <div key={label} className="flex items-center gap-2">
@@ -729,9 +761,27 @@ export const Dashboard: React.FC = () => {
             const totalHigh = mod.submodules.reduce((a, s) => a + s.high, 0);
             const totalMed = mod.submodules.reduce((a, s) => a + s.med, 0);
             const totalLow = mod.submodules.reduce((a, s) => a + s.low, 0);
+            // Pie chart geometry (match your chart size)
+            const pieCenterX = 128;
+            const pieCenterY = 128;
+            const pieRadius = 100;
+            const cardOffset = 60;
+            const totalSegments = modules.length;
+            const idx = hoveredModuleIdx ?? 0;
+            const segmentAngle = 360 / totalSegments;
+            const angle = (idx + 0.5) * segmentAngle - 90;
+            const rad = (angle * Math.PI) / 180;
+            const cardX = pieCenterX + (pieRadius + cardOffset) * Math.cos(rad);
+            const cardY = pieCenterY + (pieRadius + cardOffset) * Math.sin(rad);
             return (
               <div
-                className="absolute left-1/2 top-1/2 z-30 w-[340px] -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-xl border border-gray-100 p-5 animate-fade-in"
+                className="absolute z-30 w-[340px] bg-white rounded-xl shadow-xl border border-gray-100 p-5 animate-fade-in"
+                style={{
+                  left: cardX,
+                  top: cardY,
+                  transform: 'translateY(-50%)',
+                  minWidth: 220,
+                }}
                 onMouseEnter={() => setIsModuleCardHovered(true)}
                 onMouseLeave={() => { setIsModuleCardHovered(false); setHoveredModuleIdx(null); }}
               >
@@ -836,14 +886,15 @@ function DefectDensityMeter({ kloc, defectCount }: { kloc: number, defectCount: 
               <linearGradient id="gauge-gradient" x1="0%" y1="100%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#22c55e" />
                 <stop offset="35%" stopColor="#22c55e" />
+                <stop offset="35%" stopColor="#facc15" />
                 <stop offset="50%" stopColor="#facc15" />
-                <stop offset="70%" stopColor="#ef4444" />
+                <stop offset="50%" stopColor="#ef4444" />
                 <stop offset="100%" stopColor="#ef4444" />
               </linearGradient>
             </defs>
             {/* Gauge background */}
             <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="#e5e7eb" strokeWidth="18" />
-            {/* Continuous gradient arc */}
+            {/* Single arc with hard color stops for green, yellow, red */}
             <path d="M36,100 A64,64 0 0,1 164,100" fill="none" stroke="url(#gauge-gradient)" strokeWidth="12" />
             {/* Sharp Needle Pointer */}
             <g style={{ transform: 'rotate(0deg)', transformOrigin: '100px 100px' }}>
@@ -857,9 +908,9 @@ function DefectDensityMeter({ kloc, defectCount }: { kloc: number, defectCount: 
             {/* Center dot */}
             <circle cx="100" cy="100" r="7" fill="#334155" />
             {/* Tick marks */}
-            <text x="20" y="95" fontSize="12" fill="#64748b">0</text>
-            <text x="100" y="22" fontSize="12" fill="#64748b" textAnchor="middle">10</text>
-            <text x="180" y="95" fontSize="12" fill="#64748b" textAnchor="end">20</text>
+            <text x="21" y="95" fontSize="12" fill="#64748b">0</text>
+            <text x="100" y="25" fontSize="12" fill="#64748b" textAnchor="middle">10</text>
+            <text x="185" y="95" fontSize="12" fill="#64748b" textAnchor="end">20</text>
           </svg>
         </div>
       </div>
