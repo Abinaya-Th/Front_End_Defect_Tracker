@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use the correct API base URL structure
-const API_URL = 'http://34.171.115.156:8087/api/v1/defect';
+const API_URL = 'http://192.168.1.107:8080/api/v1/defect';
 
 export const deleteDefectById = async (defectId: string) => {
   try {
