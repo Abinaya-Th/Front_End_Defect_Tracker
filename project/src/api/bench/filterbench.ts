@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee } from '../../types/index';
 
-const API_BASE_URL = 'http://192.168.1.107:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_BASE_URL.replace(/\/$/, '');
 
 export interface BenchSearchParams {
   startDate?: string;
@@ -15,7 +15,7 @@ export interface BenchSearchParams {
 export const searchBenchEmployees = async (params: BenchSearchParams): Promise<Employee[]> => {
   try {
     const queryParams = new URLSearchParams();
-    
+
     // Add parameters to query string if they exist
     if (params.startDate) {
       queryParams.append('startDate', params.startDate);
@@ -37,11 +37,11 @@ export const searchBenchEmployees = async (params: BenchSearchParams): Promise<E
     }
 
     const url = `${API_BASE_URL}/bench/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
+
     const response = await axios.get(url);
-    
+
     console.log('Raw API response:', response.data);
-    
+
     // Map backend fields to Employee type (same as bench.ts)
     const data = response.data.data || response.data || [];
     console.log('Mapped data:', data);
