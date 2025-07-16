@@ -926,7 +926,10 @@ export const Defects: React.FC = () => {
 
       {/* Defect Severity Breakdown (copied from Dashboard) */}
       <div className="mb-8 mt-4">
-        <h2 className="text-lg font-semibold mb-3 text-gray-600">Defect Severity Breakdown</h2>
+        <div className="flex items-center mb-3 gap-4">
+          <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
+          <span className="text-base font-medium text-gray-500">(Total Defects : {filteredDefects.length})</span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {['high', 'medium', 'low'].map(severity => {
             const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
@@ -1237,10 +1240,10 @@ export const Defects: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 whitespace-nowrap">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 z-20 bg-gray-50" style={{ minWidth: 120 }}>
                     Defect ID
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-[120px] z-20 bg-gray-50" style={{ minWidth: 220 }}>
                     Brief Description
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1288,10 +1291,10 @@ export const Defects: React.FC = () => {
                       }
                       className={`${highlightId === defect.defectId ? "  border-2 " : ""}`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 sticky left-0 z-10 bg-white border-r border-gray-200" style={{ minWidth: 120 }}>
                         {defect.defectId}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-gray-900 sticky left-[120px] z-10 bg-white border-r border-gray-200" style={{ minWidth: 220 }}>
                         {defect.description}
                       </td>
                       <td className="px-6 py-4 text-sm text-blue-600 cursor-pointer">
