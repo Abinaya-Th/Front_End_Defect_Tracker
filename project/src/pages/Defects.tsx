@@ -165,65 +165,60 @@ export const Defects: React.FC = () => {
   const mapDefect = (d: any) => ({
     id: d.id,
     defectId: d.defect_id,
-    module_name: d.module_name,
-    sub_module_name: d.sub_module_name,
-    defect_type_name: d.type_name,
-    severity_name: d.severity_name,
-    priority_name: d.priority_name,
-    defect_status_name: d.status_name,
-    assigned_by_name: d.assigned_by_name,
-    assigned_to_name: d.assigned_to_name,
-    release_name: d.release_name,
     description: d.description,
-    steps: d.steps,
-    reOpenCount: d.re_open_count,
-    attachment: d.attachment,
-    testCaseId: d.test_case_id,
+    reOpenCount: d.re_open_count ?? 0,
+    attachment: d.attachment ?? null,
+    steps: d.steps ?? '',
+    project_name: d.project_name ?? '',
+    severity_name: d.severity_name ?? '',
+    priority_name: d.priority_name ?? '',
+    priority: d.priority ?? '',
+    defect_status_name: d.status_name ?? '',
+    release_test_case_description: d.release_test_case_description ?? '',
+    release_name: d.release_name ?? '',
+    assigned_by_name: d.assigned_by_name ?? '',
+    assigned_to_name: d.assigned_to_name ?? '',
+    defect_type_name: d.type_name ?? '',
+    module_name: d.module_name ?? '',
+    sub_module_name: d.sub_module_name ?? '',
   });
 
   // Fetch defects when project changes or filters change
   const fetchData = () => {
-    const hasFilters =
-      filters.type ||
-      filters.severity ||
-      filters.priority ||
-      filters.status ||
-      filters.module ||
-      filters.subModule;
-    if (!hasFilters) {
-      // No filters: use the new project endpoint
-      axios
-        .get(`${import.meta.env.VITE_BASE_URL}defect/project/${selectedProjectId}`)
-        .then((res) => {
-          setBackendDefects((res.data.data || []).map(mapDefect));
-        })
-        .catch((err) => {
-          setBackendDefects([]);
-          // Only log the error once, not on every render
-          if (err && backendDefects.length === 0) {
-            console.error('Failed to fetch defects for project:', err.message);
-          }
-        });
-    } else {
-      // Filters applied: use the filter API
-      const backendFilters = {
-        projectId: Number(selectedProjectId),
-        typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
-        severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
-        priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
-        defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
-        releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
-      };
-      filterDefects(backendFilters)
-        .then((data) => setBackendDefects((data || []).map(mapDefect)))
-        .catch(error => {
-          // Only log the error once, not on every render
-          if (error && backendDefects.length === 0) {
-            console.error('Failed to filter defects:', error.message);
-          }
-          setBackendDefects([]);
-        });
+    // Always use the new filter endpoint, even if no filters are set
+    const params: any = { projectId: selectedProjectId };
+    if (filters.type) params.typeId = defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id;
+    if (filters.severity) params.severityId = severities && severities.find(s => s.name === filters.severity)?.id;
+    if (filters.priority) params.priorityId = priorities && priorities.find(p => p.priority === filters.priority)?.id;
+    if (filters.status) params.statusId = defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id;
+    if (filters.releaseId) params.releaseId = filters.releaseId;
+    if (filters.module) {
+      const moduleId = modules && modules.find(m => m.name === filters.module)?.id;
+      if (moduleId) params.moduleId = moduleId;
     }
+    if (filters.subModule) {
+      const subModuleId = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id;
+      if (subModuleId) params.subModuleId = subModuleId;
+    }
+    if (filters.assignedTo) {
+      const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id;
+      if (userId) params.assignToId = userId;
+    }
+    if (filters.reportedBy) {
+      const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id;
+      if (userId) params.assignById = userId;
+    }
+    axios.get(`${import.meta.env.VITE_BASE_URL}defect/filter`, { params })
+      .then((res) => {
+        setBackendDefects((res.data.data || []).map(mapDefect));
+      })
+      .catch((err) => {
+        setBackendDefects([]);
+        // Only log the error once, not on every render
+        if (err && backendDefects.length === 0) {
+          console.error('Failed to fetch defects for project:', err.message);
+        }
+      });
   }
 
   React.useEffect(() => {
@@ -308,32 +303,7 @@ export const Defects: React.FC = () => {
       if (response.status === "Success" || response.statusCode === 200) {
         // Handle successful defect addition
         alert("Defect added successfully!");
-        fetchData();
-        // Refresh the defects list
-        if (selectedProjectId) {
-          const backendFilters = {
-            projectId: Number(selectedProjectId),
-            typeId: filters.type ? (defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id ? Number(defectTypes.find(t => t.defectTypeName === filters.type)?.id) : undefined) : undefined,
-            severityId: filters.severity ? (severities && severities.find(s => s.name === filters.severity)?.id ? Number(severities.find(s => s.name === filters.severity)?.id) : undefined) : undefined,
-            priorityId: filters.priority ? (priorities && priorities.find(p => p.priority === filters.priority)?.id ? Number(priorities.find(p => p.priority === filters.priority)?.id) : undefined) : undefined,
-            defectStatusId: filters.status ? (defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id ? Number(defectStatuses.find(s => s.defectStatusName === filters.status)?.id) : undefined) : undefined,
-            releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
-            moduleId: filters.module ? (() => { const id = modules && modules.find(m => m.name === filters.module)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
-            subModuleId: filters.subModule ? (() => { const id = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
-            assignToId: filters.assignedTo ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id) : undefined) : undefined,
-            assignById: filters.reportedBy ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id) : undefined) : undefined,
-          };
-          filterDefects(backendFilters)
-            .then(setBackendDefects)
-            .catch(error => {
-              // Only log the error once, not on every render
-              if (error && backendDefects.length === 0) {
-                console.error('Failed to filter defects:', error.message);
-              }
-              setBackendDefects([]);
-            });
-        }
-        // Close modal and reset form
+        await fetchData(); // Always re-fetch and map data after add
         resetForm();
       } else {
         // Handle error in defect addition
@@ -379,8 +349,6 @@ export const Defects: React.FC = () => {
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-      // console.log(formData);
-
       try {
         const defectIdForApi = Number(formData.id);
         // Use the new payload structure as per backend requirements
@@ -391,14 +359,14 @@ export const Defects: React.FC = () => {
           priorityId: Number(formData.priorityId),
           defectStatusId: formData.statusId ? Number(formData.statusId) : null, // can be null
           typeId: Number(formData.typeId),
-          reOpenCount: editingDefect.reOpenCount || 0,
           attachment: formData.attachment || '',
           steps: formData.steps,
-          releaseId: formData.releaseId ? Number(formData.releaseId) : null, // required
-          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // can be null
-          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // can be null
           modulesId: Number(formData.moduleId),
           subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
+          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+          assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+          releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
+          testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
         };
         const response = await updateDefectById(
           defectIdForApi,
@@ -406,7 +374,7 @@ export const Defects: React.FC = () => {
         );
         if (response.status === 'Success' || response.statusCode === 2000) {
           alert('Defect updated successfully!');
-          fetchData();
+          await fetchData(); // Always re-fetch and map data after edit
           resetForm();
         } else {
           alert('Failed to update defect: ' + (response.message || 'Unknown error'));
@@ -493,8 +461,7 @@ export const Defects: React.FC = () => {
 
         // Handle successful deletion
         if (response.status === 'Success' || response.statusCode === 2000) {
-          // Filter out the deleted defect from the backendDefects state
-          setBackendDefects(prevDefects => prevDefects.filter(d => d.defectId !== defectId));
+          await fetchData(); // Always re-fetch and map data after delete
           alert("Defect deleted successfully.");
         } else {
           console.error("Delete failed:", response.message);
@@ -1138,8 +1105,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {[...new Set(backendDefects.map(d => (d as any).releaseId).filter(Boolean))].map(id => (
-                <option key={id} value={id}>{releaseMap[id] || id}</option>
+              {releasesData.map(release => (
+                <option key={release.id} value={release.id}>{release.releaseName}</option>
               ))}
             </select>
           </div>
