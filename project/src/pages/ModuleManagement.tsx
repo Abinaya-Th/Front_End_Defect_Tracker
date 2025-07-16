@@ -85,7 +85,7 @@ export const ModuleManagement: React.FC = () => {
   const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   // New state for developers with roles
-  const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ name: string; role: string; projectAllocationId: number }>>([]);
+  const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ userWithRole: string; projectAllocationId: number }>>([]);
 
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
@@ -949,7 +949,7 @@ export const ModuleManagement: React.FC = () => {
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      {(() => {
+                       {(() => {
                         const [name, role] = dev.userWithRole.split("-");
                         return (
                           <>
