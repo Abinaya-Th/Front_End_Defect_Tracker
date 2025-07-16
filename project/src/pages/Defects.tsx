@@ -173,7 +173,7 @@ export const Defects: React.FC = () => {
     if (!hasFilters) {
       // No filters: use the new project endpoint
       axios
-        .get(`http://192.168.1.107:8080/api/v1/defect/project/${selectedProjectId}`)
+        .get(`${import.meta.env.VITE_BASE_URL}defect/project/${selectedProjectId}`)
         .then((res) => {
           setBackendDefects(res.data.data || []);
         })
@@ -790,7 +790,7 @@ export const Defects: React.FC = () => {
     setIsUsersLoading(true);
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://192.168.1.107:8080/api/v1/user';
+    const userApiUrl = `${import.meta.env.VITE_BASE_URL}user`;
 
     axios.get(userApiUrl).then(res => {
       if (res.data && Array.isArray(res.data.data)) {

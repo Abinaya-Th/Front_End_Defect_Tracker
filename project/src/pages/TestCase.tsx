@@ -746,7 +746,7 @@ console.log({submodules});
 
   // Replace all usages of apiDeleteTestCase with this function
   const deleteTestCaseById = async (testCaseId: string) => {
-    const url = `http://192.168.1.107:8080/api/v1/testcase/${testCaseId}`;
+    const url = `${BASE_URL}testcase/${testCaseId}`;
     try {
       const response = await axios.delete(url);
       showAlert(response?.data?.message || 'Test case deleted successfully!');

@@ -58,16 +58,16 @@ export const Bench: React.FC = () => {
 
   const handleFilterChange = async (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
-    
+
     // For search field, don't trigger API call immediately
     if (field === 'firstName' || field === 'lastName') {
       return;
     }
-    
+
     // For other filters, perform search immediately
     const newFilters = { ...filters, [field]: value };
     const hasActiveFilters = Object.values(newFilters).some(filter => filter !== '');
-    
+
     if (hasActiveFilters) {
       await performSearch(newFilters);
     } else {
@@ -79,7 +79,7 @@ export const Bench: React.FC = () => {
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
-    
+
     if (hasActiveFilters) {
       await performSearch(filters);
     } else {
@@ -91,7 +91,7 @@ export const Bench: React.FC = () => {
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
-      
+
       if (hasActiveFilters) {
         await performSearch(filters);
       } else {
@@ -126,7 +126,7 @@ export const Bench: React.FC = () => {
       console.log('Search params:', searchParams);
       const searchResults = await searchBenchEmployees(searchParams);
       console.log('Search results:', searchResults);
-      
+
       // If searchResults is not an array or is empty, clear employees
       if (Array.isArray(searchResults) && searchResults.length > 0) {
         setEmployees(searchResults);
@@ -431,8 +431,8 @@ export const Bench: React.FC = () => {
                   : 'No employees found'}
               </h3>
               <p className="text-gray-500">
-                {Object.values(filters).some(filter => filter !== '') 
-                  ? 'Try adjusting your search filters' 
+                {Object.values(filters).some(filter => filter !== '')
+                  ? 'Try adjusting your search filters'
                   : 'Try adjusting your filters or add employees to the bench'}
               </p>
             </div>
@@ -520,7 +520,7 @@ export const Bench: React.FC = () => {
                   </div>
                 </div>
 
-                
+
               </div>
 
               <div className="space-y-6">
