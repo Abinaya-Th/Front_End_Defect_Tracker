@@ -24,7 +24,6 @@ export const Dashboard: React.FC = () => {
   const [reopenedHoveredIdx, setReopenedHoveredIdx] = useState<number | null>(null);
   const reopenedChartRef = useRef<any>(null);
   const [isReopenedCardHovered, setIsReopenedCardHovered] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [hoveredModuleIdx, setHoveredModuleIdx] = useState<number | null>(null);
   const [isModuleCardHovered, setIsModuleCardHovered] = useState(false);
   const [moduleDetailModal, setModuleDetailModal] = useState<{ open: boolean; mod: any; totalHigh: number; totalMed: number; totalLow: number } | null>(null);
@@ -65,59 +64,74 @@ export const Dashboard: React.FC = () => {
 
   if (!selectedProjectId) {
     // Show summary and project cards grid
-  return (
+    return (
       <>
-        {/* Dashboard Heading */}
+        {/* Dashboard Heading - Using the cleaner version from code 2 */}
         <div className="max-w-5xl mx-auto text-center mt-12 mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
           <p className="text-gray-600 text-lg">Monitor project health and status at a glance</p>
         </div>
-        {/* Section: Project Health Summary */}
+        
+        {/* Section: Project Health Summary - Using the better structured version from code 1 */}
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 text-left">Project Health Summary</h2>
-          {/* Add a border to each Project Health Summary card, matching the status color */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            {/* Critical Projects */}
-            <div className="bg-gradient-to-br from-red-200 to-red-50 rounded-xl shadow flex items-center p-6 min-h-[140px] border-2 border-red-200 transition-transform hover:scale-105 hover:shadow-lg focus-within:ring-2 focus-within:ring-red-300 group" tabIndex={0} aria-label="Critical Projects">
-              <span className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-red-300 to-red-100 mr-4">
-                <User className="w-8 h-8 text-red-500" />
-              </span>
-        <div>
-                <div className="text-gray-700 font-medium">Critical Projects</div>
-                <div className="text-3xl font-bold text-red-600 mt-1">{immediateAttentionProjects.length}</div>
-        </div>
-          </div>
-            {/* At Risk Projects */}
-            <div className="bg-gradient-to-br from-yellow-200 to-yellow-50 rounded-xl shadow flex items-center p-6 min-h-[140px] border-2 border-yellow-200 transition-transform hover:scale-105 hover:shadow-lg focus-within:ring-2 focus-within:ring-yellow-300 group" tabIndex={0} aria-label="At Risk Projects">
-              <span className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-100 mr-4">
-                <Calendar className="w-8 h-8 text-yellow-500" />
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 text-left tracking-tight flex items-center gap-3">
+            <span className="inline-block w-2 h-8 bg-blue-500 rounded-full mr-2" />
+            Project Status Insights
+          </h2>
+          
+          {/* Modernized Project Status Cards - Using the better design from code 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-7 mb-12">
+            {/* High Risk Projects */}
+            <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-red-500/100 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
+              <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-red-600 to-red-800 mr-5 shadow-md">
+                <AlertCircle className="w-9 h-9 text-red-100" />
               </span>
               <div>
-                <div className="text-gray-700 font-medium">At Risk Projects</div>
-                <div className="text-3xl font-bold text-yellow-600 mt-1">{behindScheduleProjects.length}</div>
-          </div>
-        </div>
-            {/* Healthy Projects */}
-            <div className="bg-gradient-to-br from-green-200 to-green-50 rounded-xl shadow flex items-center p-6 min-h-[140px] border-2 border-green-200 transition-transform hover:scale-105 hover:shadow-lg focus-within:ring-2 focus-within:ring-green-300 group" tabIndex={0} aria-label="Healthy Projects">
-              <span className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-green-300 to-green-100 mr-4">
-                <TrendingUp className="w-8 h-8 text-green-500" />
-              </span>
-              <div>
-                <div className="text-gray-700 font-medium">Healthy Projects</div>
-                <div className="text-3xl font-bold text-green-600 mt-1">{performingWellProjects.length}</div>
-                </div>
+                <div className="text-slate-700 font-semibold text-lg mb-1">High Risk Projects</div>
+                <div className="text-4xl font-extrabold text-red-600">{immediateAttentionProjects.length}</div>
+                <div className="text-xs text-red-500 mt-1 font-medium">Immediate attention required</div>
               </div>
-              </div>
+              <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-red-500 animate-pulse" />
             </div>
+            
+            {/* Moderate Risk Projects */}
+            <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-yellow-500/100 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
+              <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-500 mr-5 shadow-md">
+                <Clock className="w-9 h-9 text-yellow-100" />
+              </span>
+              <div>
+                <div className="text-slate-700 font-semibold text-lg mb-1">Medium Risk Projects</div>
+                <div className="text-4xl font-extrabold text-yellow-600">{behindScheduleProjects.length}</div>
+                <div className="text-xs text-yellow-600 mt-1 font-medium">Monitor progress closely</div>
+              </div>
+              <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
+            </div>
+            
+            {/* Low Risk Projects */}
+            <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-green-600/80 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
+              <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 mr-5 shadow-md">
+                <CheckCircle className="w-9 h-9 text-green-100" />
+              </span>
+              <div>
+                <div className="text-slate-700 font-semibold text-lg mb-1">Low Risk Projects</div>
+                <div className="text-4xl font-extrabold text-green-600">{performingWellProjects.length}</div>
+                <div className="text-xs text-green-600 mt-1 font-medium">Stable and on track</div>
+              </div>
+              <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        
         {/* Divider */}
         <hr className="my-10 border-gray-200 max-w-5xl mx-auto" />
-        {/* Section: All Projects */}
+        
+        {/* Section: All Projects - Using the better filter implementation from code 2 */}
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h2 className="text-2xl font-bold text-gray-900">All Projects</h2>
-            
-                </div>
-          {/* Filter Bar */}
+          </div>
+          
+          {/* Filter Bar - Using the simpler version from code 2 */}
           <div className="flex items-center gap-3 mb-8">
             <span className="text-gray-700 font-medium mr-2">Filter by severity:</span>
             <button
@@ -144,7 +158,8 @@ export const Dashboard: React.FC = () => {
             >
               Low Risk
             </button>
-              </div>
+          </div>
+          
           {/* Project Cards Grid */}
           <div className="flex flex-wrap gap-8 justify-center py-6">
             {projects.map((project, idx) => {
@@ -170,14 +185,19 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setSelectedProjectId(project.id)}
                     size="small"
                   />
-              </div>
+                </div>
               );
             })}
-            </div>
-            </div>
+          </div>
+        </div>
       </>
     );
   }
+
+
+
+  // Rest of the code remains the same as in code 1 for the project-specific dashboard view
+  // [Previous implementation continues...]
 
   // Show widgets for selected project
   return (
@@ -456,7 +476,7 @@ export const Dashboard: React.FC = () => {
                 onHover: (event, elements) => {
                   if (elements && elements.length > 0) {
                     setReopenedHoveredIdx(elements[0].index);
-                  } else {
+                  } else if (!isReopenedCardHovered) {
                     setReopenedHoveredIdx(null);
                   }
                 },
@@ -471,17 +491,14 @@ export const Dashboard: React.FC = () => {
                   onMouseEnter={() => setIsReopenedCardHovered(true)}
                   onMouseLeave={() => {
                     setIsReopenedCardHovered(false);
-                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                    hoverTimeoutRef.current = setTimeout(() => {
-                      setReopenedHoveredIdx(null);
-                    }, 220);
+                    setReopenedHoveredIdx(null);
                   }}
                 >
                   <div className="w-64 h-64">
                     <ChartJSPie ref={reopenedChartRef} data={data} options={pieOptions} />
             </div>
                   {/* Floating hover detail card */}
-                  {reopenedHoveredIdx !== null && (() => {
+                  {(reopenedHoveredIdx !== null || isReopenedCardHovered) && (() => {
                     // Pie chart geometry (match your chart size)
                     const pieCenterX = 128; // SVG center X (w-64 = 256px)
                     const pieCenterY = 128; // SVG center Y
@@ -513,14 +530,11 @@ export const Dashboard: React.FC = () => {
                         className="absolute z-20 w-[420px] bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
                         style={cardStyle}
                         onMouseEnter={() => {
-                          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                          setIsReopenedCardHovered(true);
                         }}
                         onMouseLeave={() => {
                           setIsReopenedCardHovered(false);
-                          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                          hoverTimeoutRef.current = setTimeout(() => {
-                            setReopenedHoveredIdx(null);
-                          }, 220);
+                          setReopenedHoveredIdx(null);
                         }}
                         onMouseDown={() => setReopenedDetailModal({ open: true, label: labels[reopenedHoveredIdx ?? 0], defects: defectBuckets[reopenedHoveredIdx ?? 0] })}
                       >
@@ -648,20 +662,7 @@ export const Dashboard: React.FC = () => {
                 </LineChart>
               </ResponsiveContainer>
                 </div>
-            <div className="flex flex-col md:flex-row gap-4 mt-6">
-              <div className="flex-1 bg-blue-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-blue-600">Average</span>
-                <span className="text-2xl font-bold text-blue-700 mt-1">7.1h</span>
-                    </div>
-              <div className="flex-1 bg-green-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-green-600">Best</span>
-                <span className="text-2xl font-bold text-green-700 mt-1">5.8h</span>
-                </div>
-              <div className="flex-1 bg-red-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-red-600">Worst</span>
-                <span className="text-2xl font-bold text-red-700 mt-1">9.1h</span>
-              </div>
-                  </div>
+           
                   </div>
           {/* Time to Fix Defects */}
           <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
@@ -686,34 +687,18 @@ export const Dashboard: React.FC = () => {
                 </LineChart>
               </ResponsiveContainer>
                 </div>
-            <div className="flex flex-col md:flex-row gap-4 mt-6">
-              <div className="flex-1 bg-green-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-green-600">Average</span>
-                <span className="text-2xl font-bold text-green-700 mt-1">10.6h</span>
-              </div>
-              <div className="flex-1 bg-blue-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-blue-600">Best</span>
-                <span className="text-2xl font-bold text-blue-700 mt-1">8.8h</span>
-                </div>
-              <div className="flex-1 bg-red-50 rounded-xl p-4 flex flex-col items-center">
-                <span className="text-base font-semibold text-red-600">Worst</span>
-                <span className="text-2xl font-bold text-red-700 mt-1">14.1h</span>
-              </div>
-            </div>
+           
           </div>
         </div>
         
         {/* More widgets (3-9) will go here */}
       </div>
       {/* Move the 'Defects by Module' section to the end of the dashboard widgets, after all other main sections. */}
-      <div className="mb-10 bg-white rounded-2xl shadow p-6 flex flex-col items-center">
+      <div className="mb-10 bg-white rounded-2xl max-w-3xl mx-auto shadow p-6 flex flex-col items-center">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">Defects by Module</h2>
         <div className="relative w-64 h-64 mx-auto"
           onMouseLeave={() => {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = setTimeout(() => {
-              if (!isModuleCardHovered) setHoveredModuleIdx(null);
-            }, 120);
+            if (!isModuleCardHovered) setHoveredModuleIdx(null);
           }}
         >
                 <ResponsiveContainer width="100%" height="100%">
@@ -816,38 +801,25 @@ export const Dashboard: React.FC = () => {
             const cardX = pieCenterX + (pieRadius + cardOffset) * Math.cos(rad);
             const cardY = pieCenterY + (pieRadius + cardOffset) * Math.sin(rad);
             const svgWidth = 256; // w-64 = 256px
-            const isLeftSide = angle > 90 && angle < 270;
-            const extraOffset = 40;
-            const cardStyle = isLeftSide
-              ? {
-                  right: `${svgWidth - cardX - extraOffset}px`,
-                  top: cardY,
-                  transform: 'translateY(-50%)',
-                  minWidth: 220,
-                }
-              : {
-                  left: cardX,
-                  top: cardY,
-                  transform: 'translateY(-50%)',
-                  minWidth: 220,
-                };
+            const cardStyle = {
+              left: pieCenterX + pieRadius + 48,
+              top: pieCenterY,
+              transform: 'translateY(-50%)',
+              minWidth: 340,
+              position: 'absolute',
+            };
                 return (
               <div
                 className="absolute z-30 w-[340px] bg-white rounded-xl shadow-xl border border-gray-100 p-5 animate-fade-in"
                 style={cardStyle}
                 onMouseEnter={() => {
-                  if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
                   setIsModuleCardHovered(true);
                 }}
                 onMouseLeave={() => {
                   setIsModuleCardHovered(false);
-                  if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                  hoverTimeoutRef.current = setTimeout(() => {
-                    setHoveredModuleIdx(null);
-                  }, 120);
+                  setHoveredModuleIdx(null);
                 }}
                 onMouseDown={() => setModuleDetailModal({ open: true, mod, totalHigh, totalMed, totalLow })}
-                style={{ ...cardStyle, cursor: 'pointer' }}
               >
                 <div className="font-bold text-xl mb-1 text-gray-900">{mod.name} Module</div>
                 <div className="mb-2 text-gray-600 text-sm">{mod.value} defects ({mod.percent}%)</div>
@@ -904,11 +876,8 @@ export const Dashboard: React.FC = () => {
             </li>
           ))}
         </ul>
-        <hr className="my-8 w-full border-gray-200" />
-        <div className="text-sm text-gray-500">
-          Total: 35 defects across 6 modules
-            </div>
-        <div className="text-xs text-gray-400 mt-1">Hover over chart segments to view submodule breakdown with severity levels</div>
+       
+       
       </div>
       {/* Module Detail Modal */}
       {moduleDetailModal?.open && (
@@ -949,8 +918,8 @@ export const Dashboard: React.FC = () => {
       )}
       {/* Reopened Defects Detail Modal */}
       {reopenedDetailModal?.open && (
-        <Modal isOpen={reopenedDetailModal.open} onClose={() => setReopenedDetailModal(null)} title={`Defects Reopened ${reopenedDetailModal.label}`}>
-          <div className="p-6">
+        <Modal isOpen={reopenedDetailModal.open} onClose={() => setReopenedDetailModal(null)} title={`Defects Reopened ${reopenedDetailModal.label}`} size="xl">
+          <div className="p-6" style={{ minHeight: 400, maxHeight: 600, overflowY: 'auto' }}>
             <div className="font-bold text-2xl mb-2 text-gray-900">Defects Reopened {reopenedDetailModal.label}</div>
             <table className="min-w-full text-base mb-4 border border-gray-200 divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -1062,4 +1031,7 @@ function darkenColor(hex, amt) {
   let g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * amt));
   let b = Math.max(0, (num & 0x0000FF) - Math.round(255 * amt));
   return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-}
+
+};
+
+// [Rest of the component code remains the same]
