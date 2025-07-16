@@ -72,7 +72,7 @@ export const getModulesByProjectId = (projectId: string | number): Promise<Creat
 
 // Fetch allocated users for a module
 export async function getAllocatedUsersByModuleId(moduleId: string | number) {
-  const url = `http://34.171.115.156:8087/api/v1/allocateModule/developers/module/${moduleId}`;
+  const url = `http://192.168.1.107:8080/api/v1/allocateModule/developers/module/${moduleId}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Failed to fetch allocated users');
