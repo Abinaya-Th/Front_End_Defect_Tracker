@@ -916,12 +916,84 @@ export const Defects: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
+
       {/* Project Selection Panel */}
       <ProjectSelector
         projects={projects}
         selectedProjectId={selectedProjectId}
         onSelect={handleProjectSelect}
       />
+
+      {/* Defect Severity Breakdown (copied from Dashboard) */}
+      <div className="mb-8 mt-4">
+        <h2 className="text-lg font-semibold mb-3 text-gray-600">Defect Severity Breakdown</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {['high', 'medium', 'low'].map(severity => {
+            const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
+            const colorMap = {
+              critical: 'border-l-4 border-pink-600',
+              high: 'border-l-4 border-red-500',
+              medium: 'border-l-4 border-yellow-400',
+              low: 'border-l-4 border-green-500',
+            };
+            const titleColor = {
+              critical: 'text-pink-600',
+              high: 'text-red-500',
+              medium: 'text-yellow-500',
+              low: 'text-green-500',
+            };
+            const borderColor = {
+              critical: 'border-pink-200',
+              high: 'border-red-200',
+              medium: 'border-yellow-200',
+              low: 'border-green-200',
+            };
+            const statusList = defectStatuses.map(s => s.defectStatusName);
+            const statusColorMap = Object.fromEntries(defectStatuses.map(s => [s.defectStatusName, s.color || '#ccc']));
+            const defectsBySeverity = filteredDefects.filter(d => (d.severity_name || '').toLowerCase() === severity);
+            const total = defectsBySeverity.length;
+            // Count by status
+            const statusCounts = statusList.map(status =>
+              defectsBySeverity.filter(d => (d.defect_status_name || '').toLowerCase() === status.toLowerCase()).length
+            );
+            // Split status legend into two columns
+            const half = Math.ceil(statusList.length / 2);
+            const leftStatuses = statusList.slice(0, half);
+            const rightStatuses = statusList.slice(half);
+            return (
+              <div
+                key={severity}
+                className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity]} ${colorMap[severity]}`}
+              >
+                <div className="flex items-center justify-between px-6 pt-4 pb-1">
+                  <span className={`font-semibold text-base ${titleColor[severity]}`}>{severityLabel}</span>
+                  <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
+                </div>
+                <div className="flex flex-row gap-8 px-6 pb-1">
+                  <div className="flex flex-col gap-1">
+                    {leftStatuses.map((status, idx) => (
+                      <div key={status} className="flex items-center gap-2 text-xs">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                        <span className="text-gray-700 font-normal">{status}</span>
+                        <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {rightStatuses.map((status, idx) => (
+                      <div key={status} className="flex items-center gap-2 text-xs">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                        <span className="text-gray-700 font-normal">{status}</span>
+                        <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Add Defect Button */}
       <div className="flex justify-between items-center m-4">
@@ -1385,9 +1457,34 @@ export const Defects: React.FC = () => {
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-sm text-gray-700">
-                Page {currentPage} of {totalPages}
-              </span>
+              {/* Page number range */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                // Show first, last, current, and neighbors; collapse others with ...
+                const isCurrent = pageNum === currentPage;
+                const isEdge = pageNum === 1 || pageNum === totalPages;
+                const isNear = Math.abs(pageNum - currentPage) <= 1;
+                if (isEdge || isNear) {
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`px-2 py-1 rounded text-sm font-medium ${isCurrent ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-blue-100'}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                      disabled={isCurrent}
+                      style={{ minWidth: 32 }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                }
+                // Show ... after first and before last if needed
+                if (pageNum === 2 && currentPage > 3) {
+                  return <span key="start-ellipsis" className="px-2">...</span>;
+                }
+                if (pageNum === totalPages - 1 && currentPage < totalPages - 2) {
+                  return <span key="end-ellipsis" className="px-2">...</span>;
+                }
+                return null;
+              })}
               <Button
                 type="button"
                 variant="secondary"
@@ -1396,6 +1493,24 @@ export const Defects: React.FC = () => {
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
+              {/* Page number input */}
+              <span className="ml-4 text-sm text-gray-700">Go to</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={currentPage}
+                onChange={e => {
+                  let val = Number(e.target.value);
+                  if (isNaN(val)) val = 1;
+                  if (val < 1) val = 1;
+                  if (val > totalPages) val = totalPages;
+                  setCurrentPage(val);
+                }}
+                className="w-16 px-2 py-1 border border-gray-300 rounded text-center mx-1 text-sm"
+                style={{ minWidth: 48 }}
+              />
+              <span className="text-sm text-gray-700">/ {totalPages}</span>
             </div>
           )}
         </CardContent>
