@@ -95,7 +95,7 @@ export const ModuleManagement: React.FC = () => {
 
   // New state for developers assigned to modules/submodules
   const [moduleDevelopers, setModuleDevelopers] = useState<Record<string, any[]>>({});
-console.log(projectId, "projectId from params in module management page");
+  console.log(projectId, "projectId from params in module management page");
 
   // useEffect(() => {
   //   if (projectId) {
@@ -117,7 +117,7 @@ console.log(projectId, "projectId from params in module management page");
     try {
       const response = await getDevelopersWithRolesByProjectId(Number(selectedProjectId));
       console.log(response);
-      
+
       if (response && response.status === "success" && Array.isArray(response.data)) {
         // If response.data is already an array of { name, role, projectAllocationId }
         setDevelopersWithRoles(response.data);
@@ -231,7 +231,7 @@ console.log(projectId, "projectId from params in module management page");
           const response = await deleteModuleApi(Number(moduleId));
           console.log("------------------");
           console.log(response, "Delete module response");
-          
+
           if (response.status === "success") {
             // Refresh modules after deleting
             await fetchModules();
@@ -294,7 +294,7 @@ console.log(projectId, "projectId from params in module management page");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
-    } catch (error:any) {
+    } catch (error: any) {
       if (error.response && error.response.status === 409) {
         alert("Developer is already assigned to this module or submodule.");
       } else {
@@ -447,10 +447,10 @@ console.log(projectId, "projectId from params in module management page");
 
   // Defensive logging and type normalization for project lookup
   console.log("Selected Project ID:", selectedProjectId);
-  
+
 
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
- 
+
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
@@ -704,36 +704,36 @@ console.log(projectId, "projectId from params in module management page");
                                             type="button"
                                             className="p-1 hover:text-red-600"
                                             title="Delete Submodule"
-                                                                                    onClick={async () => {
-                                          if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                            try {
-                                              const response = await deleteSubmoduleApi(Number(sub.id));
-                                              if (response.status === "success" || response.success) {
-                                                // Refresh modules after deleting submodule
-                                                await fetchModules();
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                                await fetchModules();
-                                              }
-                                            } catch (error: any) {
-                                              if (error.response && error.response.data) {
-                                                const errorData = error.response.data;
-                                                if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-                                                  setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
-                                                } else {
-                                                  setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
+                                            onClick={async () => {
+                                              if (window.confirm('Are you sure you want to delete this submodule?')) {
+                                                try {
+                                                  const response = await deleteSubmoduleApi(Number(sub.id));
+                                                  if (response.status === "success" || response.success) {
+                                                    // Refresh modules after deleting submodule
+                                                    await fetchModules();
+                                                    setAlertMessage('Submodule deleted successfully!');
+                                                    setAlertOpen(true);
+                                                  } else {
+                                                    setAlertMessage('Submodule deleted successfully!');
+                                                    setAlertOpen(true);
+                                                    await fetchModules();
+                                                  }
+                                                } catch (error: any) {
+                                                  if (error.response && error.response.data) {
+                                                    const errorData = error.response.data;
+                                                    if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+                                                      setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
+                                                    } else {
+                                                      setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
+                                                    }
+                                                    setAlertOpen(true);
+                                                  } else {
+                                                    setAlertMessage('Failed to delete submodule. Please try again.');
+                                                    setAlertOpen(true);
+                                                  }
                                                 }
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Failed to delete submodule. Please try again.');
-                                                setAlertOpen(true);
                                               }
-                                            }
-                                          }
-                                        }}
+                                            }}
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>
@@ -949,12 +949,15 @@ console.log(projectId, "projectId from params in module management page");
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {dev.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {dev.role}
-                      </div>
+                      {(() => {
+                        const [name, role] = dev.userWithRole.split("-");
+                        return (
+                          <>
+                            <div className="text-sm font-medium text-gray-900">{name}</div>
+                            <div className="text-xs text-gray-500">{role}</div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))
