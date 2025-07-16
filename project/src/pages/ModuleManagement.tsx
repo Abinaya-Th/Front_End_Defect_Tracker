@@ -119,12 +119,8 @@ console.log(projectId, "projectId from params in module management page");
       console.log(response);
       
       if (response && response.status === "success" && Array.isArray(response.data)) {
-        const parsed = response.data.map((item: string) => {
-          const [name, role] = item?.userWithRole.split("-");
-          const projectAllocationId = item?.projectAllocationId || null;
-          return { name: name?.trim() || "", role: role?.trim() || "", projectAllocationId: item?.projectAllocationId };
-        });
-        setDevelopersWithRoles(parsed);
+        // If response.data is already an array of { name, role, projectAllocationId }
+        setDevelopersWithRoles(response.data);
       } else {
         setDevelopersWithRoles([]);
       }
@@ -509,6 +505,16 @@ console.log(projectId, "projectId from params in module management page");
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Back Button at the top right */}
+      <div className="mb-4 flex justify-end">
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${projectId}/project-management`)}
+          className="flex items-center"
+        >
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
+        </Button>
+      </div>
       <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       {!selectedProjectId ? (
         <div className="p-8 text-center text-gray-500">
@@ -1086,7 +1092,7 @@ console.log(projectId, "projectId from params in module management page");
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={[]} />
       </div >
     </div >
   );

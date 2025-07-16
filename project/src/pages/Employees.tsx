@@ -235,8 +235,8 @@ export const Employees: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error creating user:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to create user";
-      showCreateAlert(`Failed to create user: ${errorMessage}`);
+      // Always show the user-friendly duplicate message
+      showCreateAlert("Failed to create user: user details already exist");
     }
   };
 

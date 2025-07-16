@@ -238,6 +238,16 @@ export const ReleaseView: React.FC = () => {
   // Render
   return (
     <div className="max-w-6xl mx-auto py-8">
+      {/* Back Button at the top right */}
+      <div className="mb-4 flex justify-end">
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${projectId}/project-management`)}
+          className="flex items-center"
+        >
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
+        </Button>
+      </div>
       {/* Project Selection Panel */}
       <ProjectSelector
         projects={projects}
