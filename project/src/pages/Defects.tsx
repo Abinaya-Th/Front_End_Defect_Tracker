@@ -161,6 +161,26 @@ export const Defects: React.FC = () => {
     });
   }, [selectedProjectId]);
 
+  // Helper to map backend defect fields to frontend expected fields
+  const mapDefect = (d: any) => ({
+    id: d.id,
+    defectId: d.defect_id,
+    module_name: d.module_name,
+    sub_module_name: d.sub_module_name,
+    defect_type_name: d.type_name,
+    severity_name: d.severity_name,
+    priority_name: d.priority_name,
+    defect_status_name: d.status_name,
+    assigned_by_name: d.assigned_by_name,
+    assigned_to_name: d.assigned_to_name,
+    release_name: d.release_name,
+    description: d.description,
+    steps: d.steps,
+    reOpenCount: d.re_open_count,
+    attachment: d.attachment,
+    testCaseId: d.test_case_id,
+  });
+
   // Fetch defects when project changes or filters change
   const fetchData = () => {
     const hasFilters =
@@ -173,9 +193,9 @@ export const Defects: React.FC = () => {
     if (!hasFilters) {
       // No filters: use the new project endpoint
       axios
-        .get(`http://192.168.1.107:8080/api/v1/defect/project/${selectedProjectId}`)
+        .get(`${import.meta.env.VITE_BASE_URL}defect/project/${selectedProjectId}`)
         .then((res) => {
-          setBackendDefects(res.data.data || []);
+          setBackendDefects((res.data.data || []).map(mapDefect));
         })
         .catch((err) => {
           setBackendDefects([]);
@@ -195,7 +215,7 @@ export const Defects: React.FC = () => {
         releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
       };
       filterDefects(backendFilters)
-        .then(setBackendDefects)
+        .then((data) => setBackendDefects((data || []).map(mapDefect)))
         .catch(error => {
           // Only log the error once, not on every render
           if (error && backendDefects.length === 0) {
@@ -265,23 +285,21 @@ export const Defects: React.FC = () => {
     // Removed userList validation - allow submission even without users
     // The API can handle null values for assigntoId
 
-    const payload = {
+    const payload: any = {
       description: formData.description,
-      severityId: Number(formData.severityId),
-      priorityId: Number(formData.priorityId),
-      typeId: Number(formData.typeId),
-      assigntoId: Number(formData.assigntoId) || null, // Ensure number or null
-      attachment: formData.attachment || undefined,
-      assignbyId: Number(formData.assignbyId) || null, // Ensure number or null
-      steps: formData.steps || undefined,
       projectId: Number(selectedProjectId),
+      releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
       modulesId: Number(formData.moduleId),
-      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
-      defectStatusId: formData.statusId
-        ? Number(formData.statusId)
-        : (defectStatuses.find(s => s.defectStatusName.toLowerCase().startsWith("new"))?.id ?? null),
-      reOpenCount: 0, // Default value as per API sample
-      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // <-- Ensure releaseId is always included
+      steps: formData.steps || undefined,
+      typeId: formData.typeId ? Number(formData.typeId) : undefined,
+      severityId: formData.severityId ? Number(formData.severityId) : undefined,
+      priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
+      assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+      assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+      attachment: formData.attachment || undefined,
+      defectStatusId: formData.statusId ? Number(formData.statusId) : undefined,
+      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
+      testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
     };
     try {
       const response = await addDefects(payload as any);
@@ -790,7 +808,7 @@ export const Defects: React.FC = () => {
     setIsUsersLoading(true);
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://192.168.1.107:8080/api/v1/user';
+    const userApiUrl = `${import.meta.env.VITE_BASE_URL}user`;
 
     axios.get(userApiUrl).then(res => {
       if (res.data && Array.isArray(res.data.data)) {

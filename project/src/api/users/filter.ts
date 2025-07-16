@@ -30,5 +30,3 @@ export const getUsersByFilter = (gender?: string, status?: string, designationId
   url += params.join('&');
   return axios.get<GetUsersByFilterResponse>(url).then(({ data }) => data);
 };
-//http://192.168.1.107:8080/api/v1/users/filter?userStaus=Active
-//http://192.168.1.107:8080/api/v1/users/filter?designationId=1
