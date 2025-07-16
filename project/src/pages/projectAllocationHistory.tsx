@@ -188,13 +188,16 @@ const ProjectAllocationHistory: React.FC = () => {
     <div className="max-w-6xl mx-auto p-6">
       {/* Header with Back Button */}
       <div className="mb-6">
-        <Button
-          variant="secondary"
-          onClick={() => navigate(`/projects/${projectId}/project-management`)}
-          className="flex items-center mb-4"
-        >
-          <ChevronLeft className="w-5 h-5 mr-2" /> Back to Project Management
-        </Button>
+        {/* Back Button at the top right, like ModuleManagement */}
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/projects/${projectId}/project-management`)}
+            className="flex items-center"
+          >
+            <ChevronLeft className="w-5 h-5 mr-2" /> Back
+          </Button>
+        </div>
         <div className="flex items-center gap-3">
           <Users className="w-8 h-8 text-blue-500" />
           <h1 className="text-3xl font-bold text-gray-900">Project Allocation History</h1>
