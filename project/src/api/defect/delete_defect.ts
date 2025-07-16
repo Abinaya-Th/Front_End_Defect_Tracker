@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use the correct API base URL structure
-const API_URL = 'http://192.168.1.107:8080/api/v1/defect';
+const API_URL = import.meta.env.VITE_BASE_URL + 'defect';
 
 export const deleteDefectById = async (defectId: string) => {
   try {
