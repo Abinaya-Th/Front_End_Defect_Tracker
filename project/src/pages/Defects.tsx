@@ -933,26 +933,24 @@ export const Defects: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {['high', 'medium', 'low'].map(severity => {
             const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
-            const colorMap = {
-              critical: 'border-l-4 border-pink-600',
+            const colorMap: Record<string, string> = {
               high: 'border-l-4 border-red-500',
               medium: 'border-l-4 border-yellow-400',
               low: 'border-l-4 border-green-500',
             };
-            const titleColor = {
-              critical: 'text-pink-600',
+            const titleColor: Record<string, string> = {
               high: 'text-red-500',
               medium: 'text-yellow-500',
               low: 'text-green-500',
             };
-            const borderColor = {
-              critical: 'border-pink-200',
+            const borderColor: Record<string, string> = {
               high: 'border-red-200',
               medium: 'border-yellow-200',
               low: 'border-green-200',
             };
             const statusList = defectStatuses.map(s => s.defectStatusName);
-            const statusColorMap = Object.fromEntries(defectStatuses.map(s => [s.defectStatusName, s.color || '#ccc']));
+            // Use optional chaining for color property
+            const statusColorMap = Object.fromEntries(defectStatuses.map(s => [s.defectStatusName, (s as any).color || '#ccc']));
             const defectsBySeverity = filteredDefects.filter(d => (d.severity_name || '').toLowerCase() === severity);
             const total = defectsBySeverity.length;
             // Count by status
@@ -966,10 +964,10 @@ export const Defects: React.FC = () => {
             return (
               <div
                 key={severity}
-                className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity]} ${colorMap[severity]}`}
+                className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
               >
                 <div className="flex items-center justify-between px-6 pt-4 pb-1">
-                  <span className={`font-semibold text-base ${titleColor[severity]}`}>{severityLabel}</span>
+                  <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
                   <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
                 </div>
                 <div className="flex flex-row gap-8 px-6 pb-1">
