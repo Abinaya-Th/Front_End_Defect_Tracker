@@ -30,7 +30,7 @@ export const addDefects = (payload: DefectCreate): Promise<DefectCreateProps> =>
 
 
   return axios
-    .post<DefectCreateProps>(`${BASE_URL}defect/withoutReleaseTestCaseId`, payload)
+    .post<DefectCreateProps>(`${BASE_URL}defect`, payload)
     .then(({ data }) => {
       return data;
     })
