@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Employee } from '../../types/index';
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_BASE_URL.replace(/\/$/, '');
 
 export interface BenchSearchParams {
   startDate?: string;
