@@ -21,8 +21,6 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
@@ -2179,21 +2177,6 @@ export const Defects: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
-        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} onDefectAdded={fetchData} />
-      </div>
 
       <AlertModal isOpen={alert.open} message={alert.message} onClose={closeAlert} />
       <ConfirmModal

@@ -355,7 +355,7 @@ export const Employees: React.FC = () => {
       designation: employee.designation,
       experience: employee.experience,
       // Convert join date to YYYY-MM-DD for input type="date"
-      joinedDate: employee.joinedDate ? new Date(employee.joinedDate).toISOString().slice(0, 10) : "",
+      joinedDate: employee.joinedDate ? getInputDateStringLocal(employee.joinedDate) : "",
     
       availability: employee.availability,
       status: employee.status === "active" ? true : false,
@@ -435,6 +435,26 @@ export const Employees: React.FC = () => {
     const num = typeof id === 'string' ? parseInt(id, 10) : id;
     if (isNaN(num)) return String(id);
     return `US${num.toString().padStart(4, '0')}`;
+  }
+
+  // Helper to get YYYY-MM-DD in UTC for input type="date"
+  function getInputDateString(dateString: string): string {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Helper to get YYYY-MM-DD in local time for input type="date"
+  function getInputDateStringLocal(dateString: string): string {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   return (

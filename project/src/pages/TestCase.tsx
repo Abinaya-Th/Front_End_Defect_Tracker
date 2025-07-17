@@ -13,8 +13,7 @@ import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
 import AlertModal from "../components/ui/AlertModal";
 import { useParams, useNavigate } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
@@ -60,6 +59,12 @@ export const TestCase: React.FC = () => {
   useEffect(() => {
     getAllProjects().then(res => setProjects(res));
   }, []);
+
+  // Reset module and submodule when project changes
+  useEffect(() => {
+    setSelectedModuleId(null);
+    setSelectedSubmoduleId(null);
+  }, [selectedProjectId]);
 
   // Fetch static data only once on mount
   useEffect(() => {
@@ -847,11 +852,7 @@ export const TestCase: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
-            <p className="text-sm text-gray-500">
-              {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.name || ''}`
-                : "Select a project to begin"}
-            </p>
+            
           </div>
         </div>
 
@@ -884,105 +885,110 @@ export const TestCase: React.FC = () => {
           )}
 
           {/* Submodule Selection Panel */}
-          {selectedProjectId && selectedModuleId && (
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Submodule Selection
-                  </h2>
-                </div>
-                {submoduleError && (
-                  <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
-                )}
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("submodule-scroll");
-                      if (container) container.scrollLeft -= 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <div
-                    id="submodule-scroll"
-                    className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
-                    style={{
-                      scrollbarWidth: "none",
-                      msOverflowStyle: "none",
-                      maxWidth: "100%",
-                    }}
-                  >
-                    {submodules.map((x: any) => {
-                      // Count all test cases for this submodule, regardless of selection
-                      const submoduleTestCases = allSubmoduleTestCases[String(x.subModuleId)] || [];
-                      return (
-                        <div key={x.subModuleId} className="flex items-center">
-                          <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
-                            <Button
-                              variant={
-                                selectedSubmoduleId === x.subModuleId
-                                  ? "primary"
-                                  : "secondary"
-                              }
-                              onClick={() => handleSubmoduleSelect(x.subModuleId)}
-                              className="whitespace-nowrap border-0 m-2"
-                            >
-                              {x.subModuleName}
-                              <Badge variant="info" className="ml-2">
-                                {submoduleTestCases.length}
-                              </Badge>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-
-                                setModals((prev) => {
-                                  const newModals = [
-                                    ...prev,
-                                    {
-                                      open: true,
-                                      formData: {
-                                        module: x.moduleName,
-                                        subModule: x.subModuleName,
-                                        description: "",
-                                        steps: "",
-                                        type: "functional",
-                                        severity: "", // changed from "medium"
-                                        projectId: selectedProjectId,
-                                      },
-                                    },
-                                  ];
-                                  setCurrentModalIdx(newModals.length - 1);
-                                  return newModals;
-                                });
-                              }}
-                              className="p-1 border-0 hover:bg-gray-50"
-                              disabled={selectedSubmoduleId !== x.subModuleId}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
+          {selectedProjectId && (
+            selectedModuleId ? (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Submodule Selection
+                    </h2>
                   </div>
-                  <button
-                    onClick={() => {
-                      const container =
-                        document.getElementById("submodule-scroll");
-                      if (container) container.scrollLeft += 200;
-                    }}
-                    className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+                  {submoduleError && (
+                    <div className="mb-2 text-red-600 text-sm">{submoduleError}</div>
+                  )}
+                  <div className="relative flex items-center">
+                    <button
+                      onClick={() => {
+                        const container =
+                          document.getElementById("submodule-scroll");
+                        if (container) container.scrollLeft -= 200;
+                      }}
+                      className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 mr-2"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <div
+                      id="submodule-scroll"
+                      className="flex space-x-2 overflow-x-auto pb-2 scroll-smooth flex-1"
+                      style={{
+                        scrollbarWidth: "none",
+                        msOverflowStyle: "none",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {submodules.map((x: any) => {
+                        // Count all test cases for this submodule, regardless of selection
+                        const submoduleTestCases = allSubmoduleTestCases[String(x.subModuleId)] || [];
+                        return (
+                          <div key={x.subModuleId} className="flex items-center">
+                            <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white hover:border-gray-300 transition-colors">
+                              <Button
+                                variant={
+                                  selectedSubmoduleId === x.subModuleId
+                                    ? "primary"
+                                    : "secondary"
+                                }
+                                onClick={() => handleSubmoduleSelect(x.subModuleId)}
+                                className="whitespace-nowrap border-0 m-2"
+                              >
+                                {x.subModuleName}
+                                <Badge variant="info" className="ml-2">
+                                  {submoduleTestCases.length}
+                                </Badge>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setModals((prev) => {
+                                    const newModals = [
+                                      ...prev,
+                                      {
+                                        open: true,
+                                        formData: {
+                                          module: x.moduleName,
+                                          subModule: x.subModuleName,
+                                          description: "",
+                                          steps: "",
+                                          type: "functional",
+                                          severity: "", // changed from "medium"
+                                          projectId: selectedProjectId,
+                                        },
+                                      },
+                                    ];
+                                    setCurrentModalIdx(newModals.length - 1);
+                                    return newModals;
+                                  });
+                                }}
+                                className="p-1 border-0 hover:bg-gray-50"
+                                disabled={selectedSubmoduleId !== x.subModuleId}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const container =
+                          document.getElementById("submodule-scroll");
+                        if (container) container.scrollLeft += 200;
+                      }}
+                      className="flex-shrink-0 z-10 bg-white shadow-md rounded-full p-1 hover:bg-gray-50 ml-2"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-center">
+                Please select a module first.
+              </div>
+            )
           )}
 
           {/* Bulk Operations Panel */}
@@ -1631,22 +1637,6 @@ export const TestCase: React.FC = () => {
           </div>
         </div>
       </Modal>
-
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId} onTestCaseAdded={refreshTestCases} />
-        <QuickAddDefect projectModules={projectModules} />
-      </div>
 
       {/* Create Alert Modal */}
       <AlertModal

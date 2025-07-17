@@ -37,6 +37,15 @@ export const Bench: React.FC = () => {
     endDate: '',
   });
 
+  // Add state for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(employees.length / pageSize);
+  const paginatedEmployees = employees.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -347,7 +356,7 @@ export const Bench: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((employee: Employee) => {
+                {paginatedEmployees.map((employee: Employee) => {
                   const availabilityStatus = getAvailabilityStatus(employee.availability);
                   return (
                     <TableRow key={employee.id}>
@@ -436,6 +445,69 @@ export const Bench: React.FC = () => {
                   ? 'Try adjusting your search filters' 
                   : 'Try adjusting your filters or add employees to the bench'}
               </p>
+            </div>
+          )}
+          {/* Pagination Controls - now inside the card */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 py-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                &lt;
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                const isCurrent = pageNum === currentPage;
+                const isEdge = pageNum === 1 || pageNum === totalPages;
+                const isNear = Math.abs(pageNum - currentPage) <= 1;
+                if (isEdge || isNear) {
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`px-2 py-1 rounded text-sm font-medium ${isCurrent ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-blue-100'}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                      disabled={isCurrent}
+                      style={{ minWidth: 32 }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                }
+                if (pageNum === 2 && currentPage > 3) {
+                  return <span key="start-ellipsis" className="px-2">...</span>;
+                }
+                if (pageNum === totalPages - 1 && currentPage < totalPages - 2) {
+                  return <span key="end-ellipsis" className="px-2">...</span>;
+                }
+                return null;
+              })}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                &gt;
+              </Button>
+              <span className="ml-4 text-sm text-gray-700">Go to</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={currentPage}
+                onChange={e => {
+                  let val = Number(e.target.value);
+                  if (isNaN(val)) val = 1;
+                  if (val < 1) val = 1;
+                  if (val > totalPages) val = totalPages;
+                  setCurrentPage(val);
+                }}
+                className="w-16 px-2 py-1 border border-gray-300 rounded text-center mx-1 text-sm"
+                style={{ minWidth: 48 }}
+              />
+              <span className="text-sm text-gray-700">/ {totalPages}</span>
             </div>
           )}
         </CardContent>
