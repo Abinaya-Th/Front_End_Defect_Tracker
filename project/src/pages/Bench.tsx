@@ -22,8 +22,7 @@ export const Bench: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [filters, setFilters] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     designation: '',
     availability: '',
     fromDate: '',
@@ -53,10 +52,18 @@ export const Bench: React.FC = () => {
     loadAllBenchEmployees();
   }, []);
 
-  // Filter employees based on criteria (now handled by API, but keeping local filtering as fallback)
+  // Filter employees by name (first or last, case-insensitive substring match)
   const filteredEmployees = useMemo(() => {
+    const nameFilter = filters.name.trim().toLowerCase();
     return employees
-      .filter(emp => emp.availability > 0) // Only show employees with availability > 0
+      .filter(emp => emp.availability > 0)
+      .filter(emp => {
+        if (!nameFilter) return true;
+        return (
+          (emp.firstName && emp.firstName.toLowerCase().includes(nameFilter)) ||
+          (emp.lastName && emp.lastName.toLowerCase().includes(nameFilter)) || (emp.firstName && emp.lastName && (emp.firstName + ' ' + emp.lastName).toLowerCase().includes(nameFilter))
+        );
+      })
       .sort((a, b) => b.availability - a.availability);
   }, [employees, filters]);
 
@@ -65,44 +72,51 @@ export const Bench: React.FC = () => {
     return allDesignations;
   }, [allDesignations]);
 
+  // Utility to normalize filter values (trim and collapse spaces)
+  const normalizeFilterValue = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const normalizeFilters = (filtersObj: typeof filters): typeof filters => ({
+    name: normalizeFilterValue(filtersObj.name),
+    designation: normalizeFilterValue(filtersObj.designation),
+    availability: normalizeFilterValue(filtersObj.availability),
+    fromDate: normalizeFilterValue(filtersObj.fromDate),
+    toDate: normalizeFilterValue(filtersObj.toDate),
+  });
+
   const handleFilterChange = async (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
-
-    // For search field, don't trigger API call immediately
-    if (field === 'firstName' || field === 'lastName') {
-      return;
-    }
-
+    // For name search, don't trigger API call immediately (filter is local)
+    if (field === 'name') return;
     // For other filters, perform search immediately
     const newFilters = { ...filters, [field]: value };
-    const hasActiveFilters = Object.values(newFilters).some(filter => filter !== '');
-
+    const normalizedFilters = normalizeFilters(newFilters);
+    const hasActiveFilters = Object.entries(normalizedFilters).some(([k, v]) => k !== 'name' && v !== '');
     if (hasActiveFilters) {
-      await performSearch(newFilters);
+      await performSearch(normalizedFilters);
     } else {
-      // If no filters, load all bench employees
       loadAllBenchEmployees();
     }
   };
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
-
+    // Only trigger API search for non-name filters
+    const normalizedFilters = normalizeFilters(filters);
+    const hasActiveFilters = Object.entries(normalizedFilters).some(([k, v]) => k !== 'name' && v !== '');
     if (hasActiveFilters) {
-      await performSearch(filters);
+      await performSearch(normalizedFilters);
     } else {
       loadAllBenchEmployees();
     }
   };
 
   const handleSearchKeyDown = async (e: React.KeyboardEvent) => {
+    // Only trigger API search for non-name filters
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
-      const hasActiveFilters = Object.values(filters).some(filter => filter !== '');
-
+      const normalizedFilters = normalizeFilters(filters);
+      const hasActiveFilters = Object.entries(normalizedFilters).some(([k, v]) => k !== 'name' && v !== '');
       if (hasActiveFilters) {
-        await performSearch(filters);
+        await performSearch(normalizedFilters);
       } else {
         loadAllBenchEmployees();
       }
@@ -112,24 +126,23 @@ export const Bench: React.FC = () => {
   const performSearch = async (searchFilters: typeof filters) => {
     setIsSearching(true);
     try {
+      // Normalize all filters before sending to API
+      const normalizedFilters = normalizeFilters(searchFilters);
       const searchParams: BenchSearchParams = {};
-      if (searchFilters.firstName) {
-        searchParams.firstName = searchFilters.firstName;
+      if (normalizedFilters.name) {
+        searchParams.name = normalizedFilters.name;
       }
-      if (searchFilters.lastName) {
-        searchParams.lastName = searchFilters.lastName;
+      if (normalizedFilters.designation) {
+        searchParams.designation = normalizedFilters.designation;
       }
-      if (searchFilters.designation) {
-        searchParams.designation = searchFilters.designation;
+      if (normalizedFilters.availability) {
+        searchParams.availability = parseInt(normalizedFilters.availability);
       }
-      if (searchFilters.availability) {
-        searchParams.availability = parseInt(searchFilters.availability);
+      if (normalizedFilters.fromDate) {
+        searchParams.startDate = normalizedFilters.fromDate;
       }
-      if (searchFilters.fromDate) {
-        searchParams.startDate = searchFilters.fromDate;
-      }
-      if (searchFilters.toDate) {
-        searchParams.endDate = searchFilters.toDate;
+      if (normalizedFilters.toDate) {
+        searchParams.endDate = normalizedFilters.toDate;
       }
 
       console.log('Search params:', searchParams);
@@ -225,24 +238,13 @@ export const Bench: React.FC = () => {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[180px]">
+            {/* Single search box for both first and last name */}
+            <div className="relative flex-1 min-w-[240px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="First Name"
-                value={filters.firstName}
-                onChange={(e) => handleFilterChange('firstName', e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                className="pl-10"
-                disabled={isSearching}
-              />
-            </div>
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Last Name"
-                value={filters.lastName}
-                onChange={(e) => handleFilterChange('lastName', e.target.value)}
-                onKeyDown={handleSearchKeyDown}
+                placeholder="Search by name..."
+                value={filters.name}
+                onChange={e => handleFilterChange('name', e.target.value)}
                 className="pl-10"
                 disabled={isSearching}
               />
@@ -302,8 +304,7 @@ export const Bench: React.FC = () => {
               variant="secondary"
               onClick={() => {
                 setFilters({
-                  firstName: '',
-                  lastName: '',
+                  name: '',
                   designation: '',
                   availability: '',
                   fromDate: '',
@@ -435,13 +436,13 @@ export const Bench: React.FC = () => {
             <div className="p-12 text-center">
               <UserCheck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {Object.values(filters).some(filter => filter !== '')
+                {Object.entries(filters).some(([k, v]) => v !== '')
                   ? 'User not found'
                   : 'No employees found'}
               </h3>
               <p className="text-gray-500">
-                {Object.values(filters).some(filter => filter !== '')
-                  ? 'Try adjusting your search filters'
+                {Object.entries(filters).some(([k, v]) => v !== '') 
+                  ? 'Try adjusting your search filters' 
                   : 'Try adjusting your filters or add employees to the bench'}
               </p>
             </div>
