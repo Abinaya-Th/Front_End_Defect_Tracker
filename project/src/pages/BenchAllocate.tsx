@@ -310,6 +310,53 @@ export default function BenchAllocate() {
             setAlertModal({ open: true, message: 'Please select a project first' });
             return;
         }
+        // Client-side validation for role selection
+        const missingRole = updatedEmployees.some(emp => !emp.roleId || emp.roleId === '');
+        if (missingRole) {
+            setAlertModal({ open: true, message: 'Role information is required' });
+            return;
+        }
+        // Client-side validation for start date and end date
+        const missingStartDate = updatedEmployees.some(emp => !emp.allocationStartDate || emp.allocationStartDate === '');
+        if (missingStartDate) {
+            setAlertModal({ open: true, message: 'Start date is required' });
+            return;
+        }
+        const missingEndDate = updatedEmployees.some(emp => !emp.allocationEndDate || emp.allocationEndDate === '');
+        if (missingEndDate) {
+            setAlertModal({ open: true, message: 'End date is required' });
+            return;
+        }
+        const invalidDateOrder = updatedEmployees.some(emp => 
+            emp.allocationStartDate && emp.allocationEndDate &&
+            new Date(emp.allocationStartDate) >= new Date(emp.allocationEndDate)
+        );
+        if (invalidDateOrder) {
+            setAlertModal({ open: true, message: 'Start date must be before end date.' });
+            return;
+        }
+        // Client-side validation for allocation availability
+        const missingAvailability = updatedEmployees.some(emp => emp.allocationAvailability === undefined || emp.allocationAvailability === null || emp.allocationAvailability === '');
+        if (missingAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage is required' });
+            return;
+        }
+        const invalidAvailability = updatedEmployees.some(emp => 
+            isNaN(Number(emp.allocationAvailability)) ||
+            Number(emp.allocationAvailability) < 1 ||
+            Number(emp.allocationAvailability) > 100
+        );
+        if (invalidAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage must be between 1 and 100' });
+            return;
+        }
+        const exceedsMaxAvailability = updatedEmployees.some(emp =>
+            Number(emp.allocationAvailability) > Number(emp.availability)
+        );
+        if (exceedsMaxAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage cannot exceed employee availability' });
+            return;
+        }
         setIsAllocating(true);
         try {
             const allocationErrors = [];
