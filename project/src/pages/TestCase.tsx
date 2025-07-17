@@ -1349,65 +1349,7 @@ console.log("paginatedTestCases", paginatedTestCases);
               >
                 <div className="flex items-center mb-2">
                   {/* Only show import button in add mode */}
-                  {!isEditMode && (
-                    <button
-                      type="button"
-                      className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = ".xlsx,.csv";
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              const data = evt.target?.result;
-                              if (data) {
-                                const workbook = XLSX.read(data, { type: "binary" });
-                                const sheetName = workbook.SheetNames[0];
-                                const worksheet = workbook.Sheets[sheetName];
-                                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                                const rows = json
-                                  .slice(1)
-                                  .map((row: any[]) => ({
-                                    module: row[0] || "",
-                                    subModule: row[1] || "",
-                                    description: row[2] || "",
-                                    steps: row[3] || "",
-                                    type: row[4] || "functional",
-                                    severity: row[5] || "medium",
-                                    projectId: selectedProjectId,
-                                  }))
-                                  .filter((row) => row.module && row.subModule && row.description && row.steps);
-                                if (rows.length > 0) {
-                                  setModals(rows.map((row) => ({ open: true, formData: row })));
-                                  setCurrentModalIdx(0);
-                                }
-                              }
-                            };
-                            reader.readAsBinaryString(file);
-                          }
-                        };
-                        input.click();
-                      }}
-                    >
-                      <svg
-                        className="w-4 h-4 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
-                        />
-                      </svg>
-                      Import from Excel/CSV
-                    </button>
-                  )}
+                  
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   <div className="grid grid-cols-2 gap-4">
