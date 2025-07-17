@@ -341,7 +341,7 @@ export const Dashboard: React.FC = () => {
               return (
                 <div
                   key={severity}
-                  className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border-5 ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
+                  className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
                 >
                   <div className="flex items-center justify-between px-6 pt-4 pb-1">
                     <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
