@@ -14,6 +14,7 @@ import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardVie
 import axios from "axios";
 import { addDefects } from "../api/defect/addNewDefect";
 import { getAllocatedUsersByModuleId } from '../api/module/getModule';
+import AlertModal from '../components/ui/AlertModal';
 
 interface QuickAddDefectProps {
   projectModules: { id: string; name: string; submodules: { id: string; name: string }[] }[];
@@ -51,6 +52,11 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
   // Add state for allocated users for the selected module
   const [allocatedUsers, setAllocatedUsers] = useState<{ userId: number; userName: string }[]>([]);
   const [isAllocatedUsersLoading, setIsAllocatedUsersLoading] = useState(false);
+
+  // Add state for alert modal
+  const [alert, setAlert] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const showAlert = (message: string) => setAlert({ open: true, message });
+  const closeAlert = () => setAlert({ open: false, message: '' });
 
   // Fetch static data only once on mount
   useEffect(() => {
@@ -121,26 +127,34 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(true);
-    // Prepare payload for backend API
-    const payload = {
+
+    // Build the payload to match Defects.tsx
+    const payload: any = {
       description: formData.description,
-      severityId: Number(formData.severityId),
-      priorityId: Number(formData.priorityId),
-      typeId: Number(formData.typeId),
-      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // Ensure number or null
-      attachment: formData.attachment || undefined,
-      assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // Ensure number or null
-      steps: formData.steps || undefined,
       projectId: Number(selectedProjectId),
+      releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
       modulesId: Number(formData.moduleId),
-      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
-      defectStatusId: formData.statusId ? Number(formData.statusId) : null,
+      steps: formData.steps || undefined,
+      typeId: formData.typeId ? Number(formData.typeId) : undefined,
+      severityId: formData.severityId ? Number(formData.severityId) : undefined,
+      priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
+      assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+      attachment: formData.attachment || undefined,
+      // defectStatusId: only include if editing (see below)
+      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
+      testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
       reOpenCount: 0,
-      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // Add releaseId to payload
     };
+    // Only include defectStatusId if editing (i.e., formData.statusId is set)
+    if (formData.statusId) {
+      payload.defectStatusId = Number(formData.statusId);
+    }
+
     try {
       const response = await addDefects(payload as any);
       if (response.status === "Success" || response.statusCode === 200) {
+        showAlert("Defect added successfully!");
         setTimeout(() => {
           setSuccess(false);
           setIsModalOpen(false);
@@ -159,15 +173,19 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
             statusId: "",
           });
         }, 1200);
-        alert("Defect added successfully!");
         if (onDefectAdded) onDefectAdded();
       } else {
         setSuccess(false);
-        alert("Failed to add defect: " + (response.message || "Unknown error"));
+        showAlert(response.message || "Failed to add defect.");
       }
     } catch (error: any) {
       setSuccess(false);
-      alert("Error adding defect. Please try again.\n" + (error?.message || error));
+      const backendMsg = error?.response?.data?.message;
+      if (backendMsg) {
+        showAlert(backendMsg);
+      } else {
+        showAlert("Error adding defect. Please try again.\n" + (error?.message || error));
+      }
     }
   };
 
@@ -179,15 +197,12 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
     try {
       const response = await importDefects(formData);
       if (response && response.data && Array.isArray(response.data)) {
-        // The original code had setModals and setCurrentModalIdx, which are removed.
-        // If the intent was to show a success message or redirect, this would need to be re-evaluated.
-        // For now, we'll just show an alert.
-        alert("Import succeeded but no data returned.");
+        showAlert("Import succeeded but no data returned.");
       } else {
-        alert("Import succeeded but no data returned.");
+        showAlert("Import succeeded but no data returned.");
       }
     } catch (error: any) {
-      alert("Failed to import defects: " + (error?.message || error));
+      showAlert("Failed to import defects: " + (error?.message || error));
     }
   };
 
@@ -414,6 +429,7 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
           </div>
         </form>
       </Modal>
+      <AlertModal isOpen={alert.open} message={alert.message} onClose={closeAlert} />
     </div>
   );
 };
