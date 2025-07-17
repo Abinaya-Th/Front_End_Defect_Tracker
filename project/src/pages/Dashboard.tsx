@@ -13,6 +13,7 @@ import { ProjectSelector } from '../components/ui/ProjectSelector';
 import DefectToRemarkRatio from '../components/ui/DefectToRemarkRatio';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { getAllDefectStatuses, DefectStatus } from '../api/defectStatus';
+import { getDefectSeverityIndex } from '../api/dashboard/dsi';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
@@ -38,10 +39,14 @@ export const Dashboard: React.FC = () => {
   const [statusTypes, setStatusTypes] = useState<DefectStatus[]>([]);
   const [loadingStatusTypes, setLoadingStatusTypes] = useState(true);
   const [statusTypesError, setStatusTypesError] = useState<string | null>(null);
+  const [dsi, setDsi] = useState<string | null>(null);
+  const [loadingDsi, setLoadingDsi] = useState(false);
+  const [dsiError, setDsiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProjectId) {
       setDefectSeveritySummary(null);
+      setDsi(null);
       return;
     }
     setLoadingSeveritySummary(true);
@@ -71,6 +76,29 @@ export const Dashboard: React.FC = () => {
       .catch((err) => {
         setSeveritySummaryError('Failed to load defect severity summary');
         setLoadingSeveritySummary(false);
+      });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDsi(null);
+      setDsiError(null);
+      return;
+    }
+    setLoadingDsi(true);
+    setDsiError(null);
+    getDefectSeverityIndex(selectedProjectId)
+      .then((data) => {
+        // Extract dsiPercentage from backend response
+        let value = data?.data?.dsiPercentage ?? null;
+        if (typeof value === 'number') value = value.toFixed(2);
+        setDsi(value?.toString() ?? null);
+        setLoadingDsi(false);
+      })
+      .catch((err) => {
+        setDsiError('Failed to load Defect Severity Index');
+        setDsi(null);
+        setLoadingDsi(false);
       });
   }, [selectedProjectId]);
 
@@ -471,20 +499,16 @@ export const Dashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
         <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Severity Index</h2>
         <div className="flex-1 flex flex-col items-center justify-center">
-          {(() => {
-            const critical = projectDefects.filter(d => d.severity === 'critical').length;
-            const high = projectDefects.filter(d => d.severity === 'high').length;
-            const medium = projectDefects.filter(d => d.severity === 'medium').length;
-            const low = projectDefects.filter(d => d.severity === 'low').length;
-            const total = projectDefects.length;
-            const index = total > 0 ? ((critical * 4 + high * 3 + medium * 2 + low * 1) / total).toFixed(2) : '0.00';
-            return (
-              <>
-                <span className="text-4xl font-bold text-orange-600 mb-2">{index}</span>
-                <span className="text-gray-700 text-center">Weighted severity score (higher = more severe defects)</span>
-              </>
-            );
-          })()}
+          {loadingDsi ? (
+            <span className="text-gray-400">Loading...</span>
+          ) : dsiError ? (
+            <span className="text-red-500">{dsiError}</span>
+          ) : (
+            <>
+              <span className="text-4xl font-bold text-orange-600 mb-2">{dsi ?? '0.00'}</span>
+              <span className="text-gray-700 text-center">Weighted severity score (higher = more severe defects)</span>
+            </>
+          )}
         </div>
       </div>
       {/* Defect to Remark Ratio Card */}
