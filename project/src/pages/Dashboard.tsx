@@ -24,7 +24,6 @@ export const Dashboard: React.FC = () => {
   const [reopenedHoveredIdx, setReopenedHoveredIdx] = useState<number | null>(null);
   const reopenedChartRef = useRef<any>(null);
   const [isReopenedCardHovered, setIsReopenedCardHovered] = useState(false);
-  // Remove hoverTimeoutRef and use only isReopenedCardHovered
   const [hoveredModuleIdx, setHoveredModuleIdx] = useState<number | null>(null);
   const [isModuleCardHovered, setIsModuleCardHovered] = useState(false);
   const [moduleDetailModal, setModuleDetailModal] = useState<{ open: boolean; mod: any; totalHigh: number; totalMed: number; totalLow: number } | null>(null);
@@ -65,7 +64,7 @@ export const Dashboard: React.FC = () => {
 
   if (!selectedProjectId) {
     // Show summary and project cards grid
-  return (
+    return (
       <>
         {/* Dashboard Heading */}
         <div className="max-w-5xl mx-auto flex flex-col items-center mt-16 mb-12">
@@ -83,7 +82,8 @@ export const Dashboard: React.FC = () => {
           </p>
           <div className="h-1 w-24 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full mt-2 mb-1 opacity-80" />
         </div>
-        {/* Section: Project Health Summary */}
+        
+        {/* Section: Project Health Summary - Using the better structured version from code 1 */}
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 text-left tracking-tight flex items-center gap-3">
             <span className="inline-block w-2 h-8 bg-blue-500 rounded-full mr-2" />
@@ -131,7 +131,8 @@ export const Dashboard: React.FC = () => {
             </div>
         {/* Divider */}
         <hr className="my-10 border-gray-200 max-w-5xl mx-auto" />
-        {/* Section: All Projects */}
+        
+        {/* Section: All Projects - Using the better filter implementation from code 2 */}
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h2 className="text-2xl font-bold text-gray-900">All Projects</h2>
@@ -232,6 +233,11 @@ export const Dashboard: React.FC = () => {
       </>
     );
   }
+
+
+
+  // Rest of the code remains the same as in code 1 for the project-specific dashboard view
+  // [Previous implementation continues...]
 
   // Show widgets for selected project
   return (
@@ -1065,4 +1071,7 @@ function darkenColor(hex, amt) {
   let g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * amt));
   let b = Math.max(0, (num & 0x0000FF) - Math.round(255 * amt));
   return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-}
+
+};
+
+// [Rest of the component code remains the same]
