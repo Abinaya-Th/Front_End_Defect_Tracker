@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
 import { createRelease } from "../api/createRelease/CreateRelease";
@@ -746,21 +745,7 @@ export const ReleaseView: React.FC = () => {
           </div>
         </form>
       </Modal>
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProject || ""} />
-        <QuickAddDefect projectModules={projectModules} />
-      </div>
+      
       <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       {/* Delete Confirmation Modal */}
       {confirmDeleteOpen && (

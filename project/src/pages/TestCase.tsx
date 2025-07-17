@@ -13,8 +13,7 @@ import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
 import AlertModal from "../components/ui/AlertModal";
 import { useParams, useNavigate } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 import * as XLSX from "xlsx";
 import { TestCase as TestCaseType } from "../types/index";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
@@ -1631,22 +1630,6 @@ export const TestCase: React.FC = () => {
           </div>
         </div>
       </Modal>
-
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId} onTestCaseAdded={refreshTestCases} />
-        <QuickAddDefect projectModules={projectModules} />
-      </div>
 
       {/* Create Alert Modal */}
       <AlertModal
