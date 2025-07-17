@@ -155,7 +155,7 @@ const StatusType: React.FC = () => {
       setPendingCreateSuccess(true);
     } catch (error: any) {
       setApiError(error.message);
-      setCreateAlert({ isOpen: true, message: '  Status Name can only contain alphabets and spaces.' });
+      setCreateAlert({ isOpen: true, message: 'DefectStatusName already exists' });
     } finally {
       setLoading(false);
     }
@@ -186,7 +186,7 @@ const StatusType: React.FC = () => {
       setEditAlert({ isOpen: true, message: 'Status type updated successfully!' });
     } catch (error: any) {
       setApiError(error.message);
-      setEditAlert({ isOpen: true, message: 'Status Name can only contain alphabets and spaces.' });
+      setEditAlert({ isOpen: true, message: 'DefectStatusName already exists' });
     } finally {
       setLoading(false);
     }
