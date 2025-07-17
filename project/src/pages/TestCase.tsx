@@ -752,15 +752,7 @@ console.log({submodules});
       showAlert(response?.data?.message || 'Test case deleted successfully!');
       return response;
     } catch (error: any) {
-      let errorMessage = 'Failed to delete test case';
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      showAlert(errorMessage);
+      showAlert('Failed to delete test case. It is allocated to a release.');
       throw error;
     }
   };
@@ -1760,8 +1752,8 @@ console.log("paginatedTestCases", paginatedTestCases);
                     try {
                       await deleteTestCaseById(pendingDeleteId);
                       setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
-                    } catch (error) {
-                      setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. Please try again.' });
+                    } catch (error: any) {
+                      setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. It is allocated to a release.' });
                     } finally {
                       setConfirmOpen(false);
                       setPendingDeleteId(null);
