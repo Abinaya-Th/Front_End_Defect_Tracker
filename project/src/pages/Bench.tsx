@@ -139,7 +139,7 @@ export const Bench: React.FC = () => {
       console.log('Search params:', searchParams);
       const searchResults = await searchBenchEmployees(searchParams);
       console.log('Search results:', searchResults);
-      
+
       // If searchResults is not an array or is empty, clear employees
       if (Array.isArray(searchResults) && searchResults.length > 0) {
         setEmployees(searchResults);
@@ -365,13 +365,13 @@ export const Bench: React.FC = () => {
                             >
                               {employee.firstName} {employee.lastName}
                             </button>
-                            <p className="text-sm text-gray-500">{employee.department}</p>
+                           
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <p className="font-medium text-gray-900">{employee.designation}</p>
-                        <p className="text-sm text-gray-500">{employee.experience} years exp</p>
+                        
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-3">
@@ -471,7 +471,6 @@ export const Bench: React.FC = () => {
                   >
                     {viewingEmployee.status}
                   </Badge>
-                  <Badge variant="info">{viewingEmployee.experience} years experience</Badge>
                 </div>
               </div>
               <div className="text-center">
@@ -502,10 +501,7 @@ export const Bench: React.FC = () => {
                       <span className="text-gray-600">Phone:</span>
                       <span className="font-medium">{viewingEmployee.phone}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Department:</span>
-                      <span className="font-medium">{viewingEmployee.department}</span>
-                    </div>
+                  
                     <div className="flex justify-between">
                       <span className="text-gray-600">Joined Date:</span>
                       <span className="font-medium">
@@ -521,7 +517,7 @@ export const Bench: React.FC = () => {
                   </div>
                 </div>
 
-                
+
               </div>
 
               <div className="space-y-6">

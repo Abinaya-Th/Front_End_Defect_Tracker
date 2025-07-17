@@ -17,7 +17,7 @@ interface Role {
   description: string;
   permissions: string[];
   level: 'basic' | 'standard' | 'advanced' | 'admin';
-  department: string;
+
   createdAt: string;
   updatedAt: string;
   roleName: string;
@@ -36,7 +36,7 @@ const Role: React.FC = () => {
     description: '',
     permissions: [] as string[],
     level: 'basic' as Role["level"],
-    department: ''
+  
   });
 
   // Pagination state
@@ -109,7 +109,7 @@ const Role: React.FC = () => {
       description: '',
       permissions: [],
       level: 'basic',
-      department: ''
+     
     });
   };
 
@@ -203,7 +203,7 @@ const Role: React.FC = () => {
       description: role.description,
       permissions: role.permissions,
       level: role.level,
-      department: role.department
+      
     });
     setIsEditModalOpen(true);
   };

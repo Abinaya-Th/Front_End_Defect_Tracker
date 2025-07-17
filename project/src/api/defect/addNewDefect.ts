@@ -10,7 +10,7 @@ export interface DefectCreate {
   assigntoId?: number | null;  // User ID to assign the defect to (Varchar/String) - Optional for now
   attachment?: string;          // Defect related attachment (Optional)
   assignbyId?: number | null;  // User ID who entered the defect (Optional)
-  releaseTestCaseId?: string | null; // testcaseId allocated to release (Optional)
+  releaseTestCaseId?: number | null; // testcaseId allocated to release (Optional)
   defectStatusId?: number | null;    // Defect status level ID (Optional)
   steps?: string;              // Steps to reproduce the defect(1-1000) (Optional)
   projectId: string | number;  // Project ID the defect belongs to (Varchar/String)
@@ -30,7 +30,7 @@ export const addDefects = (payload: DefectCreate): Promise<DefectCreateProps> =>
 
 
   return axios
-    .post<DefectCreateProps>(`${BASE_URL}defect/withoutReleaseTestCaseId`, payload)
+    .post<DefectCreateProps>(`${BASE_URL}defect`, payload)
     .then(({ data }) => {
       return data;
     })

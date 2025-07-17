@@ -85,7 +85,7 @@ export const ModuleManagement: React.FC = () => {
   const [isUpdatingModule, setIsUpdatingModule] = useState(false);
 
   // New state for developers with roles
-  const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ name: string; role: string; projectAllocationId: number }>>([]);
+  const [developersWithRoles, setDevelopersWithRoles] = useState<Array<{ userWithRole: string; projectAllocationId: number }>>([]);
 
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
@@ -95,7 +95,7 @@ export const ModuleManagement: React.FC = () => {
 
   // New state for developers assigned to modules/submodules
   const [moduleDevelopers, setModuleDevelopers] = useState<Record<string, any[]>>({});
-console.log(projectId, "projectId from params in module management page");
+  console.log(projectId, "projectId from params in module management page");
 
   // useEffect(() => {
   //   if (projectId) {
@@ -107,8 +107,7 @@ console.log(projectId, "projectId from params in module management page");
   const availableDevelopers = employees.filter(
     (emp) =>
       emp.designation.toLowerCase().includes("developer") ||
-      emp.designation.toLowerCase().includes("engineer") ||
-      emp.department.toLowerCase().includes("engineering")
+      emp.designation.toLowerCase().includes("engineer")
   );
 
   // Fetch developers with roles when selectedProjectId changes
@@ -117,14 +116,10 @@ console.log(projectId, "projectId from params in module management page");
     try {
       const response = await getDevelopersWithRolesByProjectId(Number(selectedProjectId));
       console.log(response);
-      
+
       if (response && response.status === "success" && Array.isArray(response.data)) {
-        const parsed = response.data.map((item: string) => {
-          const [name, role] = item?.userWithRole.split("-");
-          const projectAllocationId = item?.projectAllocationId || null;
-          return { name: name?.trim() || "", role: role?.trim() || "", projectAllocationId: item?.projectAllocationId };
-        });
-        setDevelopersWithRoles(parsed);
+        // If response.data is already an array of { name, role, projectAllocationId }
+        setDevelopersWithRoles(response.data);
       } else {
         setDevelopersWithRoles([]);
       }
@@ -224,41 +219,30 @@ console.log(projectId, "projectId from params in module management page");
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this module? This will also delete all submodules."
-      )
-    ) {
-      if (selectedProjectId) {
-        try {
-          console.log("+++++++++++++++++++");
-          const response = await deleteModuleApi(Number(moduleId));
-          console.log("------------------");
-          console.log(response, "Delete module response");
-          
-          if (response.status === "success") {
-            // Refresh modules after deleting
-            await fetchModules();
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-          } else {
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-            await fetchModules();
-          }
-        } catch (error: any) {
-          if (error.response && error.response.data) {
-            const errorData = error.response.data;
-            if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-              setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
-            } else {
-              setAlertMessage('Failed to delete module: ' + (errorData.message || JSON.stringify(errorData)));
-            }
-            setAlertOpen(true);
+    if (selectedProjectId) {
+      try {
+        const response = await deleteModuleApi(Number(moduleId));
+        if (response.status === "success") {
+          await fetchModules();
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+          await fetchModules();
+        }
+      } catch (error: any) {
+        if (error.response && error.response.data) {
+          const errorData = error.response.data;
+          if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+            setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
           } else {
             setAlertMessage('Failed to delete module. Please try again.');
-            setAlertOpen(true);
           }
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Failed to delete module. Please try again.');
+          setAlertOpen(true);
         }
       }
     }
@@ -298,7 +282,7 @@ console.log(projectId, "projectId from params in module management page");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
       fetchModules(); // Refresh module assignments
-    } catch (error:any) {
+    } catch (error: any) {
       if (error.response && error.response.status === 409) {
         alert("Developer is already assigned to this module or submodule.");
       } else {
@@ -451,10 +435,10 @@ console.log(projectId, "projectId from params in module management page");
 
   // Defensive logging and type normalization for project lookup
   console.log("Selected Project ID:", selectedProjectId);
-  
+
 
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
- 
+
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
@@ -506,9 +490,27 @@ console.log(projectId, "projectId from params in module management page");
     }
   }, [modulesByProjectId]);
 
+  // Add state for confirmation dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteSubmoduleId, setPendingDeleteSubmoduleId] = useState<string | null>(null);
+
+  // Add state for module confirmation dialog
+  const [confirmModuleOpen, setConfirmModuleOpen] = useState(false);
+  const [pendingDeleteModuleId, setPendingDeleteModuleId] = useState<string | null>(null);
+
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Back Button at the top right */}
+      <div className="mb-4 flex justify-end">
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${projectId}/project-management`)}
+          className="flex items-center"
+        >
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
+        </Button>
+      </div>
       <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
       {!selectedProjectId ? (
         <div className="p-8 text-center text-gray-500">
@@ -644,7 +646,10 @@ console.log(projectId, "projectId from params in module management page");
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteModule(module.id.toString())}
+                                  onClick={() => {
+                                    setPendingDeleteModuleId(module.id.toString());
+                                    setConfirmModuleOpen(true);
+                                  }}
                                   className="p-1 text-red-600 hover:text-red-800"
                                   title="Delete Module"
                                 >
@@ -698,36 +703,10 @@ console.log(projectId, "projectId from params in module management page");
                                             type="button"
                                             className="p-1 hover:text-red-600"
                                             title="Delete Submodule"
-                                                                                    onClick={async () => {
-                                          if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                            try {
-                                              const response = await deleteSubmoduleApi(Number(sub.id));
-                                              if (response.status === "success" || response.success) {
-                                                // Refresh modules after deleting submodule
-                                                await fetchModules();
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                                await fetchModules();
-                                              }
-                                            } catch (error: any) {
-                                              if (error.response && error.response.data) {
-                                                const errorData = error.response.data;
-                                                if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-                                                  setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
-                                                } else {
-                                                  setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
-                                                }
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Failed to delete submodule. Please try again.');
-                                                setAlertOpen(true);
-                                              }
-                                            }
-                                          }
-                                        }}
+                                            onClick={() => {
+                                              setPendingDeleteSubmoduleId(sub.id.toString());
+                                              setConfirmOpen(true);
+                                            }}
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>
@@ -943,12 +922,15 @@ console.log(projectId, "projectId from params in module management page");
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {dev.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {dev.role}
-                      </div>
+                       {(() => {
+                        const [name, role] = dev.userWithRole.split("-");
+                        return (
+                          <>
+                            <div className="text-sm font-medium text-gray-900">{name}</div>
+                            <div className="text-xs text-gray-500">{role}</div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))
@@ -1086,8 +1068,85 @@ console.log(projectId, "projectId from params in module management page");
         }}
       >
         <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
-        <QuickAddDefect />
+        <QuickAddDefect projectModules={[]} />
       </div >
+
+      {/* Custom confirmation dialog for submodule deletion */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this submodule?</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmOpen(false); setPendingDeleteSubmoduleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteSubmoduleId) {
+                    try {
+                      const response = await deleteSubmoduleApi(Number(pendingDeleteSubmoduleId));
+                      if (response.status === "success" || response.success) {
+                        await fetchModules();
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                      } else {
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                        await fetchModules();
+                      }
+                    } catch (error) {
+                      setAlertMessage('Failed to delete submodule. Please try again.');
+                      setAlertOpen(true);
+                    } finally {
+                      setConfirmOpen(false);
+                      setPendingDeleteSubmoduleId(null);
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom confirmation dialog for module deletion */}
+      {confirmModuleOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this module? This will also delete all submodules.</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmModuleOpen(false); setPendingDeleteModuleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteModuleId) {
+                    await handleDeleteModule(pendingDeleteModuleId);
+                    setConfirmModuleOpen(false);
+                    setPendingDeleteModuleId(null);
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

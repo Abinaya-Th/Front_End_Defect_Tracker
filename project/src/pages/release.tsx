@@ -11,7 +11,7 @@ export const Releases: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Releases</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">Release Management</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Execution Card */}
         <Card

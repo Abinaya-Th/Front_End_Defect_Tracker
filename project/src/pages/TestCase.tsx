@@ -72,7 +72,7 @@ export const TestCase: React.FC = () => {
     if (!selectedProjectId) return;
     getModulesByProjectId(selectedProjectId).then((res) => {
       console.log("Fetched modules for project", selectedProjectId, res.data);
-      
+
       const modules = (res.data || []).map((mod: any) => ({
         id: String(mod.id),
         name: mod.moduleName || mod.name,
@@ -85,7 +85,7 @@ export const TestCase: React.FC = () => {
     });
   }, [selectedProjectId]);
   console.log("modulesByProject", modulesByProject);
-  
+
 
   // Use fetched modules for the selected project
   const projectModules = selectedProjectId ? modulesByProject[selectedProjectId] || [] : [];
@@ -137,7 +137,7 @@ export const TestCase: React.FC = () => {
     },
   ]);
   console.log("modals", modals);
-  
+
   const [currentModalIdx, setCurrentModalIdx] = useState(0);
   const [success, setSuccess] = useState(false);
   const [backendProjects, setBackendProjects] = React.useState<Project[]>([]);
@@ -151,7 +151,7 @@ export const TestCase: React.FC = () => {
   // Add state for submodules
   const [submodules, setSubmodules] = useState<Submodule[]>([]);
   const [submoduleError, setSubmoduleError] = useState<string>("");
-console.log({submodules});
+  console.log({ submodules });
 
   // Fetch submodules when selectedModuleId changes
   useEffect(() => {
@@ -206,10 +206,10 @@ console.log({submodules});
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
       // Map moduleId/subModuleId to names for display
       console.log("Fetched test cases for project", selectedProjectId, "and submodule", selectedSubmoduleId, data);
-      
+
       const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
       console.log("moduleMap", moduleMap);
-      
+
       const submoduleMap = Object.fromEntries(projectModules.map((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
       console.log("submoduleMap", submoduleMap);
       setTestCases(
@@ -567,7 +567,7 @@ console.log({submodules});
       if (updateCount > 0) {
         setPendingUpdateSuccess(true);
       }
-      
+
       setTimeout(() => {
         setSuccess(false);
         setModals([
@@ -678,7 +678,7 @@ console.log({submodules});
   });
   const [searchResults, setSearchResults] = useState<TestCaseType[] | null>(null);
   console.log("searchResults", searchResults);
-  
+
   const [isSearching, setIsSearching] = useState(false);
 
   // Handle submodule selection (just highlight, no fetch)
@@ -746,21 +746,13 @@ console.log({submodules});
 
   // Replace all usages of apiDeleteTestCase with this function
   const deleteTestCaseById = async (testCaseId: string) => {
-    const url = `http://192.168.1.107:8080/api/v1/testcase/${testCaseId}`;
+    const url = `${BASE_URL}testcase/${testCaseId}`;
     try {
       const response = await axios.delete(url);
       showAlert(response?.data?.message || 'Test case deleted successfully!');
       return response;
     } catch (error: any) {
-      let errorMessage = 'Failed to delete test case';
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      showAlert(errorMessage);
+      showAlert('Cannot delete test case: There are dependencies.');
       throw error;
     }
   };
@@ -788,8 +780,8 @@ console.log({submodules});
     }
   }, [modals[currentModalIdx]?.open, pendingCreateSuccess]);
 
-  
-console.log("paginatedTestCases", paginatedTestCases);
+
+  console.log("paginatedTestCases", paginatedTestCases);
 
   // Debug alert state changes
   useEffect(() => {
@@ -821,7 +813,7 @@ console.log("paginatedTestCases", paginatedTestCases);
     );
   };
 
-  
+
 
   // Add the refreshTestCases function
   const refreshTestCases = () => {
@@ -843,6 +835,10 @@ console.log("paginatedTestCases", paginatedTestCases);
       });
     }
   };
+
+  // Add state for AlertModal confirmation
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   return (
     <div className="max-w-6xl mx-auto ">
@@ -943,7 +939,7 @@ console.log("paginatedTestCases", paginatedTestCases);
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                
+
                                 setModals((prev) => {
                                   const newModals = [
                                     ...prev,
@@ -951,7 +947,7 @@ console.log("paginatedTestCases", paginatedTestCases);
                                       open: true,
                                       formData: {
                                         module: x.moduleName,
-                                        subModule: x.subModuleName ,
+                                        subModule: x.subModuleName,
                                         description: "",
                                         steps: "",
                                         type: "functional",
@@ -1059,15 +1055,25 @@ console.log("paginatedTestCases", paginatedTestCases);
                       if (searchFilters.description) params.description = searchFilters.description;
                       if (searchFilters.typeId) params.typeId = Number(searchFilters.typeId);
                       if (searchFilters.severityId) params.severityId = Number(searchFilters.severityId);
+                      // Add module and submodule filtering
+                      if (selectedModuleId) params.moduleId = selectedModuleId;
+                      if (selectedSubmoduleId) params.subModuleId = selectedSubmoduleId;
                       const res = await searchTestCases(params);
                       console.log("Search results:", res.data);
-                      
+
                       const normalized = (res.data || []).map((tc: any) => ({
                         ...tc,
                         type: defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
                         severity: severities && severities.find(s => s.id === tc.severityId)?.name || "",
                       }));
-                      setSearchResults(normalized);
+
+                      // Filter by selectedModuleId and selectedSubmoduleId
+                      const filtered = normalized.filter((tc: any) =>
+                        (!selectedModuleId || String(tc.moduleId) === String(selectedModuleId)) &&
+                        (!selectedSubmoduleId || String(tc.subModuleId) === String(selectedSubmoduleId))
+                      );
+
+                      setSearchResults(filtered);
                     } finally {
                       setIsSearching(false);
                     }
@@ -1201,11 +1207,11 @@ console.log("paginatedTestCases", paginatedTestCases);
                                 let subModuleId = (testCase as any).subModuleId ?? testCase.subModule;
                                 let moduleName = "Unknown Module";
                                 let subModuleName = "Unknown Submodule";
-                                console.log({testCase});
-                                console.log({projectModules});
+                                console.log({ testCase });
+                                console.log({ projectModules });
                                 console.log('moduleId:', moduleId, 'subModuleId:', subModuleId);
-                                
-                                
+
+
                                 if (moduleId) {
                                   const foundModule = projectModules.find((m: any) => String(m.id) === String(moduleId));
                                   console.log('Found module:', foundModule);
@@ -1250,29 +1256,8 @@ console.log("paginatedTestCases", paginatedTestCases);
                             </button>
                             <button
                               onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this test case?")) {
-                                  deleteTestCaseById(testCase.id).then(() => {
-                                    if (selectedProjectId && selectedSubmoduleId !== null) {
-                                      getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                                        const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                                        const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                                        setTestCases(
-                                          (data as any[]).map((tc: any) => ({
-                                            ...tc,
-                                            module: moduleMap[tc.module] || tc.module,
-                                            subModule: submoduleMap[tc.subModule] || tc.subModule,
-                                            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                                          })) as TestCaseType[]
-                                        );
-                                      });
-                                    }
-                                    setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
-                                  }).catch((error) => {
-                                    console.error("Error deleting test case:", error);
-                                    setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. Please try again.' });
-                                  });
-                                }
+                                setPendingDeleteId(testCase.id);
+                                setConfirmOpen(true);
                               }}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
@@ -1304,7 +1289,7 @@ console.log("paginatedTestCases", paginatedTestCases);
                       className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      //style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                    //style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                     >
                       Previous
                     </button>
@@ -1336,7 +1321,7 @@ console.log("paginatedTestCases", paginatedTestCases);
         (() => {
           const idx = currentModalIdx;
           console.log("Rendering modal for index:", idx, "with data:", modals[idx]);
-          
+
           const modal = modals[idx];
           return (
             <Modal
@@ -1364,65 +1349,7 @@ console.log("paginatedTestCases", paginatedTestCases);
               >
                 <div className="flex items-center mb-2">
                   {/* Only show import button in add mode */}
-                  {!isEditMode && (
-                    <button
-                      type="button"
-                      className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow mr-3"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = ".xlsx,.csv";
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (evt) => {
-                              const data = evt.target?.result;
-                              if (data) {
-                                const workbook = XLSX.read(data, { type: "binary" });
-                                const sheetName = workbook.SheetNames[0];
-                                const worksheet = workbook.Sheets[sheetName];
-                                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                                const rows = json
-                                  .slice(1)
-                                  .map((row: any[]) => ({
-                                    module: row[0] || "",
-                                    subModule: row[1] || "",
-                                    description: row[2] || "",
-                                    steps: row[3] || "",
-                                    type: row[4] || "functional",
-                                    severity: row[5] || "medium",
-                                    projectId: selectedProjectId,
-                                  }))
-                                  .filter((row) => row.module && row.subModule && row.description && row.steps);
-                                if (rows.length > 0) {
-                                  setModals(rows.map((row) => ({ open: true, formData: row })));
-                                  setCurrentModalIdx(0);
-                                }
-                              }
-                            };
-                            reader.readAsBinaryString(file);
-                          }
-                        };
-                        input.click();
-                      }}
-                    >
-                      <svg
-                        className="w-4 h-4 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
-                        />
-                      </svg>
-                      Import from Excel/CSV
-                    </button>
-                  )}
+
                 </div>
                 <div className="border rounded-lg p-4 mb-2 relative">
                   <div className="grid grid-cols-2 gap-4">
@@ -1519,7 +1446,7 @@ console.log("paginatedTestCases", paginatedTestCases);
                           variant="secondary"
                           onClick={() => setCurrentModalIdx(idx - 1)}
                           disabled={idx === 1}
-                          // style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        // style={idx === 0 ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                         >
                           Previous
                         </Button>
@@ -1748,6 +1675,41 @@ console.log("paginatedTestCases", paginatedTestCases);
           setDeleteAlert({ isOpen: false, message: '' });
         }}
       />
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this test case?</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteId) {
+                    try {
+                      await deleteTestCaseById(pendingDeleteId);
+                      setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
+                    } catch (error: any) {
+                      setDeleteAlert({ isOpen: true, message: 'Cannot delete test case: There are dependencies (e.g., allocated to a release).' });
+                    } finally {
+                      setConfirmOpen(false);
+                      setPendingDeleteId(null);
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

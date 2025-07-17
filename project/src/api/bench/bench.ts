@@ -1,19 +1,19 @@
 import axios from "axios";
 import { Employee } from "../../types/index";
 
-const BASE_URL = "http://192.168.1.107:8080/api/v1/bench/search?list";
+const BASE_URL = import.meta.env.VITE_BASE_URL + "bench/search?list";
 
 export async function getBenchList(): Promise<Employee[]> {
   const response = await axios.get(BASE_URL, {
     headers: { "Content-Type": "application/json" },
   });
-  
+
   console.log('Main bench API response:', response.data);
-  
+
   // Map backend fields to Employee type
   const data = response.data.data || [];
   console.log('Main bench data:', data);
-  
+
   return data.map((item: any) => {
     const [firstName, ...rest] = (item.fullName || '').split(' ');
     const lastName = rest.join(' ');
@@ -29,9 +29,7 @@ export async function getBenchList(): Promise<Employee[]> {
       skills: [], // Not provided by backend
       currentProjects: item.currentProjectName ? [item.currentProjectName] : [],
       availability: item.availability || 0,
-      status: 'active', // Default value
-      department: '', // Not provided by backend
-      manager: '', // Not provided by backend
+      status: 'active', // Default value// Not provided by backend
       startDate: '', // Not provided by backend
       endDate: '', // Not provided by backend
       createdAt: '',

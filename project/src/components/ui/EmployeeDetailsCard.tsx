@@ -27,7 +27,6 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
                     </div>
                     <div className="flex flex-wrap gap-2 mt-1">
                         <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">{employee.status}</span>
-                        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">{employee.experience} {experienceLabel} experience</span>
                     </div>
                 </div>
                 {/* Availability Donut */}
@@ -50,9 +49,9 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
                         <div className="space-y-1 text-sm">
                             <div><span className="font-medium">Email:</span> <span className="ml-1">{employee.email}</span></div>
                             <div><span className="font-medium">Phone:</span> <span className="ml-1">{employee.phone}</span></div>
-                            <div><span className="font-medium">Department:</span> <span className="ml-1">{employee.department}</span></div>
+     
                             <div><span className="font-medium">Joined Date:</span> <span className="ml-1">{employee.joinedDate}</span></div>
-                            <div><span className="font-medium">Manager:</span> <span className="ml-1">{employee.manager}</span></div>
+    
                         </div>
                     </div>
                 </div>

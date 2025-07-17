@@ -19,9 +19,7 @@ export interface Employee {
   currentProjects: string[];
   availability: number; // percentage
   status: 'active' | 'inactive' | 'on-leave';
-  salary?: number;
-  department: string;
-  manager?: string;
+ 
   startDate?: string; // Available from date
   endDate?: string; // Available until date
   createdAt: string;
@@ -35,7 +33,6 @@ export interface Project {
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate?: string;
-  manager: string;
   teamMembers: string[];
   priority: 'low' | 'medium' | 'high' | 'critical';
   budget?: number;

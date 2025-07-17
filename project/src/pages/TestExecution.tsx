@@ -1299,6 +1299,16 @@ export const TestExecution: React.FC = () => {
   // Main Test Execution page (project selection and release cards)
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Back Button at the top right */}
+      <div className="mb-4 flex justify-end">
+        <Button
+          variant="secondary"
+          onClick={() => navigate(`/projects/${selectedProject || projectId}/releases`)}
+          className="flex items-center"
+        >
+          <ChevronLeft className="w-5 h-5 mr-2" /> Back
+        </Button>
+      </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Test Execution</h1>
       {/* Project Selection Panel */}
       <ProjectSelector
