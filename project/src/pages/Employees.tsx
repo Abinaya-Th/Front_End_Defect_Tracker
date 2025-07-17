@@ -48,11 +48,9 @@ export const Employees: React.FC = () => {
     designation: "",
     experience: 0,
     joinedDate: "",
-    skills: "",
-    department: "",
-    manager: "",
     availability: 100,
     status: true,
+    skills: "",
   });
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -266,7 +264,7 @@ export const Employees: React.FC = () => {
       ...formData,
       gender: formData.gender as "Male" | "Female",
       status: (formData.status ? "active" : "inactive") as "active" | "inactive",
-      skills: formData.skills
+      skills: (formData.skills || "")
         .split(",")
         .map((skill) => skill.trim())
         .filter(Boolean),
@@ -338,11 +336,9 @@ export const Employees: React.FC = () => {
       designation: "",
       experience: 0,
       joinedDate: "",
-      skills: "",
-      department: "",
-      manager: "",
       availability: 100,
       status: true,
+      skills: "",
     });
   };
   
@@ -360,11 +356,10 @@ export const Employees: React.FC = () => {
       experience: employee.experience,
       // Convert join date to YYYY-MM-DD for input type="date"
       joinedDate: employee.joinedDate ? new Date(employee.joinedDate).toISOString().slice(0, 10) : "",
-      skills: employee.skills.join(", "),
-      department: employee.department,
-      manager: employee.manager || "",
+    
       availability: employee.availability,
       status: employee.status === "active" ? true : false,
+      skills: Array.isArray(employee.skills) ? employee.skills.join(", ") : "", // convert array to string for form
     });
     setIsModalOpen(true);
   };
@@ -597,14 +592,12 @@ export const Employees: React.FC = () => {
                         designation: user.designationName || "",
                         experience: 0,
                         joinedDate: user.joinDate,
-                        skills: [],
-                        department: "",
-                        manager: "",
                         availability: 100,
                         status: (user.userStatus.toLowerCase() === "active" ? "active" : "inactive") as "active" | "inactive",
                         currentProjects: [],
                         createdAt: "",
                         updatedAt: "",
+                        skills: [], // <-- ensure skills is always an array for Employee
                       } as Employee;
                       return (
                         <TableRow key={getUserId(user)}>

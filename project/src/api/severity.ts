@@ -14,11 +14,13 @@ export interface Severity {
   id: number;
   name: string;
   color: string;
+  weight: number; // Added weight
 }
 
 export interface CreateSeverityRequest {
   name: string;
   color: string;
+  weight: number; // Added weight
 }
 
 export interface CreateSeverityResponse {

@@ -30,6 +30,7 @@ const Severity: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     color: '#000000',
+    weight: 1,
   });
 
   // Custom color picker visibility
@@ -62,6 +63,7 @@ const Severity: React.FC = () => {
     setFormData({
       name: '',
       color: '#000000',
+      weight: 1,
     });
   };
 
@@ -193,6 +195,7 @@ const Severity: React.FC = () => {
     setFormData({
       name: severity.name,
       color: severity.color,
+      weight: severity.weight,
     });
     setIsEditModalOpen(true);
   };
@@ -271,13 +274,14 @@ const Severity: React.FC = () => {
               <TableRow>
                 <TableCell header>Name</TableCell>
                 <TableCell header>Color</TableCell>
+                <TableCell header>Weight</TableCell>
                 <TableCell header>Actions</TableCell>
               </TableRow>
             </thead>
             <TableBody>
               {paginatedSeverities.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="text-center text-gray-500 py-4">
+                  <td colSpan={4} className="text-center text-gray-500 py-4">
                     No severities found.
                   </td>
                 </tr>
@@ -294,6 +298,7 @@ const Severity: React.FC = () => {
                         <span className="text-sm text-gray-600">{severity.color}</span>
                       </div>
                     </TableCell>
+                    <TableCell>{severity.weight}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
@@ -404,6 +409,18 @@ const Severity: React.FC = () => {
               )}
             </div>
           </div>
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Weight
+            </label>
+            <Input
+              type="number"
+              value={formData.weight}
+              min={1}
+              onChange={e => setFormData({ ...formData, weight: Number(e.target.value) })}
+              placeholder="Enter severity weight"
+            />
+          </div>
           <div className="flex justify-end space-x-3 pt-4 w-full">
             <Button
               variant="secondary"
@@ -477,6 +494,18 @@ const Severity: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Weight
+            </label>
+            <Input
+              type="number"
+              value={formData.weight}
+              min={1}
+              onChange={e => setFormData({ ...formData, weight: Number(e.target.value) })}
+              placeholder="Enter severity weight"
+            />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button

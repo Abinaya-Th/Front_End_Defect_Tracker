@@ -31,6 +31,7 @@ import { getDefectTypes } from "../api/defectType";
 import { getAllReleaseTypes } from "../api/Releasetype";
 import axios from 'axios';
 import AlertModal from '../components/ui/AlertModal';
+import { deleteReleaseById } from "../api/createRelease/deleteRelease";
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 interface TestCase {
@@ -102,6 +103,10 @@ export const ReleaseView: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [editingReleaseId, setEditingReleaseId] = useState<string | null>(null);
   const [releaseTypes, setReleaseTypes] = useState<any[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '' });
 
   // Fetch modules when project changes
   useEffect(() => {
@@ -208,10 +213,11 @@ export const ReleaseView: React.FC = () => {
 
   const deleteRelease = async (releaseId: string) => {
     try {
-      await axios.delete(`${BASE_URL}releases/${releaseId}`);
+      await deleteReleaseById(releaseId);
       getReleaseCardView();
+      setAlertModal({ isOpen: true, message: 'Deleted successfully.' });
     } catch (error) {
-      alert('Failed to delete release');
+      setAlertModal({ isOpen: true, message: 'Cannot delete release: it is Connected with other modules' });
     }
   };
 
@@ -315,9 +321,8 @@ export const ReleaseView: React.FC = () => {
                         type="button"
                         onClick={e => {
                           e.stopPropagation();
-                          if (window.confirm("Are you sure you want to delete this release?")) {
-                            deleteRelease(release.id);
-                          }
+                          setDeleteTargetId(release.id);
+                          setConfirmDeleteOpen(true);
                         }}
                         title="Delete"
                         className="p-1 rounded hover:bg-gray-200"
@@ -636,9 +641,16 @@ export const ReleaseView: React.FC = () => {
             releaseStatus: releaseFormData.releaseType,
           };
           try {
-            const response = await createRelease(payload);
-            if (response.status === "success" && response.statusCode === 2000) {
-              getReleaseCardView();
+            if (editingReleaseId) {
+              // Editing: Only update UI state, do not call backend
+              setReleases(prev => prev.map(r => r.id === editingReleaseId ? {
+                ...r,
+                releaseName: releaseFormData.name,
+                releaseDate: releaseFormData.releaseDate,
+                releaseType: releaseFormData.releaseType,
+                description: releaseFormData.description,
+                version: releaseFormData.version,
+              } : r));
               setIsCreateReleaseModalOpen(false);
               setReleaseFormData({
                 name: "",
@@ -647,10 +659,27 @@ export const ReleaseView: React.FC = () => {
                 releaseDate: "",
                 releaseType: "",
               });
-              setAlertMessage("Release created successfully!");
+              setEditingReleaseId(null);
+              setAlertMessage("Release updated locally");
               setAlertOpen(true);
             } else {
-              alert(response.message || "Failed to create release");
+              // Creating: Call backend as before
+              const response = await createRelease(payload);
+              if (response.status === "success" && response.statusCode === 2000) {
+                getReleaseCardView();
+                setIsCreateReleaseModalOpen(false);
+                setReleaseFormData({
+                  name: "",
+                  version: "",
+                  description: "",
+                  releaseDate: "",
+                  releaseType: "",
+                });
+                setAlertMessage("Release created successfully!");
+                setAlertOpen(true);
+              } else {
+                alert(response.message || "Failed to create release");
+              }
             }
           } catch (error: any) {
             alert(
@@ -733,6 +762,51 @@ export const ReleaseView: React.FC = () => {
         <QuickAddDefect projectModules={projectModules} />
       </div>
       <AlertModal isOpen={alertOpen} message={alertMessage} onClose={() => setAlertOpen(false)} />
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 z-[70] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-2xl min-w-[350px] max-w-[95vw] p-6 mt-8">
+            <div className="text-lg font-semibold mb-4 text-gray-900">Delete Release</div>
+            <div className="mb-6 text-gray-700">
+              {(() => {
+                const release = releases.find(r => r.id === deleteTargetId);
+                return (
+                  <>Are you sure you want to delete the release "<span className='font-semibold'>{release?.releaseName || ''}</span>"? This action cannot be undone.</>
+                );
+              })()}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setConfirmDeleteOpen(false); setDeleteTargetId(null); }}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setConfirmDeleteOpen(false);
+                  if (deleteTargetId) await deleteRelease(deleteTargetId);
+                  setDeleteTargetId(null);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Success Modal */}
+      <AlertModal
+        isOpen={successModalOpen}
+        message="Deleted successfully."
+        onClose={() => setSuccessModalOpen(false)}
+      />
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        onClose={() => setAlertModal({ isOpen: false, message: '' })}
+      />
     </div>
   );
 };
