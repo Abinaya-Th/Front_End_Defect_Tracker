@@ -470,7 +470,6 @@ export const Bench: React.FC = () => {
                   >
                     {viewingEmployee.status}
                   </Badge>
-                  <Badge variant="info">{viewingEmployee.experience} years experience</Badge>
                 </div>
               </div>
               <div className="text-center">
