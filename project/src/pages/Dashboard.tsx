@@ -291,9 +291,9 @@ export const Dashboard: React.FC = () => {
             {['high', 'medium', 'low'].map(severity => {
               const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
               const colorMap = {
-                high: 'border-l-4 border-red-500',
-                medium: 'border-l-4 border-yellow-400',
-                low: 'border-l-4 border-green-500',
+                high: 'border-l-8 border-red-500',
+                medium: 'border-l-8 border-yellow-400',
+                low: 'border-l-8 border-green-500',
               };
               const titleColor = {
                 high: 'text-red-600',
