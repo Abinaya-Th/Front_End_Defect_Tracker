@@ -847,11 +847,7 @@ export const TestCase: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
-            <p className="text-sm text-gray-500">
-              {selectedProjectId
-                ? `Project: ${backendProjects.find((p) => p?.id === selectedProjectId)?.name || ''}`
-                : "Select a project to begin"}
-            </p>
+            
           </div>
         </div>
 
