@@ -330,8 +330,11 @@ export default function BenchAllocate() {
                     } else {
                         await postProjectAllocations(payload);
                     }
-                } catch (error) {
-                    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                } catch (error: any) {
+                    let errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                    if (errorMsg && errorMsg.toLowerCase().includes('start date must be before end date')) {
+                        errorMsg = 'Start date must be before end date.';
+                    }
                     allocationErrors.push(`${emp.firstName || emp.userFullName}: ${errorMsg}`);
                 }
             }
@@ -339,7 +342,9 @@ export default function BenchAllocate() {
                 const errorMessage = `Failed to allocate/update employees:\n${allocationErrors.join('\n')}`;
                 console.error('All allocation attempts failed:', errorMessage);
                 let userMessage = errorMessage;
-                if (errorMessage.includes('Role information is required')) {
+                if (errorMessage.toLowerCase().includes('start date must be before end date')) {
+                    userMessage = 'Start date must be before end date.';
+                } else if (errorMessage.includes('Role information is required')) {
                   userMessage = 'Role information is required';
                 } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
                   userMessage = 'Allocation percentage must be between 1 and 100';
@@ -368,11 +373,13 @@ export default function BenchAllocate() {
             setSelectedBench([]);
             setAllocationModal({ open: false, employees: [] });
             setAlertModal({ open: true, message: 'Allocation updated successfully!' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Allocation failed:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to allocate/update employees.';
+            let errorMessage = error instanceof Error ? error.message : 'Failed to allocate/update employees.';
             let userMessage = errorMessage;
-            if (errorMessage.includes('Role information is required')) {
+            if (errorMessage.toLowerCase().includes('start date must be before end date')) {
+                userMessage = 'Start date must be before end date.';
+            } else if (errorMessage.includes('Role information is required')) {
               userMessage = 'Role information is required';
             } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
               userMessage = 'Allocation percentage must be between 1 and 100';
