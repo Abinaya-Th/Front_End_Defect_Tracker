@@ -61,8 +61,7 @@ export const searchBenchEmployees = async (params: BenchSearchParams): Promise<E
         currentProjects: item.currentProjectName ? [item.currentProjectName] : [],
         availability: item.availability || 0,
         status: 'active', // Default value
-        department: '', // Not provided by backend
-        manager: '', // Not provided by backend
+       
         startDate: '', // Not provided by backend
         endDate: '', // Not provided by backend
         createdAt: '',

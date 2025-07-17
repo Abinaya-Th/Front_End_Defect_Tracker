@@ -50,9 +50,9 @@ export const EmployeeDetailsCard: React.FC<EmployeeDetailsCardProps> = ({ employ
                         <div className="space-y-1 text-sm">
                             <div><span className="font-medium">Email:</span> <span className="ml-1">{employee.email}</span></div>
                             <div><span className="font-medium">Phone:</span> <span className="ml-1">{employee.phone}</span></div>
-                            <div><span className="font-medium">Department:</span> <span className="ml-1">{employee.department}</span></div>
+     
                             <div><span className="font-medium">Joined Date:</span> <span className="ml-1">{employee.joinedDate}</span></div>
-                            <div><span className="font-medium">Manager:</span> <span className="ml-1">{employee.manager}</span></div>
+    
                         </div>
                     </div>
                 </div>

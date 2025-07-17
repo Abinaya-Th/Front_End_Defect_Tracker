@@ -1059,6 +1059,9 @@ console.log("paginatedTestCases", paginatedTestCases);
                       if (searchFilters.description) params.description = searchFilters.description;
                       if (searchFilters.typeId) params.typeId = Number(searchFilters.typeId);
                       if (searchFilters.severityId) params.severityId = Number(searchFilters.severityId);
+                      // Add module and submodule filtering
+                      if (selectedModuleId) params.moduleId = selectedModuleId;
+                      if (selectedSubmoduleId) params.subModuleId = selectedSubmoduleId;
                       const res = await searchTestCases(params);
                       console.log("Search results:", res.data);
                       
@@ -1067,7 +1070,14 @@ console.log("paginatedTestCases", paginatedTestCases);
                         type: defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "",
                         severity: severities && severities.find(s => s.id === tc.severityId)?.name || "",
                       }));
-                      setSearchResults(normalized);
+
+                      // Filter by selectedModuleId and selectedSubmoduleId
+                      const filtered = normalized.filter((tc: any) =>
+                        (!selectedModuleId || String(tc.moduleId) === String(selectedModuleId)) &&
+                        (!selectedSubmoduleId || String(tc.subModuleId) === String(selectedSubmoduleId))
+                      );
+
+                      setSearchResults(filtered);
                     } finally {
                       setIsSearching(false);
                     }

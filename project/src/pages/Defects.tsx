@@ -969,14 +969,14 @@ export const Defects: React.FC = () => {
           {['high', 'medium', 'low'].map(severity => {
             const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
             const colorMap: Record<string, string> = {
-              high: 'border-l-4 border-red-500',
-              medium: 'border-l-4 border-yellow-400',
-              low: 'border-l-4 border-green-500',
+              high: 'border-l-8 border-red-500',
+              medium: 'border-l-8 border-yellow-400',
+              low: 'border-l-8 border-green-500',
             };
             const titleColor: Record<string, string> = {
-              high: 'text-red-500',
+              high: 'text-red-600',
               medium: 'text-yellow-500',
-              low: 'text-green-500',
+              low: 'text-green-600',
             };
             const borderColor: Record<string, string> = {
               high: 'border-red-200',
@@ -985,7 +985,16 @@ export const Defects: React.FC = () => {
             };
             const statusList = defectStatuses.map(s => s.defectStatusName);
             // Use optional chaining for color property
-            const statusColorMap = Object.fromEntries(defectStatuses.map(s => [s.defectStatusName, (s as any).color || '#ccc']));
+            const statusColorMap: Record<string, string> = {
+              new: '#6366f1',        // Indigo
+              open: '#2563eb',       // Blue
+              reject: '#ef4444',     // Red
+              fixed: '#10b981',      // Green
+              closed: '#6b7280',     // Gray
+              reopen: '#f59e42',     // Orange
+              duplicate: '#a21caf',  // Purple
+              hold: '#fbbf24',       // Yellow
+            };
             const defectsBySeverity = filteredDefects.filter(d => (d.severity_name || '').toLowerCase() === severity);
             const total = defectsBySeverity.length;
             // Count by status
@@ -1009,7 +1018,7 @@ export const Defects: React.FC = () => {
                   <div className="flex flex-col gap-1">
                     {leftStatuses.map((status, idx) => (
                       <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status.toLowerCase()] || '#ccc' }}></span>
                         <span className="text-gray-700 font-normal">{status}</span>
                         <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
                       </div>
@@ -1018,7 +1027,7 @@ export const Defects: React.FC = () => {
                   <div className="flex flex-col gap-1">
                     {rightStatuses.map((status, idx) => (
                       <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status.toLowerCase()] || '#ccc' }}></span>
                         <span className="text-gray-700 font-normal">{status}</span>
                         <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
                       </div>

@@ -107,8 +107,7 @@ export const ModuleManagement: React.FC = () => {
   const availableDevelopers = employees.filter(
     (emp) =>
       emp.designation.toLowerCase().includes("developer") ||
-      emp.designation.toLowerCase().includes("engineer") ||
-      emp.department.toLowerCase().includes("engineering")
+      emp.designation.toLowerCase().includes("engineer")
   );
 
   // Fetch developers with roles when selectedProjectId changes

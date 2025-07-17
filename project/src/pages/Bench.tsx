@@ -364,13 +364,13 @@ export const Bench: React.FC = () => {
                             >
                               {employee.firstName} {employee.lastName}
                             </button>
-                            <p className="text-sm text-gray-500">{employee.department}</p>
+                           
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <p className="font-medium text-gray-900">{employee.designation}</p>
-                        <p className="text-sm text-gray-500">{employee.experience} years exp</p>
+                        
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-3">
@@ -501,10 +501,7 @@ export const Bench: React.FC = () => {
                       <span className="text-gray-600">Phone:</span>
                       <span className="font-medium">{viewingEmployee.phone}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Department:</span>
-                      <span className="font-medium">{viewingEmployee.department}</span>
-                    </div>
+                  
                     <div className="flex justify-between">
                       <span className="text-gray-600">Joined Date:</span>
                       <span className="font-medium">

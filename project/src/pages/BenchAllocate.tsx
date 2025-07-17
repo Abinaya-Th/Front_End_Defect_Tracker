@@ -17,6 +17,7 @@ import { getAllProjects } from '../api/projectget';
 import { Project } from '../types';
 import { ProjectSelector } from '../components/ui/ProjectSelector';
 import { getAllRoles } from '../api/role/viewrole';
+import AlertModal from '../components/ui/AlertModal';
 
 const AVAILABILITY_COLORS = {
     100: '#10B981',
@@ -79,6 +80,7 @@ export default function BenchAllocate() {
     };
 
     const [roles, setRoles] = useState<{ id: number; roleName: string }[]>([]);
+    const [alertModal, setAlertModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
     // Pagination state for bench employees (left panel)
     const [benchCurrentPage, setBenchCurrentPage] = useState(1);
@@ -305,7 +307,7 @@ export default function BenchAllocate() {
     };
     const handleConfirmAllocation = async (updatedEmployees: any[]) => {
         if (!selectedProjectId) {
-            alert('Please select a project first');
+            setAlertModal({ open: true, message: 'Please select a project first' });
             return;
         }
         setIsAllocating(true);
@@ -336,6 +338,21 @@ export default function BenchAllocate() {
             if (allocationErrors.length > 0) {
                 const errorMessage = `Failed to allocate/update employees:\n${allocationErrors.join('\n')}`;
                 console.error('All allocation attempts failed:', errorMessage);
+                let userMessage = errorMessage;
+                if (errorMessage.includes('Role information is required')) {
+                  userMessage = 'Role information is required';
+                } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
+                  userMessage = 'Allocation percentage must be between 1 and 100';
+                } else if (errorMessage.includes('Missing required fields')) {
+                  userMessage = 'Missing required fields.';
+                } else {
+                  // Extract last part after last dash or colon
+                  const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
+                  if (match && match[1]) {
+                    userMessage = match[1].trim();
+                  }
+                }
+                setAlertModal({ open: true, message: userMessage });
                 throw new Error(errorMessage);
             }
             // After successful POST/PUT, fetch latest allocations and bench list
@@ -350,11 +367,25 @@ export default function BenchAllocate() {
             setEmployees(Array.isArray(benchData) ? benchData : []);
             setSelectedBench([]);
             setAllocationModal({ open: false, employees: [] });
-            alert('Allocation updated successfully!');
+            setAlertModal({ open: true, message: 'Allocation updated successfully!' });
         } catch (error) {
             console.error('Allocation failed:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to allocate/update employees.';
-            alert(`Allocation failed: ${errorMessage}`);
+            let userMessage = errorMessage;
+            if (errorMessage.includes('Role information is required')) {
+              userMessage = 'Role information is required';
+            } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
+              userMessage = 'Allocation percentage must be between 1 and 100';
+            } else if (errorMessage.includes('Missing required fields')) {
+              userMessage = 'Missing required fields.';
+            } else {
+              // Extract last part after last dash or colon
+              const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
+              if (match && match[1]) {
+                userMessage = match[1].trim();
+              }
+            }
+            setAlertModal({ open: true, message: userMessage });
         } finally {
             setIsAllocating(false);
         }
@@ -377,10 +408,10 @@ export default function BenchAllocate() {
             }));
             setEmployees(Array.isArray(benchData) ? benchData : []);
             setSelectedProjectUsers([]);
-            alert('Deallocation successful!');
+            setAlertModal({ open: true, message: 'Deallocation successful!' });
         } catch (error) {
             console.error('Deallocation failed:', error);
-            alert('Failed to deallocate selected users. Select users already assigned to the Module and Submodule.');
+            setAlertModal({ open: true, message: 'Failed to deallocate selected users. Select users already assigned to the Module and Submodule.' });
         }
     };
 
@@ -490,7 +521,7 @@ export default function BenchAllocate() {
                                 <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
                                 <div className="flex-1">
                                     <div className="font-medium">{emp.firstName} {emp.lastName}</div>
-                                    <div className="text-sm text-gray-500">{emp.designation} • {emp.experience} yrs</div>
+                                   
                                     <div className="text-xs text-gray-400 mt-1">
                                         {currentProject?.name}
                                     </div>
@@ -855,6 +886,11 @@ export default function BenchAllocate() {
                     <EmployeeDetailsCard employee={viewInfoEmployee} />
                 </Modal>
                 )}
+            <AlertModal
+                isOpen={alertModal.open}
+                message={alertModal.message}
+                onClose={() => setAlertModal({ open: false, message: '' })}
+            />
         </div>
     );
 }

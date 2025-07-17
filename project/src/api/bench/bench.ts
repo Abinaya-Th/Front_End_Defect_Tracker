@@ -29,9 +29,7 @@ export async function getBenchList(): Promise<Employee[]> {
       skills: [], // Not provided by backend
       currentProjects: item.currentProjectName ? [item.currentProjectName] : [],
       availability: item.availability || 0,
-      status: 'active', // Default value
-      department: '', // Not provided by backend
-      manager: '', // Not provided by backend
+      status: 'active', // Default value// Not provided by backend
       startDate: '', // Not provided by backend
       endDate: '', // Not provided by backend
       createdAt: '',
