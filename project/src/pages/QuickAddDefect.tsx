@@ -143,7 +143,6 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
       attachment: formData.attachment || undefined,
       // defectStatusId: only include if editing (see below)
       subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
-      testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
       reOpenCount: 0,
     };
     // Only include defectStatusId if editing (i.e., formData.statusId is set)
@@ -210,42 +209,14 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
     <div>
       <Button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center justify-center p-0 rounded-full shadow-lg bg-white hover:bg-gray-100 text-blue-700 relative group border border-blue-200"
+        className="flex flex-row items-center w-44 h-12 bg-white rounded-xl shadow border border-gray-200 px-0 py-1 gap-3 hover:shadow-lg hover:bg-gray-50 transition-all justify-start"
         disabled={!selectedProjectId}
-        style={{
-          width: 40,
-          height: 40,
-          minWidth: 40,
-          minHeight: 40,
-          borderRadius: "50%",
-        }}
+        style={{ fontWeight: 500, borderStyle: 'solid' }}
       >
-        {/* Lucide Bug Icon as red */}
-        <Bug
-          size={22}
-          style={{ color: "#e11d48", position: "absolute", left: 9, top: 9 }}
-        />
-        {/* Plus Icon, overlayed in the bottom right, with white background, dark blue plus */}
-        <span
-          style={{
-            position: "absolute",
-            right: 2,
-            bottom: 2,
-            background: "#fff",
-            borderRadius: "50%",
-            width: 11,
-            height: 11,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Plus className="w-2.5 h-2.5" style={{ color: "#1e3a8a" }} />
+        <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-rose-500 ml-0">
+          <Bug size={20} style={{ color: '#fff' }} />
         </span>
-        {/* Tooltip on hover */}
-        <span className="absolute left-1/2 -translate-x-1/2 -top-8 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-          Add Defect
-        </span>
+        <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Defect</span>
       </Button>
       <Modal
         isOpen={isModalOpen}
