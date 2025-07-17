@@ -641,9 +641,16 @@ export const ReleaseView: React.FC = () => {
             releaseStatus: releaseFormData.releaseType,
           };
           try {
-            const response = await createRelease(payload);
-            if (response.status === "success" && response.statusCode === 2000) {
-              getReleaseCardView();
+            if (editingReleaseId) {
+              // Editing: Only update UI state, do not call backend
+              setReleases(prev => prev.map(r => r.id === editingReleaseId ? {
+                ...r,
+                releaseName: releaseFormData.name,
+                releaseDate: releaseFormData.releaseDate,
+                releaseType: releaseFormData.releaseType,
+                description: releaseFormData.description,
+                version: releaseFormData.version,
+              } : r));
               setIsCreateReleaseModalOpen(false);
               setReleaseFormData({
                 name: "",
@@ -652,10 +659,27 @@ export const ReleaseView: React.FC = () => {
                 releaseDate: "",
                 releaseType: "",
               });
-              setAlertMessage("Release created successfully!");
+              setEditingReleaseId(null);
+              setAlertMessage("Release updated locally");
               setAlertOpen(true);
             } else {
-              alert(response.message || "Failed to create release");
+              // Creating: Call backend as before
+              const response = await createRelease(payload);
+              if (response.status === "success" && response.statusCode === 2000) {
+                getReleaseCardView();
+                setIsCreateReleaseModalOpen(false);
+                setReleaseFormData({
+                  name: "",
+                  version: "",
+                  description: "",
+                  releaseDate: "",
+                  releaseType: "",
+                });
+                setAlertMessage("Release created successfully!");
+                setAlertOpen(true);
+              } else {
+                alert(response.message || "Failed to create release");
+              }
             }
           } catch (error: any) {
             alert(

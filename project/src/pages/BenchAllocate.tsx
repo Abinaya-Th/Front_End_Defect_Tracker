@@ -611,7 +611,7 @@ export default function BenchAllocate() {
                     <div className="flex items-center bg-blue-50 rounded-t-lg px-4 py-2">
                         <User className="w-5 h-5 mr-2" />
                         <span className="font-semibold text-lg text-blue-900">
-                            Project: {currentProject?.name}
+                            Project {currentProject?.name}
                         </span>
                         <div className="flex gap-2 ml-auto">
                             <Button
@@ -668,7 +668,7 @@ export default function BenchAllocate() {
                                         <tr className="border-b border-[#D1D5DB]">
                                             <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
-                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Allocated %</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
                                             <th className="text-center px-4 whitespace-nowrap"></th>
