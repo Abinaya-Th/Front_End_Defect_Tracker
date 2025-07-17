@@ -13,12 +13,13 @@ import { ProjectSelector } from '../components/ui/ProjectSelector';
 import DefectToRemarkRatio from '../components/ui/DefectToRemarkRatio';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { getAllDefectStatuses, DefectStatus } from '../api/defectStatus';
+import { getDefectDensity } from '../api/KLOC/getKLOC';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
   const { defects, projects } = useApp();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  // Remove KLOC state from dashboard, always read from localStorage per project
+  // Remove KLOC state from dashboard, always read from backend
   const navigate = useNavigate();
   const [reopenModal, setReopenModal] = useState<{ open: boolean; label: string; defects: any[] }>({ open: false, label: '', defects: [] });
   const [riskFilter, setRiskFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
@@ -38,6 +39,10 @@ export const Dashboard: React.FC = () => {
   const [statusTypes, setStatusTypes] = useState<DefectStatus[]>([]);
   const [loadingStatusTypes, setLoadingStatusTypes] = useState(true);
   const [statusTypesError, setStatusTypesError] = useState<string | null>(null);
+  // Remove KLOC state from dashboard, always read from backend
+  const [defectDensity, setDefectDensity] = useState<{ kloc: number; defectCount: number; defectDensity?: number } | null>(null);
+  const [loadingDefectDensity, setLoadingDefectDensity] = useState(false);
+  const [defectDensityError, setDefectDensityError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -126,6 +131,35 @@ export const Dashboard: React.FC = () => {
     // Not in immediate attention or behind schedule
     return !immediateAttentionProjects.includes(project) && !behindScheduleProjects.includes(project);
   });
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectDensity(null);
+      return;
+    }
+    setLoadingDefectDensity(true);
+    setDefectDensityError(null);
+    const numericProjectId = String(selectedProjectId).replace(/\D/g, '');
+    getDefectDensity(numericProjectId)
+      .then((apiData) => {
+        // Use correct backend fields
+        if (apiData && apiData.data) {
+          setDefectDensity({
+            kloc: apiData.data.kloc,
+            defectCount: apiData.data.defects,
+            defectDensity: apiData.data.defectDensity, // optional, for direct display
+          });
+        } else {
+          setDefectDensity({ kloc: 1, defectCount: 0, defectDensity: 0 });
+        }
+        setLoadingDefectDensity(false);
+      })
+      .catch((err) => {
+        setDefectDensityError('Failed to load defect density');
+        setDefectDensity({ kloc: 1, defectCount: 0, defectDensity: 0 });
+        setLoadingDefectDensity(false);
+      });
+  }, [selectedProjectId]);
 
   if (!selectedProjectId) {
     // Show summary and project cards grid
@@ -457,14 +491,13 @@ export const Dashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
           <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
           <div className="flex-1 flex flex-col justify-center">
-            <DefectDensityMeter 
-              kloc={(() => {
-                if (!selectedProjectId) return 1;
-                const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
-                return stored ? Number(stored) || 1 : 1;
-              })()} 
-              defectCount={projectDefects.length} 
-            />
+            {loadingDefectDensity ? (
+              <div className="text-gray-500">Loading...</div>
+            ) : defectDensityError ? (
+              <div className="text-red-500">{defectDensityError}</div>
+            ) : defectDensity ? (
+              <DefectDensityMeter kloc={defectDensity.kloc} defectCount={defectDensity.defectCount} defectDensity={defectDensity.defectDensity} />
+            ) : null}
           </div>
         </div>
       {/* Defect Severity Index Card */}
@@ -782,8 +815,9 @@ export const Dashboard: React.FC = () => {
 
 export default Dashboard;
 
-function DefectDensityMeter({ kloc, defectCount }: { kloc: number, defectCount: number }) {
-  const density = kloc > 0 ? defectCount / kloc : 0;
+function DefectDensityMeter({ kloc, defectCount, defectDensity }: { kloc: number, defectCount: number, defectDensity?: number }) {
+  // Use backend defectDensity if provided, otherwise calculate
+  const density = typeof defectDensity === 'number' ? defectDensity : (kloc > 0 ? defectCount / kloc : 0);
   const min = 0, max = 20;
   const percent = Math.min(Math.max(density, min), max) / max;
   // Cap angle between 0deg (left) and 180deg (right)
@@ -808,7 +842,7 @@ function DefectDensityMeter({ kloc, defectCount }: { kloc: number, defectCount: 
 
   return (
     <div className="flex flex-col items-center">
-      <div className="text-lg font-semibold mb-1 text-center">Defect Density : <span className="ml-2 font-extrabold" style={{ color: zoneColor }}>{density.toFixed(2)}</span></div>
+      <div className="text-lg font-semibold mb-1 text-center">Defect Density : <span className="ml-2 font-extrabold" style={{ color: zoneColor }}>{isNaN(density) ? '0.00' : density.toFixed(2)}</span></div>
       <div >
         <div className="relative w-64 h-36 flex items-end justify-center">
           <svg viewBox="0 0 200 100" className="w-full h-full">
