@@ -45,6 +45,7 @@ import { addDefects } from "../api/defect/addNewDefect";
 import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 import AlertModal from '../components/ui/AlertModal';
+import { createKloc } from "../api/KLOC/putKLOC";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -100,6 +101,28 @@ export const Defects: React.FC = () => {
   const [kloc, setKloc] = React.useState<number>(1);
   // Local state for editing before confirm (fix for hooks order)
   const [klocInput, setKlocInput] = React.useState<number>(1);
+  const handleKlocInputChange = async () => {
+    console.log("999999999999999999999");
+    
+    const value = Number(klocInput) || 1;
+    setKloc(value);
+    setKlocInput(value);
+    
+    const payload = {
+      projectId: Number(selectedProjectId),
+      kloc: value,
+    };
+    // Call API to update KLOC
+    try {
+      const response = await createKloc(payload, Number(selectedProjectId));
+      console.log("KLOC updated successfully:", response);
+    } catch (error) {
+      console.log("Failed to update KLOC:", error);
+    }
+    
+
+    
+  };
   React.useEffect(() => {
     if (typeof window !== 'undefined' && selectedProjectId) {
       const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
@@ -984,13 +1007,17 @@ export const Defects: React.FC = () => {
               min={1}
               className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
               value={klocInput}
-              onChange={e => setKlocInput(Number(e.target.value) || 1)}
+            onChange={(e) => 
+            setKlocInput(Number(e.target.value) || 1)
+            }
               style={{ minWidth: 60 }}
             />
             <button
               type="button"
               className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
-              onClick={() => setKloc(klocInput)}
+              onClick={() => {setKloc(klocInput),
+                 handleKlocInputChange();
+              }}
               disabled={klocInput === kloc}
               title="Confirm KLOC value"
             >
