@@ -397,6 +397,8 @@ export default function BenchAllocate() {
                   userMessage = 'Allocation percentage must be between 1 and 100';
                 } else if (errorMessage.includes('Missing required fields')) {
                   userMessage = 'Missing required fields.';
+                } else if (errorMessage.includes('This user already has this role in the specified project')) {
+                  userMessage = 'This user already has this role in the specified project';
                 } else {
                   // Extract last part after last dash or colon
                   const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
@@ -430,8 +432,12 @@ export default function BenchAllocate() {
               userMessage = 'Role information is required';
             } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
               userMessage = 'Allocation percentage must be between 1 and 100';
+            } else if (errorMessage.includes('Request failed with status code 400')) {
+              userMessage = 'Allocation percentage must be between 1 and 100';
             } else if (errorMessage.includes('Missing required fields')) {
               userMessage = 'Missing required fields.';
+            } else if (errorMessage.includes('This user already has this role in the specified project')) {
+              userMessage = 'This user already has this role in the specified project';
             } else {
               // Extract last part after last dash or colon
               const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
@@ -561,41 +567,41 @@ export default function BenchAllocate() {
                             </div>
                         ) : paginatedBenchEmployees.length > 0 ? (
                             paginatedBenchEmployees.map(emp => (
-                            <div
-                                key={emp.id}
-                                className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
+                                <div
+                                    key={emp.id}
+                                    className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
     ${selectedBench.includes(emp.id) ? 'border-2 border-blue-500 bg-[#f6fff8]' : 'border border-transparent'}
     hover:bg-[#f6fff8] ${selectedProjectUsers.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                onClick={() => {
-                                    if (selectedProjectUsers.length === 0) handleBenchSelect(emp.id);
-                                }}
-                                draggable
-                                onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
-                            >
-                                <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
-                                <div className="flex-1">
-                                    <div className="font-medium">{emp.firstName} {emp.lastName}</div>
-                                   
-                                    <div className="text-xs text-gray-400 mt-1">
-                                        {currentProject?.name}
-                                    </div>
-                                </div>
-                                {/* Available Period section */}
-                                <div className="flex flex-col items-end min-w-[150px]">
-                                    <span className="text-xs text-gray-500 font-semibold">Available Period</span>
-                                    <span className="text-xs text-gray-600">{emp.joinedDate || '-'}</span>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    className="ml-2"
-                                    onClick={e => { e.stopPropagation(); setViewInfoEmployee(emp); }}
-                                    title="View Info"
+                                    onClick={() => {
+                                        if (selectedProjectUsers.length === 0) handleBenchSelect(emp.id);
+                                    }}
+                                    draggable
+                                    onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
                                 >
-                                    View Info
-                                </Button>
-                            </div>
-                        ))
+                                    <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
+                                    <div className="flex-1">
+                                        <div className="font-medium">{emp.firstName} {emp.lastName}</div>
+                                        <div className="text-gray-500 text-sm leading-tight">{emp.designation}</div>
+                                        <div className="text-xs text-gray-400 mt-1">
+                                            {currentProject?.name}
+                                        </div>
+                                    </div>
+                                    {/* Available Period section */}
+                                    <div className="flex flex-col items-end min-w-[150px]">
+                                        <span className="text-xs text-gray-500 font-semibold">Available Period</span>
+                                        <span className="text-xs text-gray-600">{emp.joinedDate || '-'}</span>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="ml-2"
+                                        onClick={e => { e.stopPropagation(); setViewInfoEmployee(emp); }}
+                                        title="View Info"
+                                    >
+                                        View Info
+                                    </Button>
+                                </div>
+                            ))
                         ) : (
                             <div className="text-center py-8">
                                 <p className="text-gray-500">
@@ -813,7 +819,23 @@ export default function BenchAllocate() {
             >
                 <div className="flex flex-col gap-6 p-6 min-w-[900px]">
                     {allocationModal.employees.map((emp, index) => (
-                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full">
+                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full relative">
+                            {/* Close icon in the top-right, only show if more than one employee */}
+                            {allocationModal.employees.length > 1 && (
+                                <button
+                                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold"
+                                    onClick={() => {
+                                        setAllocationModal(modal => ({
+                                            ...modal,
+                                            employees: modal.employees.filter((e, i) => i !== index)
+                                        }));
+                                    }}
+                                    title="Remove"
+                                    type="button"
+                                >
+                                    ×
+                                </button>
+                            )}
                             {/* Name and Designation */}
                             <div className="flex flex-col min-w-[180px]">
                                 <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
