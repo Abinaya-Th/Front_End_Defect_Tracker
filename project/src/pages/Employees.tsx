@@ -653,30 +653,78 @@ export const Employees: React.FC = () => {
             </div>
             {/* Pagination Controls - Only show when not searching */}
             {totalPages > 1 && !searchTerm.trim() && (
-              <div className="flex justify-center items-center gap-2 py-4">
+              <div className="flex items-center justify-center gap-2 py-4">
+                {/* Previous Button */}
                 <button
                   className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  &lt;
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    className={`px-3 py-1 rounded border ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+
+                {/* Page Numbers with Ellipsis */}
+                {(() => {
+                  const pages = [];
+                  if (totalPages <= 5) {
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(i);
+                    }
+                  } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push("...");
+                    const start = Math.max(2, currentPage - 1);
+                    const end = Math.min(totalPages - 1, currentPage + 1);
+                    for (let i = start; i <= end; i++) {
+                      pages.push(i);
+                    }
+                    if (currentPage < totalPages - 2) pages.push("...");
+                    pages.push(totalPages);
+                  }
+                  return pages.map((page, idx) =>
+                    page === "..." ? (
+                      <span key={idx} className="px-2">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        className={`px-3 py-1 rounded border ${
+                          currentPage === page
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                        onClick={() => setCurrentPage(Number(page))}
+                      >
+                        {page}
+                      </button>
+                    )
+                  );
+                })()}
+
+                {/* Next Button */}
                 <button
                   className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  &gt;
                 </button>
+
+                {/* Go to Page */}
+                <span className="ml-4">Go to</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    let val = Number(e.target.value);
+                    if (val < 1) val = 1;
+                    if (val > totalPages) val = totalPages;
+                    setCurrentPage(val);
+                  }}
+                  className="w-16 border rounded px-2 py-1 mx-2"
+                />
+                <span>/ {totalPages}</span>
               </div>
             )}
           </div>
