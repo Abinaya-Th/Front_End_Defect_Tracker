@@ -14,6 +14,7 @@ import DefectToRemarkRatio from '../components/ui/DefectToRemarkRatio';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { getAllDefectStatuses, DefectStatus } from '../api/defectStatus';
 import { getDefectTypeByProjectId } from '../api/dashboard/defecttype';
+import { getDefectRemarkRatioByProjectId } from '../api/dashboard/remarkratio';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
@@ -43,6 +44,10 @@ export const Dashboard: React.FC = () => {
   const [defectTypeData, setDefectTypeData] = useState<{ labels: string[]; counts: number[]; percentages?: number[]; total?: number; mostCommon?: string; mostCount?: number; } | null>(null);
   const [loadingDefectType, setLoadingDefectType] = useState(false);
   const [defectTypeError, setDefectTypeError] = useState<string | null>(null);
+  // State for defect to remark ratio
+  const [remarkRatioData, setRemarkRatioData] = useState<{ defectCount: number; remarkCount: number } | null>(null);
+  const [loadingRemarkRatio, setLoadingRemarkRatio] = useState(false);
+  const [remarkRatioError, setRemarkRatioError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -135,6 +140,42 @@ export const Dashboard: React.FC = () => {
         setDefectTypeError('Failed to load defect type distribution');
         setDefectTypeData(null);
         setLoadingDefectType(false);
+      });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setRemarkRatioData(null);
+      return;
+    }
+    setLoadingRemarkRatio(true);
+    setRemarkRatioError(null);
+    getDefectRemarkRatioByProjectId(selectedProjectId)
+      .then((res) => {
+        // Support numeric fields or string ratio like 'remarks:defects': '20:1'
+        if (res?.data && typeof res.data.defectCount === 'number' && typeof res.data.remarkCount === 'number') {
+          setRemarkRatioData({ defectCount: res.data.defectCount, remarkCount: res.data.remarkCount });
+        } else if (typeof res.defectCount === 'number' && typeof res.remarkCount === 'number') {
+          setRemarkRatioData({ defectCount: res.defectCount, remarkCount: res.remarkCount });
+        } else if (res?.data && typeof res.data['remarks:defects'] === 'string') {
+          // Parse the string, e.g., '20:1' (remarks:defects)
+          const [remarks, defects] = res.data['remarks:defects'].split(':').map(Number);
+          if (!isNaN(remarks) && !isNaN(defects)) {
+            setRemarkRatioData({ defectCount: remarks, remarkCount: defects });
+          } else {
+            setRemarkRatioData(null);
+            setRemarkRatioError('Invalid defect to remark ratio data');
+          }
+        } else {
+          setRemarkRatioData(null);
+          setRemarkRatioError('Invalid defect to remark ratio data');
+        }
+        setLoadingRemarkRatio(false);
+      })
+      .catch(() => {
+        setRemarkRatioError('Failed to load defect to remark ratio');
+        setRemarkRatioData(null);
+        setLoadingRemarkRatio(false);
       });
   }, [selectedProjectId]);
 
@@ -535,7 +576,15 @@ export const Dashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
         <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect to Remark Ratio</h2>
         <div className="flex-1 flex flex-col items-center justify-center">
-          <DefectToRemarkRatio defectCount={projectDefects.length} remarkCount={150} />
+          {loadingRemarkRatio ? (
+            <span className="text-gray-500">Loading...</span>
+          ) : remarkRatioError ? (
+            <span className="text-red-500">{remarkRatioError}</span>
+          ) : remarkRatioData ? (
+            <DefectToRemarkRatio defectCount={remarkRatioData.defectCount} remarkCount={remarkRatioData.remarkCount} />
+          ) : (
+            <span className="text-gray-400">No data available.</span>
+          )}
         </div>
       </div>
       </div>
