@@ -11,10 +11,12 @@ import { AlertCircle, Clock, CheckCircle, TrendingUp, Calendar, User, ChevronLef
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import { ProjectSelector } from '../components/ui/ProjectSelector';
 import DefectToRemarkRatio from '../components/ui/DefectToRemarkRatio';
+import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
+import { getAllDefectStatuses, DefectStatus } from '../api/defectStatus';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
-  const { defects, projects, statusTypes } = useApp();
+  const { defects, projects } = useApp();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   // Remove KLOC state from dashboard, always read from localStorage per project
   const navigate = useNavigate();
@@ -28,6 +30,69 @@ export const Dashboard: React.FC = () => {
   const [isModuleCardHovered, setIsModuleCardHovered] = useState(false);
   const [moduleDetailModal, setModuleDetailModal] = useState<{ open: boolean; mod: any; totalHigh: number; totalMed: number; totalLow: number } | null>(null);
   const [reopenedDetailModal, setReopenedDetailModal] = useState<{ open: boolean; label: string; defects: any[] } | null>(null);
+  // Add state for defect severity summary from API
+  const [defectSeveritySummary, setDefectSeveritySummary] = useState<any>(null);
+  const [loadingSeveritySummary, setLoadingSeveritySummary] = useState(false);
+  const [severitySummaryError, setSeveritySummaryError] = useState<string | null>(null);
+  // Local state for status types
+  const [statusTypes, setStatusTypes] = useState<DefectStatus[]>([]);
+  const [loadingStatusTypes, setLoadingStatusTypes] = useState(true);
+  const [statusTypesError, setStatusTypesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectSeveritySummary(null);
+      return;
+    }
+    setLoadingSeveritySummary(true);
+    setSeveritySummaryError(null);
+    const numericProjectId = String(selectedProjectId).replace(/\D/g, '');
+    getDefectSeveritySummary(numericProjectId)
+      .then((apiData) => {
+        // Map API data to UI format
+        const summary = { high: { statusCounts: {}, total: 0 }, medium: { statusCounts: {}, total: 0 }, low: { statusCounts: {}, total: 0 } };
+        if (apiData && apiData.data && Array.isArray(apiData.data.defectSummary)) {
+          apiData.data.defectSummary.forEach((item) => {
+            const sev = item.severity.toLowerCase(); // 'high', 'medium', 'low'
+            if (summary[sev]) {
+              summary[sev].total = item.total;
+              // Map statuses
+              const statusCounts = {};
+              Object.entries(item.statuses).forEach(([status, val]) => {
+                statusCounts[status.toLowerCase()] = val.count;
+              });
+              summary[sev].statusCounts = statusCounts;
+            }
+          });
+        }
+        setDefectSeveritySummary(summary);
+        setLoadingSeveritySummary(false);
+      })
+      .catch((err) => {
+        setSeveritySummaryError('Failed to load defect severity summary');
+        setLoadingSeveritySummary(false);
+      });
+  }, [selectedProjectId]);
+
+  // Fetch status types from backend
+  useEffect(() => {
+    setLoadingStatusTypes(true);
+    setStatusTypesError(null);
+    getAllDefectStatuses()
+      .then((res) => {
+        if (res && res.data) {
+          setStatusTypes(res.data);
+        } else {
+          setStatusTypes([]);
+        }
+        setLoadingStatusTypes(false);
+      })
+      .catch((err) => {
+        setStatusTypesError('Failed to load status types');
+        setStatusTypes([]);
+        setLoadingStatusTypes(false);
+      });
+  }, []);
 
   // Helper to determine project status color
   function getProjectStatusColor(projectId: string): 'red' | 'yellow' | 'green' {
@@ -234,11 +299,6 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-
-
-  // Rest of the code remains the same as in code 1 for the project-specific dashboard view
-  // [Previous implementation continues...]
-
   // Show widgets for selected project
   return (
     <>
@@ -283,699 +343,441 @@ export const Dashboard: React.FC = () => {
             </div>
                 </div>
         )}
-  {/* KLOC and Total Defects Controls removed from project dashboard */}
         {/* Defect Severity Breakdown */}
         <div className="mb-14">
           <h2 className="text-lg font-semibold mb-3 text-gray-600">Defect Severity Breakdown</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {['high', 'medium', 'low'].map(severity => {
-              const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
-              const colorMap = {
-                high: 'border-l-8 border-red-500',
-                medium: 'border-l-8 border-yellow-400',
-                low: 'border-l-8 border-green-500',
-              };
-              const titleColor = {
-                high: 'text-red-600',
-                medium: 'text-yellow-500',
-                low: 'text-green-600',
-              };
-              const borderColor = {
-                high: 'border-red-200',
-                medium: 'border-yellow-200',
-                low: 'border-green-200',
-              };
-              const statusList = statusTypes.map(s => s.name.toLowerCase());
-              const statusColorMap = Object.fromEntries(statusTypes.map(s => [s.name.toLowerCase(), s.color]));
-              const defectsBySeverity = projectDefects.filter(d => d.severity === severity);
-              const total = defectsBySeverity.length;
-              // Count by status
-              const statusCounts = statusList.map(status =>
-                defectsBySeverity.filter(d => (d.status || '').toLowerCase() === status).length
-              );
-              // Split status legend into two columns
-              const half = Math.ceil(statusList.length / 2);
-              const leftStatuses = statusList.slice(0, half);
-              const rightStatuses = statusList.slice(half);
-              return (
-                <div
-                  key={severity}
-                  className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
-                >
-                  <div className="flex items-center justify-between px-6 pt-4 pb-1">
-                    <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
-                    <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
-                    </div>
-                  <div className="flex flex-row gap-8 px-6 pb-1">
-                    <div className="flex flex-col gap-1">
-                      {leftStatuses.map((status, idx) => (
-                        <div key={status} className="flex items-center gap-2 text-xs">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
-                          <span className="text-gray-700 font-normal">{statusTypes[idx].name}</span>
-                          <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
-                  </div>
-                      ))}
-                  </div>
-                    <div className="flex flex-col gap-1">
-                      {rightStatuses.map((status, idx) => (
-                        <div key={status} className="flex items-center gap-2 text-xs">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
-                          <span className="text-gray-700 font-normal">{statusTypes[half + idx].name}</span>
-                          <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
-                </div>
-                      ))}
-          </div>
-              </div>
-                  <div className="px-6 pb-3">
-                    <button
-                      className="mt-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-md font-medium text-xs border border-blue-100 hover:bg-blue-100 transition"
-                      onClick={() => setPieModal({ open: true, severity })}
-                    >
-                      View Chart
-                    </button>
-            </div>
-              </div>
-              );
-            })}
-              </div>
-          {/* Pie Chart Modal */}
-          {pieModal.open && pieModal.severity && (() => {
-            const severity = pieModal.severity;
-            const statusList = statusTypes.map(s => s.name.toLowerCase());
-            const statusColorMap = Object.fromEntries(statusTypes.map(s => [s.name.toLowerCase(), s.color]));
-            const defectsBySeverity = projectDefects.filter(d => d.severity === severity);
-            const statusCounts = statusList.map(status =>
-              defectsBySeverity.filter(d => (d.status || '').toLowerCase() === status).length
-            );
-            const pieData = {
-              labels: statusList.map(s => s.toUpperCase()),
-              datasets: [
-                {
-                  data: statusCounts,
-                  backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
-                },
-              ],
-            };
-            return (
-              <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}> 
-                <div className="flex flex-col items-center justify-center p-4">
-                  <div className="w-64 h-64">
-                    <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
-            </div>
-              </div>
-              </Modal>
-            );
-          })()}
-            </div>
-        {/* Defect Density Meter & Defect Severity Index Row */}
-          <div className="mb-14 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-            {/* Defect Density Card */}
-            <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
-              <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
-              <div className="flex-1 flex flex-col justify-center">
-                <DefectDensityMeter 
-                  kloc={(() => {
-                    if (!selectedProjectId) return 1;
-                    const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
-                    return stored ? Number(stored) || 1 : 1;
-                  })()} 
-                  defectCount={projectDefects.length} 
-                />
-              </div>
-            </div>
-          {/* Defect Severity Index Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
-            <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Severity Index</h2>
-            <div className="flex-1 flex flex-col items-center justify-center">
-              {(() => {
-                const critical = projectDefects.filter(d => d.severity === 'critical').length;
-                const high = projectDefects.filter(d => d.severity === 'high').length;
-                const medium = projectDefects.filter(d => d.severity === 'medium').length;
-                const low = projectDefects.filter(d => d.severity === 'low').length;
-                const total = projectDefects.length;
-                const index = total > 0 ? ((critical * 4 + high * 3 + medium * 2 + low * 1) / total).toFixed(2) : '0.00';
+          {(loadingSeveritySummary || loadingStatusTypes) && <div className="text-gray-500 p-4">Loading...</div>}
+          {(severitySummaryError || statusTypesError) && <div className="text-red-500 p-4">{severitySummaryError || statusTypesError}</div>}
+          {!loadingSeveritySummary && !loadingStatusTypes && !severitySummaryError && !statusTypesError && defectSeveritySummary && statusTypes.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {['high', 'medium', 'low'].map(severity => {
+                // Only use API data for rendering
+                const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
+                const colorMap = {
+                  high: 'border-l-8 border-red-500',
+                  medium: 'border-l-8 border-yellow-400',
+                  low: 'border-l-8 border-green-500',
+                };
+                const titleColor = {
+                  high: 'text-red-600',
+                  medium: 'text-yellow-500',
+                  low: 'text-green-600',
+                };
+                const borderColor = {
+                  high: 'border-red-200',
+                  medium: 'border-yellow-200',
+                  low: 'border-green-200',
+                };
+                // Use backend status types for columns
+                const statusList = statusTypes.map(s => s.defectStatusName.toLowerCase());
+                const statusColorMap = Object.fromEntries(statusTypes.map(s => [s.defectStatusName.toLowerCase(), s.colorCode]));
+                const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+                const total = summary.total || 0;
+                // Only use API data for status counts
+                const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
+                // Split status legend into two columns
+                const half = Math.ceil(statusList.length / 2);
+                const leftStatuses = statusList.slice(0, half);
+                const rightStatuses = statusList.slice(half);
                 return (
-                  <>
-                    <span className="text-4xl font-bold text-orange-600 mb-2">{index}</span>
-                    <span className="text-gray-700 text-center">Weighted severity score (higher = more severe defects)</span>
-                  </>
-                );
-              })()}
-            </div>
-              </div>
-          {/* Defect to Remark Ratio Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
-            <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect to Remark Ratio</h2>
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <DefectToRemarkRatio defectCount={projectDefects.length} remarkCount={150} />
-            </div>
-              </div>
-              </div>
-        {/* Defects Reopened Multiple Times & Defect Distribution by Type Row */}
-        <div className="mb-14 flex flex-col md:flex-row gap-8 items-stretch">
-          {/* Defects Reopened Multiple Times Pie Chart */}
-          <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col relative">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Defects Reopened Multiple Times</h2>
-            {(() => {
-              // MOCK DATA for visual match
-              const labels = ['2 times', '3 times', '4 times', '5 times', '5+ times'];
-              const data = {
-                labels,
-                datasets: [
-                  {
-                    data: [8, 5, 3, 2, 1],
-                    backgroundColor: [
-                      '#4285F4', // 2 times
-                      '#FBBC05', // 3 times
-                      '#EA4335', // 4 times
-                      '#C5221F', // 5 times
-                      '#F29900', // 5+ times
-                    ],
-                  },
-                ],
-              };
-              // Mock defect details for each bucket
-              // IMPORTANT: The order of defectBuckets must match the order of labels and data.datasets[0].data
-              const defectBuckets = [
-                [ // 2 times
-                  { id: 'DEF-001', title: 'Login fails', assignee: 'Alice', reporter: 'Bob', release: 'v2.1.0' },
-                  { id: 'DEF-002', title: 'UI glitch', assignee: 'Carol', reporter: 'Dave', release: 'v2.1.0' },
-                  { id: 'DEF-003', title: 'Crash on save', assignee: 'Eve', reporter: 'Frank', release: 'v2.1.0' },
-                  { id: 'DEF-004', title: 'Slow load', assignee: 'Grace', reporter: 'Heidi', release: 'v2.1.0' },
-                  { id: 'DEF-005', title: 'Data sync issue', assignee: 'Ivan', reporter: 'Judy', release: 'v2.1.0' },
-                  { id: 'DEF-006', title: 'Notification bug', assignee: 'Mallory', reporter: 'Niaj', release: 'v2.1.0' },
-                  { id: 'DEF-007', title: 'Export error', assignee: 'Olivia', reporter: 'Peggy', release: 'v2.1.0' },
-                  { id: 'DEF-008', title: 'Import error', assignee: 'Sybil', reporter: 'Trent', release: 'v2.1.0' },
-                ],
-                [ // 3 times
-                  { id: 'DEF-009', title: 'Database conn...', assignee: 'David Lee', reporter: 'Emma Wilson', release: 'v2.1.0' },
-                  { id: 'DEF-010', title: 'Email notificat...', assignee: 'Frank Miller', reporter: 'Grace Taylor', release: 'v2.0.9' },
-                  { id: 'DEF-011', title: 'File upload cor...', assignee: 'Helen Garcia', reporter: 'Ivan Rodriguez', release: 'v2.1.0' },
-                  { id: 'DEF-012', title: 'Session timeout', assignee: 'Jack Brown', reporter: 'Karen White', release: 'v2.1.0' },
-                  { id: 'DEF-013', title: 'API error', assignee: 'Liam Green', reporter: 'Mona Black', release: 'v2.1.0' },
-                ],
-                [ // 4 times
-                  { id: 'DEF-014', title: 'Memory leak', assignee: 'Nina Blue', reporter: 'Oscar Pink', release: 'v2.1.0' },
-                  { id: 'DEF-015', title: 'Cache issue', assignee: 'Paul Red', reporter: 'Quinn Yellow', release: 'v2.1.0' },
-                  { id: 'DEF-016', title: 'Button misfire', assignee: 'Rita Orange', reporter: 'Sam Violet', release: 'v2.1.0' },
-                ],
-                [ // 5 times
-                  { id: 'DEF-017', title: 'Chart bug', assignee: 'Tom Indigo', reporter: 'Uma Cyan', release: 'v2.1.0' },
-                  { id: 'DEF-018', title: 'Theme not saved', assignee: 'Vic Magenta', reporter: 'Walt Lime', release: 'v2.1.0' },
-                ],
-                [ // 5+ times
-                  { id: 'DEF-019', title: 'Critical crash', assignee: 'Xena Gold', reporter: 'Yuri Silver', release: 'v2.1.0' },
-                ],
-              ];
-              // Ensure all arrays are the same length and order
-              while (defectBuckets.length < data.labels.length) defectBuckets.push([]);
-              while (defectBuckets.length > data.labels.length) defectBuckets.pop();
-              // Use Chart.js onHover to set the correct hovered index
-              const pieOptions = {
-                plugins: { legend: { display: false } },
-                onHover: (event, elements) => {
-                  if (elements && elements.length > 0) {
-                    setReopenedHoveredIdx(elements[0].index);
-                  } else if (!isReopenedCardHovered) {
-                    setReopenedHoveredIdx(null);
-                  }
-                },
-              };
-              // Calculate percentage for hovered segment
-              const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-              const hoveredCount = reopenedHoveredIdx !== null ? data.datasets[0].data[reopenedHoveredIdx] : 0;
-              const hoveredPct = reopenedHoveredIdx !== null && total > 0 ? ((hoveredCount / total) * 100).toFixed(1) : null;
-              return (
-                <div
-                  className="flex flex-col items-center justify-center relative"
-                  onMouseEnter={() => setIsReopenedCardHovered(true)}
-                  onMouseLeave={() => {
-                    setIsReopenedCardHovered(false);
-                    setReopenedHoveredIdx(null);
-                  }}
-                >
-                  <div className="w-64 h-64">
-                    <ChartJSPie ref={reopenedChartRef} data={data} options={pieOptions} />
-            </div>
-                  {/* Floating hover detail card */}
-                  {(reopenedHoveredIdx !== null || isReopenedCardHovered) && (() => {
-                    // Pie chart geometry (match your chart size)
-                    const pieCenterX = 128; // SVG center X (w-64 = 256px)
-                    const pieCenterY = 128; // SVG center Y
-                    const pieRadius = 100; // Pie outer radius
-                    const cardOffset = 60; // Distance from pie edge to card
-                    const totalSegments = data.datasets[0].data.length;
-                    const segmentAngle = 360 / totalSegments;
-                    const idx = reopenedHoveredIdx ?? 0;
-                    const angle = (idx + 0.5) * segmentAngle - 90; // -90 to start from top
-                    const rad = (angle * Math.PI) / 180;
-                    const minHorizontalOffset = 80; // Ensures card is always at least this far from pie center
-                    const cardRadius = pieRadius + cardOffset + minHorizontalOffset;
-                    const cardX = pieCenterX + cardRadius * Math.cos(rad);
-                    let cardY = pieCenterY + cardRadius * Math.sin(rad);
-                    // Clamp cardY to stay within the visible area
-                    const maxY = 256 - 120;
-                    const minY = 120;
-                    cardY = Math.max(minY, Math.min(cardY, maxY));
-                    // Always position the card to the right of the pie chart
-                    const cardStyle = {
-                      left: pieCenterX + pieRadius + 48,
-                      top: pieCenterY,
-                      transform: 'translateY(-50%)',
-                      minWidth: 340,
-                      position: 'absolute',
-                    };
-                    return (
-                      <div
-                        className="absolute z-20 w-[420px] bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
-                        style={cardStyle}
-                        onMouseEnter={() => {
-                          setIsReopenedCardHovered(true);
-                        }}
-                        onMouseLeave={() => {
-                          setIsReopenedCardHovered(false);
-                          setReopenedHoveredIdx(null);
-                        }}
-                        onMouseDown={() => setReopenedDetailModal({ open: true, label: labels[reopenedHoveredIdx ?? 0], defects: defectBuckets[reopenedHoveredIdx ?? 0] })}
-                      >
-                        <div className="font-bold text-lg mb-2 text-gray-900">Defects Reopened {labels[reopenedHoveredIdx ?? 0]}</div>
-                        <table className="min-w-full text-xs mb-2">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-1 px-2">ID</th>
-                              <th className="text-left py-1 px-2">Title</th>
-                              <th className="text-left py-1 px-2">Assignee</th>
-                              <th className="text-left py-1 px-2">Reporter</th>
-                              <th className="text-left py-1 px-2">Release</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {defectBuckets[(reopenedHoveredIdx ?? 0)] && defectBuckets[(reopenedHoveredIdx ?? 0)].length === 0 ? (
-                              <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
-                            ) : (
-                              (defectBuckets[(reopenedHoveredIdx ?? 0)] || []).map((defect, idx) => (
-                                <tr key={defect.id || idx} className="border-b">
-                                  <td className="py-1 px-2 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
-                                  <td className="py-1 px-2">{defect.title}</td>
-                                  <td className="py-1 px-2">{defect.assignee}</td>
-                                  <td className="py-1 px-2">{defect.reporter}</td>
-                                  <td className="py-1 px-2">{defect.release}</td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                        <div className="text-xs text-gray-400">Click segment for detailed view</div>
-              </div>
-                    );
-                  })()}
-                  <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
-                    {labels.map((label, idx) => (
-                      <div key={label} className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
-                        <span className="text-gray-700">{label}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
-            </div>
-                  ))}
-                  </div>
-                <div className="mt-4 text-xs text-gray-400">Hover over segments to view defect details table</div>
-                </div>
-            );
-          })()}
-              </div>
-          {/* Defect Distribution by Type Pie Chart */}
-          <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Defect Distribution by Type</h2>
-            {(() => {
-              // MOCK DATA for visual match
-              const labels = ['Functional', 'UI/UX', 'Performance', 'Security', 'Integration'];
-              const typeCounts = { Functional: 15, 'UI/UX': 8, Performance: 5, Security: 3, Integration: 4 };
-              const data = {
-                labels,
-                datasets: [
-                  {
-                    data: [15, 8, 5, 3, 4],
-                    backgroundColor: [
-                      '#4285F4', // Functional
-                      '#00B894', // UI/UX
-                      '#FBBC05', // Performance
-                      '#EA4335', // Security
-                      '#A259F7', // Integration
-                    ],
-                  },
-                ],
-              };
-              const total = 35;
-              const mostCommon = 'Functional';
-              const mostCount = 15;
-              return (
-                <>
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-64 h-64">
-                      <ChartJSPie data={data} options={{ plugins: { legend: { display: false } } }} />
-            </div>
-                    <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
-                      {labels.map((type, idx) => (
-                        <div key={type} className="flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
-                          <span className="text-gray-700">{type}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
-      </div>
-                  ))}
-                  </div>
-                    <div className="mt-6 flex justify-between w-full max-w-xs mx-auto border-t pt-4">
-                      <div className="flex flex-col items-center">
-                        <span className="text-2xl font-bold text-gray-900">{total}</span>
-                        <span className="text-xs text-gray-500">Total Defects</span>
-                </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-2xl font-bold text-blue-600">{mostCount}</span>
-                        <span className="text-xs text-gray-500">Most Common</span>
-              </div>
-                  </div>
-                </div>
-                </>
-              );
-            })()}
-              </div>
+                  <div
+                    key={severity}
+                    className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
+                  >
+                    <div className="flex items-center justify-between px-6 pt-4 pb-1">
+                      <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
+                      <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
                     </div>
-        {/* Time to Find Defects */}
-        <div className="mb-14 flex flex-col md:flex-row gap-8 items-stretch">
-          {/* Time to Find Defects */}
-          <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Time to Find Defects</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { day: 'Day 1', defects: 2 },
-                  { day: 'Day 2', defects: 3 },
-                  { day: 'Day 3', defects: 1 },
-                  { day: 'Day 4', defects: 4 },
-                  { day: 'Day 5', defects: 2 },
-                  { day: 'Day 6', defects: 3 },
-                  { day: 'Day 7', defects: 2 },
-                  { day: 'Day 8', defects: 1 },
-                  { day: 'Day 9', defects: 2 },
-                  { day: 'Day 10', defects: 1 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
-                  <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
-                  <Tooltip formatter={v => `${v} defects`} />
-                  <Line type="monotone" dataKey="defects" stroke="#2563eb" strokeWidth={3} dot={{ r: 5, stroke: '#2563eb', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-           
+                    <div className="flex flex-row gap-8 px-6 pb-1">
+                      <div className="flex flex-col gap-1">
+                        {leftStatuses.map((status, idx) => (
+                          <div key={status} className="flex items-center gap-2 text-xs">
+                            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                            <span className="text-gray-700 font-normal">{statusTypes[idx].defectStatusName}</span>
+                            <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {rightStatuses.map((status, idx) => (
+                          <div key={status} className="flex items-center gap-2 text-xs">
+                            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                            <span className="text-gray-700 font-normal">{statusTypes[half + idx].defectStatusName}</span>
+                            <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="px-6 pb-3">
+                      <button
+                        className="mt-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-md font-medium text-xs border border-blue-100 hover:bg-blue-100 transition"
+                        onClick={() => setPieModal({ open: true, severity })}
+                      >
+                        View Chart
+                      </button>
+                    </div>
                   </div>
-          {/* Time to Fix Defects */}
-          <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Time to Fix Defects</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { day: 'Day 1', defects: 3 },
-                  { day: 'Day 2', defects: 2 },
-                  { day: 'Day 3', defects: 4 },
-                  { day: 'Day 4', defects: 3 },
-                  { day: 'Day 5', defects: 2 },
-                  { day: 'Day 6', defects: 3 },
-                  { day: 'Day 7', defects: 2 },
-                  { day: 'Day 8', defects: 2 },
-                  { day: 'Day 9', defects: 1 },
-                  { day: 'Day 10', defects: 2 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
-                  <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
-                  <Tooltip formatter={v => `${v} defects`} />
-                  <Line type="monotone" dataKey="defects" stroke="#10b981" strokeWidth={3} dot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
-                </LineChart>
-              </ResponsiveContainer>
+                );
+              })}
             </div>
-           
+          )}
+        </div>
+        {/* Pie Chart Modal */}
+        {pieModal.open && pieModal.severity && (() => {
+          const severity = pieModal.severity;
+          const statusList = statusTypes.map(s => s.name.toLowerCase());
+          const statusColorMap = Object.fromEntries(statusTypes.map(s => [s.name.toLowerCase(), s.color]));
+          const defectsBySeverity = projectDefects.filter(d => d.severity === severity);
+          const statusCounts = statusList.map(status =>
+            defectsBySeverity.filter(d => (d.status || '').toLowerCase() === status).length
+          );
+          const pieData = {
+            labels: statusList.map(s => s.toUpperCase()),
+            datasets: [
+              {
+                data: statusCounts,
+                backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
+              },
+            ],
+          };
+          return (
+            <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}> 
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-64 h-64">
+                  <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+                </div>
+              </div>
+            </Modal>
+          );
+        })()}
+      </div>
+      {/* Defect Density Meter & Defect Severity Index Row */}
+      <div className="mb-14 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        {/* Defect Density Card */}
+        <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
+          <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
+          <div className="flex-1 flex flex-col justify-center">
+            <DefectDensityMeter 
+              kloc={(() => {
+                if (!selectedProjectId) return 1;
+                const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
+                return stored ? Number(stored) || 1 : 1;
+              })()} 
+              defectCount={projectDefects.length} 
+            />
           </div>
         </div>
-        
-        {/* More widgets (3-9) will go here */}
-      </div>
-      {/* Move the 'Defects by Module' section to the end of the dashboard widgets, after all other main sections. */}
-      <div className="mb-10 bg-white rounded-2xl max-w-3xl mx-auto shadow p-6 flex flex-col items-center">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">Defects by Module</h2>
-        <div className="relative w-64 h-64 mx-auto"
-          onMouseLeave={() => {
-            if (!isModuleCardHovered) setHoveredModuleIdx(null);
-          }}
-        >
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-              <RechartsPie
-                data={[
-                  { name: 'Authentication', value: 12, color: '#4285F4' },
-                  { name: 'Payment', value: 8, color: '#10b981' },
-                  { name: 'User Management', value: 6, color: '#fbbf24' },
-                  { name: 'Reporting', value: 4, color: '#ef4444' },
-                  { name: 'Dashboard', value: 3, color: '#a259f7' },
-                  { name: 'Settings', value: 2, color: '#06b6d4' },
-                ]}
-                dataKey="value"
-                nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                outerRadius={110}
-                stroke="#fff"
-                isAnimationActive={true}
-                label={false}
-                onMouseEnter={(_, idx) => setHoveredModuleIdx(idx)}
-              >
-                {[
-                  { name: 'Authentication', value: 12, color: '#4285F4' },
-                  { name: 'Payment', value: 8, color: '#10b981' },
-                  { name: 'User Management', value: 6, color: '#fbbf24' },
-                  { name: 'Reporting', value: 4, color: '#ef4444' },
-                  { name: 'Dashboard', value: 3, color: '#a259f7' },
-                  { name: 'Settings', value: 2, color: '#06b6d4' },
-                ].map((entry, idx) => (
-                  <Cell
-                    key={`cell-${idx}`}
-                    fill={
-                      hoveredModuleIdx === idx
-                        ? darkenColor(entry.color, 0.18) // darken on hover
-                        : entry.color
-                    }
-                    style={hoveredModuleIdx === idx ? { filter: 'brightness(0.85)' } : {}}
-                  />
-                ))}
-              </RechartsPie>
-                  </PieChart>
-                </ResponsiveContainer>
-          {/* Floating hover card logic as before */}
-          {(hoveredModuleIdx !== null || isModuleCardHovered) && (() => {
-            const modules = [
-              {
-                name: 'Authentication', value: 12, percent: 34, submodules: [
-                  { name: 'Login', high: 2, med: 1, low: 1 },
-                  { name: '2FA', high: 0, med: 2, low: 1 },
-                ]
-              },
-              {
-                name: 'Payment', value: 8, percent: 22.9, submodules: [
-                  { name: 'Credit Card', high: 1, med: 2, low: 1 },
-                  { name: 'PayPal Integration', high: 0, med: 1, low: 2 },
-                  { name: 'Refund System', high: 0, med: 0, low: 1 },
-                ]
-              },
-              {
-                name: 'User Management', value: 6, percent: 17, submodules: [
-                  { name: 'Profile', high: 1, med: 1, low: 1 },
-                  { name: 'Roles', high: 0, med: 1, low: 2 },
-                ]
-              },
-              {
-                name: 'Reporting', value: 4, percent: 11, submodules: [
-                  { name: 'Export', high: 0, med: 1, low: 1 },
-                  { name: 'Charts', high: 0, med: 1, low: 1 },
-                ]
-              },
-              {
-                name: 'Dashboard', value: 3, percent: 9, submodules: [
-                  { name: 'Overview', high: 0, med: 1, low: 1 },
-                  { name: 'Widgets', high: 0, med: 0, low: 1 },
-                ]
-              },
-              {
-                name: 'Settings', value: 2, percent: 6, submodules: [
-                  { name: 'Preferences', high: 0, med: 0, low: 1 },
-                  { name: 'Notifications', high: 0, med: 0, low: 1 },
-                ]
-              },
-            ];
-            const mod = modules[hoveredModuleIdx ?? 0];
-            const totalHigh = mod.submodules.reduce((a, s) => a + s.high, 0);
-            const totalMed = mod.submodules.reduce((a, s) => a + s.med, 0);
-            const totalLow = mod.submodules.reduce((a, s) => a + s.low, 0);
-            // Pie chart geometry (match your chart size)
-            const pieCenterX = 128;
-            const pieCenterY = 128;
-            const pieRadius = 100;
-            const cardOffset = 60;
-            const totalSegments = modules.length;
-            const idx = hoveredModuleIdx ?? 0;
-            const segmentAngle = 360 / totalSegments;
-            const angle = (idx + 0.5) * segmentAngle - 90;
-            const rad = (angle * Math.PI) / 180;
-            const cardX = pieCenterX + (pieRadius + cardOffset) * Math.cos(rad);
-            const cardY = pieCenterY + (pieRadius + cardOffset) * Math.sin(rad);
-            const svgWidth = 256; // w-64 = 256px
-            const cardStyle = {
-              left: pieCenterX + pieRadius + 48,
-              top: pieCenterY,
-              transform: 'translateY(-50%)',
-              minWidth: 340,
-              position: 'absolute',
-            };
-                return (
-              <div
-                className="absolute z-30 w-[340px] bg-white rounded-xl shadow-xl border border-gray-100 p-5 animate-fade-in"
-                style={cardStyle}
-                onMouseEnter={() => {
-                  setIsModuleCardHovered(true);
-                }}
-                onMouseLeave={() => {
-                  setIsModuleCardHovered(false);
-                  setHoveredModuleIdx(null);
-                }}
-                onMouseDown={() => setModuleDetailModal({ open: true, mod, totalHigh, totalMed, totalLow })}
-              >
-                <div className="font-bold text-xl mb-1 text-gray-900">{mod.name} Module</div>
-                <div className="mb-2 text-gray-600 text-sm">{mod.value} defects ({mod.percent}%)</div>
-                <table className="min-w-full text-sm mb-2 border border-gray-200 divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-1 px-2 font-semibold text-gray-700 border-b border-gray-200">Submodule</th>
-                      <th className="text-center py-1 px-2 font-semibold text-red-600 border-b border-gray-200">High</th>
-                      <th className="text-center py-1 px-2 font-semibold text-orange-500 border-b border-gray-200">Med</th>
-                      <th className="text-center py-1 px-2 font-semibold text-green-600 border-b border-gray-200">Low</th>
-                      <th className="text-center py-1 px-2 font-semibold text-gray-700 border-b border-gray-200">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mod.submodules.map((sub: any, idx: number) => (
-                      <tr key={sub.name} className="border-b border-gray-200">
-                        <td className="py-1 px-2 text-gray-800">{sub.name}</td>
-                        <td className="py-1 px-2 text-center text-red-600 font-semibold">{sub.high}</td>
-                        <td className="py-1 px-2 text-center text-orange-500 font-semibold">{sub.med}</td>
-                        <td className="py-1 px-2 text-center text-green-600 font-semibold">{sub.low}</td>
-                        <td className="py-1 px-2 text-center text-gray-900 font-semibold">{sub.high + sub.med + sub.low}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="mt-2 text-sm text-gray-700 font-semibold flex items-center gap-4">
-                  <span>Module Total:</span>
-                  <span className="text-red-600 font-bold">H: {totalHigh}</span>
-                  <span className="text-orange-500 font-bold">M: {totalMed}</span>
-                  <span className="text-green-600 font-bold">L: {totalLow}</span>
-                </div>
-              </div>
+      {/* Defect Severity Index Card */}
+      <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Severity Index</h2>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {(() => {
+            const critical = projectDefects.filter(d => d.severity === 'critical').length;
+            const high = projectDefects.filter(d => d.severity === 'high').length;
+            const medium = projectDefects.filter(d => d.severity === 'medium').length;
+            const low = projectDefects.filter(d => d.severity === 'low').length;
+            const total = projectDefects.length;
+            const index = total > 0 ? ((critical * 4 + high * 3 + medium * 2 + low * 1) / total).toFixed(2) : '0.00';
+            return (
+              <>
+                <span className="text-4xl font-bold text-orange-600 mb-2">{index}</span>
+                <span className="text-gray-700 text-center">Weighted severity score (higher = more severe defects)</span>
+              </>
             );
           })()}
-            </div>
-        <ul className="space-y-2 mt-8 w-full max-w-xs mx-auto">
-          {[
-            { name: 'Authentication', value: 12, color: '#4285F4', percent: 34 },
-            { name: 'Payment', value: 8, color: '#10b981', percent: 23 },
-            { name: 'User Management', value: 6, color: '#fbbf24', percent: 17 },
-            { name: 'Reporting', value: 4, color: '#ef4444', percent: 11 },
-            { name: 'Dashboard', value: 3, color: '#a259f7', percent: 9 },
-            { name: 'Settings', value: 2, color: '#06b6d4', percent: 6 },
-          ].map((mod, idx) => (
-            <li key={mod.name} className="flex items-center justify-between text-base">
-              <div className="flex items-center gap-3">
-                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: mod.color }}></span>
-                <span className="text-gray-700">{mod.name}</span>
+        </div>
       </div>
-              <div className="flex items-center gap-1">
-                <span className="text-gray-900 font-semibold">{mod.value}</span>
-                <span className="text-gray-400 text-sm">({mod.percent}%)</span>
-            </div>
-            </li>
-          ))}
-        </ul>
-       
-       
+      {/* Defect to Remark Ratio Card */}
+      <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
+        <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect to Remark Ratio</h2>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <DefectToRemarkRatio defectCount={projectDefects.length} remarkCount={150} />
+        </div>
       </div>
-      {/* Module Detail Modal */}
-      {moduleDetailModal?.open && (
-        <Modal isOpen={moduleDetailModal.open} onClose={() => setModuleDetailModal(null)} title={moduleDetailModal.mod.name + ' Module Details'}>
-          <div className="p-6">
-            <div className="font-bold text-2xl mb-2 text-gray-900">{moduleDetailModal.mod.name} Module</div>
-            <div className="mb-4 text-gray-600 text-lg">{moduleDetailModal.mod.value} defects ({moduleDetailModal.mod.percent}%)</div>
-            <table className="min-w-full text-base mb-4 border border-gray-200 divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Submodule</th>
-                  <th className="text-center py-2 px-3 font-semibold text-red-600 border-b border-gray-200">High</th>
-                  <th className="text-center py-2 px-3 font-semibold text-orange-500 border-b border-gray-200">Med</th>
-                  <th className="text-center py-2 px-3 font-semibold text-green-600 border-b border-gray-200">Low</th>
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {moduleDetailModal.mod.submodules.map((sub: any, idx: number) => (
-                  <tr key={sub.name} className="border-b border-gray-200">
-                    <td className="py-2 px-3 text-gray-800">{sub.name}</td>
-                    <td className="py-2 px-3 text-center text-red-600 font-semibold">{sub.high}</td>
-                    <td className="py-2 px-3 text-center text-orange-500 font-semibold">{sub.med}</td>
-                    <td className="py-2 px-3 text-center text-green-600 font-semibold">{sub.low}</td>
-                    <td className="py-2 px-3 text-center text-gray-900 font-semibold">{sub.high + sub.med + sub.low}</td>
-                  </tr>
+      </div>
+    {/* Defects Reopened Multiple Times & Defect Distribution by Type Row */}
+    <div className="mb-14 flex flex-col md:flex-row gap-8 items-stretch">
+      {/* Defects Reopened Multiple Times Pie Chart */}
+      <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col relative">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900">Defects Reopened Multiple Times</h2>
+        {(() => {
+          // MOCK DATA for visual match
+          const labels = ['2 times', '3 times', '4 times', '5 times', '5+ times'];
+          const data = {
+            labels,
+            datasets: [
+              {
+                data: [8, 5, 3, 2, 1],
+                backgroundColor: [
+                  '#4285F4', // 2 times
+                  '#FBBC05', // 3 times
+                  '#EA4335', // 4 times
+                  '#C5221F', // 5 times
+                  '#F29900', // 5+ times
+                ],
+              },
+            ],
+          };
+          // Mock defect details for each bucket
+          // IMPORTANT: The order of defectBuckets must match the order of labels and data.datasets[0].data
+          const defectBuckets = [
+            [ // 2 times
+              { id: 'DEF-001', title: 'Login fails', assignee: 'Alice', reporter: 'Bob', release: 'v2.1.0' },
+              { id: 'DEF-002', title: 'UI glitch', assignee: 'Carol', reporter: 'Dave', release: 'v2.1.0' },
+              { id: 'DEF-003', title: 'Crash on save', assignee: 'Eve', reporter: 'Frank', release: 'v2.1.0' },
+              { id: 'DEF-004', title: 'Slow load', assignee: 'Grace', reporter: 'Heidi', release: 'v2.1.0' },
+              { id: 'DEF-005', title: 'Data sync issue', assignee: 'Ivan', reporter: 'Judy', release: 'v2.1.0' },
+              { id: 'DEF-006', title: 'Notification bug', assignee: 'Mallory', reporter: 'Niaj', release: 'v2.1.0' },
+              { id: 'DEF-007', title: 'Export error', assignee: 'Olivia', reporter: 'Peggy', release: 'v2.1.0' },
+              { id: 'DEF-008', title: 'Import error', assignee: 'Sybil', reporter: 'Trent', release: 'v2.1.0' },
+            ],
+            [ // 3 times
+              { id: 'DEF-009', title: 'Database conn...', assignee: 'David Lee', reporter: 'Emma Wilson', release: 'v2.1.0' },
+              { id: 'DEF-010', title: 'Email notificat...', assignee: 'Frank Miller', reporter: 'Grace Taylor', release: 'v2.0.9' },
+              { id: 'DEF-011', title: 'File upload cor...', assignee: 'Helen Garcia', reporter: 'Ivan Rodriguez', release: 'v2.1.0' },
+              { id: 'DEF-012', title: 'Session timeout', assignee: 'Jack Brown', reporter: 'Karen White', release: 'v2.1.0' },
+              { id: 'DEF-013', title: 'API error', assignee: 'Liam Green', reporter: 'Mona Black', release: 'v2.1.0' },
+            ],
+            [ // 4 times
+              { id: 'DEF-014', title: 'Memory leak', assignee: 'Nina Blue', reporter: 'Oscar Pink', release: 'v2.1.0' },
+              { id: 'DEF-015', title: 'Cache issue', assignee: 'Paul Red', reporter: 'Quinn Yellow', release: 'v2.1.0' },
+              { id: 'DEF-016', title: 'Button misfire', assignee: 'Rita Orange', reporter: 'Sam Violet', release: 'v2.1.0' },
+            ],
+            [ // 5 times
+              { id: 'DEF-017', title: 'Chart bug', assignee: 'Tom Indigo', reporter: 'Uma Cyan', release: 'v2.1.0' },
+              { id: 'DEF-018', title: 'Theme not saved', assignee: 'Vic Magenta', reporter: 'Walt Lime', release: 'v2.1.0' },
+            ],
+            [ // 5+ times
+              { id: 'DEF-019', title: 'Critical crash', assignee: 'Xena Gold', reporter: 'Yuri Silver', release: 'v2.1.0' },
+            ],
+          ];
+          // Ensure all arrays are the same length and order
+          while (defectBuckets.length < data.labels.length) defectBuckets.push([]);
+          while (defectBuckets.length > data.labels.length) defectBuckets.pop();
+          // Use Chart.js onHover to set the correct hovered index
+          const pieOptions = {
+            plugins: { legend: { display: false } },
+            onHover: (event, elements) => {
+              if (elements && elements.length > 0) {
+                setReopenedHoveredIdx(elements[0].index);
+              } else if (!isReopenedCardHovered) {
+                setReopenedHoveredIdx(null);
+              }
+            },
+          };
+          // Calculate percentage for hovered segment
+          const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+          const hoveredCount = reopenedHoveredIdx !== null ? data.datasets[0].data[reopenedHoveredIdx] : 0;
+          const hoveredPct = reopenedHoveredIdx !== null && total > 0 ? ((hoveredCount / total) * 100).toFixed(1) : null;
+          return (
+            <div
+              className="flex flex-col items-center justify-center relative"
+              onMouseEnter={() => setIsReopenedCardHovered(true)}
+              onMouseLeave={() => {
+                setIsReopenedCardHovered(false);
+                setReopenedHoveredIdx(null);
+              }}
+            >
+              <div className="w-64 h-64">
+                <ChartJSPie ref={reopenedChartRef} data={data} options={pieOptions} />
+              </div>
+              {/* Floating hover detail card */}
+              {(reopenedHoveredIdx !== null || isReopenedCardHovered) && (() => {
+                // Pie chart geometry (match your chart size)
+                const pieCenterX = 128; // SVG center X (w-64 = 256px)
+                const pieCenterY = 128; // SVG center Y
+                const pieRadius = 100; // Pie outer radius
+                const cardOffset = 60; // Distance from pie edge to card
+                const totalSegments = data.datasets[0].data.length;
+                const segmentAngle = 360 / totalSegments;
+                const idx = reopenedHoveredIdx ?? 0;
+                const angle = (idx + 0.5) * segmentAngle - 90; // -90 to start from top
+                const rad = (angle * Math.PI) / 180;
+                const minHorizontalOffset = 80; // Ensures card is always at least this far from pie center
+                const cardRadius = pieRadius + cardOffset + minHorizontalOffset;
+                const cardX = pieCenterX + cardRadius * Math.cos(rad);
+                let cardY = pieCenterY + cardRadius * Math.sin(rad);
+                // Clamp cardY to stay within the visible area
+                const maxY = 256 - 120;
+                const minY = 120;
+                cardY = Math.max(minY, Math.min(cardY, maxY));
+                // Always position the card to the right of the pie chart
+                const cardStyle = {
+                  left: pieCenterX + pieRadius + 48,
+                  top: pieCenterY,
+                  transform: 'translateY(-50%)',
+                  minWidth: 340,
+                  position: 'absolute',
+                };
+                return (
+                  <div
+                    className="absolute z-20 w-[420px] bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
+                    style={cardStyle}
+                    onMouseEnter={() => {
+                      setIsReopenedCardHovered(true);
+                    }}
+                    onMouseLeave={() => {
+                      setIsReopenedCardHovered(false);
+                      setReopenedHoveredIdx(null);
+                    }}
+                    onMouseDown={() => setReopenedDetailModal({ open: true, label: labels[reopenedHoveredIdx ?? 0], defects: defectBuckets[reopenedHoveredIdx ?? 0] })}
+                  >
+                    <div className="font-bold text-lg mb-2 text-gray-900">Defects Reopened {labels[reopenedHoveredIdx ?? 0]}</div>
+                    <table className="min-w-full text-xs mb-2">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-1 px-2">ID</th>
+                          <th className="text-left py-1 px-2">Title</th>
+                          <th className="text-left py-1 px-2">Assignee</th>
+                          <th className="text-left py-1 px-2">Reporter</th>
+                          <th className="text-left py-1 px-2">Release</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {defectBuckets[(reopenedHoveredIdx ?? 0)] && defectBuckets[(reopenedHoveredIdx ?? 0)].length === 0 ? (
+                          <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
+                        ) : (
+                          (defectBuckets[(reopenedHoveredIdx ?? 0)] || []).map((defect, idx) => (
+                            <tr key={defect.id || idx} className="border-b">
+                              <td className="py-1 px-2 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
+                              <td className="py-1 px-2">{defect.title}</td>
+                              <td className="py-1 px-2">{defect.assignee}</td>
+                              <td className="py-1 px-2">{defect.reporter}</td>
+                              <td className="py-1 px-2">{defect.release}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                    <div className="text-xs text-gray-400">Click segment for detailed view</div>
+                  </div>
+                );
+              })()}
+              <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
+                {labels.map((label, idx) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
+                    <span className="text-gray-700">{label}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            <div className="mt-4 text-lg text-gray-700 font-semibold flex items-center gap-6">
-              <span>Module Total:</span>
-              <span className="text-red-600 font-bold">H: {moduleDetailModal.totalHigh}</span>
-              <span className="text-orange-500 font-bold">M: {moduleDetailModal.totalMed}</span>
-              <span className="text-green-600 font-bold">L: {moduleDetailModal.totalLow}</span>
+              </div>
+              <div className="mt-4 text-xs text-gray-400">Hover over segments to view defect details table</div>
             </div>
-          </div>
-        </Modal>
-      )}
-      {/* Reopened Defects Detail Modal */}
-      {reopenedDetailModal?.open && (
-        <Modal isOpen={reopenedDetailModal.open} onClose={() => setReopenedDetailModal(null)} title={`Defects Reopened ${reopenedDetailModal.label}`} size="xl">
-          <div className="p-6" style={{ minHeight: 400, maxHeight: 600, overflowY: 'auto' }}>
-            <div className="font-bold text-2xl mb-2 text-gray-900">Defects Reopened {reopenedDetailModal.label}</div>
-            <table className="min-w-full text-base mb-4 border border-gray-200 divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">ID</th>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Title</th>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Assignee</th>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Reporter</th>
-                  <th className="text-left py-2 px-3 font-semibold text-gray-700 border-b border-gray-200">Release</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reopenedDetailModal.defects.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
-                ) : (
-                  reopenedDetailModal.defects.map((defect: any, idx: number) => (
-                    <tr key={defect.id || idx} className="border-b border-gray-200">
-                      <td className="py-2 px-3 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
-                      <td className="py-2 px-3">{defect.title}</td>
-                      <td className="py-2 px-3">{defect.assignee}</td>
-                      <td className="py-2 px-3">{defect.reporter}</td>
-                      <td className="py-2 px-3">{defect.release}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Modal>
-      )}
-    </>
-  );
+          );
+        })()}
+      </div>
+      {/* Defect Distribution by Type Pie Chart */}
+      <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900">Defect Distribution by Type</h2>
+        {(() => {
+          // MOCK DATA for visual match
+          const labels = ['Functional', 'UI/UX', 'Performance', 'Security', 'Integration'];
+          const typeCounts = { Functional: 15, 'UI/UX': 8, Performance: 5, Security: 3, Integration: 4 };
+          const data = {
+            labels,
+            datasets: [
+              {
+                data: [15, 8, 5, 3, 4],
+                backgroundColor: [
+                  '#4285F4', // Functional
+                  '#00B894', // UI/UX
+                  '#FBBC05', // Performance
+                  '#EA4335', // Security
+                  '#A259F7', // Integration
+                ],
+              },
+            ],
+          };
+          const total = 35;
+          const mostCommon = 'Functional';
+          const mostCount = 15;
+          return (
+            <>
+              <div className="flex flex-col items-center justify-center">
+                <div className="w-64 h-64">
+                  <ChartJSPie data={data} options={{ plugins: { legend: { display: false } } }} />
+                </div>
+                <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
+                  {labels.map((type, idx) => (
+                    <div key={type} className="flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
+                      <span className="text-gray-700">{type}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-between w-full max-w-xs mx-auto border-t pt-4">
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl font-bold text-gray-900">{total}</span>
+                    <span className="text-xs text-gray-500">Total Defects</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl font-bold text-blue-600">{mostCount}</span>
+                    <span className="text-xs text-gray-500">Most Common</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+    </div>
+    {/* Time to Find Defects */}
+    <div className="mb-14 flex flex-col md:flex-row gap-8 items-stretch">
+      {/* Time to Find Defects */}
+      <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900">Time to Find Defects</h2>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={[
+              { day: 'Day 1', defects: 2 },
+              { day: 'Day 2', defects: 3 },
+              { day: 'Day 3', defects: 1 },
+              { day: 'Day 4', defects: 4 },
+              { day: 'Day 5', defects: 2 },
+              { day: 'Day 6', defects: 3 },
+              { day: 'Day 7', defects: 2 },
+              { day: 'Day 8', defects: 1 },
+              { day: 'Day 9', defects: 2 },
+              { day: 'Day 10', defects: 1 },
+            ]}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
+              <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
+              <Tooltip formatter={v => `${v} defects`} />
+              <Line type="monotone" dataKey="defects" stroke="#2563eb" strokeWidth={3} dot={{ r: 5, stroke: '#2563eb', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      {/* Time to Fix Defects */}
+      <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
+        <h2 className="text-lg font-semibold mb-4 text-gray-900">Time to Fix Defects</h2>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={[
+              { day: 'Day 1', defects: 3 },
+              { day: 'Day 2', defects: 2 },
+              { day: 'Day 3', defects: 4 },
+              { day: 'Day 4', defects: 3 },
+              { day: 'Day 5', defects: 2 },
+              { day: 'Day 6', defects: 3 },
+              { day: 'Day 7', defects: 2 },
+              { day: 'Day 8', defects: 2 },
+              { day: 'Day 9', defects: 1 },
+              { day: 'Day 10', defects: 2 },
+            ]}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
+              <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
+              <Tooltip formatter={v => `${v} defects`} />
+              <Line type="monotone" dataKey="defects" stroke="#10b981" strokeWidth={3} dot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  </>
+);
 };
 
 export default Dashboard;
@@ -1055,7 +857,4 @@ function darkenColor(hex, amt) {
   let g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * amt));
   let b = Math.max(0, (num & 0x0000FF) - Math.round(255 * amt));
   return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-
-};
-
-// [Rest of the component code remains the same]
+}
