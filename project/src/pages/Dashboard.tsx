@@ -16,7 +16,7 @@ ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 export const Dashboard: React.FC = () => {
   const { defects, projects, statusTypes } = useApp();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [kloc, setKloc] = useState(1);
+  // Remove KLOC state from dashboard, always read from localStorage per project
   const navigate = useNavigate();
   const [reopenModal, setReopenModal] = useState<{ open: boolean; label: string; defects: any[] }>({ open: false, label: '', defects: [] });
   const [riskFilter, setRiskFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
@@ -283,34 +283,7 @@ export const Dashboard: React.FC = () => {
             </div>
                 </div>
         )}
-        {/* KLOC and Total Defects Controls - now under project card */}
-        {selectedProject && (
-          <div className="flex justify-end mb-2">
-            <div className="flex gap-4 items-center">
-                <div className="flex items-center gap-2">
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="kloc-input">KLOC</label>
-                  <input
-                    id="kloc-input"
-                    type="number"
-                    min={1}
-                    className="w-20 px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                    value={kloc}
-                    onChange={e => setKloc(Number(e.target.value) || 1)}
-                  />
-              </div>
-                <div className="flex items-center gap-2">
-                  <span className="block text-sm font-medium text-gray-700">Total Defects</span>
-                  <input
-                    type="text"
-                    className="w-20 px-3 py-1 border border-gray-300 rounded-lg bg-gray-50 text-center cursor-not-allowed"
-                    value={projectDefects.length}
-                    readOnly
-                    tabIndex={-1}
-                  />
-              </div>
-            </div>
-      </div>
-        )}
+  {/* KLOC and Total Defects Controls removed from project dashboard */}
         {/* Defect Severity Breakdown */}
         <div className="mb-14">
           <h2 className="text-lg font-semibold mb-3 text-gray-600">Defect Severity Breakdown</h2>
@@ -415,14 +388,21 @@ export const Dashboard: React.FC = () => {
           })()}
             </div>
         {/* Defect Density Meter & Defect Severity Index Row */}
-        <div className="mb-14 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          {/* Defect Density Card */}
-          <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
-            <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
-            <div className="flex-1 flex flex-col justify-center">
-              <DefectDensityMeter kloc={kloc} defectCount={projectDefects.length} />
+          <div className="mb-14 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            {/* Defect Density Card */}
+            <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
+              <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Density</h2>
+              <div className="flex-1 flex flex-col justify-center">
+                <DefectDensityMeter 
+                  kloc={(() => {
+                    if (!selectedProjectId) return 1;
+                    const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
+                    return stored ? Number(stored) || 1 : 1;
+                  })()} 
+                  defectCount={projectDefects.length} 
+                />
               </div>
-              </div>
+            </div>
           {/* Defect Severity Index Card */}
           <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect Severity Index</h2>
@@ -685,23 +665,25 @@ export const Dashboard: React.FC = () => {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={[
-                  { week: 'Week 1', hours: 8.7 },
-                  { week: 'Week 2', hours: 7.2 },
-                  { week: 'Week 3', hours: 9.1 },
-                  { week: 'Week 4', hours: 6.5 },
-                  { week: 'Week 5', hours: 5.9 },
-                  { week: 'Week 6', hours: 7.4 },
-                  { week: 'Week 7', hours: 6.2 },
-                  { week: 'Week 8', hours: 5.9 },
+                  { day: 'Day 1', defects: 2 },
+                  { day: 'Day 2', defects: 3 },
+                  { day: 'Day 3', defects: 1 },
+                  { day: 'Day 4', defects: 4 },
+                  { day: 'Day 5', defects: 2 },
+                  { day: 'Day 6', defects: 3 },
+                  { day: 'Day 7', defects: 2 },
+                  { day: 'Day 8', defects: 1 },
+                  { day: 'Day 9', defects: 2 },
+                  { day: 'Day 10', defects: 1 },
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis domain={[0, 12]} tickFormatter={v => v} label={{ value: 'Hours', angle: -90, position: 'insideLeft', offset: 10 }} />
-                  <Tooltip formatter={v => `${v}h`} />
-                  <Line type="monotone" dataKey="hours" stroke="#2563eb" strokeWidth={3} dot={{ r: 5, stroke: '#2563eb', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
+                  <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
+                  <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
+                  <Tooltip formatter={v => `${v} defects`} />
+                  <Line type="monotone" dataKey="defects" stroke="#2563eb" strokeWidth={3} dot={{ r: 5, stroke: '#2563eb', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
                 </LineChart>
               </ResponsiveContainer>
-                </div>
+            </div>
            
                   </div>
           {/* Time to Fix Defects */}
@@ -710,23 +692,25 @@ export const Dashboard: React.FC = () => {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={[
-                  { week: 'Week 1', hours: 12.3 },
-                  { week: 'Week 2', hours: 10.5 },
-                  { week: 'Week 3', hours: 14.1 },
-                  { week: 'Week 4', hours: 9.7 },
-                  { week: 'Week 5', hours: 8.8 },
-                  { week: 'Week 6', hours: 10.6 },
-                  { week: 'Week 7', hours: 9.2 },
-                  { week: 'Week 8', hours: 8.8 },
+                  { day: 'Day 1', defects: 3 },
+                  { day: 'Day 2', defects: 2 },
+                  { day: 'Day 3', defects: 4 },
+                  { day: 'Day 4', defects: 3 },
+                  { day: 'Day 5', defects: 2 },
+                  { day: 'Day 6', defects: 3 },
+                  { day: 'Day 7', defects: 2 },
+                  { day: 'Day 8', defects: 2 },
+                  { day: 'Day 9', defects: 1 },
+                  { day: 'Day 10', defects: 2 },
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis domain={[0, 16]} tickFormatter={v => v} label={{ value: 'Hours', angle: -90, position: 'insideLeft', offset: 10 }} />
-                  <Tooltip formatter={v => `${v}h`} />
-                  <Line type="monotone" dataKey="hours" stroke="#10b981" strokeWidth={3} dot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
+                  <XAxis dataKey="day" label={{ value: 'Time (Day)', position: 'insideBottom', offset: -5 }} />
+                  <YAxis domain={[0, 5]} tickFormatter={v => v} label={{ value: 'Defects Count', angle: -90, position: 'insideLeft', offset: 10 }} />
+                  <Tooltip formatter={v => `${v} defects`} />
+                  <Line type="monotone" dataKey="defects" stroke="#10b981" strokeWidth={3} dot={{ r: 5, stroke: '#10b981', strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 7 }} />
                 </LineChart>
               </ResponsiveContainer>
-                </div>
+            </div>
            
           </div>
         </div>
