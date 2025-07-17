@@ -48,6 +48,7 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 
 export const Defects: React.FC = () => {
+
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,9 +62,32 @@ export const Defects: React.FC = () => {
     employees,
   } = useApp();
 
+
   // Backend projects state
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectIdLocal] = React.useState<string | null>(projectId || null);
+
+  // KLOC state, per project, persisted in localStorage (must be after selectedProjectId)
+  const [kloc, setKloc] = React.useState<number>(1);
+  // Local state for editing before confirm (fix for hooks order)
+  const [klocInput, setKlocInput] = React.useState<number>(1);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && selectedProjectId) {
+      const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
+      const value = stored ? Number(stored) || 1 : 1;
+      setKloc(value);
+      setKlocInput(value);
+    }
+  }, [selectedProjectId]);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && selectedProjectId) {
+      localStorage.setItem(`kloc_${selectedProjectId}`, String(kloc));
+    }
+  }, [kloc, selectedProjectId]);
+  // Keep klocInput in sync if kloc changes (e.g. from another source)
+  React.useEffect(() => {
+    setKlocInput(kloc);
+  }, [kloc]);
 
   // Backend defects state
   const [backendDefects, setBackendDefects] = React.useState<FilteredDefect[]>([]);
@@ -909,11 +933,37 @@ export const Defects: React.FC = () => {
         onSelect={handleProjectSelect}
       />
 
-      {/* Defect Severity Breakdown (copied from Dashboard) */}
+      {/* Defect Severity Breakdown (copied from Dashboard) with KLOC input */}
       <div className="mb-8 mt-4">
-        <div className="flex items-center mb-3 gap-4">
-          <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
-          <span className="text-base font-medium text-gray-500">(Total Defects : {filteredDefects.length})</span>
+        <div className="flex items-center mb-3 gap-4 justify-between w-full">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
+            <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)'}}>Total Defects : {filteredDefects.length}</span>
+          </div>
+          {/* KLOC input field at right end */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="kloc-input" className="text-sm text-gray-600 font-medium">KLOC:</label>
+            <input
+              id="kloc-input"
+              type="number"
+              min={1}
+              className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+              value={klocInput}
+              onChange={e => setKlocInput(Number(e.target.value) || 1)}
+              style={{ minWidth: 60 }}
+            />
+            <button
+              type="button"
+              className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
+              onClick={() => setKloc(klocInput)}
+              disabled={klocInput === kloc}
+              title="Confirm KLOC value"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {['high', 'medium', 'low'].map(severity => {

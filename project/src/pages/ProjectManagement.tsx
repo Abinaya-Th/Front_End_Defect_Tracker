@@ -43,7 +43,7 @@ export const ProjectManagement: React.FC = () => {
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Eye className="w-12 h-12 text-purple-500 mb-4 group-hover:text-purple-700 transition-colors" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">View</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Release View</h2>
             <p className="text-gray-600 text-center">View release overviews and summaries.</p>
           </CardContent>
         </Card>
