@@ -13,6 +13,8 @@ import { ProjectSelector } from '../components/ui/ProjectSelector';
 import DefectToRemarkRatio from '../components/ui/DefectToRemarkRatio';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { getAllDefectStatuses, DefectStatus } from '../api/defectStatus';
+import { getDefectTypeByProjectId } from '../api/dashboard/defecttype';
+import { getDefectRemarkRatioByProjectId } from '../api/dashboard/remarkratio';
 import { getDefectSeverityIndex } from '../api/dashboard/dsi';
 import { getDefectDensity } from '../api/KLOC/getKLOC';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
@@ -40,6 +42,14 @@ export const Dashboard: React.FC = () => {
   const [statusTypes, setStatusTypes] = useState<DefectStatus[]>([]);
   const [loadingStatusTypes, setLoadingStatusTypes] = useState(true);
   const [statusTypesError, setStatusTypesError] = useState<string | null>(null);
+  // State for defect type distribution
+  const [defectTypeData, setDefectTypeData] = useState<{ labels: string[]; counts: number[]; percentages?: number[]; total?: number; mostCommon?: string; mostCount?: number; } | null>(null);
+  const [loadingDefectType, setLoadingDefectType] = useState(false);
+  const [defectTypeError, setDefectTypeError] = useState<string | null>(null);
+  // State for defect to remark ratio
+  const [remarkRatioData, setRemarkRatioData] = useState<{ defectCount: number; remarkCount: number } | null>(null);
+  const [loadingRemarkRatio, setLoadingRemarkRatio] = useState(false);
+  const [remarkRatioError, setRemarkRatioError] = useState<string | null>(null);
   const [dsi, setDsi] = useState<string | null>(null);
   const [loadingDsi, setLoadingDsi] = useState(false);
   const [dsiError, setDsiError] = useState<string | null>(null);
@@ -126,6 +136,81 @@ export const Dashboard: React.FC = () => {
         setLoadingStatusTypes(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectTypeData(null);
+      return;
+    }
+    setLoadingDefectType(true);
+    setDefectTypeError(null);
+    getDefectTypeByProjectId(selectedProjectId)
+      .then((res) => {
+        // Support new backend structure: res.data.defectTypes is an array
+        if (res?.data?.defectTypes && Array.isArray(res.data.defectTypes)) {
+          setDefectTypeData({
+            labels: res.data.defectTypes.map((d: any) => d.defectType),
+            counts: res.data.defectTypes.map((d: any) => d.defectCount),
+            percentages: res.data.defectTypes.map((d: any) => d.percentage),
+            total: res.data.totalDefectCount,
+            mostCommon: res.data.mostCommonDefectType,
+            mostCount: res.data.mostCommonDefectCount,
+          });
+        } else if (Array.isArray(res?.data)) {
+          setDefectTypeData({
+            labels: res.data.map((d: any) => d.type),
+            counts: res.data.map((d: any) => d.count),
+          });
+        } else if (res?.labels && res?.counts) {
+          setDefectTypeData({ labels: res.labels, counts: res.counts });
+        } else {
+          setDefectTypeData(null);
+          setDefectTypeError('Invalid defect type data');
+        }
+        setLoadingDefectType(false);
+      })
+      .catch(() => {
+        setDefectTypeError('Failed to load defect type distribution');
+        setDefectTypeData(null);
+        setLoadingDefectType(false);
+      });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setRemarkRatioData(null);
+      return;
+    }
+    setLoadingRemarkRatio(true);
+    setRemarkRatioError(null);
+    getDefectRemarkRatioByProjectId(selectedProjectId)
+      .then((res) => {
+        // Support numeric fields or string ratio like 'remarks:defects': '20:1'
+        if (res?.data && typeof res.data.defectCount === 'number' && typeof res.data.remarkCount === 'number') {
+          setRemarkRatioData({ defectCount: res.data.defectCount, remarkCount: res.data.remarkCount });
+        } else if (typeof res.defectCount === 'number' && typeof res.remarkCount === 'number') {
+          setRemarkRatioData({ defectCount: res.defectCount, remarkCount: res.remarkCount });
+        } else if (res?.data && typeof res.data['remarks:defects'] === 'string') {
+          // Parse the string, e.g., '20:1' (remarks:defects)
+          const [remarks, defects] = res.data['remarks:defects'].split(':').map(Number);
+          if (!isNaN(remarks) && !isNaN(defects)) {
+            setRemarkRatioData({ defectCount: remarks, remarkCount: defects });
+          } else {
+            setRemarkRatioData(null);
+            setRemarkRatioError('Invalid defect to remark ratio data');
+          }
+        } else {
+          setRemarkRatioData(null);
+          setRemarkRatioError('Invalid defect to remark ratio data');
+        }
+        setLoadingRemarkRatio(false);
+      })
+      .catch(() => {
+        setRemarkRatioError('Failed to load defect to remark ratio');
+        setRemarkRatioData(null);
+        setLoadingRemarkRatio(false);
+      });
+  }, [selectedProjectId]);
 
   // Helper to determine project status color
   function getProjectStatusColor(projectId: string): 'red' | 'yellow' | 'green' {
@@ -548,7 +633,15 @@ export const Dashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow flex flex-col p-6 h-full border border-gray-200">
         <h2 className="text-lg font-semibold mb-3 text-gray-700">Defect to Remark Ratio</h2>
         <div className="flex-1 flex flex-col items-center justify-center">
-          <DefectToRemarkRatio defectCount={projectDefects.length} remarkCount={150} />
+          {loadingRemarkRatio ? (
+            <span className="text-gray-500">Loading...</span>
+          ) : remarkRatioError ? (
+            <span className="text-red-500">{remarkRatioError}</span>
+          ) : remarkRatioData ? (
+            <DefectToRemarkRatio defectCount={remarkRatioData.defectCount} remarkCount={remarkRatioData.remarkCount} />
+          ) : (
+            <span className="text-gray-400">No data available.</span>
+          )}
         </div>
       </div>
       </div>
@@ -726,28 +819,41 @@ export const Dashboard: React.FC = () => {
       {/* Defect Distribution by Type Pie Chart */}
       <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">Defect Distribution by Type</h2>
-        {(() => {
-          // MOCK DATA for visual match
-          const labels = ['Functional', 'UI/UX', 'Performance', 'Security', 'Integration'];
-          const typeCounts = { Functional: 15, 'UI/UX': 8, Performance: 5, Security: 3, Integration: 4 };
+        {loadingDefectType && <div className="text-gray-500 p-4">Loading...</div>}
+        {defectTypeError && <div className="text-red-500 p-4">{defectTypeError}</div>}
+        {!loadingDefectType && !defectTypeError && defectTypeData && Array.isArray(defectTypeData.labels) && Array.isArray(defectTypeData.counts) && defectTypeData.labels.length === defectTypeData.counts.length && defectTypeData.labels.length > 0 ? (() => {
+          const labels = defectTypeData.labels;
+          const counts = defectTypeData.counts;
+          const percentages = defectTypeData.percentages || counts.map((c, i) => {
+            const total = counts.reduce((a, b) => a + b, 0);
+            return total > 0 ? (c / total) * 100 : 0;
+          });
           const data = {
             labels,
             datasets: [
               {
-                data: [15, 8, 5, 3, 4],
+                data: counts,
                 backgroundColor: [
-                  '#4285F4', // Functional
-                  '#00B894', // UI/UX
-                  '#FBBC05', // Performance
-                  '#EA4335', // Security
-                  '#A259F7', // Integration
-                ],
+                  '#4285F4', // fallback colors
+                  '#00B894',
+                  '#FBBC05',
+                  '#EA4335',
+                  '#A259F7',
+                  '#FF6F00',
+                  '#8E24AA',
+                  '#43A047',
+                  '#F4511E',
+                ].slice(0, labels.length),
               },
             ],
           };
-          const total = 35;
-          const mostCommon = 'Functional';
-          const mostCount = 15;
+          const total = defectTypeData.total || counts.reduce((a, b) => a + b, 0);
+          const mostCommon = defectTypeData.mostCommon || (() => {
+            let idx = 0, max = 0;
+            counts.forEach((c, i) => { if (c > max) { max = c; idx = i; } });
+            return labels[idx];
+          })();
+          const mostCount = defectTypeData.mostCount || Math.max(...counts);
           return (
             <>
               <div className="flex flex-col items-center justify-center">
@@ -758,7 +864,7 @@ export const Dashboard: React.FC = () => {
                   {labels.map((type, idx) => (
                     <div key={type} className="flex items-center gap-2">
                       <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
-                      <span className="text-gray-700">{type}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
+                      <span className="text-gray-700">{type}: <span className="font-semibold">{counts[idx]}</span> <span className='text-gray-500'>({percentages[idx]?.toFixed(1)}%)</span></span>
                     </div>
                   ))}
                 </div>
@@ -770,12 +876,16 @@ export const Dashboard: React.FC = () => {
                   <div className="flex flex-col items-center">
                     <span className="text-2xl font-bold text-blue-600">{mostCount}</span>
                     <span className="text-xs text-gray-500">Most Common</span>
+                    <span className="text-xs text-gray-700 font-semibold">{mostCommon}</span>
                   </div>
                 </div>
               </div>
             </>
           );
-        })()}
+        })() : null}
+        {!loadingDefectType && !defectTypeError && defectTypeData && (!Array.isArray(defectTypeData.labels) || !Array.isArray(defectTypeData.counts) || defectTypeData.labels.length !== defectTypeData.counts.length || defectTypeData.labels.length === 0) && (
+          <div className="text-gray-400 p-4">No defect type data available.</div>
+        )}
       </div>
     </div>
     {/* Time to Find Defects */}
