@@ -366,7 +366,7 @@ export const Defects: React.FC = () => {
       severityId: formData.severityId ? Number(formData.severityId) : undefined,
       priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
       assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-      assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
       attachment: formData.attachment || undefined,
       defectStatusId: formData.statusId ? Number(formData.statusId) : undefined,
       subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
@@ -438,7 +438,7 @@ export const Defects: React.FC = () => {
           modulesId: Number(formData.moduleId),
           subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
           assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-          assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
           releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
           testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
         };
@@ -996,7 +996,7 @@ export const Defects: React.FC = () => {
         <div className="flex items-center mb-3 gap-4 justify-between w-full">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
-            <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)'}}>Total Defects : {filteredDefects.length}</span>
+            <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{ boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)' }}>Total Defects : {filteredDefects.length}</span>
           </div>
           {/* KLOC input field at right end */}
           <div className="flex items-center gap-2">

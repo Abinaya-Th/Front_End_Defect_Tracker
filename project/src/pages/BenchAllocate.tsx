@@ -261,8 +261,15 @@ export default function BenchAllocate() {
         }).filter((e): e is Employee & { availability: number } => e !== null);
     }, [employees, projectAllocations, selectedProjectId]);
 
-    // No need for local filtering since we're using API filtering
-    const filteredBench = benchEmployees;
+    // Filter bench employees by benchFilter (case-insensitive substring match for first or last name)
+    const filteredBench = useMemo(() => {
+        if (!benchFilter.trim()) return benchEmployees;
+        const filter = benchFilter.trim().toLowerCase();
+        return benchEmployees.filter(e =>
+            (e.firstName && e.firstName.toLowerCase().includes(filter)) ||
+            (e.lastName && e.lastName.toLowerCase().includes(filter)) || (e.firstName && e.lastName && (e.firstName + ' ' + e.lastName).toLowerCase().includes(filter))
+        );
+    }, [benchEmployees, benchFilter]);
     
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
@@ -308,6 +315,53 @@ export default function BenchAllocate() {
     const handleConfirmAllocation = async (updatedEmployees: any[]) => {
         if (!selectedProjectId) {
             setAlertModal({ open: true, message: 'Please select a project first' });
+            return;
+        }
+        // Client-side validation for role selection
+        const missingRole = updatedEmployees.some(emp => !emp.roleId || emp.roleId === '');
+        if (missingRole) {
+            setAlertModal({ open: true, message: 'Role information is required' });
+            return;
+        }
+        // Client-side validation for start date and end date
+        const missingStartDate = updatedEmployees.some(emp => !emp.allocationStartDate || emp.allocationStartDate === '');
+        if (missingStartDate) {
+            setAlertModal({ open: true, message: 'Start date is required' });
+            return;
+        }
+        const missingEndDate = updatedEmployees.some(emp => !emp.allocationEndDate || emp.allocationEndDate === '');
+        if (missingEndDate) {
+            setAlertModal({ open: true, message: 'End date is required' });
+            return;
+        }
+        const invalidDateOrder = updatedEmployees.some(emp => 
+            emp.allocationStartDate && emp.allocationEndDate &&
+            new Date(emp.allocationStartDate) >= new Date(emp.allocationEndDate)
+        );
+        if (invalidDateOrder) {
+            setAlertModal({ open: true, message: 'Start date must be before end date.' });
+            return;
+        }
+        // Client-side validation for allocation availability
+        const missingAvailability = updatedEmployees.some(emp => emp.allocationAvailability === undefined || emp.allocationAvailability === null || emp.allocationAvailability === '');
+        if (missingAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage is required' });
+            return;
+        }
+        const invalidAvailability = updatedEmployees.some(emp => 
+            isNaN(Number(emp.allocationAvailability)) ||
+            Number(emp.allocationAvailability) < 1 ||
+            Number(emp.allocationAvailability) > 100
+        );
+        if (invalidAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage must be between 1 and 100' });
+            return;
+        }
+        const exceedsMaxAvailability = updatedEmployees.some(emp =>
+            Number(emp.allocationAvailability) > Number(emp.availability)
+        );
+        if (exceedsMaxAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage cannot exceed employee availability' });
             return;
         }
         setIsAllocating(true);
@@ -469,20 +523,13 @@ export default function BenchAllocate() {
                     </div>
                     {/* Search and Filter for Bench */}
                     <div className="mb-4 space-y-3">
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="First Name..."
-                                value={benchFirstName}
-                                onChange={e => handleFirstNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                            <Input
-                                placeholder="Last Name..."
-                                value={benchLastName}
-                                onChange={e => handleLastNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                        </div>
+                        {/* New global search input for benchFilter */}
+                        <Input
+                            placeholder="Search by name..."
+                            value={benchFilter}
+                            onChange={e => setBenchFilter(e.target.value)}
+                            className="w-full mb-2"
+                        />
                         <div className="flex gap-2">
                             <select
                                 value={designationFilter}
@@ -611,7 +658,7 @@ export default function BenchAllocate() {
                     <div className="flex items-center bg-blue-50 rounded-t-lg px-4 py-2">
                         <User className="w-5 h-5 mr-2" />
                         <span className="font-semibold text-lg text-blue-900">
-                            Project: {currentProject?.name}
+                            Project {currentProject?.name}
                         </span>
                         <div className="flex gap-2 ml-auto">
                             <Button
@@ -668,7 +715,7 @@ export default function BenchAllocate() {
                                         <tr className="border-b border-[#D1D5DB]">
                                             <th className="py-2 px-4 text-center whitespace-nowrap min-w-[120px]">Name</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[100px]">Role</th>
-                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Availability %</th>
+                                            <th className="text-center px-4 whitespace-nowrap min-w-[130px]">Allocated %</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[110px]">Start Date</th>
                                             <th className="text-center px-4 whitespace-nowrap min-w-[110px]">End Date</th>
                                             <th className="text-center px-4 whitespace-nowrap"></th>
