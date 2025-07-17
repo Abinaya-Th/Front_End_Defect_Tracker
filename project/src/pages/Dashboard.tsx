@@ -66,10 +66,21 @@ export const Dashboard: React.FC = () => {
     // Show summary and project cards grid
     return (
       <>
-        {/* Dashboard Heading - Using the cleaner version from code 2 */}
-        <div className="max-w-5xl mx-auto text-center mt-12 mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
-          <p className="text-gray-600 text-lg">Monitor project health and status at a glance</p>
+        {/* Dashboard Heading */}
+        <div className="max-w-5xl mx-auto flex flex-col items-center mt-16 mb-12">
+          <h1
+            className="text-5xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-4 drop-shadow-sm"
+            style={{ letterSpacing: '-0.02em', fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif' }}
+          >
+            Dashboard Overview
+          </h1>
+          <p
+            className="text-lg md:text-xl font-medium text-gray-500 text-center max-w-2xl mb-2"
+            style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif', lineHeight: '1.6' }}
+          >
+            Gain insights into your projects with real-time health metrics and status summaries
+          </p>
+          <div className="h-1 w-24 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full mt-2 mb-1 opacity-80" />
         </div>
         
         {/* Section: Project Health Summary - Using the better structured version from code 1 */}
@@ -78,13 +89,12 @@ export const Dashboard: React.FC = () => {
             <span className="inline-block w-2 h-8 bg-blue-500 rounded-full mr-2" />
             Project Status Insights
           </h2>
-          
-          {/* Modernized Project Status Cards - Using the better design from code 1 */}
+          {/* Modernized Project Status Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-7 mb-12">
             {/* High Risk Projects */}
             <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-red-500/100 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
               <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-red-600 to-red-800 mr-5 shadow-md">
-                <AlertCircle className="w-9 h-9 text-red-100" />
+                { <AlertCircle className="w-9 h-9 text-red-100" /> }
               </span>
               <div>
                 <div className="text-slate-700 font-semibold text-lg mb-1">High Risk Projects</div>
@@ -93,7 +103,6 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-red-500 animate-pulse" />
             </div>
-            
             {/* Moderate Risk Projects */}
             <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-yellow-500/100 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
               <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-500 mr-5 shadow-md">
@@ -106,7 +115,6 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
             </div>
-            
             {/* Low Risk Projects */}
             <div className="bg-white rounded-2xl shadow-lg flex items-center p-7 min-h-[150px] border-2 border-green-600/80 hover:shadow-xl transition-transform hover:scale-[1.03] group relative">
               <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 mr-5 shadow-md">
@@ -120,8 +128,7 @@ export const Dashboard: React.FC = () => {
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-green-500 animate-pulse" />
             </div>
           </div>
-        </div>
-        
+            </div>
         {/* Divider */}
         <hr className="my-10 border-gray-200 max-w-5xl mx-auto" />
         
@@ -129,67 +136,100 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h2 className="text-2xl font-bold text-gray-900">All Projects</h2>
-          </div>
-          
-          {/* Filter Bar - Using the simpler version from code 2 */}
-          <div className="flex items-center gap-3 mb-8">
-            <span className="text-gray-700 font-medium mr-2">Filter by severity:</span>
-            <button
-              className={`px-4 py-2 rounded-lg font-semibold transition focus:outline-none ${riskFilter === 'all' ? 'bg-gray-300 text-gray-900' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
-              onClick={() => setRiskFilter('all')}
-            >
-              All Projects
-            </button>
-            <button
-              className={`px-4 py-2 rounded-lg font-semibold transition focus:outline-none ${riskFilter === 'high' ? 'bg-red-100 text-red-700' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}
-              onClick={() => setRiskFilter('high')}
-            >
-              High Risk
-            </button>
-            <button
-              className={`px-4 py-2 rounded-lg font-semibold transition focus:outline-none ${riskFilter === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100'}`}
-              onClick={() => setRiskFilter('medium')}
-            >
-              Medium Risk
-            </button>
-            <button
-              className={`px-4 py-2 rounded-lg font-semibold transition focus:outline-none ${riskFilter === 'low' ? 'bg-green-100 text-green-700' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
-              onClick={() => setRiskFilter('low')}
-            >
-              Low Risk
-            </button>
-          </div>
-          
-          {/* Project Cards Grid */}
-          <div className="flex flex-wrap gap-8 justify-center py-6">
-            {projects.map((project, idx) => {
-              const projectDefects = defects.filter(d => d.projectId === project.id);
-              const highCount = projectDefects.filter(d => d.severity === 'high' || d.severity === 'critical').length;
-              const mediumCount = projectDefects.filter(d => d.severity === 'medium').length;
-              const lowCount = projectDefects.filter(d => d.severity === 'low').length;
-              let risk: 'high' | 'medium' | 'low' = 'low';
-              if (highCount > 0) risk = 'high';
-              else if (mediumCount > 0) risk = 'medium';
-              // else low
-              if (riskFilter !== 'all' && risk !== riskFilter) return null;
-              return (
-                <div
-                  key={project.id}
-                  className="animate-fade-in"
-                  style={{ animationDelay: `${idx * 60}ms` }}
-                >
-                  <ProjectCard
-                    name={project.name}
-                    risk={risk}
-                    defectCounts={{ high: highCount, medium: mediumCount, low: lowCount }}
-                    onClick={() => setSelectedProjectId(project.id)}
-                    size="small"
-                  />
+            
                 </div>
-              );
-            })}
+          {/* Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
+            <span className="text-gray-700 font-medium mr-0 sm:mr-3 whitespace-nowrap self-start sm:self-center">Filter by severity:</span>
+            <div className="flex bg-gradient-to-r from-slate-50 via-blue-50 to-slate-100 border border-slate-200 rounded-full shadow-[0_2px_16px_rgba(30,41,59,0.10)] px-2 py-1 gap-4 backdrop-blur-sm w-fit">
+              <button
+                className={`px-5 py-2 rounded-full font-semibold transition text-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                  ${riskFilter === 'all'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-400 text-white shadow-lg scale-105 ring-2 ring-blue-300'
+                    : 'bg-white/60 text-slate-700 hover:bg-blue-100/60 hover:shadow-md hover:scale-105'}
+                  backdrop-blur-[2px] border border-transparent`}
+                style={{ boxShadow: riskFilter === 'all' ? '0 4px 24px 0 rgba(59,130,246,0.10)' : undefined }}
+                onClick={() => setRiskFilter('all')}
+              >
+                All Projects
+              </button>
+              <button
+                className={`px-5 py-2 rounded-full font-semibold transition text-sm focus:outline-none focus:ring-2 focus:ring-red-300
+                  ${riskFilter === 'high'
+                    ? 'bg-gradient-to-r from-red-600 to-red-800 text-white shadow-lg scale-105 ring-2 ring-red-200'
+                    : 'bg-white/60 text-red-700 hover:bg-red-100/60 hover:shadow-md hover:scale-105'}
+                  backdrop-blur-[2px] border border-transparent`}
+                style={{ boxShadow: riskFilter === 'high' ? '0 4px 24px 0 rgba(239,68,68,0.10)' : undefined }}
+                onClick={() => setRiskFilter('high')}
+              >
+                High Risk
+              </button>
+              <button
+                className={`px-5 py-2 rounded-full font-semibold transition text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300
+                  ${riskFilter === 'medium'
+                    ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white shadow-lg scale-105 ring-2 ring-yellow-200'
+                    : 'bg-white/60 text-yellow-700 hover:bg-yellow-100/60 hover:shadow-md hover:scale-105'}
+                  backdrop-blur-[2px] border border-transparent`}
+                style={{ boxShadow: riskFilter === 'medium' ? '0 4px 24px 0 rgba(251,191,36,0.10)' : undefined }}
+                onClick={() => setRiskFilter('medium')}
+              >
+                Medium Risk
+              </button>
+              <button
+                className={`px-5 py-2 rounded-full font-semibold transition text-sm focus:outline-none focus:ring-2 focus:ring-green-300
+                  ${riskFilter === 'low'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg scale-105 ring-2 ring-green-200'
+                    : 'bg-white/60 text-green-700 hover:bg-green-100/60 hover:shadow-md hover:scale-105'}
+                  backdrop-blur-[2px] border border-transparent`}
+                style={{ boxShadow: riskFilter === 'low' ? '0 4px 24px 0 rgba(34,197,94,0.10)' : undefined }}
+                onClick={() => setRiskFilter('low')}
+              >
+                Low Risk
+              </button>
+            </div>
           </div>
-        </div>
+          {/* Project Cards Grid */}
+          <div className="flex flex-wrap gap-8 justify-start py-6">
+            {(() => {
+              // Sort projects: high risk first, then medium, then low
+              const sortedProjects = [...projects].sort((a: any, b: any) => {
+                const getRisk = (project: any) => {
+                  const projectDefects = defects.filter(d => d.projectId === project.id);
+                  if (projectDefects.some(d => d.severity === 'high' || d.severity === 'critical')) return 0; // high
+                  if (projectDefects.some(d => d.severity === 'medium')) return 1; // medium
+                  return 2; // low
+                };
+                return getRisk(a) - getRisk(b);
+              });
+              return sortedProjects.map((project: any, idx: number) => {
+                const projectDefects = defects.filter(d => d.projectId === project.id);
+                const highCount = projectDefects.filter(d => d.severity === 'high' || d.severity === 'critical').length;
+                const mediumCount = projectDefects.filter(d => d.severity === 'medium').length;
+                const lowCount = projectDefects.filter(d => d.severity === 'low').length;
+                let risk: 'high' | 'medium' | 'low' = 'low';
+                if (highCount > 0) risk = 'high';
+                else if (mediumCount > 0) risk = 'medium';
+                // else low
+                if (riskFilter !== 'all' && risk !== riskFilter) return null;
+                return (
+                  <div
+                    key={project.id}
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${idx * 60}ms` }}
+                  >
+                    <ProjectCard
+                      name={project.name}
+                      risk={risk}
+                      defectCounts={{ high: highCount, medium: mediumCount, low: lowCount }}
+                      onClick={() => setSelectedProjectId(project.id)}
+                      size="small"
+                    />
+                  </div>
+                );
+              });
+            })()}
+          </div>
+            </div>
       </>
     );
   }
@@ -256,9 +296,9 @@ export const Dashboard: React.FC = () => {
                 low: 'border-l-4 border-green-500',
               };
               const titleColor = {
-                high: 'text-red-500',
+                high: 'text-red-600',
                 medium: 'text-yellow-500',
-                low: 'text-green-500',
+                low: 'text-green-600',
               };
               const borderColor = {
                 high: 'border-red-200',
