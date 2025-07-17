@@ -844,6 +844,10 @@ console.log("paginatedTestCases", paginatedTestCases);
     }
   };
 
+  // Add state for AlertModal confirmation
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
   return (
     <div className="max-w-6xl mx-auto ">
       {/* Fixed Header Section */}
@@ -1260,29 +1264,8 @@ console.log("paginatedTestCases", paginatedTestCases);
                             </button>
                             <button
                               onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this test case?")) {
-                                  deleteTestCaseById(testCase.id).then(() => {
-                                    if (selectedProjectId && selectedSubmoduleId !== null) {
-                                      getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId).then((data) => {
-                                        const moduleMap = Object.fromEntries(projectModules.map((m: any) => [m.id, m.name]));
-                                        const submoduleMap = Object.fromEntries(projectModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-                                        setTestCases(
-                                          (data as any[]).map((tc: any) => ({
-                                            ...tc,
-                                            module: moduleMap[tc.module] || tc.module,
-                                            subModule: submoduleMap[tc.subModule] || tc.subModule,
-                                            severity: (severities && severities.find(s => s.id === tc.severityId)?.name || "") as TestCaseType['severity'],
-                                            type: (defectTypes && defectTypes.find(dt => dt.id === tc.defectTypeId)?.defectTypeName || "") as TestCaseType['type'],
-                                          })) as TestCaseType[]
-                                        );
-                                      });
-                                    }
-                                    setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
-                                  }).catch((error) => {
-                                    console.error("Error deleting test case:", error);
-                                    setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. Please try again.' });
-                                  });
-                                }
+                                setPendingDeleteId(testCase.id);
+                                setConfirmOpen(true);
                               }}
                               className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                               title="Delete"
@@ -1758,6 +1741,41 @@ console.log("paginatedTestCases", paginatedTestCases);
           setDeleteAlert({ isOpen: false, message: '' });
         }}
       />
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this test case?</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteId) {
+                    try {
+                      await deleteTestCaseById(pendingDeleteId);
+                      setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
+                    } catch (error) {
+                      setDeleteAlert({ isOpen: true, message: 'Failed to delete test case. Please try again.' });
+                    } finally {
+                      setConfirmOpen(false);
+                      setPendingDeleteId(null);
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

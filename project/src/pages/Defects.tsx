@@ -44,8 +44,37 @@ import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/Proje
 import { addDefects } from "../api/defect/addNewDefect";
 import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 import { getAllocatedUsersByModuleId } from '../api/module/getModule';
+import AlertModal from '../components/ui/AlertModal';
+
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
+// Define ConfirmModal inline (above the component)
+const ConfirmModal = ({ isOpen, message, onCancel, onConfirm }: { isOpen: boolean; message: string; onCancel: () => void; onConfirm: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+      <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+        <div className="px-6 pb-4 pt-5 text-base text-white">{message}</div>
+        <div className="px-6 pb-5 flex justify-end gap-3">
+          <button
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+            onClick={onConfirm}
+            type="button"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Defects: React.FC = () => {
 
@@ -326,17 +355,15 @@ export const Defects: React.FC = () => {
       // Check for success - API returns "Success" (uppercase) or statusCode 2000
       if (response.status === "Success" || response.statusCode === 200) {
         // Handle successful defect addition
-        alert("Defect added successfully!");
+        showAlert("Defect added successfully!");
         await fetchData(); // Always re-fetch and map data after add
         resetForm();
       } else {
         // Handle error in defect addition
-        console.error("Failed to add defect:", response.message);
-        alert("Failed to add defect: " + response.message);
+        showAlert("Failed to add defect.");
       }
     } catch (error) {
-      console.error("Error adding defect:", error);
-      alert("Error adding defect. Please try again.");
+      showAlert("Error adding defect. Please try again.");
     }
   };
 
@@ -346,28 +373,28 @@ export const Defects: React.FC = () => {
 
     // Validate required fields
     if (!formData.description.trim()) {
-      alert('Please enter a description');
+      showAlert("Please enter a description");
       return;
     }
     if (!formData.severityId) {
-      alert('Please select a severity');
+      showAlert("Please select a severity");
       return;
     }
     if (!formData.priorityId) {
-      alert('Please select a priority');
+      showAlert("Please select a priority");
       return;
     }
     if (!formData.typeId) {
-      alert('Please select a type');
+      showAlert("Please select a type");
       return;
     }
 
     if (!formData.moduleId) {
-      alert('Please select a module');
+      showAlert("Please select a module");
       return;
     }
     if (!formData.steps.trim()) {
-      alert('Please enter steps to reproduce');
+      showAlert("Please enter steps to reproduce");
       return;
     }
 
@@ -397,17 +424,17 @@ export const Defects: React.FC = () => {
           payload
         );
         if (response.status === 'Success' || response.statusCode === 2000) {
-          alert('Defect updated successfully!');
+          showAlert("Defect updated successfully!");
           await fetchData(); // Always re-fetch and map data after edit
           resetForm();
         } else {
-          alert('Failed to update defect: ' + (response.message || 'Unknown error'));
+          showAlert("Failed to update defect.");
         }
       } catch (error: any) {
         if (error.response && error.response.data) {
-          alert('Error updating defect: ' + JSON.stringify(error.response.data));
+          showAlert("Error updating defect: " + JSON.stringify(error.response.data));
         } else {
-          alert('Error updating defect: ' + (error?.message || error));
+          showAlert("Error updating defect: " + (error?.message || error));
         }
       }
     } else {
@@ -470,34 +497,37 @@ export const Defects: React.FC = () => {
       }
     }
   };
+  // Add state for delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; defectId: string | null }>({ open: false, defectId: null });
+  const openDeleteConfirm = (defectId: string) => setDeleteConfirm({ open: true, defectId });
+  const closeDeleteConfirm = () => setDeleteConfirm({ open: false, defectId: null });
+  // Update handleDelete to use confirmation modal
   const handleDelete = async (defectId: string) => {
-    if (window.confirm("Are you sure you want to delete this defect?")) {
-      try {
-        // Find the defect to get its numeric ID for the API
-        const defect = backendDefects.find(d => d.defectId === defectId);
-        if (!defect) {
-          alert("Defect not found.");
-          return;
-        }
-
-        // Call the delete API with the numeric ID
-        const response = await deleteDefectById(defect.id.toString());
-
-        // Handle successful deletion
-        if (response.status === 'Success' || response.statusCode === 2000) {
-          await fetchData(); // Always re-fetch and map data after delete
-          alert("Defect deleted successfully.");
-        } else {
-          console.error("Delete failed:", response.message);
-          alert("Delete failed. Please try again.");
-        }
-      } catch (error: any) {
-        console.error("Error occurred while deleting defect:", error);
-        alert("Error: " + (error.message || 'Failed to delete defect'));
-      }
-    }
+    openDeleteConfirm(defectId);
   };
 
+  const confirmDelete = async () => {
+    if (!deleteConfirm.defectId) return closeDeleteConfirm();
+    try {
+      const defect = backendDefects.find(d => d.defectId === deleteConfirm.defectId);
+      if (!defect) {
+        showAlert("Defect not found.");
+        closeDeleteConfirm();
+        return;
+      }
+      const response = await deleteDefectById(defect.id.toString());
+      if (response.status === 'Success' || response.statusCode === 2000) {
+        showAlert("Defect deleted successfully.");
+        await fetchData();
+      } else {
+        showAlert("Delete failed. Please try again.");
+      }
+    } catch (error: any) {
+      showAlert("Failed to delete defect.");
+    } finally {
+      closeDeleteConfirm();
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -712,7 +742,7 @@ export const Defects: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!selectedProjectId) {
-      alert("Please select a project before importing defects.");
+      showAlert("Please select a project before importing defects.");
       return;
     }
     const formData = new FormData();
@@ -727,18 +757,18 @@ export const Defects: React.FC = () => {
       );
       if (response && response.data && Array.isArray(response.data)) {
         response.data.forEach((row: any) => addDefect(row));
-        alert("Imported defects successfully.");
+        showAlert("Imported defects successfully.");
       } else {
-        alert("Import succeeded but no data returned.");
+        showAlert("Import succeeded but no data returned.");
       }
     } catch (error: any) {
-      alert("Failed to import defects: " + (error?.message || error));
+      showAlert("Failed to import defects.");
     }
   };
   // Add exportDefects function
   const exportDefects = async () => {
     if (!selectedProjectId) {
-      alert("Please select a project before exporting defects.");
+      showAlert("Please select a project before exporting defects.");
       return;
     }
     try {
@@ -765,7 +795,7 @@ export const Defects: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert("Failed to export defects. Please try again.");
+      showAlert("Failed to export defects. Please try again.");
     }
   };
 
@@ -922,6 +952,11 @@ export const Defects: React.FC = () => {
       .catch(() => setAllocatedUsers([]))
       .finally(() => setIsAllocatedUsersLoading(false));
   }, [formData.moduleId]);
+
+  // Add state for AlertModal
+  const [alert, setAlert] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const showAlert = (message: string) => setAlert({ open: true, message });
+  const closeAlert = () => setAlert({ open: false, message: '' });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -2093,6 +2128,14 @@ export const Defects: React.FC = () => {
         <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
         <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} onDefectAdded={fetchData} />
       </div>
+
+      <AlertModal isOpen={alert.open} message={alert.message} onClose={closeAlert} />
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        message={"Are you sure you want to delete this defect?"}
+        onCancel={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

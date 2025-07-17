@@ -48,11 +48,9 @@ export const Employees: React.FC = () => {
     designation: "",
     experience: 0,
     joinedDate: "",
-
-
-
     availability: 100,
     status: true,
+    skills: "",
   });
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -266,7 +264,7 @@ export const Employees: React.FC = () => {
       ...formData,
       gender: formData.gender as "Male" | "Female",
       status: (formData.status ? "active" : "inactive") as "active" | "inactive",
-      skills: formData.skills
+      skills: (formData.skills || "")
         .split(",")
         .map((skill) => skill.trim())
         .filter(Boolean),
@@ -338,9 +336,9 @@ export const Employees: React.FC = () => {
       designation: "",
       experience: 0,
       joinedDate: "",
-    
       availability: 100,
       status: true,
+      skills: "",
     });
   };
   
@@ -361,6 +359,7 @@ export const Employees: React.FC = () => {
     
       availability: employee.availability,
       status: employee.status === "active" ? true : false,
+      skills: Array.isArray(employee.skills) ? employee.skills.join(", ") : "", // convert array to string for form
     });
     setIsModalOpen(true);
   };
@@ -593,12 +592,12 @@ export const Employees: React.FC = () => {
                         designation: user.designationName || "",
                         experience: 0,
                         joinedDate: user.joinDate,
-                        
                         availability: 100,
                         status: (user.userStatus.toLowerCase() === "active" ? "active" : "inactive") as "active" | "inactive",
                         currentProjects: [],
                         createdAt: "",
                         updatedAt: "",
+                        skills: [], // <-- ensure skills is always an array for Employee
                       } as Employee;
                       return (
                         <TableRow key={getUserId(user)}>

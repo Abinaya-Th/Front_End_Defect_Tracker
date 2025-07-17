@@ -219,41 +219,30 @@ export const ModuleManagement: React.FC = () => {
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this module? This will also delete all submodules."
-      )
-    ) {
-      if (selectedProjectId) {
-        try {
-          console.log("+++++++++++++++++++");
-          const response = await deleteModuleApi(Number(moduleId));
-          console.log("------------------");
-          console.log(response, "Delete module response");
-
-          if (response.status === "success") {
-            // Refresh modules after deleting
-            await fetchModules();
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-          } else {
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-            await fetchModules();
-          }
-        } catch (error: any) {
-          if (error.response && error.response.data) {
-            const errorData = error.response.data;
-            if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-              setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
-            } else {
-              setAlertMessage('Failed to delete module: ' + (errorData.message || JSON.stringify(errorData)));
-            }
-            setAlertOpen(true);
+    if (selectedProjectId) {
+      try {
+        const response = await deleteModuleApi(Number(moduleId));
+        if (response.status === "success") {
+          await fetchModules();
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+          await fetchModules();
+        }
+      } catch (error: any) {
+        if (error.response && error.response.data) {
+          const errorData = error.response.data;
+          if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+            setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
           } else {
             setAlertMessage('Failed to delete module. Please try again.');
-            setAlertOpen(true);
           }
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Failed to delete module. Please try again.');
+          setAlertOpen(true);
         }
       }
     }
@@ -501,6 +490,14 @@ export const ModuleManagement: React.FC = () => {
     }
   }, [modulesByProjectId]);
 
+  // Add state for confirmation dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteSubmoduleId, setPendingDeleteSubmoduleId] = useState<string | null>(null);
+
+  // Add state for module confirmation dialog
+  const [confirmModuleOpen, setConfirmModuleOpen] = useState(false);
+  const [pendingDeleteModuleId, setPendingDeleteModuleId] = useState<string | null>(null);
+
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -649,7 +646,10 @@ export const ModuleManagement: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteModule(module.id.toString())}
+                                  onClick={() => {
+                                    setPendingDeleteModuleId(module.id.toString());
+                                    setConfirmModuleOpen(true);
+                                  }}
                                   className="p-1 text-red-600 hover:text-red-800"
                                   title="Delete Module"
                                 >
@@ -703,35 +703,9 @@ export const ModuleManagement: React.FC = () => {
                                             type="button"
                                             className="p-1 hover:text-red-600"
                                             title="Delete Submodule"
-                                            onClick={async () => {
-                                              if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                                try {
-                                                  const response = await deleteSubmoduleApi(Number(sub.id));
-                                                  if (response.status === "success" || response.success) {
-                                                    // Refresh modules after deleting submodule
-                                                    await fetchModules();
-                                                    setAlertMessage('Submodule deleted successfully!');
-                                                    setAlertOpen(true);
-                                                  } else {
-                                                    setAlertMessage('Submodule deleted successfully!');
-                                                    setAlertOpen(true);
-                                                    await fetchModules();
-                                                  }
-                                                } catch (error: any) {
-                                                  if (error.response && error.response.data) {
-                                                    const errorData = error.response.data;
-                                                    if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-                                                      setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
-                                                    } else {
-                                                      setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
-                                                    }
-                                                    setAlertOpen(true);
-                                                  } else {
-                                                    setAlertMessage('Failed to delete submodule. Please try again.');
-                                                    setAlertOpen(true);
-                                                  }
-                                                }
-                                              }
+                                            onClick={() => {
+                                              setPendingDeleteSubmoduleId(sub.id.toString());
+                                              setConfirmOpen(true);
                                             }}
                                           >
                                             <Trash2 className="w-4 h-4" />
@@ -1096,6 +1070,83 @@ export const ModuleManagement: React.FC = () => {
         <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
         <QuickAddDefect projectModules={[]} />
       </div >
+
+      {/* Custom confirmation dialog for submodule deletion */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this submodule?</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmOpen(false); setPendingDeleteSubmoduleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteSubmoduleId) {
+                    try {
+                      const response = await deleteSubmoduleApi(Number(pendingDeleteSubmoduleId));
+                      if (response.status === "success" || response.success) {
+                        await fetchModules();
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                      } else {
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                        await fetchModules();
+                      }
+                    } catch (error) {
+                      setAlertMessage('Failed to delete submodule. Please try again.');
+                      setAlertOpen(true);
+                    } finally {
+                      setConfirmOpen(false);
+                      setPendingDeleteSubmoduleId(null);
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom confirmation dialog for module deletion */}
+      {confirmModuleOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this module? This will also delete all submodules.</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmModuleOpen(false); setPendingDeleteModuleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteModuleId) {
+                    await handleDeleteModule(pendingDeleteModuleId);
+                    setConfirmModuleOpen(false);
+                    setPendingDeleteModuleId(null);
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };
