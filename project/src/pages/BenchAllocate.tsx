@@ -259,8 +259,15 @@ export default function BenchAllocate() {
         }).filter((e): e is Employee & { availability: number } => e !== null);
     }, [employees, projectAllocations, selectedProjectId]);
 
-    // No need for local filtering since we're using API filtering
-    const filteredBench = benchEmployees;
+    // Filter bench employees by benchFilter (case-insensitive substring match for first or last name)
+    const filteredBench = useMemo(() => {
+        if (!benchFilter.trim()) return benchEmployees;
+        const filter = benchFilter.trim().toLowerCase();
+        return benchEmployees.filter(e =>
+            (e.firstName && e.firstName.toLowerCase().includes(filter)) ||
+            (e.lastName && e.lastName.toLowerCase().includes(filter)) || (e.firstName && e.lastName && (e.firstName + ' ' + e.lastName).toLowerCase().includes(filter))
+        );
+    }, [benchEmployees, benchFilter]);
     
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
@@ -431,20 +438,13 @@ export default function BenchAllocate() {
                     </div>
                     {/* Search and Filter for Bench */}
                     <div className="mb-4 space-y-3">
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="First Name..."
-                                value={benchFirstName}
-                                onChange={e => handleFirstNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                            <Input
-                                placeholder="Last Name..."
-                                value={benchLastName}
-                                onChange={e => handleLastNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                        </div>
+                        {/* New global search input for benchFilter */}
+                        <Input
+                            placeholder="Search by name..."
+                            value={benchFilter}
+                            onChange={e => setBenchFilter(e.target.value)}
+                            className="w-full mb-2"
+                        />
                         <div className="flex gap-2">
                             <select
                                 value={designationFilter}
