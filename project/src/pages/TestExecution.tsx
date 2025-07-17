@@ -8,8 +8,7 @@ import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
 import { nanoid } from "nanoid";
 import { Input } from "../components/ui/Input";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { ModuleSelector } from "../components/ui/ModuleSelector";
 import { SubmoduleSelector } from "../components/ui/SubmoduleSelector";
@@ -1477,21 +1476,6 @@ export const TestExecution: React.FC = () => {
         </div>
       )}
 
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProject || ""} />
-        <QuickAddDefect projectModules={[]} />
-      </div>
     </div>
   );
 };
