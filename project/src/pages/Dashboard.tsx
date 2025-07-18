@@ -70,36 +70,33 @@ export const Dashboard: React.FC = () => {
   const [defectsByModuleError, setDefectsByModuleError] = useState<string | null>(null);
   const [projectColors, setProjectColors] = useState<{ [projectId: string]: string }>({});
 
-  useEffect(() => {
+  const FetchData = async () => {
     setLoadingProjects(true);
     setProjectsError(null);
-    getAllProjects()
-      .then((data) => {
-        // Ensure we always set an array
-        let arr: any[] = [];
-        if (Array.isArray(data)) {
-          arr = data;
-        } else if (data && Array.isArray((data as any).data)) {
-          arr = (data as any).data;
-        }
-        setProjects(arr);
-        setLoadingProjects(false);
-        // Fetch card color for each project
-        arr.forEach((project) => {
-          getProjectCardColor(project.id)
-            .then((className) => {
-              setProjectColors((prev) => ({ ...prev, [project.id]: className }));
-            })
-            .catch(() => {
-              // fallback: do not set color
-            });
-        });
-      })
-      .catch((err) => {
-        setProjectsError('Failed to load projects');
-        setLoadingProjects(false);
+    try {
+      const response: any = await getAllProjects();
+      setProjects(response?.data || []);
+      setLoadingProjects(false);
+      response?.data && response?.data.forEach((project: any) => {
+        getProjectCardColor(project.id)
+          .then((className) => {
+            setProjectColors((prev) => ({ ...prev, [project.id]: className }));
+          })
+          .catch(() => {
+            console.log('Failed to fetch project card color for project:', project.id);
+          });
       });
+    } catch (error) {
+      setProjectsError('Failed to load projects');
+      setLoadingProjects(false);
+    }
+  }
+
+  useEffect(() => {
+    FetchData();
   }, []);
+   
+    
   const [reopenSummary, setReopenSummary] = useState<any[]>([]);
   const [loadingReopenSummary, setLoadingReopenSummary] = useState(false);
   const [reopenSummaryError, setReopenSummaryError] = useState<string | null>(null);
