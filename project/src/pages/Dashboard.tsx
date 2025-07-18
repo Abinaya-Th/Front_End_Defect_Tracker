@@ -18,10 +18,16 @@ import { getDefectRemarkRatioByProjectId } from '../api/dashboard/remarkratio';
 import { getDefectSeverityIndex } from '../api/dashboard/dsi';
 import { getDefectDensity } from '../api/KLOC/getKLOC';
 import { getDefectsByModule } from '../api/dashboard/defectbymodule';
+import { getAllProjects } from '../api/projectget';
+import { getProjectCardColor } from '../api/dashboard/projectCardColor';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
-  const { defects, projects } = useApp();
+  // Remove projects from context for overview
+  const { defects } = useApp();
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   // Remove KLOC state from dashboard, always read from backend
   const navigate = useNavigate();
@@ -61,6 +67,38 @@ export const Dashboard: React.FC = () => {
   const [defectsByModule, setDefectsByModule] = useState<any[]>([]);
   const [loadingDefectsByModule, setLoadingDefectsByModule] = useState(false);
   const [defectsByModuleError, setDefectsByModuleError] = useState<string | null>(null);
+  const [projectColors, setProjectColors] = useState<{ [projectId: string]: string }>({});
+
+  useEffect(() => {
+    setLoadingProjects(true);
+    setProjectsError(null);
+    getAllProjects()
+      .then((data) => {
+        // Ensure we always set an array
+        let arr: any[] = [];
+        if (Array.isArray(data)) {
+          arr = data;
+        } else if (data && Array.isArray((data as any).data)) {
+          arr = (data as any).data;
+        }
+        setProjects(arr);
+        setLoadingProjects(false);
+        // Fetch card color for each project
+        arr.forEach((project) => {
+          getProjectCardColor(project.id)
+            .then((className) => {
+              setProjectColors((prev) => ({ ...prev, [project.id]: className }));
+            })
+            .catch(() => {
+              // fallback: do not set color
+            });
+        });
+      })
+      .catch((err) => {
+        setProjectsError('Failed to load projects');
+        setLoadingProjects(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -254,25 +292,14 @@ export const Dashboard: React.FC = () => {
   const projectDefects = selectedProjectId
     ? defects.filter(d => d.projectId === selectedProjectId)
     : [];
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const selectedProject = Array.isArray(projects) ? projects.find((p: any) => p.id === selectedProjectId) : null;
 
   // --- Project Health Summary Logic ---
-  const today = new Date();
-  const immediateAttentionProjects = projects.filter(project => {
-    const projectDefects = defects.filter(d => d.projectId === project.id);
-    const highOrCritical = projectDefects.some(d => (d.severity === 'high' || d.severity === 'critical') && (d.status === 'open' || d.status === 'in-progress'));
-    const manyOpen = projectDefects.filter(d => d.status === 'open').length >= 5; // threshold for 'many'
-    return highOrCritical || manyOpen;
-  });
-  const behindScheduleProjects = projects.filter(project => {
-    const endDate = project.endDate ? new Date(project.endDate) : null;
-    const notCompleted = project.status !== 'completed';
-    const lowProgress = typeof project.progress === 'number' && project.progress < 60;
-    return (endDate && endDate < today && notCompleted) || lowProgress;
-  });
-  const performingWellProjects = projects.filter(project => {
-    // Not in immediate attention or behind schedule
-    return !immediateAttentionProjects.includes(project) && !behindScheduleProjects.includes(project);
+  // Count projects by risk color from integration
+  const riskCounts = { high: 0, medium: 0, low: 0 };
+  projects.forEach(project => {
+    const risk = getRiskLevelFromClass(projectColors[project.id]);
+    if (risk) riskCounts[risk]++;
   });
 
   useEffect(() => {
@@ -303,6 +330,39 @@ export const Dashboard: React.FC = () => {
         setLoadingDefectDensity(false);
       });
   }, [selectedProjectId]);
+
+  // Helper to extract text color class from Tailwind bg-gradient class
+  function getTextColorClass(bgClass: string | undefined): string {
+    if (!bgClass) return '';
+    // Try to extract the 'from-...' color and convert to 'text-...'
+    const match = bgClass.match(/from-([a-z]+-[0-9]+)/);
+    if (match) {
+      return `text-${match[1]}`;
+    }
+    // fallback
+    return '';
+  }
+
+  // Helper to extract risk label from Tailwind bg-gradient class
+  function getRiskLabelFromClass(bgClass: string | undefined): string {
+    if (!bgClass) return '';
+    if (bgClass.includes('red')) return 'High Risk';
+    if (bgClass.includes('yellow')) return 'Medium Risk';
+    if (bgClass.includes('green')) return 'Low Risk';
+    return '';
+  }
+
+  // Helper to extract risk level from Tailwind bg-gradient class
+  function getRiskLevelFromClass(bgClass: string | undefined): 'high' | 'medium' | 'low' | undefined {
+    if (!bgClass) return undefined;
+    if (bgClass.includes('red')) return 'high';
+    if (bgClass.includes('yellow')) return 'medium';
+    if (bgClass.includes('green')) return 'low';
+    return undefined;
+  }
+
+  // Get risk label for selected project
+  const selectedProjectRiskLabel = getRiskLabelFromClass(selectedProject ? projectColors[selectedProject.id] : undefined);
 
   if (!selectedProjectId) {
     // Show summary and project cards grid
@@ -340,7 +400,7 @@ export const Dashboard: React.FC = () => {
               </span>
               <div>
                 <div className="text-slate-700 font-semibold text-lg mb-1">High Risk Projects</div>
-                <div className="text-4xl font-extrabold text-red-600">{immediateAttentionProjects.length}</div>
+                <div className="text-4xl font-extrabold text-red-600">{riskCounts.high}</div>
                 <div className="text-xs text-red-500 mt-1 font-medium">Immediate attention required</div>
               </div>
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-red-500 animate-pulse" />
@@ -352,7 +412,7 @@ export const Dashboard: React.FC = () => {
               </span>
               <div>
                 <div className="text-slate-700 font-semibold text-lg mb-1">Medium Risk Projects</div>
-                <div className="text-4xl font-extrabold text-yellow-600">{behindScheduleProjects.length}</div>
+                <div className="text-4xl font-extrabold text-yellow-600">{riskCounts.medium}</div>
                 <div className="text-xs text-yellow-600 mt-1 font-medium">Monitor progress closely</div>
               </div>
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
@@ -364,7 +424,7 @@ export const Dashboard: React.FC = () => {
               </span>
               <div>
                 <div className="text-slate-700 font-semibold text-lg mb-1">Low Risk Projects</div>
-                <div className="text-4xl font-extrabold text-green-600">{performingWellProjects.length}</div>
+                <div className="text-4xl font-extrabold text-green-600">{riskCounts.low}</div>
                 <div className="text-xs text-green-600 mt-1 font-medium">Stable and on track</div>
               </div>
               <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-green-500 animate-pulse" />
@@ -432,7 +492,13 @@ export const Dashboard: React.FC = () => {
           </div>
           {/* Project Cards Grid */}
           <div className="flex flex-wrap gap-8 justify-start py-6">
-            {(() => {
+            {loadingProjects ? (
+              <div className="text-gray-500">Loading projects...</div>
+            ) : projectsError ? (
+              <div className="text-red-500">{projectsError}</div>
+            ) : projects.length === 0 ? (
+              <div className="text-gray-400">No projects found.</div>
+            ) : (() => {
               // Sort projects: high risk first, then medium, then low
               const sortedProjects = [...projects].sort((a: any, b: any) => {
                 const getRisk = (project: any) => {
@@ -460,11 +526,13 @@ export const Dashboard: React.FC = () => {
                     style={{ animationDelay: `${idx * 60}ms` }}
                   >
                     <ProjectCard
-                      name={project.name}
+                      name={project.name || project.projectName || 'Unnamed Project'}
                       risk={risk}
                       defectCounts={{ high: highCount, medium: mediumCount, low: lowCount }}
                       onClick={() => setSelectedProjectId(project.id)}
                       size="small"
+                      customBgClass={projectColors[project.id]}
+                      riskLabel={getRiskLabelFromClass(projectColors[project.id])}
                     />
                   </div>
                 );
@@ -504,21 +572,30 @@ export const Dashboard: React.FC = () => {
         {selectedProject && (
           <div className="bg-white rounded-2xl border border-gray-200 flex items-center justify-between px-8 py-4 mb-12" style={{ minHeight: '80px' }}>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{selectedProject.name}</div>
-              </div>
+              <div className="text-2xl font-bold text-gray-900">{selectedProject.name || selectedProject.projectName || 'Unnamed Project'}</div>
+            </div>
             <div className="flex flex-col items-end">
               <span className="text-gray-500 text-sm mb-1">Status</span>
-              {selectedProject.priority === 'high' && (
-                <span className="bg-red-100 text-red-700 rounded-full px-4 py-1 text-sm font-semibold">HIGH PRIORITY</span>
+              {selectedProjectRiskLabel && (
+                <span
+                  className={
+                    selectedProjectRiskLabel === 'High Risk'
+                      ? 'bg-red-100 text-red-700 rounded-full px-4 py-1 text-sm font-semibold'
+                      : selectedProjectRiskLabel === 'Medium Risk'
+                      ? 'bg-yellow-100 text-yellow-800 rounded-full px-4 py-1 text-sm font-semibold'
+                      : selectedProjectRiskLabel === 'Low Risk'
+                      ? 'bg-green-100 text-green-800 rounded-full px-4 py-1 text-sm font-semibold'
+                      : 'bg-gray-100 text-gray-500 rounded-full px-4 py-1 text-sm font-semibold'
+                  }
+                >
+                  {selectedProjectRiskLabel}
+                </span>
               )}
-              {selectedProject.priority === 'medium' && (
-                <span className="bg-yellow-100 text-yellow-800 rounded-full px-4 py-1 text-sm font-semibold">MEDIUM PRIORITY</span>
-              )}
-              {selectedProject.priority === 'low' && (
-                <span className="bg-green-100 text-green-800 rounded-full px-4 py-1 text-sm font-semibold">LOW PRIORITY</span>
+              {!selectedProjectRiskLabel && (
+                <span className="bg-gray-100 text-gray-500 rounded-full px-4 py-1 text-sm font-semibold">NO RISK</span>
               )}
             </div>
-                </div>
+          </div>
         )}
         {/* Defect Severity Breakdown */}
         <div className="mb-14">
