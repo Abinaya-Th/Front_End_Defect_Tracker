@@ -1,19 +1,4 @@
 export interface Project {
-  projectName: string;
-//  clientName: string; 
-//  country:string; 
-//  description:string;
-//  endDate: string;
-//  phoneNo:number;
-// projectId:string;
-// projectName:string;
-// startDate: string;
-// id:string;
-// state: string;
-// userFirstName: string;
-// userLastName: string;
-
-
   id: string;
   name: string;
   prefix: string; // Added
@@ -22,7 +7,6 @@ export interface Project {
   startDate: string;
   endDate: string;
   role?: string;
-  manager: string;
   teamMembers: string[];
   progress?: number;
   description: string;
@@ -51,7 +35,6 @@ export interface ProjectFormData {
   status: 'active' | 'inactive' | 'completed';
   startDate: string;
   endDate: string;
-  manager: string;
   clientName: string;
   clientCountry: string;
   clientState: string;

@@ -10,8 +10,7 @@ import { getTestCasesByFilter } from "../api/releasetestcase";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { Modal } from "../components/ui/Modal";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 
 interface TestCase {
   id: string;
@@ -296,21 +295,6 @@ export const ReleaseDetails: React.FC = () => {
           </div>
         </Modal>
       )}
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect />
-      </div>
     </div>
   );
 };

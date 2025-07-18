@@ -5,6 +5,8 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 // Define interfaces for the defect status API
 
 export interface DefectStatus {
+  color: any;
+  name: any;
   id: number;
   defectStatusName: string;
   colorCode: string;

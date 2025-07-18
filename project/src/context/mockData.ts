@@ -12,14 +12,13 @@ export const mockProjects: Project[] = [
     status: "active",
     startDate: "2024-02-01",
     endDate: "2024-08-31",
-    manager: "Sarah Johnson",
     priority: "high",
     projectType: "mobile",
     progress: 45,
     teamMembers: [],
     createdAt: "2024-02-01T00:00:00Z",
   },
-  // ...other projects from AppContext...
+  // ...other projects from AppContext, remove manager/department fields...
 ];
 
 // Utility function example: getNextDefectId

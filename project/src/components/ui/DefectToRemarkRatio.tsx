@@ -28,11 +28,13 @@ const DefectToRemarkRatio: React.FC<DefectToRemarkRatioProps> = ({ defectCount, 
   const cappedRatio = Math.min(ratio, MAX_RATIO);
   const percent = Math.round((cappedRatio / MAX_RATIO) * 100);
   const { color, text, label, bar, pill } = getStatus(ratio);
+  // Format as "X:1" instead of decimal
+  const ratioDisplay = remarkCount > 0 ? `${Math.round(ratio)}:1` : '0:1';
   return (
     <div className="rounded-2xl shadow bg-white p-4 w-full max-w-sm">
       
       <div className={`rounded-xl p-6 flex flex-col items-center justify-center w-full ${color} bg-opacity-10 border ${color} border-opacity-30`}>
-        <div className="text-5xl font-extrabold text-gray-800 mb-1">{ratio.toFixed(2)}</div>
+        <div className="text-5xl font-extrabold text-gray-800 mb-1">{ratioDisplay}</div>
         <div className="text-gray-600 mb-2">Defects per Remark</div>
         <span className={`px-4 py-1 rounded-full text-sm font-semibold mb-4 ${pill} ${text}`}>{label}</span>
         <div className="w-full flex flex-col items-center">

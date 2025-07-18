@@ -5,9 +5,6 @@ import { Button } from '../components/ui/Button';
 import { Eye, ChevronLeft, Settings, Users } from 'lucide-react';
 import { ModuleManagement } from './ModuleManagement';
 // import { useApp } from '../context/AppContext';
-import QuickAddDefect from './QuickAddDefect';
-import QuickAddTestCase from './QuickAddTestCase';
-// import { ProjectSelector } from '../components/ui/ProjectSelector';
 
 export const ProjectManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +40,7 @@ export const ProjectManagement: React.FC = () => {
         >
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Eye className="w-12 h-12 text-purple-500 mb-4 group-hover:text-purple-700 transition-colors" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">View</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Release View</h2>
             <p className="text-gray-600 text-center">View release overviews and summaries.</p>
           </CardContent>
         </Card>
@@ -75,21 +72,7 @@ export const ProjectManagement: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect />
-      </div>
+      
     </div>
   );
 };

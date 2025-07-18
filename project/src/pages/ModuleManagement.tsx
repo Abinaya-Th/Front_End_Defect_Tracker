@@ -15,8 +15,6 @@ import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi } from "../api/module/createModule";
 import { updateModule as updateModuleApi } from "../api/module/updateModule";
@@ -27,7 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
-import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
+import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule } from "../api/bench/projectAllocation";
 import AlertModal from '../components/ui/AlertModal';
 import { getDevelopersByModuleId } from "../api/module/getModuleDevelopers";
 
@@ -90,12 +88,15 @@ export const ModuleManagement: React.FC = () => {
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
 
+  // 1. Add state for selected developer for module allocation (single select)
+  const [selectedModuleDeveloperProjectAllocationId, setSelectedModuleDeveloperProjectAllocationId] = useState<number | null>(null);
+
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
   // New state for developers assigned to modules/submodules
   const [moduleDevelopers, setModuleDevelopers] = useState<Record<string, any[]>>({});
-console.log(projectId, "projectId from params in module management page");
+  console.log(projectId, "projectId from params in module management page");
 
   // useEffect(() => {
   //   if (projectId) {
@@ -107,8 +108,7 @@ console.log(projectId, "projectId from params in module management page");
   const availableDevelopers = employees.filter(
     (emp) =>
       emp.designation.toLowerCase().includes("developer") ||
-      emp.designation.toLowerCase().includes("engineer") ||
-      emp.department.toLowerCase().includes("engineering")
+      emp.designation.toLowerCase().includes("engineer")
   );
 
   // Fetch developers with roles when selectedProjectId changes
@@ -117,7 +117,7 @@ console.log(projectId, "projectId from params in module management page");
     try {
       const response = await getDevelopersWithRolesByProjectId(Number(selectedProjectId));
       console.log(response);
-      
+
       if (response && response.status === "success" && Array.isArray(response.data)) {
         // If response.data is already an array of { name, role, projectAllocationId }
         setDevelopersWithRoles(response.data);
@@ -220,41 +220,30 @@ console.log(projectId, "projectId from params in module management page");
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this module? This will also delete all submodules."
-      )
-    ) {
-      if (selectedProjectId) {
-        try {
-          console.log("+++++++++++++++++++");
-          const response = await deleteModuleApi(Number(moduleId));
-          console.log("------------------");
-          console.log(response, "Delete module response");
-          
-          if (response.status === "success") {
-            // Refresh modules after deleting
-            await fetchModules();
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-          } else {
-            setAlertMessage('Module deleted successfully!');
-            setAlertOpen(true);
-            await fetchModules();
-          }
-        } catch (error: any) {
-          if (error.response && error.response.data) {
-            const errorData = error.response.data;
-            if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-              setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
-            } else {
-              setAlertMessage('Failed to delete module: ' + (errorData.message || JSON.stringify(errorData)));
-            }
-            setAlertOpen(true);
+    if (selectedProjectId) {
+      try {
+        const response = await deleteModuleApi(Number(moduleId));
+        if (response.status === "success") {
+          await fetchModules();
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Module deleted successfully!');
+          setAlertOpen(true);
+          await fetchModules();
+        }
+      } catch (error: any) {
+        if (error.response && error.response.data) {
+          const errorData = error.response.data;
+          if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
+            setAlertMessage('Cannot delete module: It has allocated developers. Please remove all allocations first.');
           } else {
             setAlertMessage('Failed to delete module. Please try again.');
-            setAlertOpen(true);
           }
+          setAlertOpen(true);
+        } else {
+          setAlertMessage('Failed to delete module. Please try again.');
+          setAlertOpen(true);
         }
       }
     }
@@ -268,39 +257,77 @@ console.log(projectId, "projectId from params in module management page");
         employeeIds: [],
       });
       setSelectedDeveloperProjectAllocationId(null); // Reset on open
+      setSelectedModuleDeveloperProjectAllocationId(null); // Reset on open
       setIsBulkAssignmentModalOpen(true);
     }
   };
 
   // Bulk assignment handler: assign developer to all selected modules/submodules
   const handleSaveBulkAssignment = async () => {
-    if (!selectedDeveloperProjectAllocationId) {
-      alert("Please select a developer to assign.");
-      return;
-    }
-    try {
+    if (onlyModulesSelected) {
+      if (!selectedModuleDeveloperProjectAllocationId) {
+        alert("Please select a developer for module allocation.");
+        return;
+      }
+      let didAllocate = false;
       for (const item of selectedItems) {
         if (item.type === "module") {
-          await allocateDeveloperToModule(Number(item.moduleId), selectedDeveloperProjectAllocationId);
-        } else if (item.type === "submodule" && item.submoduleId) {
-          await allocateDeveloperToSubModule(
-            Number(item.moduleId),
-            selectedDeveloperProjectAllocationId,
-            Number(item.submoduleId)
-          );
+          // Check if the developer is already assigned to the module
+          const directModuleDevs = (moduleDevelopers[item.moduleId] || []).filter((d) => d.subModuleId == null);
+          const alreadyAssigned = directModuleDevs.some((d) => d.projectAllocationId === selectedModuleDeveloperProjectAllocationId);
+          if (alreadyAssigned) {
+            continue;
+          }
+          // Use the correct API for module allocation
+          await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule`, {
+            moduleId: Number(item.moduleId),
+            projectAllocationId: selectedModuleDeveloperProjectAllocationId
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            withCredentials: false
+          });
+          didAllocate = true;
+        }
+      }
+      if (didAllocate) {
+        alert("Assignment successful!");
+      } else {
+        alert("Already allocated.");
+      }
+      setSelectedItems([]);
+      setIsBulkAssignmentModalOpen(false);
+      fetchModules();
+      return;
+    }
+    // Submodule allocation: allow multiple developers
+    if (onlySubmodulesSelected) {
+      if (!selectedDeveloperProjectAllocationIds || selectedDeveloperProjectAllocationIds.length === 0) {
+        alert("Please select at least one developer for submodule allocation.");
+        return;
+      }
+      for (const item of selectedItems) {
+        if (item.type === "submodule" && item.submoduleId) {
+          await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule/subModule/bulk`, {
+            moduleId: Number(item.moduleId),
+            subModuleId: Number(item.submoduleId),
+            projectAllocationIds: selectedDeveloperProjectAllocationIds
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            withCredentials: false
+          });
         }
       }
       alert("Assignment successful!");
       setSelectedItems([]);
       setIsBulkAssignmentModalOpen(false);
-      fetchModules(); // Refresh module assignments
-    } catch (error:any) {
-      if (error.response && error.response.status === 409) {
-        alert("Developer is already assigned to this module or submodule.");
-      } else {
-        alert("Assignment is already done for this module");
-      }
-      console.error(error);
+      fetchModules();
+      return;
     }
   };
 
@@ -312,19 +339,10 @@ console.log(projectId, "projectId from params in module management page");
   ) => {
     if (checked) {
       if (type === "module") {
-        // When selecting a module, also select all its submodules
-        const module = modulesByProjectId?.find((m) => m.id.toString() === moduleId);
-        const newItems = [
-          { type: "module" as const, moduleId, submoduleId: undefined },
-          ...(module?.submodules?.map((sub) => ({
-            type: "submodule" as const,
-            moduleId,
-            submoduleId: sub.id.toString(),
-          })) || []),
-        ];
+        // When selecting a module, only select the module itself (do not select all its submodules)
         setSelectedItems((prev) => [
-          ...prev.filter((item) => !(item.moduleId === moduleId)),
-          ...newItems,
+          ...prev.filter((item) => !(item.type === "module" && item.moduleId === moduleId)),
+          { type: "module" as const, moduleId, submoduleId: undefined },
         ]);
       } else {
         // When selecting a submodule, check if all submodules are now selected
@@ -447,10 +465,10 @@ console.log(projectId, "projectId from params in module management page");
 
   // Defensive logging and type normalization for project lookup
   console.log("Selected Project ID:", selectedProjectId);
-  
+
 
   const project = projects.find((p) => String(p.id) === String(selectedProjectId));
- 
+
 
   const fetchModules = async () => {
     if (!selectedProjectId) return;
@@ -501,6 +519,21 @@ console.log(projectId, "projectId from params in module management page");
       });
     }
   }, [modulesByProjectId]);
+
+  // Add state for confirmation dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteSubmoduleId, setPendingDeleteSubmoduleId] = useState<string | null>(null);
+
+  // Add state for module confirmation dialog
+  const [confirmModuleOpen, setConfirmModuleOpen] = useState(false);
+  const [pendingDeleteModuleId, setPendingDeleteModuleId] = useState<string | null>(null);
+
+  // 4. Add state for selectedDeveloperProjectAllocationIds (array)
+  const [selectedDeveloperProjectAllocationIds, setSelectedDeveloperProjectAllocationIds] = useState<number[]>([]);
+
+  const onlyModulesSelected = selectedItems.length > 0 && selectedItems.every(item => item.type === "module");
+  const onlySubmodulesSelected = selectedItems.length > 0 && selectedItems.every(item => item.type === "submodule");
+  const mixedSelection = selectedItems.some(item => item.type === "module") && selectedItems.some(item => item.type === "submodule");
 
 
   return (
@@ -611,6 +644,7 @@ console.log(projectId, "projectId from params in module management page");
                 {(modulesByProjectId && Array.isArray(modulesByProjectId) && modulesByProjectId.length > 0) ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(modulesByProjectId || []).map((module) => {
+                      // Module-level devs for display beside module name:
                       const moduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
                       return (
                         <Card key={module.id} className="hover:shadow-lg transition-shadow">
@@ -627,7 +661,6 @@ console.log(projectId, "projectId from params in module management page");
                                 />
                                 <h3 className="text-lg font-semibold text-gray-900">
                                   {module.moduleName}
-                                  {/* Show assigned developers for the module */}
                                   {moduleDevs.length > 0 && (
                                     <span className="ml-2 text-xs text-blue-600 font-normal">
                                       (
@@ -650,7 +683,10 @@ console.log(projectId, "projectId from params in module management page");
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteModule(module.id.toString())}
+                                  onClick={() => {
+                                    setPendingDeleteModuleId(module.id.toString());
+                                    setConfirmModuleOpen(true);
+                                  }}
                                   className="p-1 text-red-600 hover:text-red-800"
                                   title="Delete Module"
                                 >
@@ -665,7 +701,10 @@ console.log(projectId, "projectId from params in module management page");
                                 <ul className="list-disc list-inside space-y-1">
                                   {module.submodules.map((sub: any) => {
                                     const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
-                                    const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
+                                    // Define submoduleDevs here, inside the map, so sub is in scope
+                                    const submoduleDevs = (moduleDevelopers[module.id] || []).filter(
+                                      (d) => d.subModuleId != null && d.subModuleId.toString() === sub.id.toString()
+                                    );
                                     return (
                                       <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
                                         <span className="flex items-center">
@@ -704,36 +743,10 @@ console.log(projectId, "projectId from params in module management page");
                                             type="button"
                                             className="p-1 hover:text-red-600"
                                             title="Delete Submodule"
-                                                                                    onClick={async () => {
-                                          if (window.confirm('Are you sure you want to delete this submodule?')) {
-                                            try {
-                                              const response = await deleteSubmoduleApi(Number(sub.id));
-                                              if (response.status === "success" || response.success) {
-                                                // Refresh modules after deleting submodule
-                                                await fetchModules();
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Submodule deleted successfully!');
-                                                setAlertOpen(true);
-                                                await fetchModules();
-                                              }
-                                            } catch (error: any) {
-                                              if (error.response && error.response.data) {
-                                                const errorData = error.response.data;
-                                                if (errorData.message && errorData.message.includes('foreign key constraint fails')) {
-                                                  setAlertMessage('Cannot delete submodule: It has allocated developers. Please remove all allocations first.');
-                                                } else {
-                                                  setAlertMessage('Failed to delete submodule: ' + (errorData.message || JSON.stringify(errorData)));
-                                                }
-                                                setAlertOpen(true);
-                                              } else {
-                                                setAlertMessage('Failed to delete submodule. Please try again.');
-                                                setAlertOpen(true);
-                                              }
-                                            }
-                                          }
-                                        }}
+                                            onClick={() => {
+                                              setPendingDeleteSubmoduleId(sub.id.toString());
+                                              setConfirmOpen(true);
+                                            }}
                                           >
                                             <Trash2 className="w-4 h-4" />
                                           </button>
@@ -874,6 +887,7 @@ console.log(projectId, "projectId from params in module management page");
           setIsBulkAssignmentModalOpen(false);
           setSelectedItems([]);
           setSelectedDeveloperProjectAllocationId(null); // Reset on close
+          setSelectedModuleDeveloperProjectAllocationId(null); // Reset on close
         }}
         title={`Assign Developers`}
         size="xl"
@@ -934,37 +948,83 @@ console.log(projectId, "projectId from params in module management page");
             </div>
           </div>
           <div className="md:w-1/2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Developers
-            </label>
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {developersWithRoles.length > 0 ? (
-                developersWithRoles.map((dev, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="bulk-assign-developer"
-                      checked={selectedDeveloperProjectAllocationId === dev.projectAllocationId}
-                      onChange={() => setSelectedDeveloperProjectAllocationId(dev.projectAllocationId)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div>
-                       {(() => {
-                        const [name, role] = dev.userWithRole.split("-");
-                        return (
-                          <>
-                            <div className="text-sm font-medium text-gray-900">{name}</div>
-                            <div className="text-xs text-gray-500">{role}</div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-400 text-sm">No developers found for this project.</div>
-              )}
-            </div>
+            {onlyModulesSelected && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Developer for Module Allocation</label>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {developersWithRoles.length > 0 ? (
+                    developersWithRoles.map((dev, idx) => (
+                      <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                        <input
+                          type="radio"
+                          name="module-assign-developer"
+                          checked={selectedModuleDeveloperProjectAllocationId === dev.projectAllocationId}
+                          onChange={() => setSelectedModuleDeveloperProjectAllocationId(dev.projectAllocationId)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          {(() => {
+                            const [name, role] = dev.userWithRole.split("-");
+                            return (
+                              <>
+                                <div className="text-sm font-medium text-gray-900">{name}</div>
+                                <div className="text-xs text-gray-500">{role}</div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-400 text-sm">No developers found for this project.</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {onlySubmodulesSelected && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Developers for Submodule Allocation</label>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {developersWithRoles.length > 0 ? (
+                    developersWithRoles.map((dev, idx) => (
+                      <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                        <input
+                          type="checkbox"
+                          name="submodule-assign-developer"
+                          checked={selectedDeveloperProjectAllocationIds.includes(dev.projectAllocationId)}
+                          onChange={() => {
+                            setSelectedDeveloperProjectAllocationIds((prev) =>
+                              prev.includes(dev.projectAllocationId)
+                                ? prev.filter((id) => id !== dev.projectAllocationId)
+                                : [...prev, dev.projectAllocationId]
+                            );
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          {(() => {
+                            const [name, role] = dev.userWithRole.split("-");
+                            return (
+                              <>
+                                <div className="text-sm font-medium text-gray-900">{name}</div>
+                                <div className="text-xs text-gray-500">{role}</div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-400 text-sm">No developers found for this project.</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {mixedSelection && (
+              <div className="mb-4 text-red-600 font-medium">
+                Please select either modules or submodules, not both, for allocation.
+              </div>
+            )}
           </div>
         </div>
 
@@ -975,11 +1035,12 @@ console.log(projectId, "projectId from params in module management page");
               setIsBulkAssignmentModalOpen(false);
               setSelectedItems([]);
               setSelectedDeveloperProjectAllocationId(null);
+              setSelectedModuleDeveloperProjectAllocationId(null);
             }}
           >
             Cancel
           </Button>
-          <Button onClick={handleSaveBulkAssignment}>
+          <Button onClick={handleSaveBulkAssignment} disabled={mixedSelection}>
             Assign to All Selected
           </Button>
         </div>
@@ -1082,21 +1143,84 @@ console.log(projectId, "projectId from params in module management page");
         </div>
       </Modal >
 
-      {/* Fixed Quick Add Button */}
-      < div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
-        <QuickAddDefect projectModules={[]} />
-      </div >
+
+
+      {/* Custom confirmation dialog for submodule deletion */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this submodule?</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmOpen(false); setPendingDeleteSubmoduleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteSubmoduleId) {
+                    try {
+                      const response = await deleteSubmoduleApi(Number(pendingDeleteSubmoduleId));
+                      if (response.status === "success" || response.success) {
+                        await fetchModules();
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                      } else {
+                        setAlertMessage('Submodule deleted successfully!');
+                        setAlertOpen(true);
+                        await fetchModules();
+                      }
+                    } catch (error) {
+                      setAlertMessage('Failed to delete submodule. Please try again.');
+                      setAlertOpen(true);
+                    } finally {
+                      setConfirmOpen(false);
+                      setPendingDeleteSubmoduleId(null);
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom confirmation dialog for module deletion */}
+      {confirmModuleOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+          <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+            <div className="px-6 pb-4 pt-5 text-base text-white">Are you sure you want to delete this module? This will also delete all submodules.</div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+                onClick={() => { setConfirmModuleOpen(false); setPendingDeleteModuleId(null); }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+                onClick={async () => {
+                  if (pendingDeleteModuleId) {
+                    await handleDeleteModule(pendingDeleteModuleId);
+                    setConfirmModuleOpen(false);
+                    setPendingDeleteModuleId(null);
+                  }
+                }}
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

@@ -32,9 +32,9 @@ export const createModule = async (data: CreateModuleRequest): Promise<CreateMod
  */
 export const createSubmodule = async (data: { subModuleName: string; moduleId: number }): Promise<any> => {
   try {
-    // Use full URL since the endpoint is external
+    // Use VITE_BASE_URL for the endpoint
     const response = await apiClient.post(
-      "http://34.171.115.156:8087/api/v1/subModule",
+      `subModule`,
       data
     );
     return response.data;

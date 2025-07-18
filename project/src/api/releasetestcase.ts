@@ -98,6 +98,27 @@ export const allocateTestCaseToMultipleReleases = async (
   return data;
 };
 
+// Many-to-many allocation interface
+export interface AllocateManyToManyRequest {
+  releaseIds: (string | number)[];
+  testCaseIds: (string | number)[];
+}
+
+export const allocateTestCasesToManyReleases = async (
+  releaseIds: (string | number)[],
+  testCaseIds: (string | number)[]
+): Promise<AllocateTestCaseResponse> => {
+  const payload: AllocateManyToManyRequest = {
+    releaseIds: releaseIds.map(String),
+    testCaseIds: testCaseIds.map(String),
+  };
+  const { data } = await axios.post<AllocateTestCaseResponse>(
+    `${BASE_URL}releasetestcase/allocate-many-to-many`,
+    payload
+  );
+  return data;
+};
+
 
 export interface ReleaseTestCaseMappingRequest {
   testCaseId: number;
@@ -110,9 +131,20 @@ interface ReleaseTestCaseMappingResponse{
   statusCode:number;
   data:any[]
 }
+// Bulk allocate: { testCaseIds: number[], releaseId: number }
+export interface BulkAllocateRequest {
+  testCaseIds: (string | number)[];
+  releaseId: string | number;
+}
+
 export const bulkAllocateTestCasesToReleases = (
-  payload: ReleaseTestCaseMappingRequest[]
+  testCaseIds: (string | number)[],
+  releaseId: string | number
 ): Promise<any> => {
+  const payload: BulkAllocateRequest = {
+    testCaseIds: testCaseIds.map(Number),
+    releaseId: Number(releaseId),
+  };
   return axios.post(`${BASE_URL}releasetestcase/bulk-allocate`, payload)
-  .then(({ data }: { data: ReleaseTestCaseMappingResponse }) => data)
+    .then(({ data }: { data: any }) => data);
 };

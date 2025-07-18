@@ -1,10 +1,22 @@
 import React from 'react';
-import { Bell, Search, User, LogOut, Settings } from 'lucide-react';
+import { Bell, User, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
+import { useApp } from '../../context/AppContext';
+import QuickAddDefect from '../../pages/QuickAddDefect';
+import QuickAddTestCase from '../../pages/QuickAddTestCase';
+import { useLocation } from 'react-router-dom';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const { selectedProjectId, modulesByProject } = useApp();
+  const location = useLocation();
+
+  // Only show quick add on these subpages
+  const showQuickAdd = React.useMemo(() => {
+    // Matches /projects/:id/project-management, /projects/:id/test-cases, /projects/:id/releases, /projects/:id/defects
+    return /^\/projects\/[^/]+\/(project-management|test-cases|releases|defects)/.test(location.pathname);
+  }, [location.pathname]);
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
@@ -24,24 +36,57 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="pl-10 pr-4 py-2.5 w-80 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            />
-          </div>
-          
+          {/* Quick Add Components (only on subpages) */}
+          {showQuickAdd && (
+            <>
+              <div className="flex items-center">
+                <QuickAddDefect
+                  projectModules={selectedProjectId ? (modulesByProject[selectedProjectId] || []) : []}
+                  renderButton={({ onClick, disabled }) => (
+                    <Button
+                      onClick={onClick}
+                      disabled={disabled}
+                      variant="primary"
+                      size="sm"
+                      className="rounded-xl flex items-center mr-2"
+                    >
+                      {/* Icon from QuickAddDefect */}
+                      <span className="mr-2 flex items-center">{/* icon will be rendered by QuickAddDefect */}</span>
+                      Add Defect
+                    </Button>
+                  )}
+                />
+              </div>
+              <div className="flex items-center">
+                <QuickAddTestCase
+                  selectedProjectId={selectedProjectId || ''}
+                  renderButton={({ onClick, disabled }) => (
+                    <Button
+                      onClick={onClick}
+                      disabled={disabled}
+                      variant="primary"
+                      size="sm"
+                      className="rounded-xl flex items-center mr-2"
+                    >
+                      {/* Icon from QuickAddTestCase */}
+                      <span className="mr-2 flex items-center">{/* icon will be rendered by QuickAddTestCase */}</span>
+                      Add Test Case
+                    </Button>
+                  )}
+                />
+              </div>
+            </>
+          )}
+          {/* Notification Bell */}
           <Button variant="ghost" size="sm" className="p-2.5 rounded-xl relative">
             <Bell className="w-5 h-5" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
           </Button>
-          
+
           <Button variant="ghost" size="sm" className="p-2.5 rounded-xl">
             <Settings className="w-5 h-5" />
           </Button>
-          
+
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-3 px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
@@ -52,10 +97,10 @@ export const Header: React.FC = () => {
                 <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={logout} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
               className="p-2.5 rounded-xl text-red-600 hover:bg-red-50"
             >
               <LogOut className="w-5 h-5" />

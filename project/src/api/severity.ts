@@ -14,11 +14,13 @@ export interface Severity {
   id: number;
   name: string;
   color: string;
+  weight: number; // Added weight
 }
 
 export interface CreateSeverityRequest {
   name: string;
   color: string;
+  weight: number; // Added weight
 }
 
 export interface CreateSeverityResponse {
@@ -65,10 +67,7 @@ export const createSeverity = async (data: CreateSeverityRequest): Promise<Creat
 
 // Get all Severities
 export const getSeverities = async (): Promise<GetSeveritiesResponse> => {
-  const response = await axios.get<GetSeveritiesResponse>(SEVERITY_URL, {
-    headers: { 'Cache-Control': 'no-cache' },
-    params: { t: Date.now() } // cache buster
-  });
+  const response = await axios.get<GetSeveritiesResponse>(`${BASE_URL}severity`);
   return response.data;
 };
 

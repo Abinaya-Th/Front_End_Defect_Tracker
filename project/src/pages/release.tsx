@@ -2,8 +2,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/Card';
 import { Rocket, ListChecks } from 'lucide-react';
-import QuickAddTestCase from './QuickAddTestCase';
-import QuickAddDefect from './QuickAddDefect';
+
 
 export const Releases: React.FC = () => {
   const navigate = useNavigate();
@@ -11,7 +10,7 @@ export const Releases: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Releases</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">Release Management</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Execution Card */}
         <Card
@@ -37,21 +36,6 @@ export const Releases: React.FC = () => {
             <p className="text-gray-600 text-center">Allocate and organize test cases for releases.</p>
           </CardContent>
         </Card>
-      </div>
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect />
       </div>
     </div>
   );

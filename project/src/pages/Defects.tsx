@@ -1,3 +1,4 @@
+import { Pie as ChartJSPie } from 'react-chartjs-2';
 import React, { useEffect, useState } from "react";
 import { deleteDefectById } from '../api/defect/delete_defect';
 
@@ -21,8 +22,6 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
@@ -44,10 +43,43 @@ import { ProjectRelease, projectReleaseCardView } from "../api/releaseView/Proje
 import { addDefects } from "../api/defect/addNewDefect";
 import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 import { getAllocatedUsersByModuleId } from '../api/module/getModule';
+import AlertModal from '../components/ui/AlertModal';
+import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
+import { createKloc } from "../api/KLOC/putKLOC";
+import { getDevelopersWithRolesByProjectId } from "../api/bench/projectAllocation";
+
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
+// Define ConfirmModal inline (above the component)
+const ConfirmModal = ({ isOpen, message, onCancel, onConfirm }: { isOpen: boolean; message: string; onCancel: () => void; onConfirm: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-center items-start bg-black bg-opacity-40">
+      <div className="mt-8 bg-[#444] text-white rounded-lg shadow-2xl min-w-[400px] max-w-[95vw]" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+        <div className="px-6 pb-4 pt-5 text-base text-white">{message}</div>
+        <div className="px-6 pb-5 flex justify-end gap-3">
+          <button
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-2 rounded mr-2"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded"
+            onClick={onConfirm}
+            type="button"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Defects: React.FC = () => {
+
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,9 +93,54 @@ export const Defects: React.FC = () => {
     employees,
   } = useApp();
 
+
   // Backend projects state
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectIdLocal] = React.useState<string | null>(projectId || null);
+
+  // KLOC state, per project, persisted in localStorage (must be after selectedProjectId)
+  const [kloc, setKloc] = React.useState<number>(1);
+  // Local state for editing before confirm (fix for hooks order)
+  const [klocInput, setKlocInput] = React.useState<number>(1);
+  const handleKlocInputChange = async () => {
+    console.log("999999999999999999999");
+
+    const value = Number(klocInput) || 1;
+    setKloc(value);
+    setKlocInput(value);
+
+    const payload = {
+      projectId: Number(selectedProjectId),
+      kloc: value,
+    };
+    // Call API to update KLOC
+    try {
+      const response = await createKloc(payload, Number(selectedProjectId));
+      console.log("KLOC updated successfully:", response);
+    } catch (error) {
+      console.log("Failed to update KLOC:", error);
+    }
+
+
+
+  };
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && selectedProjectId) {
+      const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
+      const value = stored ? Number(stored) || 1 : 1;
+      setKloc(value);
+      setKlocInput(value);
+    }
+  }, [selectedProjectId]);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && selectedProjectId) {
+      localStorage.setItem(`kloc_${selectedProjectId}`, String(kloc));
+    }
+  }, [kloc, selectedProjectId]);
+  // Keep klocInput in sync if kloc changes (e.g. from another source)
+  React.useEffect(() => {
+    setKlocInput(kloc);
+  }, [kloc]);
 
   // Backend defects state
   const [backendDefects, setBackendDefects] = React.useState<FilteredDefect[]>([]);
@@ -161,49 +238,63 @@ export const Defects: React.FC = () => {
     });
   }, [selectedProjectId]);
 
+  // Helper to map backend defect fields to frontend expected fields
+  const mapDefect = (d: any) => ({
+    id: d.id,
+    defectId: d.defect_id,
+    description: d.description,
+    reOpenCount: d.re_open_count ?? 0,
+    attachment: d.attachment ?? null,
+    steps: d.steps ?? '',
+    project_name: d.project_name ?? '',
+    severity_name: d.severity_name ?? '',
+    priority_name: d.priority_name ?? '',
+    priority: d.priority ?? '',
+    defect_status_name: d.status_name ?? '',
+    release_test_case_description: d.release_test_case_description ?? '',
+    release_name: d.release_name ?? '',
+    assigned_by_name: d.assigned_by_name ?? '',
+    assigned_to_name: d.assigned_to_name ?? '',
+    defect_type_name: d.type_name ?? '',
+    module_name: d.module_name ?? '',
+    sub_module_name: d.sub_module_name ?? '',
+  });
+
   // Fetch defects when project changes or filters change
   const fetchData = () => {
-    const hasFilters =
-      filters.type ||
-      filters.severity ||
-      filters.priority ||
-      filters.status ||
-      filters.module ||
-      filters.subModule;
-    if (!hasFilters) {
-      // No filters: use the new project endpoint
-      axios
-        .get(`http://34.171.115.156:8087/api/v1/defect/project/${selectedProjectId}`)
-        .then((res) => {
-          setBackendDefects(res.data.data || []);
-        })
-        .catch((err) => {
-          setBackendDefects([]);
-          // Only log the error once, not on every render
-          if (err && backendDefects.length === 0) {
-            console.error('Failed to fetch defects for project:', err.message);
-          }
-        });
-    } else {
-      // Filters applied: use the filter API
-      const backendFilters = {
-        projectId: Number(selectedProjectId),
-        typeId: filters.type ? defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id : undefined,
-        severityId: filters.severity ? severities && severities.find(s => s.name === filters.severity)?.id : undefined,
-        priorityId: filters.priority ? priorities && priorities.find(p => p.priority === filters.priority)?.id : undefined,
-        defectStatusId: filters.status ? defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id : undefined,
-        releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
-      };
-      filterDefects(backendFilters)
-        .then(setBackendDefects)
-        .catch(error => {
-          // Only log the error once, not on every render
-          if (error && backendDefects.length === 0) {
-            console.error('Failed to filter defects:', error.message);
-          }
-          setBackendDefects([]);
-        });
+    // Always use the new filter endpoint, even if no filters are set
+    const params: any = { projectId: selectedProjectId };
+    if (filters.type) params.typeId = defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id;
+    if (filters.severity) params.severityId = severities && severities.find(s => s.name === filters.severity)?.id;
+    if (filters.priority) params.priorityId = priorities && priorities.find(p => p.priority === filters.priority)?.id;
+    if (filters.status) params.statusId = defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id;
+    if (filters.releaseId) params.releaseId = filters.releaseId;
+    if (filters.module) {
+      const moduleId = modules && modules.find(m => m.name === filters.module)?.id;
+      if (moduleId) params.moduleId = moduleId;
     }
+    if (filters.subModule) {
+      const subModuleId = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id;
+      if (subModuleId) params.subModuleId = subModuleId;
+    }
+    if (filters.assignedTo) {
+      params.assignToId = filters.assignedTo;
+    }
+    if (filters.reportedBy) {
+      const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id;
+      if (userId) params.assignById = userId;
+    }
+    axios.get(`${import.meta.env.VITE_BASE_URL}defect/filter`, { params })
+      .then((res) => {
+        setBackendDefects((res.data.data || []).map(mapDefect));
+      })
+      .catch((err) => {
+        setBackendDefects([]);
+        // Only log the error once, not on every render
+        if (err && backendDefects.length === 0) {
+          console.error('Failed to fetch defects for project:', err.message);
+        }
+      });
   }
 
   React.useEffect(() => {
@@ -265,23 +356,21 @@ export const Defects: React.FC = () => {
     // Removed userList validation - allow submission even without users
     // The API can handle null values for assigntoId
 
-    const payload = {
+    const payload: any = {
       description: formData.description,
-      severityId: Number(formData.severityId),
-      priorityId: Number(formData.priorityId),
-      typeId: Number(formData.typeId),
-      assigntoId: Number(formData.assigntoId) || null, // Ensure number or null
-      attachment: formData.attachment || undefined,
-      assignbyId: Number(formData.assignbyId) || null, // Ensure number or null
-      steps: formData.steps || undefined,
       projectId: Number(selectedProjectId),
+      releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
       modulesId: Number(formData.moduleId),
-      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
-      defectStatusId: formData.statusId
-        ? Number(formData.statusId)
-        : (defectStatuses.find(s => s.defectStatusName.toLowerCase().startsWith("new"))?.id ?? null),
-      reOpenCount: 0, // Default value as per API sample
-      releaseId: formData.releaseId ? Number(formData.releaseId) : null, // <-- Ensure releaseId is always included
+      steps: formData.steps || undefined,
+      typeId: formData.typeId ? Number(formData.typeId) : undefined,
+      severityId: formData.severityId ? Number(formData.severityId) : undefined,
+      priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
+      assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+      attachment: formData.attachment || undefined,
+      defectStatusId: formData.statusId ? Number(formData.statusId) : undefined,
+      subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
+      testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
     };
     try {
       const response = await addDefects(payload as any);
@@ -289,42 +378,15 @@ export const Defects: React.FC = () => {
       // Check for success - API returns "Success" (uppercase) or statusCode 2000
       if (response.status === "Success" || response.statusCode === 200) {
         // Handle successful defect addition
-        alert("Defect added successfully!");
-        fetchData();
-        // Refresh the defects list
-        if (selectedProjectId) {
-          const backendFilters = {
-            projectId: Number(selectedProjectId),
-            typeId: filters.type ? (defectTypes && defectTypes.find(t => t.defectTypeName === filters.type)?.id ? Number(defectTypes.find(t => t.defectTypeName === filters.type)?.id) : undefined) : undefined,
-            severityId: filters.severity ? (severities && severities.find(s => s.name === filters.severity)?.id ? Number(severities.find(s => s.name === filters.severity)?.id) : undefined) : undefined,
-            priorityId: filters.priority ? (priorities && priorities.find(p => p.priority === filters.priority)?.id ? Number(priorities.find(p => p.priority === filters.priority)?.id) : undefined) : undefined,
-            defectStatusId: filters.status ? (defectStatuses && defectStatuses.find(s => s.defectStatusName === filters.status)?.id ? Number(defectStatuses.find(s => s.defectStatusName === filters.status)?.id) : undefined) : undefined,
-            releaseTestCaseId: filters.releaseId ? Number(filters.releaseId) : undefined,
-            moduleId: filters.module ? (() => { const id = modules && modules.find(m => m.name === filters.module)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
-            subModuleId: filters.subModule ? (() => { const id = filterSubmodules && filterSubmodules.find(sm => sm.name === filters.subModule)?.id; return id !== undefined ? Number(id) : undefined; })() : undefined,
-            assignToId: filters.assignedTo ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id) : undefined) : undefined,
-            assignById: filters.reportedBy ? (userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id ? Number(userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id) : undefined) : undefined,
-          };
-          filterDefects(backendFilters)
-            .then(setBackendDefects)
-            .catch(error => {
-              // Only log the error once, not on every render
-              if (error && backendDefects.length === 0) {
-                console.error('Failed to filter defects:', error.message);
-              }
-              setBackendDefects([]);
-            });
-        }
-        // Close modal and reset form
+        showAlert("Defect added successfully!");
+        await fetchData(); // Always re-fetch and map data after add
         resetForm();
       } else {
         // Handle error in defect addition
-        console.error("Failed to add defect:", response.message);
-        alert("Failed to add defect: " + response.message);
+        showAlert("Failed to add defect.");
       }
     } catch (error) {
-      console.error("Error adding defect:", error);
-      alert("Error adding defect. Please try again.");
+      showAlert("Error adding defect. Please try again.");
     }
   };
 
@@ -334,35 +396,33 @@ export const Defects: React.FC = () => {
 
     // Validate required fields
     if (!formData.description.trim()) {
-      alert('Please enter a description');
+      showAlert("Please enter a description");
       return;
     }
     if (!formData.severityId) {
-      alert('Please select a severity');
+      showAlert("Please select a severity");
       return;
     }
     if (!formData.priorityId) {
-      alert('Please select a priority');
+      showAlert("Please select a priority");
       return;
     }
     if (!formData.typeId) {
-      alert('Please select a type');
+      showAlert("Please select a type");
       return;
     }
 
     if (!formData.moduleId) {
-      alert('Please select a module');
+      showAlert("Please select a module");
       return;
     }
     if (!formData.steps.trim()) {
-      alert('Please enter steps to reproduce');
+      showAlert("Please enter steps to reproduce");
       return;
     }
 
     if (editingDefect) {
       // EDIT: Call updateDefectById with new API
-      // console.log(formData);
-
       try {
         const defectIdForApi = Number(formData.id);
         // Use the new payload structure as per backend requirements
@@ -373,31 +433,31 @@ export const Defects: React.FC = () => {
           priorityId: Number(formData.priorityId),
           defectStatusId: formData.statusId ? Number(formData.statusId) : null, // can be null
           typeId: Number(formData.typeId),
-          reOpenCount: editingDefect.reOpenCount || 0,
           attachment: formData.attachment || '',
           steps: formData.steps,
-          releaseId: formData.releaseId ? Number(formData.releaseId) : null, // required
-          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : null, // can be null
-          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : null, // can be null
           modulesId: Number(formData.moduleId),
           subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
+          assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+          releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
+          testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
         };
         const response = await updateDefectById(
           defectIdForApi,
           payload
         );
         if (response.status === 'Success' || response.statusCode === 2000) {
-          alert('Defect updated successfully!');
-          fetchData();
+          showAlert("Defect updated successfully!");
+          await fetchData(); // Always re-fetch and map data after edit
           resetForm();
         } else {
-          alert('Failed to update defect: ' + (response.message || 'Unknown error'));
+          showAlert("Failed to update defect.");
         }
       } catch (error: any) {
         if (error.response && error.response.data) {
-          alert('Error updating defect: ' + JSON.stringify(error.response.data));
+          showAlert("Error updating defect: " + JSON.stringify(error.response.data));
         } else {
-          alert('Error updating defect: ' + (error?.message || error));
+          showAlert("Error updating defect: " + (error?.message || error));
         }
       }
     } else {
@@ -446,7 +506,7 @@ export const Defects: React.FC = () => {
     // Fetch submodules for the selected module, then set subModuleId
     if (moduleId) {
       try {
-        const res = await getSubmodulesByModuleId(moduleId);
+        const res = await getSubmodulesByModuleId(Number(moduleId));
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
           name: sm.name || sm.subModuleName
@@ -460,35 +520,37 @@ export const Defects: React.FC = () => {
       }
     }
   };
+  // Add state for delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; defectId: string | null }>({ open: false, defectId: null });
+  const openDeleteConfirm = (defectId: string) => setDeleteConfirm({ open: true, defectId });
+  const closeDeleteConfirm = () => setDeleteConfirm({ open: false, defectId: null });
+  // Update handleDelete to use confirmation modal
   const handleDelete = async (defectId: string) => {
-    if (window.confirm("Are you sure you want to delete this defect?")) {
-      try {
-        // Find the defect to get its numeric ID for the API
-        const defect = backendDefects.find(d => d.defectId === defectId);
-        if (!defect) {
-          alert("Defect not found.");
-          return;
-        }
-
-        // Call the delete API with the numeric ID
-        const response = await deleteDefectById(defect.id.toString());
-
-        // Handle successful deletion
-        if (response.status === 'Success' || response.statusCode === 2000) {
-          // Filter out the deleted defect from the backendDefects state
-          setBackendDefects(prevDefects => prevDefects.filter(d => d.defectId !== defectId));
-          alert("Defect deleted successfully.");
-        } else {
-          console.error("Delete failed:", response.message);
-          alert("Delete failed. Please try again.");
-        }
-      } catch (error: any) {
-        console.error("Error occurred while deleting defect:", error);
-        alert("Error: " + (error.message || 'Failed to delete defect'));
-      }
-    }
+    openDeleteConfirm(defectId);
   };
 
+  const confirmDelete = async () => {
+    if (!deleteConfirm.defectId) return closeDeleteConfirm();
+    try {
+      const defect = backendDefects.find(d => d.defectId === deleteConfirm.defectId);
+      if (!defect) {
+        showAlert("Defect not found.");
+        closeDeleteConfirm();
+        return;
+      }
+      const response = await deleteDefectById(defect.id.toString());
+      if (response.status === 'Success' || response.statusCode === 2000) {
+        showAlert("Defect deleted successfully.");
+        await fetchData();
+      } else {
+        showAlert("Delete failed. Please try again.");
+      }
+    } catch (error: any) {
+      showAlert("Failed to delete defect.");
+    } finally {
+      closeDeleteConfirm();
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -589,7 +651,7 @@ export const Defects: React.FC = () => {
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
-    getSubmodulesByModuleId(formData.moduleId)
+    getSubmodulesByModuleId(Number(formData.moduleId))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -617,7 +679,7 @@ export const Defects: React.FC = () => {
       setFilterSubmodules([]);
       return;
     }
-    getSubmodulesByModuleId(selectedModule.id)
+    getSubmodulesByModuleId(Number(selectedModule.id))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -703,7 +765,7 @@ export const Defects: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!selectedProjectId) {
-      alert("Please select a project before importing defects.");
+      showAlert("Please select a project before importing defects.");
       return;
     }
     const formData = new FormData();
@@ -718,18 +780,18 @@ export const Defects: React.FC = () => {
       );
       if (response && response.data && Array.isArray(response.data)) {
         response.data.forEach((row: any) => addDefect(row));
-        alert("Imported defects successfully.");
+        showAlert("Imported defects successfully.");
       } else {
-        alert("Import succeeded but no data returned.");
+        showAlert("Import succeeded but no data returned.");
       }
     } catch (error: any) {
-      alert("Failed to import defects: " + (error?.message || error));
+      showAlert("Failed to import defects.");
     }
   };
   // Add exportDefects function
   const exportDefects = async () => {
     if (!selectedProjectId) {
-      alert("Please select a project before exporting defects.");
+      showAlert("Please select a project before exporting defects.");
       return;
     }
     try {
@@ -756,7 +818,7 @@ export const Defects: React.FC = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert("Failed to export defects. Please try again.");
+      showAlert("Failed to export defects. Please try again.");
     }
   };
 
@@ -790,7 +852,7 @@ export const Defects: React.FC = () => {
     setIsUsersLoading(true);
 
     // Try the correct API endpoint based on your PowerShell test
-    const userApiUrl = 'http://34.171.115.156:8087/api/v1/user';
+    const userApiUrl = `${import.meta.env.VITE_BASE_URL}user`;
 
     axios.get(userApiUrl).then(res => {
       if (res.data && Array.isArray(res.data.data)) {
@@ -832,7 +894,7 @@ export const Defects: React.FC = () => {
     try {
       // Extract numeric part from defectId (e.g., DF00002 -> 2)
       const numericIdMatch = defectId.match(/(\d+)$/);
-      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : defectId;
+      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : Number(defectId);
       const data = await getDefectHistoryByDefectId(numericId);
       setViewingDefectHistory(data);
     } catch (err: any) {
@@ -914,6 +976,78 @@ export const Defects: React.FC = () => {
       .finally(() => setIsAllocatedUsersLoading(false));
   }, [formData.moduleId]);
 
+  // Add state for AlertModal
+  const [alert, setAlert] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const showAlert = (message: string) => setAlert({ open: true, message });
+  const closeAlert = () => setAlert({ open: false, message: '' });
+
+  // Add state for defect severity summary from API
+  const [defectSeveritySummary, setDefectSeveritySummary] = useState<any>(null);
+  const [loadingSeveritySummary, setLoadingSeveritySummary] = useState(false);
+  const [severitySummaryError, setSeveritySummaryError] = useState<string | null>(null);
+  // Fetch defect severity summary when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectSeveritySummary(null);
+      return;
+    }
+    setLoadingSeveritySummary(true);
+    setSeveritySummaryError(null);
+    const numericProjectId = String(selectedProjectId).replace(/\D/g, '');
+    getDefectSeveritySummary(numericProjectId)
+      .then((apiData) => {
+        // Map API data to UI format
+        const summary: Record<string, { statusCounts: Record<string, number>; total: number }> = {
+          high: { statusCounts: {}, total: 0 },
+          medium: { statusCounts: {}, total: 0 },
+          low: { statusCounts: {}, total: 0 },
+        };
+        if (apiData && apiData.data && Array.isArray(apiData.data.defectSummary)) {
+          apiData.data.defectSummary.forEach((item: any) => {
+            const sev = (item.severity || '').toLowerCase();
+            if (summary[sev]) {
+              summary[sev].total = item.total;
+              const statusCounts: Record<string, number> = {};
+              Object.entries(item.statuses).forEach(([status, val]: [string, any]) => {
+                statusCounts[status.toLowerCase()] = (val as { count: number }).count;
+              });
+              summary[sev].statusCounts = statusCounts;
+            }
+          });
+        }
+        setDefectSeveritySummary(summary);
+        setLoadingSeveritySummary(false);
+      })
+      .catch((err) => {
+        setSeveritySummaryError('Failed to load defect severity summary');
+        setLoadingSeveritySummary(false);
+      });
+  }, [selectedProjectId]);
+
+  // Add state for developers for the filter dropdown
+  const [projectDevelopers, setProjectDevelopers] = useState<{ id: number; name: string; role?: string }[]>([]);
+
+  // Fetch developers for the selected project for filter dropdown
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectDevelopers([]);
+      return;
+    }
+    getDevelopersWithRolesByProjectId(Number(selectedProjectId))
+      .then(data => {
+        setProjectDevelopers(
+          (Array.isArray(data) ? data : []).map(dev => ({
+            id: dev.id,
+            name: dev.name || `${dev.firstName ?? ''} ${dev.lastName ?? ''}`.trim(),
+            role: dev.role
+          }))
+        );
+      })
+      .catch(() => setProjectDevelopers([]));
+  }, [selectedProjectId]);
+
+  const [pieModal, setPieModal] = useState<{ open: boolean; severity: string | null }>({ open: false, severity: null });
+
   return (
     <div className="max-w-6xl mx-auto">
 
@@ -924,76 +1058,145 @@ export const Defects: React.FC = () => {
         onSelect={handleProjectSelect}
       />
 
-      {/* Defect Severity Breakdown (copied from Dashboard) */}
+      {/* Defect Severity Breakdown (copied from Dashboard) with KLOC input */}
       <div className="mb-8 mt-4">
-        <div className="flex items-center mb-3 gap-4">
-          <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
-          <span className="text-base font-medium text-gray-500">(Total Defects : {filteredDefects.length})</span>
+        <div className="flex items-center mb-3 gap-4 justify-between w-full">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
+            {/* Show total defects from backend summary */}
+            {defectSeveritySummary && (
+              <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{ boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)' }}>
+                Total Defects : {['high', 'medium', 'low'].reduce((sum, sev) => sum + (defectSeveritySummary[sev]?.total || 0), 0)}
+              </span>
+            )}
+          </div>
+          {/* KLOC input field at right end */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="kloc-input" className="text-sm text-gray-600 font-medium">KLOC:</label>
+            <input
+              id="kloc-input"
+              type="number"
+              min={1}
+              className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+              value={klocInput}
+              onChange={(e) =>
+                setKlocInput(Number(e.target.value) || 1)
+              }
+              style={{ minWidth: 60 }}
+            />
+            <button
+              type="button"
+              className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
+              onClick={() => {
+                setKloc(klocInput),
+                handleKlocInputChange();
+              }}
+              disabled={klocInput === kloc}
+              title="Confirm KLOC value"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {['high', 'medium', 'low'].map(severity => {
-            const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
-            const colorMap: Record<string, string> = {
-              high: 'border-l-4 border-red-500',
-              medium: 'border-l-4 border-yellow-400',
-              low: 'border-l-4 border-green-500',
-            };
-            const titleColor: Record<string, string> = {
-              high: 'text-red-500',
-              medium: 'text-yellow-500',
-              low: 'text-green-500',
-            };
-            const borderColor: Record<string, string> = {
-              high: 'border-red-200',
-              medium: 'border-yellow-200',
-              low: 'border-green-200',
-            };
-            const statusList = defectStatuses.map(s => s.defectStatusName);
-            // Use optional chaining for color property
-            const statusColorMap = Object.fromEntries(defectStatuses.map(s => [s.defectStatusName, (s as any).color || '#ccc']));
-            const defectsBySeverity = filteredDefects.filter(d => (d.severity_name || '').toLowerCase() === severity);
-            const total = defectsBySeverity.length;
-            // Count by status
-            const statusCounts = statusList.map(status =>
-              defectsBySeverity.filter(d => (d.defect_status_name || '').toLowerCase() === status.toLowerCase()).length
-            );
-            // Split status legend into two columns
-            const half = Math.ceil(statusList.length / 2);
-            const leftStatuses = statusList.slice(0, half);
-            const rightStatuses = statusList.slice(half);
-            return (
-              <div
-                key={severity}
-                className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
-              >
-                <div className="flex items-center justify-between px-6 pt-4 pb-1">
-                  <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
-                  <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
+        {(loadingSeveritySummary || isStatusLoading) && <div className="text-gray-500 p-4">Loading...</div>}
+        {(severitySummaryError || statusError) && <div className="text-red-500 p-4">{severitySummaryError || statusError}</div>}
+        {!loadingSeveritySummary && !isStatusLoading && !severitySummaryError && !statusError && defectSeveritySummary && defectStatuses.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(['high', 'medium', 'low'] as const).map((severity) => {
+              const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
+              const colorMap: Record<string, string> = {
+                high: 'border-l-8 border-red-500',
+                medium: 'border-l-8 border-yellow-400',
+                low: 'border-l-8 border-green-500',
+              };
+              const titleColor: Record<string, string> = {
+                high: 'text-red-600',
+                medium: 'text-yellow-500',
+                low: 'text-green-600',
+              };
+              const borderColor: Record<string, string> = {
+                high: 'border-red-200',
+                medium: 'border-yellow-200',
+                low: 'border-green-200',
+              };
+              const statusList = defectStatuses.map((s) => s.defectStatusName.toLowerCase());
+              const statusColorMap: Record<string, string> = Object.fromEntries(defectStatuses.map((s) => [s.defectStatusName.toLowerCase(), s.colorCode]));
+              const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+              const total = summary.total || 0;
+              const statusCounts = statusList.map((status) => summary.statusCounts?.[status] || 0);
+              const half = Math.ceil(statusList.length / 2);
+              const leftStatuses = statusList.slice(0, half);
+              const rightStatuses = statusList.slice(half);
+              return (
+                <div
+                  key={severity}
+                  className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity]} ${colorMap[severity]}`}
+                >
+                  <div className="flex items-center justify-between px-6 pt-4 pb-1">
+                    <span className={`font-semibold text-base ${titleColor[severity]}`}>{severityLabel}</span>
+                    <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
+                  </div>
+                  <div className="flex flex-row gap-8 px-6 pb-1">
+                    <div className="flex flex-col gap-1">
+                      {leftStatuses.map((status, idx) => (
+                        <div key={status} className="flex items-center gap-2 text-xs">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                          <span className="text-gray-700 font-normal">{defectStatuses[idx].defectStatusName}</span>
+                          <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {rightStatuses.map((status, idx) => (
+                        <div key={status} className="flex items-center gap-2 text-xs">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                          <span className="text-gray-700 font-normal">{defectStatuses[half + idx]?.defectStatusName}</span>
+                          <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="px-6 pb-3">
+                    <button
+                      className="mt-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-md font-medium text-xs border border-blue-100 hover:bg-blue-100 transition"
+                      onClick={() => setPieModal({ open: true, severity })}
+                    >
+                      View Chart
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-row gap-8 px-6 pb-1">
-                  <div className="flex flex-col gap-1">
-                    {leftStatuses.map((status, idx) => (
-                      <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
-                        <span className="text-gray-700 font-normal">{status}</span>
-                        <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {rightStatuses.map((status, idx) => (
-                      <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
-                        <span className="text-gray-700 font-normal">{status}</span>
-                        <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
-                      </div>
-                    ))}
-                  </div>
+              );
+            })}
+          </div>
+        )}
+        {/* Pie Chart Modal for Defect Severity Breakdown */}
+        {pieModal.open && pieModal.severity && (() => {
+          const severity = pieModal.severity;
+          const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
+          const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
+          const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+          const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
+          const pieData = {
+            labels: statusList.map(s => s.toUpperCase()),
+            datasets: [
+              {
+                data: statusCounts,
+                backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
+              },
+            ],
+          };
+          return (
+            <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}>
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-64 h-64">
+                  <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </Modal>
+          );
+        })()}
       </div>
 
       {/* Add Defect Button */}
@@ -1120,8 +1323,8 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {[...new Set(backendDefects.map(d => (d as any).releaseId).filter(Boolean))].map(id => (
-                <option key={id} value={id}>{releaseMap[id] || id}</option>
+              {releasesData.map(release => (
+                <option key={release.id} value={release.id}>{release.releaseName}</option>
               ))}
             </select>
           </div>
@@ -1157,8 +1360,10 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {userList.map((user) => (
-                <option key={user.id} value={`${user.firstName} ${user.lastName}`}>{user.firstName} {user.lastName}</option>
+              {projectDevelopers.map((dev) => (
+                <option key={dev.id} value={dev.id}>
+                  {dev.name}{dev.role ? ` (${dev.role})` : ""}
+                </option>
               ))}
             </select>
           </div>
@@ -2034,21 +2239,14 @@ export const Defects: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
-        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} onDefectAdded={fetchData} />
-      </div>
+
+      <AlertModal isOpen={alert.open} message={alert.message} onClose={closeAlert} />
+      <ConfirmModal
+        isOpen={deleteConfirm.open}
+        message={"Are you sure you want to delete this defect?"}
+        onCancel={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

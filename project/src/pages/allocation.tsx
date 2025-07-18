@@ -13,8 +13,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { Modal } from "../components/ui/Modal";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
+
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import axios from 'axios';
 import { projectReleaseCardView } from "../api/releaseView/ProjectReleaseCardView";
@@ -23,7 +22,7 @@ import { getTestCasesByProjectAndSubmodule } from "../api/testCase/testCaseApi";
 import { getSeverities } from "../api/severity";
 import { getDefectTypes } from "../api/defectType";
 import { TestCase as TestCaseType } from "../types/index";
-import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest } from "../api/releasetestcase";
+import { allocateTestCaseToRelease, allocateTestCaseToMultipleReleases, bulkAllocateTestCasesToReleases, ReleaseTestCaseMappingRequest, allocateTestCasesToManyReleases } from "../api/releasetestcase";
 import { getAllocatedUsersByModuleId, getModulesByProjectId } from "../api/module/getModule";
 import AlertModal from "../components/ui/AlertModal";
 
@@ -61,7 +60,7 @@ export const Allocation: React.FC = () => {
   const [modulesByProject, setModulesByProject] = useState<Record<string, { id: string, name: string, submodules: { id: string, name: string }[] }[]>>({});
   const [activeTab, setActiveTab] = useState<"release" | "qa">("release");
   const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
-  const [selectedIds, setSelectedIds]=useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedModule, setSelectedModule] = useState("");
   const [selectedQA, setSelectedQA] = useState<string | null>(null);
   const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
@@ -81,8 +80,8 @@ export const Allocation: React.FC = () => {
   const [projectRelease, setProjectRelease] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [qaAllocatedTestCases, setQaAllocatedTestCases] = useState<{ [releaseId: string]: string[] }>({});
-  const [qaAllocations, setQaAllocations] = useState<{[releaseId: string]: {[qaId: string]: string[]}}>( {} );
-  const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{[releaseId: string]: string[]}>({});
+  const [qaAllocations, setQaAllocations] = useState<{ [releaseId: string]: { [qaId: string]: string[] } }>({});
+  const [selectedTestCasesForQA, setSelectedTestCasesForQA] = useState<{ [releaseId: string]: string[] }>({});
   const [loadingQAAllocations, setLoadingQAAllocations] = useState(false);
   const [selectedReleaseForQA, setSelectedReleaseForQA] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(String(projectId ?? ''));
@@ -94,10 +93,11 @@ export const Allocation: React.FC = () => {
   const [allocationSuccess, setAllocationSuccess] = useState<string | null>(null);
   const [allocationError, setAllocationError] = useState<string | null>(null);
   const [allocationProgress, setAllocationProgress] = useState<{ current: number; total: number } | null>(null);
-  const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk">("one-to-one");
+  const [allocationMode, setAllocationMode] = useState<"one-to-one" | "one-to-many" | "bulk" | "many-to-many">("one-to-one");
   const [alert, setAlert] = useState({ isOpen: false, message: "" });
   const showAlert = (message: string) => setAlert({ isOpen: true, message });
   const closeAlert = () => setAlert((a) => ({ ...a, isOpen: false }));
+  const [bulkSubmoduleWarning, setBulkSubmoduleWarning] = useState<string>("");
 
   React.useEffect(() => {
     if (projectId) {
@@ -108,7 +108,7 @@ export const Allocation: React.FC = () => {
 
   const getReleaseCardView = async () => {
     if (!selectedProject) return;
-    
+
     setLoadingReleases(true);
     try {
       const response = await projectReleaseCardView(selectedProject);
@@ -175,7 +175,7 @@ export const Allocation: React.FC = () => {
   // Use mock data if API/server is not working
   const effectiveProjectRelease = projectRelease;
   const effectiveTestCases = allocatedTestCases.length > 0 ? allocatedTestCases : projectTestCases;
-  const effectiveModules = projectModules?projectModules || []: []; // Use modulesByProject state
+  const effectiveModules = projectModules ? projectModules || [] : []; // Use modulesByProject state
 
   // Load existing QA allocations when releases are loaded
   useEffect(() => {
@@ -185,7 +185,7 @@ export const Allocation: React.FC = () => {
   }, [effectiveProjectRelease, selectedProject]);
   const fetchModules = async () => {
     console.log("Fetching modules for project ID:", selectedProjectId);
-    
+
     if (!selectedProjectId) return;
     try {
       const response = await getModulesByProjectId(selectedProjectId);
@@ -197,7 +197,7 @@ export const Allocation: React.FC = () => {
             id: String(sm.id),
             name: sm.subModuleName || sm.name,
           })),
-      }))
+        }))
         setModulesByProject((prev: any) => ({ ...prev, [selectedProjectId]: modules }));
       }
     } catch (error) {
@@ -206,23 +206,24 @@ export const Allocation: React.FC = () => {
     }
   };
   console.log("Modules fetched:", modulesByProject);
-  
+
   useEffect(() => {
     if (selectedProjectId) {
-      fetchModules();}
-    },[selectedProjectId]);
+      fetchModules();
+    }
+  }, [selectedProjectId]);
   // Fetch submodules when selectedModule changes
   useEffect(() => {
-    
+
     if (!selectedModule) {
       setSubmodules([]);
       setSubmoduleError("");
       return;
     }
-   
+
     // Find the module ID from effectiveModules
     const moduleObj = effectiveModules.find((m: any) => m.name === selectedModule);
-  
+
     if (moduleObj && moduleObj.id) {
       getSubmodulesByModuleId(moduleObj.id)
         .then((res) => {
@@ -248,32 +249,45 @@ export const Allocation: React.FC = () => {
       setSubmoduleError("Module not found.");
     }
   }, [selectedModule]);
-  
+
 
   // --- Bulk selection effect for test cases ---
   useEffect(() => {
     if (
       activeTab === "release" &&
-      selectedReleaseIds.length > 0 &&
       (bulkModuleSelect || bulkSubmoduleSelect)
     ) {
-      let ids: string[] = [];
-      if (bulkModuleSelect && selectedModules.length > 0) {
-        ids = [
-          ...ids,
-          ...effectiveTestCases
-            .filter((tc: any) => selectedModules.includes(tc.module))
-            .map((tc: any) => tc.id),
-        ];
-      } else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
-        ids = [
-          ...ids,
-          ...effectiveTestCases
-            .filter((tc: any) => selectedSubmodules.includes(tc.subModule))
-            .map((tc: any) => tc.id),
-        ];
+      if (selectedReleaseIds.length === 0) {
+        setBulkSubmoduleWarning("Please select at least one release before using bulk submodule selection.");
+        setSelectedTestCases([]);
+        return;
+      } else {
+        setBulkSubmoduleWarning("");
       }
-      setSelectedTestCases(Array.from(new Set(ids)));
+      let ids: Set<string> = new Set();
+      // Add all test cases for selected modules (across all submodules)
+      if (bulkModuleSelect && selectedModules.length > 0) {
+        const moduleSet = new Set(selectedModules.map(String));
+        effectiveTestCases.forEach((tc: any) => {
+          console.log('Test case object:', tc);
+          if (moduleSet.has(String(tc.moduleId))) {
+            ids.add(tc.id);
+          }
+        });
+      }
+      // Add all test cases for selected submodules
+      if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+        const submoduleSet = new Set(selectedSubmodules.map(String));
+        effectiveTestCases.forEach((tc: any) => {
+          console.log('Test case object:', tc);
+          if (submoduleSet.has(String(tc.subModuleId))) {
+            ids.add(tc.id);
+          }
+        });
+      }
+      setSelectedTestCases(Array.from(ids));
+    } else {
+      setBulkSubmoduleWarning("");
     }
   }, [
     bulkModuleSelect,
@@ -311,7 +325,7 @@ export const Allocation: React.FC = () => {
       const unallocatedTestCaseIds = allocatedTestCaseIds.filter(
         id => !alreadyAllocatedTestCaseIds.includes(id)
       );
-      
+
       // Get the full test case objects for the allocated test cases
       const allocatedTestCases = effectiveTestCases.filter((tc: any) => allocatedTestCaseIds.includes(tc.id));
       filteredTestCases = allocatedTestCases.filter((tc: any) => unallocatedTestCaseIds.includes(tc.id));
@@ -326,12 +340,12 @@ export const Allocation: React.FC = () => {
     let ids: Set<string> = new Set();
     if (bulkModuleSelect && selectedModules.length > 0) {
       effectiveTestCases.forEach((tc: any) => {
-        if (selectedModules.includes(tc.module)) ids.add(tc.id);
+        if (selectedModules.includes(tc.moduleId)) ids.add(tc.id);
       });
     }
     if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
       effectiveTestCases.forEach((tc: any) => {
-        if (selectedSubmodules.includes(tc.subModule)) ids.add(tc.id);
+        if (selectedSubmodules.includes(tc.subModuleId)) ids.add(tc.id);
       });
     }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
@@ -353,7 +367,7 @@ export const Allocation: React.FC = () => {
 
   const isTestCaseAllocated = (testCaseId: string) => {
     if (!selectedReleaseForQA) return false;
-    return Object.values(qaAllocations[selectedReleaseForQA] || {}).some(allocations => 
+    return Object.values(qaAllocations[selectedReleaseForQA] || {}).some(allocations =>
       allocations.includes(testCaseId)
     );
   };
@@ -386,13 +400,22 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
-    
     setSelectedProjectId(id);
     setSelectedProject(id);
+    setSelectedReleaseIds([]);
+    setSelectedIds([]);
     setSelectedModule("");
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    setSelectedModules([]);
+    setSelectedSubmodules([]);
+    setBulkModuleSelect(false);
+    setBulkSubmoduleSelect(false);
     setAllocatedTestCases([]);
+    setAllocationMode("one-to-one");
+    setAllocationSuccess(null);
+    setAllocationError(null);
+    setAllocationProgress(null);
   };
 
 
@@ -402,21 +425,32 @@ export const Allocation: React.FC = () => {
       projects={projects}
       selectedProjectId={selectedProjectId || null}
       onSelect={
-        (id:string)=>{ 
+        (id: string) => {
           setSelectedProjectId(id),
-          handleProjectSelect(id)
+            handleProjectSelect(id)
+        }
+
       }
-      
-    }
       className="mb-4"
     />
   );
- 
+
   // In ReleaseCardsPanel, on Allocate:
   // For each selected release, store the selected test cases
   const handleAllocate = async () => {
     if (selectedReleaseIds.length === 0 || selectedTestCases.length === 0) {
       setAllocationError("Please select at least one release and test case.");
+      return;
+    }
+
+    // Enforce only one release in bulk mode
+    if (allocationMode === "bulk" && selectedReleaseIds.length > 1) {
+      setAllocationError("Bulk mode only supports one release at a time. Please select only one release.");
+      return;
+    }
+    // For many-to-many, allow multiple releases and test cases
+    if (allocationMode === "many-to-many" && (selectedReleaseIds.length === 0 || selectedTestCases.length === 0)) {
+      setAllocationError("Please select at least one release and one test case for many-to-many allocation.");
       return;
     }
 
@@ -428,20 +462,32 @@ export const Allocation: React.FC = () => {
     try {
       if (allocationMode === "bulk") {
         setAllocationProgress({ current: 0, total: 1 });
-        
-        const payload: ReleaseTestCaseMappingRequest[] = [];
-        selectedTestCases.forEach((testCaseId:any) => {
-          selectedIds.forEach((releaseId:any) => {
-            payload.push({ testCaseId, releaseId });
-          });
-        });
         try {
-          const response = await bulkAllocateTestCasesToReleases(payload);
-          // Always show a frontend message for bulk allocation success
+          // Bulk: { testCaseIds: [...], releaseId: ... }
+          const response = await bulkAllocateTestCasesToReleases(selectedTestCases, selectedIds[0]);
           showAlert("Bulk allocation completed.");
           setAllocationProgress({ current: 1, total: 1 });
         } catch (allocationError: any) {
           let errorMessage = allocationError?.response?.data?.message || allocationError?.message || "Bulk allocation failed.";
+          if (
+            errorMessage.includes("Duplicate entry") ||
+            errorMessage.includes("release_test_case.UK4sej21crg7br73a3lsjwufpo1")
+          ) {
+            errorMessage = "Allocation failed! Some test cases were already allocated.";
+          } else if (errorMessage.length > 200) {
+            errorMessage = "An error occurred during allocation. Please try again or contact support.";
+          }
+          showAlert(errorMessage);
+          setAllocationProgress({ current: 1, total: 1 });
+        }
+      } else if (allocationMode === "many-to-many") {
+        setAllocationProgress({ current: 0, total: 1 });
+        try {
+          const response = await allocateTestCasesToManyReleases(selectedIds, selectedTestCases);
+          showAlert(response.message || "Many-to-many allocation completed.");
+          setAllocationProgress({ current: 1, total: 1 });
+        } catch (allocationError: any) {
+          let errorMessage = allocationError?.response?.data?.message || allocationError?.message || "Many-to-many allocation failed.";
           if (
             errorMessage.includes("Duplicate entry") ||
             errorMessage.includes("release_test_case.UK4sej21crg7br73a3lsjwufpo1")
@@ -490,10 +536,10 @@ export const Allocation: React.FC = () => {
         let completedAllocations = 0;
         let firstMessage: string | null = null;
         let firstIsSuccess = false;
-        
+
         for (const releaseId of selectedIds) {
           for (const testCaseId of selectedTestCases) {
-           
+
             try {
               const response = await allocateTestCaseToRelease(releaseId, Number(testCaseId));
               if (!firstMessage) {
@@ -562,16 +608,16 @@ export const Allocation: React.FC = () => {
     }
   };
   const handleSelectSubModule = (selectedSubmoduleId: string) => {
-   
+
     setSelectedSubmodule(selectedSubmoduleId);
     setSelectedTestCases([]);
-    
+
     getTestCasesByProjectAndSubmodule(selectedProjectId, selectedSubmoduleId)
       .then((data) => {
         // Map moduleId/subModuleId to names for display
         const moduleMap = Object.fromEntries(effectiveModules.map((m: any) => [m.id, m.name]));
         const submoduleMap = Object.fromEntries(effectiveModules.flatMap((m: any) => m.submodules.map((sm: any) => [sm.id, sm.name])));
-        
+
         setAllocatedTestCases(
           (data as any[]).map((tc: any) => ({
             ...tc,
@@ -593,16 +639,15 @@ export const Allocation: React.FC = () => {
       <div className="flex space-x-2 overflow-x-auto">
         {effectiveProjectRelease.map((release: any) => {
           const releaseId = release.releaseId 
-          const ids= release.id
+          const ids = release.id;
           const isSelected = selectedReleaseIds.includes(releaseId);
           return (
             <div
               key={releaseId}
               className={`min-w-[160px] px-4 py-2 rounded-md border text-left transition-all duration-200 focus:outline-none text-sm font-medium shadow-sm flex flex-col items-start relative bg-white
-                ${
-                  isSelected
-                    ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
-                    : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
+                ${isSelected
+                  ? "border-blue-500 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
+                  : "border-gray-200 hover:border-blue-500 hover:bg-blue-50 hover:shadow-md hover:ring-1 hover:ring-blue-300"
                 }`}
               style={{
                 boxShadow: isSelected ? "0 0 0 2px #3b82f6" : undefined,
@@ -615,19 +660,28 @@ export const Allocation: React.FC = () => {
                 variant={isSelected ? "primary" : "secondary"}
                 className="w-full"
                 onClick={() => {
-                  if (allocationMode === "one-to-one") {
+                  if (allocationMode === "one-to-one" || allocationMode === "bulk") {
                     setSelectedReleaseIds(isSelected ? [] : [releaseId]);
-                    setSelectedIds(isSelected?[]:[ids])
-                  } else {
+                    setSelectedIds(isSelected ? [] : [ids]);
+                  } else if (allocationMode === "many-to-many") {
                     setSelectedReleaseIds((prev) =>
-                      isSelected ? prev.filter((id) => id !== id) : [...prev, releaseId]
+                      isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
                     );
                     setSelectedIds((prev) =>
-                      isSelected ? prev.filter((id) => id !== id) : [...prev, ids]
+                      isSelected ? prev.filter((id) => id !== ids) : [...prev, ids]
+                    );
+                  } else {
+                    setSelectedReleaseIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                    );
+                    setSelectedIds((prev) =>
+                      isSelected ? prev.filter((id) => id !== ids) : [...prev, ids]
                     );
                   }
                 }}
-                disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
+                disabled={
+                  (allocationMode === "one-to-one" || allocationMode === "bulk") && !isSelected && selectedReleaseIds.length >= 1
+                }
               >
                 {isSelected ? "Selected" : "Select"}
               </Button>
@@ -645,13 +699,14 @@ export const Allocation: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">
             Module Selection
           </h2>
-          {activeTab === "release" && selectedReleaseIds.length > 0 && (
+          {(allocationMode === "bulk" || allocationMode === "many-to-many") && activeTab === "release" && selectedReleaseIds.length > 0 && (
             <Button
               size="sm"
               variant={bulkModuleSelect ? "primary" : "secondary"}
               onClick={() => {
-                setBulkModuleSelect((v) => !v);
+                setBulkModuleSelect(v => !v);
                 setSelectedModules([]);
+                setSelectedTestCases([]);
               }}
             >
               {bulkModuleSelect ? "Cancel Bulk" : "Bulk Select"}
@@ -678,7 +733,7 @@ export const Allocation: React.FC = () => {
                 (tc: any) => tc.module === module.name
               );
               const isSelected = bulkModuleSelect
-                ? selectedModules.includes(module.name)
+                ? selectedModules.includes(String(module.id))
                 : selectedModule === module.name;
               return (
                 <Button
@@ -687,9 +742,9 @@ export const Allocation: React.FC = () => {
                   onClick={() => {
                     if (bulkModuleSelect) {
                       setSelectedModules((prev) =>
-                        prev.includes(module.name)
-                          ? prev.filter((m) => m !== module.name)
-                          : [...prev, module.name]
+                        prev.includes(String(module.id))
+                          ? prev.filter((m) => m !== String(module.id))
+                          : [...prev, String(module.id)]
                       );
                     } else {
                       setSelectedModule(module.name);
@@ -698,8 +753,7 @@ export const Allocation: React.FC = () => {
                       setAllocatedTestCases([]);
                     }
                   }}
-                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                    }`}
+                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                 >
                   {module.name}
                 </Button>
@@ -728,14 +782,16 @@ export const Allocation: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900">
               Submodule Selection
             </h2>
-            {activeTab === "release" && selectedReleaseIds.length > 0 && (
+            {(allocationMode === "bulk" || allocationMode === "many-to-many") && activeTab === "release" && selectedReleaseIds.length > 0 && (
               <Button
                 size="sm"
                 variant={bulkSubmoduleSelect ? "primary" : "secondary"}
                 onClick={() => {
-                  setBulkSubmoduleSelect((v) => !v);
+                  setBulkSubmoduleSelect(v => !v);
                   setSelectedSubmodules([]);
+                  setSelectedTestCases([]);
                 }}
+                disabled={!selectedSubmodule}
               >
                 {bulkSubmoduleSelect ? "Cancel Bulk" : "Bulk Select"}
               </Button>
@@ -764,7 +820,6 @@ export const Allocation: React.FC = () => {
               }}
             >
               {submodules.map((submodule: any) => {
-                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
                   ? selectedSubmodules.includes(String(submodule.subModuleId))
                   : selectedSubmodule === String(submodule.subModuleId);
@@ -845,7 +900,7 @@ export const Allocation: React.FC = () => {
       }
     }
   };
-  
+
   const handleSelectTestCase = (testCaseId: string, checked: boolean) => {
     if (activeTab === "qa") {
       if (!selectedReleaseForQA) return;
@@ -880,7 +935,7 @@ export const Allocation: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={
-                    activeTab === "qa" 
+                    activeTab === "qa"
                       ? (selectedReleaseForQA ? ((selectedTestCasesForQA[selectedReleaseForQA]?.length ?? 0) === filteredTestCases.length && filteredTestCases.length > 0) : false)
                       : selectedTestCases.length === filteredTestCases.length && filteredTestCases.length > 0
                   }
@@ -903,7 +958,7 @@ export const Allocation: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Severity
               </th>
-              
+
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -913,7 +968,7 @@ export const Allocation: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={
-                      activeTab === "qa" 
+                      activeTab === "qa"
                         ? (selectedReleaseForQA ? (selectedTestCasesForQA[selectedReleaseForQA]?.includes(tc.id) ?? false) : false)
                         : selectedTestCases.includes(tc.id)
                     }
@@ -958,7 +1013,7 @@ export const Allocation: React.FC = () => {
                     {tc.severity}
                   </span>
                 </td>
-                
+
               </tr>
             ))}
           </tbody>
@@ -980,7 +1035,7 @@ export const Allocation: React.FC = () => {
     // Only one release can be selected for QA allocation at a time
     let allocatedRelease: any = null;
     if (selectedReleaseForQA) {
-      allocatedRelease = effectiveProjectRelease && effectiveProjectRelease.find((release: any) => 
+      allocatedRelease = effectiveProjectRelease && effectiveProjectRelease.find((release: any) =>
         (release.releaseId || release.id) === selectedReleaseForQA
       );
     }
@@ -1044,7 +1099,8 @@ export const Allocation: React.FC = () => {
             {releasesForQAAllocation.length > 0 ? (
               <div className="flex space-x-2 overflow-x-auto">
                 {releasesForQAAllocation.map((release: any) => {
-                const releaseId = release.releaseId ;
+                const releaseId = release.releaseId 
+                const ids = release.id;
                 const isSelected = selectedReleaseForQA === releaseId;
                 const allocatedTestCases = qaAllocatedTestCases[releaseId] || [];
                 const allocatedToQA = Object.values(qaAllocations[releaseId] || {}).flat().length;
@@ -1076,15 +1132,28 @@ export const Allocation: React.FC = () => {
                       variant={isSelected ? "primary" : "secondary"}
                       className="w-full"
                       onClick={() => {
-                        if (allocationMode === "one-to-one") {
+                        if (allocationMode === "one-to-one" || allocationMode === "bulk") {
                           setSelectedReleaseIds(isSelected ? [] : [releaseId]);
+                          setSelectedIds(isSelected ? [] : [ids]);
+                        } else if (allocationMode === "many-to-many") {
+                          setSelectedReleaseIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
+                          );
+                          setSelectedIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== ids) : [...prev, ids]
+                          );
                         } else {
                           setSelectedReleaseIds((prev) =>
                             isSelected ? prev.filter((id) => id !== releaseId) : [...prev, releaseId]
                           );
+                          setSelectedIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== ids) : [...prev, ids]
+                          );
                         }
                       }}
-                      disabled={allocationMode === "one-to-one" && !isSelected && selectedReleaseIds.length >= 1}
+                      disabled={
+                        (allocationMode === "one-to-one" || allocationMode === "bulk") && !isSelected && selectedReleaseIds.length >= 1
+                      }
                     >
                       {isSelected ? "Selected" : "Select"}
                     </Button>
@@ -1123,7 +1192,7 @@ export const Allocation: React.FC = () => {
                   <span>View Summary</span>
                 </Button>
               </div>
-              
+
               {/* Release Info */}
               {allocatedRelease && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1396,7 +1465,7 @@ export const Allocation: React.FC = () => {
       if (selectedReleaseIds.length > 1) {
         setSelectedReleaseIds([selectedReleaseIds[0]]);
       }
-    
+
     } else if (allocationMode === "one-to-many") {
       if (selectedTestCases.length > 1) {
         setSelectedTestCases([selectedTestCases[0]]);
@@ -1471,7 +1540,7 @@ export const Allocation: React.FC = () => {
         </Button>
       </div>
       {ProjectSelectionPanel()}
-      
+
       {/* Show releases at the top when project is selected (only for Release Allocation tab) */}
       {selectedProject && activeTab === "release" && (
         <div className="mb-6">
@@ -1489,7 +1558,7 @@ export const Allocation: React.FC = () => {
                   <ReleaseCardsPanel />
                   {/* Allocate button appears if at least one release is selected */}
                   {selectedReleaseIds.length > 0 && (
-                    <div className="mt-4 flex flex-col space-y-3">
+                    <div className="mt-6 flex flex-col space-y-3">
                       {/* Allocation Mode Selection */}
                       <div className="flex items-center space-x-4">
                         <span className="text-sm font-medium text-gray-700">Allocation Mode:</span>
@@ -1518,17 +1587,18 @@ export const Allocation: React.FC = () => {
                           >
                             Bulk
                           </Button>
+                          <Button
+                            size="sm"
+                            variant={allocationMode === "many-to-many" ? "primary" : "secondary"}
+                            onClick={() => setAllocationMode("many-to-many")}
+                            disabled={allocationLoading}
+                          >
+                            Many-to-Many
+                          </Button>
                         </div>
                       </div>
+
                       
-                      {/* Mode Description */}
-                      <div className="text-xs text-gray-500">
-                        {allocationMode === "one-to-one" 
-                          ? `Each test case will be allocated to each release individually (${selectedTestCases.length} × ${selectedReleaseIds.length} = ${selectedTestCases.length * selectedReleaseIds.length} API calls)`
-                          : allocationMode === "one-to-many"
-                          ? `Each test case will be allocated to all selected releases in one API call (${selectedTestCases.length} API calls)`
-                          : `All selected test cases will be allocated to all selected releases in a single API call (1 API call)`}
-                      </div>
 
                       {/* Allocate Button */}
                       <div className="flex justify-end">
@@ -1537,7 +1607,10 @@ export const Allocation: React.FC = () => {
                           disabled={selectedTestCases.length === 0 || allocationLoading}
                           onClick={handleAllocate}
                         >
-                          {allocationLoading ? "Allocating..." : `Allocate Selected Releases (${allocationMode === "one-to-many" ? "One-to-Many" : "One-to-One"})`}
+                          {allocationLoading ? "Allocating..." :
+                            allocationMode === "bulk"
+                              ? `Allocate Test Cases to Single Release (Bulk)`
+                              : `Allocate Selected Releases (${allocationMode === "one-to-many" ? "One-to-Many" : allocationMode === "one-to-one" ? "One-to-One" : allocationMode === "many-to-many" ? "Many-to-Many" : "Bulk"})`}
                         </Button>
                       </div>
                     </div>
@@ -1596,8 +1669,8 @@ export const Allocation: React.FC = () => {
                 <span className="font-medium">Allocating test cases to releases...</span>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${(allocationProgress.current / allocationProgress.total) * 100}%` }}
                 ></div>
               </div>
@@ -1662,10 +1735,16 @@ export const Allocation: React.FC = () => {
           {filteredTestCases.length > 0 ? (
             <TestCaseTable />
           ) : (
-            selectedSubmodule && (
+            (selectedSubmodule || (bulkSubmoduleSelect && selectedSubmodules.length > 0) || (selectedModule && !selectedSubmodule && !bulkSubmoduleSelect)) && (
               <Card className="mb-4">
                 <CardContent className="p-8 text-center">
-                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                  <div className="text-gray-500">
+                    {bulkSubmoduleSelect && selectedSubmodules.length > 0 && selectedReleaseIds.length === 0
+                      ? "Please select at least one release before using bulk submodule selection."
+                      : selectedModule && !selectedSubmodule && !bulkSubmoduleSelect
+                      ? "Please select a submodule or use bulk select to choose test cases."
+                      : "No test cases found for the selected submodule(s)."}
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -1679,10 +1758,14 @@ export const Allocation: React.FC = () => {
           {filteredTestCases.length > 0 ? (
             <TestCaseTable />
           ) : (
-            selectedSubmodule && (
+            (selectedSubmodule || (selectedModule && !selectedSubmodule)) && (
               <Card className="mb-4">
                 <CardContent className="p-8 text-center">
-                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                  <div className="text-gray-500">
+                    {selectedModule && !selectedSubmodule
+                      ? "Please select a submodule to view test cases."
+                      : "No test cases found for the selected submodule."}
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -1783,26 +1866,14 @@ export const Allocation: React.FC = () => {
           </div>
         )}
       </Modal>
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={projectId || ""} />
-        <QuickAddDefect projectModules={[]} />
-      </div>
       <AlertModal
         isOpen={alert.isOpen}
         message={alert.message}
         onClose={closeAlert}
       />
+      {bulkSubmoduleWarning && (
+        <div className="mb-2 text-red-600 text-sm text-center">{bulkSubmoduleWarning}</div>
+      )}
     </div>
   );
 };
