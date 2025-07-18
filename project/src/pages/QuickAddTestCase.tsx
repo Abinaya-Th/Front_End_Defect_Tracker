@@ -323,16 +323,8 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string, onTestCaseAdded?: 
 
   return (
     <div>
-      <Button
-        onClick={() => {
-          setModals([{ ...modals[0], open: true }]);
-          setCurrentModalIdx(0);
-        }}
-        className="flex flex-row items-center w-44 h-12 bg-white rounded-xl shadow border border-gray-200 px-0 py-1 gap-3 hover:shadow-lg hover:bg-gray-50 transition-all align-middle justify-start"
-        disabled={!selectedProjectId}
-        style={{ fontWeight: 500, borderStyle: 'solid' }}
-      >
-        <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 ml-0">
+      <div className="relative flex items-center w-44 h-12">
+        <span className="absolute left-0 flex items-center justify-center w-12 h-12 rounded-lg bg-blue-500 shadow-md">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"
@@ -351,8 +343,18 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string, onTestCaseAdded?: 
             <path d="m9 14 2 2 4-4" stroke="#22c55e" />
           </svg>
         </span>
-        <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Test Case</span>
-      </Button>
+        <Button
+          onClick={() => {
+            setModals([{ ...modals[0], open: true }]);
+            setCurrentModalIdx(0);
+          }}
+          className="pl-14 pr-4 py-1 bg-white rounded-xl shadow border border-gray-200 w-full h-12 flex items-center font-semibold text-gray-900 hover:shadow-lg hover:bg-gray-50 transition-all justify-start"
+          disabled={!selectedProjectId}
+          style={{ fontWeight: 500, borderStyle: 'solid' }}
+        >
+          <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Test Case</span>
+        </Button>
+      </div>
       {modals[currentModalIdx]?.open &&
         (() => {
           const idx = currentModalIdx;
