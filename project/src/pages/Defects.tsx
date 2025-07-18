@@ -104,11 +104,11 @@ export const Defects: React.FC = () => {
   const [klocInput, setKlocInput] = React.useState<number>(1);
   const handleKlocInputChange = async () => {
     console.log("999999999999999999999");
-    
+
     const value = Number(klocInput) || 1;
     setKloc(value);
     setKlocInput(value);
-    
+
     const payload = {
       projectId: Number(selectedProjectId),
       kloc: value,
@@ -120,9 +120,9 @@ export const Defects: React.FC = () => {
     } catch (error) {
       console.log("Failed to update KLOC:", error);
     }
-    
 
-    
+
+
   };
   React.useEffect(() => {
     if (typeof window !== 'undefined' && selectedProjectId) {
@@ -1046,6 +1046,8 @@ export const Defects: React.FC = () => {
       .catch(() => setProjectDevelopers([]));
   }, [selectedProjectId]);
 
+  const [pieModal, setPieModal] = useState<{ open: boolean; severity: string | null }>({ open: false, severity: null });
+
   return (
     <div className="max-w-6xl mx-auto">
 
@@ -1077,16 +1079,17 @@ export const Defects: React.FC = () => {
               min={1}
               className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
               value={klocInput}
-            onChange={(e) => 
-            setKlocInput(Number(e.target.value) || 1)
-            }
+              onChange={(e) =>
+                setKlocInput(Number(e.target.value) || 1)
+              }
               style={{ minWidth: 60 }}
             />
             <button
               type="button"
               className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
-              onClick={() => {setKloc(klocInput),
-                 handleKlocInputChange();
+              onClick={() => {
+                setKloc(klocInput),
+                handleKlocInputChange();
               }}
               disabled={klocInput === kloc}
               title="Confirm KLOC value"
@@ -1168,32 +1171,32 @@ export const Defects: React.FC = () => {
             })}
           </div>
         )}
-      {/* Pie Chart Modal for Defect Severity Breakdown */}
-      {pieModal.open && pieModal.severity && (() => {
-        const severity = pieModal.severity;
-        const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
-        const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
-        const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
-        const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
-        const pieData = {
-          labels: statusList.map(s => s.toUpperCase()),
-          datasets: [
-            {
-              data: statusCounts,
-              backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
-            },
-          ],
-        };
-        return (
-          <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}> 
-            <div className="flex flex-col items-center justify-center p-4">
-              <div className="w-64 h-64">
-                <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+        {/* Pie Chart Modal for Defect Severity Breakdown */}
+        {pieModal.open && pieModal.severity && (() => {
+          const severity = pieModal.severity;
+          const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
+          const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
+          const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+          const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
+          const pieData = {
+            labels: statusList.map(s => s.toUpperCase()),
+            datasets: [
+              {
+                data: statusCounts,
+                backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
+              },
+            ],
+          };
+          return (
+            <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}>
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-64 h-64">
+                  <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+                </div>
               </div>
-            </div>
-          </Modal>
-        );
-      })()}
+            </Modal>
+          );
+        })()}
       </div>
 
       {/* Add Defect Button */}
