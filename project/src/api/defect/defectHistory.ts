@@ -3,7 +3,7 @@ import axios from 'axios';
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 export interface DefectHistoryEntry {
-  defectId: string;
+  defectId: number;
   assignedByName: string;
   assignedToName: string;
   defectDate: string;
@@ -13,7 +13,7 @@ export interface DefectHistoryEntry {
   releaseName: string;
 }
 
-export async function getDefectHistoryByDefectId(defectId: string | number): Promise<DefectHistoryEntry[]> {
+export async function getDefectHistoryByDefectId(defectId: number): Promise<DefectHistoryEntry[]> {
   try {
     const url = `${BASE_URL}defecthistory/${defectId}`;
     const response = await axios.get(url);
