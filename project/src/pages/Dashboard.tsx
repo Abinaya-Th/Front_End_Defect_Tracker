@@ -572,12 +572,11 @@ export const Dashboard: React.FC = () => {
         {/* Pie Chart Modal */}
         {pieModal.open && pieModal.severity && (() => {
           const severity = pieModal.severity;
-          const statusList = statusTypes.map(s => s.name.toLowerCase());
-          const statusColorMap = Object.fromEntries(statusTypes.map(s => [s.name.toLowerCase(), s.color]));
-          const defectsBySeverity = projectDefects.filter(d => d.severity === severity);
-          const statusCounts = statusList.map(status =>
-            defectsBySeverity.filter(d => (d.status || '').toLowerCase() === status).length
-          );
+          // Use API data for status counts
+          const statusList = statusTypes.map(s => (s.defectStatusName || '').toLowerCase());
+          const statusColorMap = Object.fromEntries(statusTypes.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
+          const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+          const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
           const pieData = {
             labels: statusList.map(s => s.toUpperCase()),
             datasets: [
