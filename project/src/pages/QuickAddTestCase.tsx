@@ -328,80 +328,30 @@ const QuickAddTestCase: React.FC<{ selectedProjectId: string, onTestCaseAdded?: 
           setModals([{ ...modals[0], open: true }]);
           setCurrentModalIdx(0);
         }}
-        className="flex items-center justify-center p-0 rounded-full shadow-lg bg-white hover:bg-gray-100 text-blue-700 relative group border border-blue-200"
+        className="flex flex-row items-center w-44 h-12 bg-white rounded-xl shadow border border-gray-200 px-0 py-1 gap-3 hover:shadow-lg hover:bg-gray-50 transition-all align-middle justify-start"
         disabled={!selectedProjectId}
-        style={{
-          width: 40,
-          height: 40,
-          minWidth: 40,
-          minHeight: 40,
-          borderRadius: "50%",
-        }}
+        style={{ fontWeight: 500, borderStyle: 'solid' }}
       >
-        {/* Modern Clipboard with Checkmark SVG, more visible on white bg */}
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 32 32"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{
-            position: "absolute",
-            left: 4,
-            top: 4,
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.12))",
-          }}
-        >
-          <rect
-            x="6"
-            y="7"
+        <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 ml-0">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
             width="20"
-            height="18"
-            rx="4"
-            fill="#fff"
-            stroke="#2563eb"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
             strokeWidth="2"
-          />
-          <rect
-            x="11"
-            y="3.5"
-            width="10"
-            height="5"
-            rx="2.5"
-            fill="#2563eb"
-            stroke="#2563eb"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M12 16l3 3 5-5"
-            stroke="#22c55e"
-            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            fill="none"
-          />
-        </svg>
-        {/* Plus Icon, overlayed in the bottom right, with white background, dark blue plus */}
-        <span
-          style={{
-            position: "absolute",
-            right: 2,
-            bottom: 2,
-            background: "#fff",
-            borderRadius: "50%",
-            width: 11,
-            height: 11,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Plus className="w-2.5 h-2.5" style={{ color: "#1e3a8a" }} />
+            className="lucide lucide-clipboard-check"
+            style={{ color: '#fff' }}
+          >
+            <rect x="9" y="2" width="6" height="4" rx="1" />
+            <path d="M9 4H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+            <path d="m9 14 2 2 4-4" stroke="#22c55e" />
+          </svg>
         </span>
-        {/* Tooltip on hover */}
-        <span className="absolute left-1/2 -translate-x-1/2 -top-8 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-          Add Test Case
-        </span>
+        <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Test Case</span>
       </Button>
       {modals[currentModalIdx]?.open &&
         (() => {

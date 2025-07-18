@@ -21,8 +21,6 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
 import * as XLSX from "xlsx";
 import { importDefects } from "../api/importTestCase";
 import { getAllPriorities, Priority } from "../api/priority";
@@ -45,6 +43,8 @@ import { addDefects } from "../api/defect/addNewDefect";
 import { getDefectHistoryByDefectId, DefectHistoryEntry as RealDefectHistoryEntry } from '../api/defect/defectHistory';
 import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 import AlertModal from '../components/ui/AlertModal';
+import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
+import { createKloc } from "../api/KLOC/putKLOC";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -100,6 +100,28 @@ export const Defects: React.FC = () => {
   const [kloc, setKloc] = React.useState<number>(1);
   // Local state for editing before confirm (fix for hooks order)
   const [klocInput, setKlocInput] = React.useState<number>(1);
+  const handleKlocInputChange = async () => {
+    console.log("999999999999999999999");
+    
+    const value = Number(klocInput) || 1;
+    setKloc(value);
+    setKlocInput(value);
+    
+    const payload = {
+      projectId: Number(selectedProjectId),
+      kloc: value,
+    };
+    // Call API to update KLOC
+    try {
+      const response = await createKloc(payload, Number(selectedProjectId));
+      console.log("KLOC updated successfully:", response);
+    } catch (error) {
+      console.log("Failed to update KLOC:", error);
+    }
+    
+
+    
+  };
   React.useEffect(() => {
     if (typeof window !== 'undefined' && selectedProjectId) {
       const stored = localStorage.getItem(`kloc_${selectedProjectId}`);
@@ -343,7 +365,7 @@ export const Defects: React.FC = () => {
       severityId: formData.severityId ? Number(formData.severityId) : undefined,
       priorityId: formData.priorityId ? Number(formData.priorityId) : undefined,
       assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-      assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+      assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
       attachment: formData.attachment || undefined,
       defectStatusId: formData.statusId ? Number(formData.statusId) : undefined,
       subModuleId: formData.subModuleId ? Number(formData.subModuleId) : undefined,
@@ -415,7 +437,7 @@ export const Defects: React.FC = () => {
           modulesId: Number(formData.moduleId),
           subModuleId: formData.subModuleId ? Number(formData.subModuleId) : null,
           assignbyId: formData.assignbyId ? Number(formData.assignbyId) : undefined,
-          assignToId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
+          assigntoId: formData.assigntoId ? Number(formData.assigntoId) : undefined,
           releasesId: formData.releaseId ? Number(formData.releaseId) : undefined,
           testCaseId: formData.testCaseId ? Number(formData.testCaseId) : undefined,
         };
@@ -958,6 +980,49 @@ export const Defects: React.FC = () => {
   const showAlert = (message: string) => setAlert({ open: true, message });
   const closeAlert = () => setAlert({ open: false, message: '' });
 
+  // Add state for defect severity summary from API
+  const [defectSeveritySummary, setDefectSeveritySummary] = useState<any>(null);
+  const [loadingSeveritySummary, setLoadingSeveritySummary] = useState(false);
+  const [severitySummaryError, setSeveritySummaryError] = useState<string | null>(null);
+  // Fetch defect severity summary when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectSeveritySummary(null);
+      return;
+    }
+    setLoadingSeveritySummary(true);
+    setSeveritySummaryError(null);
+    const numericProjectId = String(selectedProjectId).replace(/\D/g, '');
+    getDefectSeveritySummary(numericProjectId)
+      .then((apiData) => {
+        // Map API data to UI format
+        const summary: Record<string, { statusCounts: Record<string, number>; total: number }> = {
+          high: { statusCounts: {}, total: 0 },
+          medium: { statusCounts: {}, total: 0 },
+          low: { statusCounts: {}, total: 0 },
+        };
+        if (apiData && apiData.data && Array.isArray(apiData.data.defectSummary)) {
+          apiData.data.defectSummary.forEach((item: any) => {
+            const sev = (item.severity || '').toLowerCase();
+            if (summary[sev]) {
+              summary[sev].total = item.total;
+              const statusCounts: Record<string, number> = {};
+              Object.entries(item.statuses).forEach(([status, val]: [string, any]) => {
+                statusCounts[status.toLowerCase()] = (val as { count: number }).count;
+              });
+              summary[sev].statusCounts = statusCounts;
+            }
+          });
+        }
+        setDefectSeveritySummary(summary);
+        setLoadingSeveritySummary(false);
+      })
+      .catch((err) => {
+        setSeveritySummaryError('Failed to load defect severity summary');
+        setLoadingSeveritySummary(false);
+      });
+  }, [selectedProjectId]);
+
   return (
     <div className="max-w-6xl mx-auto">
 
@@ -973,7 +1038,12 @@ export const Defects: React.FC = () => {
         <div className="flex items-center mb-3 gap-4 justify-between w-full">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold text-gray-700">Defect Severity Breakdown</h2>
-            <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)'}}>Total Defects : {filteredDefects.length}</span>
+            {/* Show total defects from backend summary */}
+            {defectSeveritySummary && (
+              <span className="text-base font-bold text-blue-500 border border-blue-400 rounded-lg px-3 py-1 bg-blue-50 shadow-sm" style={{ boxShadow: '0 1px 4px 0 rgba(59,130,246,0.07)' }}>
+                Total Defects : {['high', 'medium', 'low'].reduce((sum, sev) => sum + (defectSeveritySummary[sev]?.total || 0), 0)}
+              </span>
+            )}
           </div>
           {/* KLOC input field at right end */}
           <div className="flex items-center gap-2">
@@ -984,13 +1054,17 @@ export const Defects: React.FC = () => {
               min={1}
               className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
               value={klocInput}
-              onChange={e => setKlocInput(Number(e.target.value) || 1)}
+            onChange={(e) => 
+            setKlocInput(Number(e.target.value) || 1)
+            }
               style={{ minWidth: 60 }}
             />
             <button
               type="button"
               className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
-              onClick={() => setKloc(klocInput)}
+              onClick={() => {setKloc(klocInput),
+                 handleKlocInputChange();
+              }}
               disabled={klocInput === kloc}
               title="Confirm KLOC value"
             >
@@ -1000,79 +1074,69 @@ export const Defects: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {['high', 'medium', 'low'].map(severity => {
-            const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
-            const colorMap: Record<string, string> = {
-              high: 'border-l-8 border-red-500',
-              medium: 'border-l-8 border-yellow-400',
-              low: 'border-l-8 border-green-500',
-            };
-            const titleColor: Record<string, string> = {
-              high: 'text-red-600',
-              medium: 'text-yellow-500',
-              low: 'text-green-600',
-            };
-            const borderColor: Record<string, string> = {
-              high: 'border-red-200',
-              medium: 'border-yellow-200',
-              low: 'border-green-200',
-            };
-            const statusList = defectStatuses.map(s => s.defectStatusName);
-            // Use optional chaining for color property
-            const statusColorMap: Record<string, string> = {
-              new: '#6366f1',        // Indigo
-              open: '#2563eb',       // Blue
-              reject: '#ef4444',     // Red
-              fixed: '#10b981',      // Green
-              closed: '#6b7280',     // Gray
-              reopen: '#f59e42',     // Orange
-              duplicate: '#a21caf',  // Purple
-              hold: '#fbbf24',       // Yellow
-            };
-            const defectsBySeverity = filteredDefects.filter(d => (d.severity_name || '').toLowerCase() === severity);
-            const total = defectsBySeverity.length;
-            // Count by status
-            const statusCounts = statusList.map(status =>
-              defectsBySeverity.filter(d => (d.defect_status_name || '').toLowerCase() === status.toLowerCase()).length
-            );
-            // Split status legend into two columns
-            const half = Math.ceil(statusList.length / 2);
-            const leftStatuses = statusList.slice(0, half);
-            const rightStatuses = statusList.slice(half);
-            return (
-              <div
-                key={severity}
-                className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity as keyof typeof borderColor]} ${colorMap[severity as keyof typeof colorMap]}`}
-              >
-                <div className="flex items-center justify-between px-6 pt-4 pb-1">
-                  <span className={`font-semibold text-base ${titleColor[severity as keyof typeof titleColor]}`}>{severityLabel}</span>
-                  <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
-                </div>
-                <div className="flex flex-row gap-8 px-6 pb-1">
-                  <div className="flex flex-col gap-1">
-                    {leftStatuses.map((status, idx) => (
-                      <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status.toLowerCase()] || '#ccc' }}></span>
-                        <span className="text-gray-700 font-normal">{status}</span>
-                        <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
-                      </div>
-                    ))}
+        {(loadingSeveritySummary || isStatusLoading) && <div className="text-gray-500 p-4">Loading...</div>}
+        {(severitySummaryError || statusError) && <div className="text-red-500 p-4">{severitySummaryError || statusError}</div>}
+        {!loadingSeveritySummary && !isStatusLoading && !severitySummaryError && !statusError && defectSeveritySummary && defectStatuses.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(['high', 'medium', 'low'] as const).map((severity) => {
+              const severityLabel = `Defects on ${severity.charAt(0).toUpperCase() + severity.slice(1)}`;
+              const colorMap: Record<string, string> = {
+                high: 'border-l-8 border-red-500',
+                medium: 'border-l-8 border-yellow-400',
+                low: 'border-l-8 border-green-500',
+              };
+              const titleColor: Record<string, string> = {
+                high: 'text-red-600',
+                medium: 'text-yellow-500',
+                low: 'text-green-600',
+              };
+              const borderColor: Record<string, string> = {
+                high: 'border-red-200',
+                medium: 'border-yellow-200',
+                low: 'border-green-200',
+              };
+              const statusList = defectStatuses.map((s) => s.defectStatusName.toLowerCase());
+              const statusColorMap: Record<string, string> = Object.fromEntries(defectStatuses.map((s) => [s.defectStatusName.toLowerCase(), s.colorCode]));
+              const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+              const total = summary.total || 0;
+              const statusCounts = statusList.map((status) => summary.statusCounts?.[status] || 0);
+              const half = Math.ceil(statusList.length / 2);
+              const leftStatuses = statusList.slice(0, half);
+              const rightStatuses = statusList.slice(half);
+              return (
+                <div
+                  key={severity}
+                  className={`bg-white rounded-xl shadow flex flex-col justify-between min-h-[200px] border ${borderColor[severity]} ${colorMap[severity]}`}
+                >
+                  <div className="flex items-center justify-between px-6 pt-4 pb-1">
+                    <span className={`font-semibold text-base ${titleColor[severity]}`}>{severityLabel}</span>
+                    <span className="font-semibold text-gray-600 text-base">Total: {total}</span>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {rightStatuses.map((status, idx) => (
-                      <div key={status} className="flex items-center gap-2 text-xs">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status.toLowerCase()] || '#ccc' }}></span>
-                        <span className="text-gray-700 font-normal">{status}</span>
-                        <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-row gap-8 px-6 pb-1">
+                    <div className="flex flex-col gap-1">
+                      {leftStatuses.map((status, idx) => (
+                        <div key={status} className="flex items-center gap-2 text-xs">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                          <span className="text-gray-700 font-normal">{defectStatuses[idx].defectStatusName}</span>
+                          <span className="text-gray-700 font-medium">{statusCounts[idx]}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {rightStatuses.map((status, idx) => (
+                        <div key={status} className="flex items-center gap-2 text-xs">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColorMap[status] }}></span>
+                          <span className="text-gray-700 font-normal">{defectStatuses[half + idx]?.defectStatusName}</span>
+                          <span className="text-gray-700 font-medium">{statusCounts[half + idx]}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Add Defect Button */}
@@ -2113,21 +2177,6 @@ export const Defects: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Fixed Quick Add Button */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId || ''} />
-        <QuickAddDefect projectModules={modules.map(m => ({ ...m, submodules: [] }))} onDefectAdded={fetchData} />
-      </div>
 
       <AlertModal isOpen={alert.open} message={alert.message} onClose={closeAlert} />
       <ConfirmModal

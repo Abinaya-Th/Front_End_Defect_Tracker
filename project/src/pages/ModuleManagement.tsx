@@ -15,8 +15,6 @@ import { Modal } from "../components/ui/Modal";
 import { useApp } from "../context/AppContext";
 import { Badge } from "../components/ui/Badge";
 import { useParams, useNavigate } from "react-router-dom";
-import QuickAddTestCase from "./QuickAddTestCase";
-import QuickAddDefect from "./QuickAddDefect";
 import { ProjectSelector } from "../components/ui/ProjectSelector";
 import { createModule as createModuleApi } from "../api/module/createModule";
 import { updateModule as updateModuleApi } from "../api/module/updateModule";
@@ -1055,21 +1053,7 @@ export const ModuleManagement: React.FC = () => {
         </div>
       </Modal >
 
-      {/* Fixed Quick Add Button */}
-      < div
-        style={{
-          position: "fixed",
-          bottom: 32,
-          right: 32,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <QuickAddTestCase selectedProjectId={selectedProjectId || ""} />
-        <QuickAddDefect projectModules={[]} />
-      </div >
+      
 
       {/* Custom confirmation dialog for submodule deletion */}
       {confirmOpen && (

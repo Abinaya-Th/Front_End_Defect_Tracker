@@ -261,8 +261,15 @@ export default function BenchAllocate() {
         }).filter((e): e is Employee & { availability: number } => e !== null);
     }, [employees, projectAllocations, selectedProjectId]);
 
-    // No need for local filtering since we're using API filtering
-    const filteredBench = benchEmployees;
+    // Filter bench employees by benchFilter (case-insensitive substring match for first or last name)
+    const filteredBench = useMemo(() => {
+        if (!benchFilter.trim()) return benchEmployees;
+        const filter = benchFilter.trim().toLowerCase();
+        return benchEmployees.filter(e =>
+            (e.firstName && e.firstName.toLowerCase().includes(filter)) ||
+            (e.lastName && e.lastName.toLowerCase().includes(filter)) || (e.firstName && e.lastName && (e.firstName + ' ' + e.lastName).toLowerCase().includes(filter))
+        );
+    }, [benchEmployees, benchFilter]);
     
     const allocatedEmployees = useMemo(() => selectedProjectId ? (projectAllocations[selectedProjectId] || []) : [], [projectAllocations, selectedProjectId]);
     
@@ -310,6 +317,53 @@ export default function BenchAllocate() {
             setAlertModal({ open: true, message: 'Please select a project first' });
             return;
         }
+        // Client-side validation for role selection
+        const missingRole = updatedEmployees.some(emp => !emp.roleId || emp.roleId === '');
+        if (missingRole) {
+            setAlertModal({ open: true, message: 'Role information is required' });
+            return;
+        }
+        // Client-side validation for start date and end date
+        const missingStartDate = updatedEmployees.some(emp => !emp.allocationStartDate || emp.allocationStartDate === '');
+        if (missingStartDate) {
+            setAlertModal({ open: true, message: 'Start date is required' });
+            return;
+        }
+        const missingEndDate = updatedEmployees.some(emp => !emp.allocationEndDate || emp.allocationEndDate === '');
+        if (missingEndDate) {
+            setAlertModal({ open: true, message: 'End date is required' });
+            return;
+        }
+        const invalidDateOrder = updatedEmployees.some(emp => 
+            emp.allocationStartDate && emp.allocationEndDate &&
+            new Date(emp.allocationStartDate) >= new Date(emp.allocationEndDate)
+        );
+        if (invalidDateOrder) {
+            setAlertModal({ open: true, message: 'Start date must be before end date.' });
+            return;
+        }
+        // Client-side validation for allocation availability
+        const missingAvailability = updatedEmployees.some(emp => emp.allocationAvailability === undefined || emp.allocationAvailability === null || emp.allocationAvailability === '');
+        if (missingAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage is required' });
+            return;
+        }
+        const invalidAvailability = updatedEmployees.some(emp => 
+            isNaN(Number(emp.allocationAvailability)) ||
+            Number(emp.allocationAvailability) < 1 ||
+            Number(emp.allocationAvailability) > 100
+        );
+        if (invalidAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage must be between 1 and 100' });
+            return;
+        }
+        const exceedsMaxAvailability = updatedEmployees.some(emp =>
+            Number(emp.allocationAvailability) > Number(emp.availability)
+        );
+        if (exceedsMaxAvailability) {
+            setAlertModal({ open: true, message: 'Allocation percentage cannot exceed employee availability' });
+            return;
+        }
         setIsAllocating(true);
         try {
             const allocationErrors = [];
@@ -350,6 +404,8 @@ export default function BenchAllocate() {
                   userMessage = 'Allocation percentage must be between 1 and 100';
                 } else if (errorMessage.includes('Missing required fields')) {
                   userMessage = 'Missing required fields.';
+                } else if (errorMessage.includes('This user already has this role in the specified project')) {
+                  userMessage = 'This user already has this role in the specified project';
                 } else {
                   // Extract last part after last dash or colon
                   const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
@@ -383,8 +439,12 @@ export default function BenchAllocate() {
               userMessage = 'Role information is required';
             } else if (errorMessage.includes('Allocation percentage must be between 1 and 100')) {
               userMessage = 'Allocation percentage must be between 1 and 100';
+            } else if (errorMessage.includes('Request failed with status code 400')) {
+              userMessage = 'Allocation percentage must be between 1 and 100';
             } else if (errorMessage.includes('Missing required fields')) {
               userMessage = 'Missing required fields.';
+            } else if (errorMessage.includes('This user already has this role in the specified project')) {
+              userMessage = 'This user already has this role in the specified project';
             } else {
               // Extract last part after last dash or colon
               const match = errorMessage.match(/[-:]\s*([^\n]+)$/);
@@ -469,20 +529,13 @@ export default function BenchAllocate() {
                     </div>
                     {/* Search and Filter for Bench */}
                     <div className="mb-4 space-y-3">
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="First Name..."
-                                value={benchFirstName}
-                                onChange={e => handleFirstNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                            <Input
-                                placeholder="Last Name..."
-                                value={benchLastName}
-                                onChange={e => handleLastNameChange(e.target.value)}
-                                className="flex-1"
-                            />
-                        </div>
+                        {/* New global search input for benchFilter */}
+                        <Input
+                            placeholder="Search by name..."
+                            value={benchFilter}
+                            onChange={e => setBenchFilter(e.target.value)}
+                            className="w-full mb-2"
+                        />
                         <div className="flex gap-2">
                             <select
                                 value={designationFilter}
@@ -514,41 +567,41 @@ export default function BenchAllocate() {
                             </div>
                         ) : paginatedBenchEmployees.length > 0 ? (
                             paginatedBenchEmployees.map(emp => (
-                            <div
-                                key={emp.id}
-                                className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
+                                <div
+                                    key={emp.id}
+                                    className={`flex items-center gap-4 p-2 rounded cursor-pointer border transition-all duration-150
     ${selectedBench.includes(emp.id) ? 'border-2 border-blue-500 bg-[#f6fff8]' : 'border border-transparent'}
     hover:bg-[#f6fff8] ${selectedProjectUsers.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                onClick={() => {
-                                    if (selectedProjectUsers.length === 0) handleBenchSelect(emp.id);
-                                }}
-                                draggable
-                                onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
-                            >
-                                <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
-                                <div className="flex-1">
-                                    <div className="font-medium">{emp.firstName} {emp.lastName}</div>
-                                   
-                                    <div className="text-xs text-gray-400 mt-1">
-                                        {currentProject?.name}
-                                    </div>
-                                </div>
-                                {/* Available Period section */}
-                                <div className="flex flex-col items-end min-w-[150px]">
-                                    <span className="text-xs text-gray-500 font-semibold">Available Period</span>
-                                    <span className="text-xs text-gray-600">{emp.joinedDate || '-'}</span>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    className="ml-2"
-                                    onClick={e => { e.stopPropagation(); setViewInfoEmployee(emp); }}
-                                    title="View Info"
+                                    onClick={() => {
+                                        if (selectedProjectUsers.length === 0) handleBenchSelect(emp.id);
+                                    }}
+                                    draggable
+                                    onDragStart={e => { e.dataTransfer.setData('employeeId', emp.id); }}
                                 >
-                                    View Info
-                                </Button>
-                            </div>
-                        ))
+                                    <DonutChart percentage={emp.availability} size={40} strokeWidth={4} color={getAvailabilityColor(emp.availability)} />
+                                    <div className="flex-1">
+                                        <div className="font-medium">{emp.firstName} {emp.lastName}</div>
+                                        <div className="text-gray-500 text-sm leading-tight">{emp.designation}</div>
+                                        <div className="text-xs text-gray-400 mt-1">
+                                            {currentProject?.name}
+                                        </div>
+                                    </div>
+                                    {/* Available Period section */}
+                                    <div className="flex flex-col items-end min-w-[150px]">
+                                        <span className="text-xs text-gray-500 font-semibold">Available Period</span>
+                                        <span className="text-xs text-gray-600">{emp.joinedDate || '-'}</span>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="ml-2"
+                                        onClick={e => { e.stopPropagation(); setViewInfoEmployee(emp); }}
+                                        title="View Info"
+                                    >
+                                        View Info
+                                    </Button>
+                                </div>
+                            ))
                         ) : (
                             <div className="text-center py-8">
                                 <p className="text-gray-500">
@@ -766,7 +819,23 @@ export default function BenchAllocate() {
             >
                 <div className="flex flex-col gap-6 p-6 min-w-[900px]">
                     {allocationModal.employees.map((emp, index) => (
-                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full">
+                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg flex items-center gap-8 p-6 w-full relative">
+                            {/* Close icon in the top-right, only show if more than one employee */}
+                            {allocationModal.employees.length > 1 && (
+                                <button
+                                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold"
+                                    onClick={() => {
+                                        setAllocationModal(modal => ({
+                                            ...modal,
+                                            employees: modal.employees.filter((e, i) => i !== index)
+                                        }));
+                                    }}
+                                    title="Remove"
+                                    type="button"
+                                >
+                                    ×
+                                </button>
+                            )}
                             {/* Name and Designation */}
                             <div className="flex flex-col min-w-[180px]">
                                 <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
