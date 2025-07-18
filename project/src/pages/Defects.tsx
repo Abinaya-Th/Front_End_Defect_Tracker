@@ -45,6 +45,7 @@ import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 import AlertModal from '../components/ui/AlertModal';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { createKloc } from "../api/KLOC/putKLOC";
+import { getDevelopersWithRolesByProjectId } from "../api/bench/projectAllocation";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -276,8 +277,7 @@ export const Defects: React.FC = () => {
       if (subModuleId) params.subModuleId = subModuleId;
     }
     if (filters.assignedTo) {
-      const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id;
-      if (userId) params.assignToId = userId;
+      params.assignToId = filters.assignedTo;
     }
     if (filters.reportedBy) {
       const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id;
@@ -1023,6 +1023,28 @@ export const Defects: React.FC = () => {
       });
   }, [selectedProjectId]);
 
+  // Add state for developers for the filter dropdown
+  const [projectDevelopers, setProjectDevelopers] = useState<{ id: number; name: string; role?: string }[]>([]);
+
+  // Fetch developers for the selected project for filter dropdown
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectDevelopers([]);
+      return;
+    }
+    getDevelopersWithRolesByProjectId(Number(selectedProjectId))
+      .then(data => {
+        setProjectDevelopers(
+          (Array.isArray(data) ? data : []).map(dev => ({
+            id: dev.id,
+            name: dev.name || `${dev.firstName ?? ''} ${dev.lastName ?? ''}`.trim(),
+            role: dev.role
+          }))
+        );
+      })
+      .catch(() => setProjectDevelopers([]));
+  }, [selectedProjectId]);
+
   return (
     <div className="max-w-6xl mx-auto">
 
@@ -1300,8 +1322,10 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {userList.map((user) => (
-                <option key={user.id} value={`${user.firstName} ${user.lastName}`}>{user.firstName} {user.lastName}</option>
+              {projectDevelopers.map((dev) => (
+                <option key={dev.id} value={dev.id}>
+                  {dev.name}{dev.role ? ` (${dev.role})` : ""}
+                </option>
               ))}
             </select>
           </div>
