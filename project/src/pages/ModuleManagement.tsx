@@ -264,41 +264,46 @@ export const ModuleManagement: React.FC = () => {
 
   // Bulk assignment handler: assign developer to all selected modules/submodules
   const handleSaveBulkAssignment = async () => {
-    // Module allocation: only one developer allowed
-    if (selectedItems.some(item => item.type === "module")) {
+    if (onlyModulesSelected) {
       if (!selectedModuleDeveloperProjectAllocationId) {
         alert("Please select a developer for module allocation.");
         return;
       }
+      let didAllocate = false;
       for (const item of selectedItems) {
         if (item.type === "module") {
-          // For each submodule of this module, allocate the developer if not already allocated
-          const module = modulesByProjectId?.find((m) => m.id.toString() === item.moduleId);
-          if (module && Array.isArray(module.submodules)) {
-            for (const sub of module.submodules) {
-              // Check if submodule already has developers
-              const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
-              if (!submoduleDevs || submoduleDevs.length === 0) {
-                // Allocate the selected developer to this submodule
-                await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule/subModule/bulk`, {
-                  moduleId: Number(item.moduleId),
-                  subModuleId: Number(sub.id),
-                  projectAllocationIds: [selectedModuleDeveloperProjectAllocationId]
-                }, {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                  },
-                  withCredentials: false
-                });
-              }
-            }
+          // Check if the developer is already assigned to the module
+          const directModuleDevs = (moduleDevelopers[item.moduleId] || []).filter((d) => d.subModuleId == null);
+          const alreadyAssigned = directModuleDevs.some((d) => d.projectAllocationId === selectedModuleDeveloperProjectAllocationId);
+          if (alreadyAssigned) {
+            continue;
           }
+          // Use the correct API for module allocation
+          await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule`, {
+            moduleId: Number(item.moduleId),
+            projectAllocationId: selectedModuleDeveloperProjectAllocationId
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            withCredentials: false
+          });
+          didAllocate = true;
         }
       }
+      if (didAllocate) {
+        alert("Assignment successful!");
+      } else {
+        alert("Already allocated.");
+      }
+      setSelectedItems([]);
+      setIsBulkAssignmentModalOpen(false);
+      fetchModules();
+      return;
     }
     // Submodule allocation: allow multiple developers
-    if (selectedItems.some(item => item.type === "submodule")) {
+    if (onlySubmodulesSelected) {
       if (!selectedDeveloperProjectAllocationIds || selectedDeveloperProjectAllocationIds.length === 0) {
         alert("Please select at least one developer for submodule allocation.");
         return;
@@ -318,11 +323,12 @@ export const ModuleManagement: React.FC = () => {
           });
         }
       }
+      alert("Assignment successful!");
+      setSelectedItems([]);
+      setIsBulkAssignmentModalOpen(false);
+      fetchModules();
+      return;
     }
-    alert("Assignment successful!");
-    setSelectedItems([]);
-    setIsBulkAssignmentModalOpen(false);
-    fetchModules(); // Refresh module assignments
   };
 
   const handleSelectItem = (
@@ -638,24 +644,8 @@ export const ModuleManagement: React.FC = () => {
                 {(modulesByProjectId && Array.isArray(modulesByProjectId) && modulesByProjectId.length > 0) ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(modulesByProjectId || []).map((module) => {
-                      const moduleDevs = (() => {
-                        // Get all developers assigned directly to the module (not via submodules)
-                        const directModuleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
-                        // Get all developers assigned to submodules
-                        const submoduleDevs = (module.submodules || []).flatMap((sub: any) =>
-                          (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id)
-                        );
-                        // Only show developers who are assigned directly to the module and not to any submodule
-                        const submoduleDevIds = new Set(submoduleDevs.map((d) => d.userId));
-                        // Deduplicate by userId
-                        const uniqueModuleDevsMap = new Map();
-                        directModuleDevs.forEach((d) => {
-                          if (!submoduleDevIds.has(d.userId) && !uniqueModuleDevsMap.has(d.userId)) {
-                            uniqueModuleDevsMap.set(d.userId, d.userName);
-                          }
-                        });
-                        return Array.from(uniqueModuleDevsMap.entries()).map(([userId, userName]) => ({ userId, userName }));
-                      })();
+                      // Module-level devs for display beside module name:
+                      const moduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
                       return (
                         <Card key={module.id} className="hover:shadow-lg transition-shadow">
                           <CardContent className="p-6">
@@ -711,6 +701,7 @@ export const ModuleManagement: React.FC = () => {
                                 <ul className="list-disc list-inside space-y-1">
                                   {module.submodules.map((sub: any) => {
                                     const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
+                                    // Define submoduleDevs here, inside the map, so sub is in scope
                                     const submoduleDevs = (moduleDevelopers[module.id] || []).filter(
                                       (d) => d.subModuleId != null && d.subModuleId.toString() === sub.id.toString()
                                     );
