@@ -25,7 +25,7 @@ import { Module, Submodule } from "../types/index";
 import { getModulesByProjectId, Modules as ApiModule } from "../api/module/getModule";
 import { createSubmodule } from "../api/module/createModule";
 import axios from "axios";
-import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule, allocateDeveloperToSubModule } from "../api/bench/projectAllocation";
+import { getDevelopersWithRolesByProjectId, allocateDeveloperToModule } from "../api/bench/projectAllocation";
 import AlertModal from '../components/ui/AlertModal';
 import { getDevelopersByModuleId } from "../api/module/getModuleDevelopers";
 
@@ -87,6 +87,9 @@ export const ModuleManagement: React.FC = () => {
 
   // New state for selected developer in bulk assignment
   const [selectedDeveloperProjectAllocationId, setSelectedDeveloperProjectAllocationId] = useState<number | null>(null);
+
+  // 1. Add state for selected developer for module allocation (single select)
+  const [selectedModuleDeveloperProjectAllocationId, setSelectedModuleDeveloperProjectAllocationId] = useState<number | null>(null);
 
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
@@ -254,40 +257,72 @@ export const ModuleManagement: React.FC = () => {
         employeeIds: [],
       });
       setSelectedDeveloperProjectAllocationId(null); // Reset on open
+      setSelectedModuleDeveloperProjectAllocationId(null); // Reset on open
       setIsBulkAssignmentModalOpen(true);
     }
   };
 
   // Bulk assignment handler: assign developer to all selected modules/submodules
   const handleSaveBulkAssignment = async () => {
-    if (!selectedDeveloperProjectAllocationId) {
-      alert("Please select a developer to assign.");
-      return;
-    }
-    try {
+    // Module allocation: only one developer allowed
+    if (selectedItems.some(item => item.type === "module")) {
+      if (!selectedModuleDeveloperProjectAllocationId) {
+        alert("Please select a developer for module allocation.");
+        return;
+      }
       for (const item of selectedItems) {
         if (item.type === "module") {
-          await allocateDeveloperToModule(Number(item.moduleId), selectedDeveloperProjectAllocationId);
-        } else if (item.type === "submodule" && item.submoduleId) {
-          await allocateDeveloperToSubModule(
-            Number(item.moduleId),
-            selectedDeveloperProjectAllocationId,
-            Number(item.submoduleId)
-          );
+          // For each submodule of this module, allocate the developer if not already allocated
+          const module = modulesByProjectId?.find((m) => m.id.toString() === item.moduleId);
+          if (module && Array.isArray(module.submodules)) {
+            for (const sub of module.submodules) {
+              // Check if submodule already has developers
+              const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
+              if (!submoduleDevs || submoduleDevs.length === 0) {
+                // Allocate the selected developer to this submodule
+                await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule/subModule/bulk`, {
+                  moduleId: Number(item.moduleId),
+                  subModuleId: Number(sub.id),
+                  projectAllocationIds: [selectedModuleDeveloperProjectAllocationId]
+                }, {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                  },
+                  withCredentials: false
+                });
+              }
+            }
+          }
         }
       }
-      alert("Assignment successful!");
-      setSelectedItems([]);
-      setIsBulkAssignmentModalOpen(false);
-      fetchModules(); // Refresh module assignments
-    } catch (error: any) {
-      if (error.response && error.response.status === 409) {
-        alert("Developer is already assigned to this module or submodule.");
-      } else {
-        alert("Assignment is already done for this module");
-      }
-      console.error(error);
     }
+    // Submodule allocation: allow multiple developers
+    if (selectedItems.some(item => item.type === "submodule")) {
+      if (!selectedDeveloperProjectAllocationIds || selectedDeveloperProjectAllocationIds.length === 0) {
+        alert("Please select at least one developer for submodule allocation.");
+        return;
+      }
+      for (const item of selectedItems) {
+        if (item.type === "submodule" && item.submoduleId) {
+          await axios.post(`${import.meta.env.VITE_BASE_URL}allocateModule/subModule/bulk`, {
+            moduleId: Number(item.moduleId),
+            subModuleId: Number(item.submoduleId),
+            projectAllocationIds: selectedDeveloperProjectAllocationIds
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            withCredentials: false
+          });
+        }
+      }
+    }
+    alert("Assignment successful!");
+    setSelectedItems([]);
+    setIsBulkAssignmentModalOpen(false);
+    fetchModules(); // Refresh module assignments
   };
 
   const handleSelectItem = (
@@ -298,19 +333,10 @@ export const ModuleManagement: React.FC = () => {
   ) => {
     if (checked) {
       if (type === "module") {
-        // When selecting a module, also select all its submodules
-        const module = modulesByProjectId?.find((m) => m.id.toString() === moduleId);
-        const newItems = [
-          { type: "module" as const, moduleId, submoduleId: undefined },
-          ...(module?.submodules?.map((sub) => ({
-            type: "submodule" as const,
-            moduleId,
-            submoduleId: sub.id.toString(),
-          })) || []),
-        ];
+        // When selecting a module, only select the module itself (do not select all its submodules)
         setSelectedItems((prev) => [
-          ...prev.filter((item) => !(item.moduleId === moduleId)),
-          ...newItems,
+          ...prev.filter((item) => !(item.type === "module" && item.moduleId === moduleId)),
+          { type: "module" as const, moduleId, submoduleId: undefined },
         ]);
       } else {
         // When selecting a submodule, check if all submodules are now selected
@@ -496,6 +522,13 @@ export const ModuleManagement: React.FC = () => {
   const [confirmModuleOpen, setConfirmModuleOpen] = useState(false);
   const [pendingDeleteModuleId, setPendingDeleteModuleId] = useState<string | null>(null);
 
+  // 4. Add state for selectedDeveloperProjectAllocationIds (array)
+  const [selectedDeveloperProjectAllocationIds, setSelectedDeveloperProjectAllocationIds] = useState<number[]>([]);
+
+  const onlyModulesSelected = selectedItems.length > 0 && selectedItems.every(item => item.type === "module");
+  const onlySubmodulesSelected = selectedItems.length > 0 && selectedItems.every(item => item.type === "submodule");
+  const mixedSelection = selectedItems.some(item => item.type === "module") && selectedItems.some(item => item.type === "submodule");
+
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -605,7 +638,24 @@ export const ModuleManagement: React.FC = () => {
                 {(modulesByProjectId && Array.isArray(modulesByProjectId) && modulesByProjectId.length > 0) ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(modulesByProjectId || []).map((module) => {
-                      const moduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
+                      const moduleDevs = (() => {
+                        // Get all developers assigned directly to the module (not via submodules)
+                        const directModuleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId == null);
+                        // Get all developers assigned to submodules
+                        const submoduleDevs = (module.submodules || []).flatMap((sub: any) =>
+                          (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id)
+                        );
+                        // Only show developers who are assigned directly to the module and not to any submodule
+                        const submoduleDevIds = new Set(submoduleDevs.map((d) => d.userId));
+                        // Deduplicate by userId
+                        const uniqueModuleDevsMap = new Map();
+                        directModuleDevs.forEach((d) => {
+                          if (!submoduleDevIds.has(d.userId) && !uniqueModuleDevsMap.has(d.userId)) {
+                            uniqueModuleDevsMap.set(d.userId, d.userName);
+                          }
+                        });
+                        return Array.from(uniqueModuleDevsMap.entries()).map(([userId, userName]) => ({ userId, userName }));
+                      })();
                       return (
                         <Card key={module.id} className="hover:shadow-lg transition-shadow">
                           <CardContent className="p-6">
@@ -621,7 +671,6 @@ export const ModuleManagement: React.FC = () => {
                                 />
                                 <h3 className="text-lg font-semibold text-gray-900">
                                   {module.moduleName}
-                                  {/* Show assigned developers for the module */}
                                   {moduleDevs.length > 0 && (
                                     <span className="ml-2 text-xs text-blue-600 font-normal">
                                       (
@@ -662,7 +711,9 @@ export const ModuleManagement: React.FC = () => {
                                 <ul className="list-disc list-inside space-y-1">
                                   {module.submodules.map((sub: any) => {
                                     const submoduleName = sub.getSubModuleName || sub.subModuleName || sub.name || sub.submoduleName || sub.subModule || 'Unknown';
-                                    const submoduleDevs = (moduleDevelopers[module.id] || []).filter((d) => d.subModuleId === sub.id);
+                                    const submoduleDevs = (moduleDevelopers[module.id] || []).filter(
+                                      (d) => d.subModuleId != null && d.subModuleId.toString() === sub.id.toString()
+                                    );
                                     return (
                                       <li key={sub.id} className="text-gray-800 text-sm flex items-center justify-between group">
                                         <span className="flex items-center">
@@ -845,6 +896,7 @@ export const ModuleManagement: React.FC = () => {
           setIsBulkAssignmentModalOpen(false);
           setSelectedItems([]);
           setSelectedDeveloperProjectAllocationId(null); // Reset on close
+          setSelectedModuleDeveloperProjectAllocationId(null); // Reset on close
         }}
         title={`Assign Developers`}
         size="xl"
@@ -905,37 +957,83 @@ export const ModuleManagement: React.FC = () => {
             </div>
           </div>
           <div className="md:w-1/2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Developers
-            </label>
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {developersWithRoles.length > 0 ? (
-                developersWithRoles.map((dev, idx) => (
-                  <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                    <input
-                      type="radio"
-                      name="bulk-assign-developer"
-                      checked={selectedDeveloperProjectAllocationId === dev.projectAllocationId}
-                      onChange={() => setSelectedDeveloperProjectAllocationId(dev.projectAllocationId)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div>
-                       {(() => {
-                        const [name, role] = dev.userWithRole.split("-");
-                        return (
-                          <>
-                            <div className="text-sm font-medium text-gray-900">{name}</div>
-                            <div className="text-xs text-gray-500">{role}</div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-400 text-sm">No developers found for this project.</div>
-              )}
-            </div>
+            {onlyModulesSelected && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Developer for Module Allocation</label>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {developersWithRoles.length > 0 ? (
+                    developersWithRoles.map((dev, idx) => (
+                      <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                        <input
+                          type="radio"
+                          name="module-assign-developer"
+                          checked={selectedModuleDeveloperProjectAllocationId === dev.projectAllocationId}
+                          onChange={() => setSelectedModuleDeveloperProjectAllocationId(dev.projectAllocationId)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          {(() => {
+                            const [name, role] = dev.userWithRole.split("-");
+                            return (
+                              <>
+                                <div className="text-sm font-medium text-gray-900">{name}</div>
+                                <div className="text-xs text-gray-500">{role}</div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-400 text-sm">No developers found for this project.</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {onlySubmodulesSelected && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Developers for Submodule Allocation</label>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {developersWithRoles.length > 0 ? (
+                    developersWithRoles.map((dev, idx) => (
+                      <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                        <input
+                          type="checkbox"
+                          name="submodule-assign-developer"
+                          checked={selectedDeveloperProjectAllocationIds.includes(dev.projectAllocationId)}
+                          onChange={() => {
+                            setSelectedDeveloperProjectAllocationIds((prev) =>
+                              prev.includes(dev.projectAllocationId)
+                                ? prev.filter((id) => id !== dev.projectAllocationId)
+                                : [...prev, dev.projectAllocationId]
+                            );
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          {(() => {
+                            const [name, role] = dev.userWithRole.split("-");
+                            return (
+                              <>
+                                <div className="text-sm font-medium text-gray-900">{name}</div>
+                                <div className="text-xs text-gray-500">{role}</div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-400 text-sm">No developers found for this project.</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {mixedSelection && (
+              <div className="mb-4 text-red-600 font-medium">
+                Please select either modules or submodules, not both, for allocation.
+              </div>
+            )}
           </div>
         </div>
 
@@ -946,11 +1044,12 @@ export const ModuleManagement: React.FC = () => {
               setIsBulkAssignmentModalOpen(false);
               setSelectedItems([]);
               setSelectedDeveloperProjectAllocationId(null);
+              setSelectedModuleDeveloperProjectAllocationId(null);
             }}
           >
             Cancel
           </Button>
-          <Button onClick={handleSaveBulkAssignment}>
+          <Button onClick={handleSaveBulkAssignment} disabled={mixedSelection}>
             Assign to All Selected
           </Button>
         </div>
@@ -1053,7 +1152,7 @@ export const ModuleManagement: React.FC = () => {
         </div>
       </Modal >
 
-      
+
 
       {/* Custom confirmation dialog for submodule deletion */}
       {confirmOpen && (
