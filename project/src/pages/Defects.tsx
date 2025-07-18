@@ -505,7 +505,7 @@ export const Defects: React.FC = () => {
     // Fetch submodules for the selected module, then set subModuleId
     if (moduleId) {
       try {
-        const res = await getSubmodulesByModuleId(moduleId);
+        const res = await getSubmodulesByModuleId(Number(moduleId));
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
           name: sm.name || sm.subModuleName
@@ -650,7 +650,7 @@ export const Defects: React.FC = () => {
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
-    getSubmodulesByModuleId(formData.moduleId)
+    getSubmodulesByModuleId(Number(formData.moduleId))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -678,7 +678,7 @@ export const Defects: React.FC = () => {
       setFilterSubmodules([]);
       return;
     }
-    getSubmodulesByModuleId(selectedModule.id)
+    getSubmodulesByModuleId(Number(selectedModule.id))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -893,7 +893,7 @@ export const Defects: React.FC = () => {
     try {
       // Extract numeric part from defectId (e.g., DF00002 -> 2)
       const numericIdMatch = defectId.match(/(\d+)$/);
-      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : defectId;
+      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : Number(defectId);
       const data = await getDefectHistoryByDefectId(numericId);
       setViewingDefectHistory(data);
     } catch (err: any) {

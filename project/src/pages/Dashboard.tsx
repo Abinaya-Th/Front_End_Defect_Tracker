@@ -18,6 +18,7 @@ import { getDefectRemarkRatioByProjectId } from '../api/dashboard/remarkratio';
 import { getDefectSeverityIndex } from '../api/dashboard/dsi';
 import { getDefectDensity } from '../api/KLOC/getKLOC';
 import { getDefectsByModule } from '../api/dashboard/defectbymodule';
+import { getReopenCountSummary } from '../api/dashboard/Defectreopen';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
@@ -61,6 +62,9 @@ export const Dashboard: React.FC = () => {
   const [defectsByModule, setDefectsByModule] = useState<any[]>([]);
   const [loadingDefectsByModule, setLoadingDefectsByModule] = useState(false);
   const [defectsByModuleError, setDefectsByModuleError] = useState<string | null>(null);
+  const [reopenSummary, setReopenSummary] = useState<any[]>([]);
+  const [loadingReopenSummary, setLoadingReopenSummary] = useState(false);
+  const [reopenSummaryError, setReopenSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -239,6 +243,32 @@ export const Dashboard: React.FC = () => {
         setDefectsByModuleError('Failed to load defects by module');
         setDefectsByModule([]);
         setLoadingDefectsByModule(false);
+      });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setReopenSummary([]);
+      return;
+    }
+    setLoadingReopenSummary(true);
+    setReopenSummaryError(null);
+    getReopenCountSummary(selectedProjectId)
+      .then((res) => {
+        if (res && Array.isArray(res.data)) {
+          setReopenSummary(res.data);
+        } else if (res && Array.isArray(res)) {
+          setReopenSummary(res);
+        } else {
+          setReopenSummary([]);
+          setReopenSummaryError('Invalid reopen summary data');
+        }
+        setLoadingReopenSummary(false);
+      })
+      .catch(() => {
+        setReopenSummaryError('Failed to load reopen summary');
+        setReopenSummary([]);
+        setLoadingReopenSummary(false);
       });
   }, [selectedProjectId]);
 
@@ -680,171 +710,44 @@ export const Dashboard: React.FC = () => {
       {/* Defects Reopened Multiple Times Pie Chart */}
       <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col relative">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">Defects Reopened Multiple Times</h2>
-        {(() => {
-          // MOCK DATA for visual match
-          const labels = ['2 times', '3 times', '4 times', '5 times', '5+ times'];
-          const data = {
-            labels,
-            datasets: [
-              {
-                data: [8, 5, 3, 2, 1],
-                backgroundColor: [
-                  '#4285F4', // 2 times
-                  '#FBBC05', // 3 times
-                  '#EA4335', // 4 times
-                  '#C5221F', // 5 times
-                  '#F29900', // 5+ times
-                ],
-              },
-            ],
-          };
-          // Mock defect details for each bucket
-          // IMPORTANT: The order of defectBuckets must match the order of labels and data.datasets[0].data
-          const defectBuckets = [
-            [ // 2 times
-              { id: 'DEF-001', title: 'Login fails', assignee: 'Alice', reporter: 'Bob', release: 'v2.1.0' },
-              { id: 'DEF-002', title: 'UI glitch', assignee: 'Carol', reporter: 'Dave', release: 'v2.1.0' },
-              { id: 'DEF-003', title: 'Crash on save', assignee: 'Eve', reporter: 'Frank', release: 'v2.1.0' },
-              { id: 'DEF-004', title: 'Slow load', assignee: 'Grace', reporter: 'Heidi', release: 'v2.1.0' },
-              { id: 'DEF-005', title: 'Data sync issue', assignee: 'Ivan', reporter: 'Judy', release: 'v2.1.0' },
-              { id: 'DEF-006', title: 'Notification bug', assignee: 'Mallory', reporter: 'Niaj', release: 'v2.1.0' },
-              { id: 'DEF-007', title: 'Export error', assignee: 'Olivia', reporter: 'Peggy', release: 'v2.1.0' },
-              { id: 'DEF-008', title: 'Import error', assignee: 'Sybil', reporter: 'Trent', release: 'v2.1.0' },
-            ],
-            [ // 3 times
-              { id: 'DEF-009', title: 'Database conn...', assignee: 'David Lee', reporter: 'Emma Wilson', release: 'v2.1.0' },
-              { id: 'DEF-010', title: 'Email notificat...', assignee: 'Frank Miller', reporter: 'Grace Taylor', release: 'v2.0.9' },
-              { id: 'DEF-011', title: 'File upload cor...', assignee: 'Helen Garcia', reporter: 'Ivan Rodriguez', release: 'v2.1.0' },
-              { id: 'DEF-012', title: 'Session timeout', assignee: 'Jack Brown', reporter: 'Karen White', release: 'v2.1.0' },
-              { id: 'DEF-013', title: 'API error', assignee: 'Liam Green', reporter: 'Mona Black', release: 'v2.1.0' },
-            ],
-            [ // 4 times
-              { id: 'DEF-014', title: 'Memory leak', assignee: 'Nina Blue', reporter: 'Oscar Pink', release: 'v2.1.0' },
-              { id: 'DEF-015', title: 'Cache issue', assignee: 'Paul Red', reporter: 'Quinn Yellow', release: 'v2.1.0' },
-              { id: 'DEF-016', title: 'Button misfire', assignee: 'Rita Orange', reporter: 'Sam Violet', release: 'v2.1.0' },
-            ],
-            [ // 5 times
-              { id: 'DEF-017', title: 'Chart bug', assignee: 'Tom Indigo', reporter: 'Uma Cyan', release: 'v2.1.0' },
-              { id: 'DEF-018', title: 'Theme not saved', assignee: 'Vic Magenta', reporter: 'Walt Lime', release: 'v2.1.0' },
-            ],
-            [ // 5+ times
-              { id: 'DEF-019', title: 'Critical crash', assignee: 'Xena Gold', reporter: 'Yuri Silver', release: 'v2.1.0' },
-            ],
-          ];
-          // Ensure all arrays are the same length and order
-          while (defectBuckets.length < data.labels.length) defectBuckets.push([]);
-          while (defectBuckets.length > data.labels.length) defectBuckets.pop();
-          // Use Chart.js onHover to set the correct hovered index
-          const pieOptions = {
-            plugins: { legend: { display: false } },
-            onHover: (event, elements) => {
-              if (elements && elements.length > 0) {
-                setReopenedHoveredIdx(elements[0].index);
-              } else if (!isReopenedCardHovered) {
-                setReopenedHoveredIdx(null);
-              }
-            },
-          };
-          // Calculate percentage for hovered segment
-          const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-          const hoveredCount = reopenedHoveredIdx !== null ? data.datasets[0].data[reopenedHoveredIdx] : 0;
-          const hoveredPct = reopenedHoveredIdx !== null && total > 0 ? ((hoveredCount / total) * 100).toFixed(1) : null;
-          return (
-            <div
-              className="flex flex-col items-center justify-center relative"
-              onMouseEnter={() => setIsReopenedCardHovered(true)}
-              onMouseLeave={() => {
-                setIsReopenedCardHovered(false);
-                setReopenedHoveredIdx(null);
-              }}
-            >
-              <div className="w-64 h-64">
-                <ChartJSPie ref={reopenedChartRef} data={data} options={pieOptions} />
-              </div>
-              {/* Floating hover detail card */}
-              {(reopenedHoveredIdx !== null || isReopenedCardHovered) && (() => {
-                // Pie chart geometry (match your chart size)
-                const pieCenterX = 128; // SVG center X (w-64 = 256px)
-                const pieCenterY = 128; // SVG center Y
-                const pieRadius = 100; // Pie outer radius
-                const cardOffset = 60; // Distance from pie edge to card
-                const totalSegments = data.datasets[0].data.length;
-                const segmentAngle = 360 / totalSegments;
-                const idx = reopenedHoveredIdx ?? 0;
-                const angle = (idx + 0.5) * segmentAngle - 90; // -90 to start from top
-                const rad = (angle * Math.PI) / 180;
-                const minHorizontalOffset = 80; // Ensures card is always at least this far from pie center
-                const cardRadius = pieRadius + cardOffset + minHorizontalOffset;
-                const cardX = pieCenterX + cardRadius * Math.cos(rad);
-                let cardY = pieCenterY + cardRadius * Math.sin(rad);
-                // Clamp cardY to stay within the visible area
-                const maxY = 256 - 120;
-                const minY = 120;
-                cardY = Math.max(minY, Math.min(cardY, maxY));
-                // Always position the card to the right of the pie chart
-                const cardStyle = {
-                  left: pieCenterX + pieRadius + 48,
-                  top: pieCenterY,
-                  transform: 'translateY(-50%)',
-                  minWidth: 340,
-                  position: 'absolute',
-                };
-                return (
-                  <div
-                    className="absolute z-20 w-[420px] bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-fade-in"
-                    style={cardStyle}
-                    onMouseEnter={() => {
-                      setIsReopenedCardHovered(true);
-                    }}
-                    onMouseLeave={() => {
-                      setIsReopenedCardHovered(false);
-                      setReopenedHoveredIdx(null);
-                    }}
-                    onMouseDown={() => setReopenedDetailModal({ open: true, label: labels[reopenedHoveredIdx ?? 0], defects: defectBuckets[reopenedHoveredIdx ?? 0] })}
-                  >
-                    <div className="font-bold text-lg mb-2 text-gray-900">Defects Reopened {labels[reopenedHoveredIdx ?? 0]}</div>
-                    <table className="min-w-full text-xs mb-2">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-1 px-2">ID</th>
-                          <th className="text-left py-1 px-2">Title</th>
-                          <th className="text-left py-1 px-2">Assignee</th>
-                          <th className="text-left py-1 px-2">Reporter</th>
-                          <th className="text-left py-1 px-2">Release</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {defectBuckets[(reopenedHoveredIdx ?? 0)] && defectBuckets[(reopenedHoveredIdx ?? 0)].length === 0 ? (
-                          <tr><td colSpan={5} className="text-center py-4">No defects</td></tr>
-                        ) : (
-                          (defectBuckets[(reopenedHoveredIdx ?? 0)] || []).map((defect, idx) => (
-                            <tr key={defect.id || idx} className="border-b">
-                              <td className="py-1 px-2 text-blue-700 font-semibold cursor-pointer hover:underline">{defect.id}</td>
-                              <td className="py-1 px-2">{defect.title}</td>
-                              <td className="py-1 px-2">{defect.assignee}</td>
-                              <td className="py-1 px-2">{defect.reporter}</td>
-                              <td className="py-1 px-2">{defect.release}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                    <div className="text-xs text-gray-400">Click segment for detailed view</div>
-                  </div>
-                );
-              })()}
-              <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
-                {labels.map((label, idx) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
-                    <span className="text-gray-700">{label}: <span className="font-semibold">{data.datasets[0].data[idx]}</span></span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 text-xs text-gray-400">Hover over segments to view defect details table</div>
-            </div>
-          );
-        })()}
+        {loadingReopenSummary ? (
+          <div className="text-gray-500">Loading...</div>
+        ) : reopenSummaryError ? (
+          <div className="text-red-500">{reopenSummaryError}</div>
+        ) : reopenSummary && reopenSummary.length > 0 ? (
+          (() => {
+            const labels = reopenSummary.map(item => item.label);
+            const data = {
+              labels,
+              datasets: [
+                {
+                  data: reopenSummary.map(item => item.count),
+                  backgroundColor: [
+                    '#4285F4', '#FBBC05', '#EA4335', '#C5221F', '#F29900', '#00B894', '#A259F7', '#00B8D9', '#FF6F00', '#8E24AA',
+                  ].slice(0, reopenSummary.length),
+                },
+              ],
+            };
+            const total = reopenSummary.reduce((a, b) => a + (b.count || 0), 0);
+            return (
+              <>
+                <div className="w-64 h-64">
+                  <ChartJSPie data={data} options={{ plugins: { legend: { display: false } } }} />
+                </div>
+                <div className="mt-6 grid grid-cols-1 gap-1 text-sm">
+                  {reopenSummary.map((item, idx) => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: data.datasets[0].backgroundColor[idx] }}></span>
+                      <span className="text-gray-700">{item.label}: <span className="font-semibold">{item.count}</span> <span className='text-gray-500'>({total > 0 ? ((item.count / total) * 100).toFixed(1) : 0}%)</span></span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()
+        ) : (
+          <div className="text-gray-400">No data available.</div>
+        )}
       </div>
       {/* Defect Distribution by Type Pie Chart */}
       <div className="flex-1 bg-white rounded-2xl shadow p-6 flex flex-col">
