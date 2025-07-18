@@ -1683,6 +1683,22 @@ export const TestCase: React.FC = () => {
                     try {
                       await deleteTestCaseById(pendingDeleteId);
                       setDeleteAlert({ isOpen: true, message: 'Test case deleted successfully!' });
+                      // Immediately update testCases and allSubmoduleTestCases with robust ID comparison
+                      setTestCases(prev => prev.filter(tc =>
+                        String(tc.testCaseId) !== String(pendingDeleteId) && String(tc.id) !== String(pendingDeleteId)
+                      ));
+                      setAllSubmoduleTestCases(prev => {
+                        const updated = { ...prev };
+                        Object.keys(updated).forEach(submoduleId => {
+                          updated[submoduleId] = updated[submoduleId].filter(tc =>
+                            String(tc.testCaseId) !== String(pendingDeleteId) && String(tc.id) !== String(pendingDeleteId)
+                          );
+                        });
+                        return updated;
+                      });
+                      // Force a refresh from backend for full consistency
+                      refreshTestCases();
+                      fetchAllSubmoduleTestCases();
                     } catch (error: any) {
                       setDeleteAlert({ isOpen: true, message: 'Cannot delete test case: There are dependencies (e.g., allocated to a release).' });
                     } finally {

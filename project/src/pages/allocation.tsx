@@ -264,23 +264,28 @@ export const Allocation: React.FC = () => {
       } else {
         setBulkSubmoduleWarning("");
       }
-      let ids: string[] = [];
+      let ids: Set<string> = new Set();
+      // Add all test cases for selected modules (across all submodules)
       if (bulkModuleSelect && selectedModules.length > 0) {
-        ids = [
-          ...ids,
-          ...effectiveTestCases
-            .filter((tc: any) => selectedModules.includes(String(tc.module)))
-            .map((tc: any) => tc.id),
-        ];
-      } else if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
-        ids = [
-          ...ids,
-          ...effectiveTestCases
-            .filter((tc: any) => selectedSubmodules.includes(String(tc.subModule)))
-            .map((tc: any) => tc.id),
-        ];
+        const moduleSet = new Set(selectedModules.map(String));
+        effectiveTestCases.forEach((tc: any) => {
+          console.log('Test case object:', tc);
+          if (moduleSet.has(String(tc.moduleId))) {
+            ids.add(tc.id);
+          }
+        });
       }
-      setSelectedTestCases(Array.from(new Set(ids)));
+      // Add all test cases for selected submodules
+      if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
+        const submoduleSet = new Set(selectedSubmodules.map(String));
+        effectiveTestCases.forEach((tc: any) => {
+          console.log('Test case object:', tc);
+          if (submoduleSet.has(String(tc.subModuleId))) {
+            ids.add(tc.id);
+          }
+        });
+      }
+      setSelectedTestCases(Array.from(ids));
     } else {
       setBulkSubmoduleWarning("");
     }
@@ -335,12 +340,12 @@ export const Allocation: React.FC = () => {
     let ids: Set<string> = new Set();
     if (bulkModuleSelect && selectedModules.length > 0) {
       effectiveTestCases.forEach((tc: any) => {
-        if (selectedModules.includes(tc.module)) ids.add(tc.id);
+        if (selectedModules.includes(tc.moduleId)) ids.add(tc.id);
       });
     }
     if (bulkSubmoduleSelect && selectedSubmodules.length > 0) {
       effectiveTestCases.forEach((tc: any) => {
-        if (selectedSubmodules.includes(tc.subModule)) ids.add(tc.id);
+        if (selectedSubmodules.includes(tc.subModuleId)) ids.add(tc.id);
       });
     }
     filteredTestCases = effectiveTestCases.filter((tc: any) => ids.has(tc.id));
@@ -395,13 +400,22 @@ export const Allocation: React.FC = () => {
 
   // Project selection handler
   const handleProjectSelect = (id: string) => {
-
     setSelectedProjectId(id);
     setSelectedProject(id);
+    setSelectedReleaseIds([]);
+    setSelectedIds([]);
     setSelectedModule("");
     setSelectedSubmodule("");
     setSelectedTestCases([]);
+    setSelectedModules([]);
+    setSelectedSubmodules([]);
+    setBulkModuleSelect(false);
+    setBulkSubmoduleSelect(false);
     setAllocatedTestCases([]);
+    setAllocationMode("one-to-one");
+    setAllocationSuccess(null);
+    setAllocationError(null);
+    setAllocationProgress(null);
   };
 
 
@@ -690,7 +704,7 @@ export const Allocation: React.FC = () => {
               size="sm"
               variant={bulkModuleSelect ? "primary" : "secondary"}
               onClick={() => {
-                setBulkModuleSelect(false);
+                setBulkModuleSelect(v => !v);
                 setSelectedModules([]);
                 setSelectedTestCases([]);
               }}
@@ -719,7 +733,7 @@ export const Allocation: React.FC = () => {
                 (tc: any) => tc.module === module.name
               );
               const isSelected = bulkModuleSelect
-                ? selectedModules.includes(module.name)
+                ? selectedModules.includes(String(module.id))
                 : selectedModule === module.name;
               return (
                 <Button
@@ -728,9 +742,9 @@ export const Allocation: React.FC = () => {
                   onClick={() => {
                     if (bulkModuleSelect) {
                       setSelectedModules((prev) =>
-                        prev.includes(module.name)
-                          ? prev.filter((m) => m !== module.name)
-                          : [...prev, module.name]
+                        prev.includes(String(module.id))
+                          ? prev.filter((m) => m !== String(module.id))
+                          : [...prev, String(module.id)]
                       );
                     } else {
                       setSelectedModule(module.name);
@@ -739,8 +753,7 @@ export const Allocation: React.FC = () => {
                       setAllocatedTestCases([]);
                     }
                   }}
-                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""
-                    }`}
+                  className={`whitespace-nowrap m-2 ${isSelected ? " ring-2 ring-blue-400 border-blue-500" : ""}`}
                 >
                   {module.name}
                 </Button>
@@ -774,10 +787,11 @@ export const Allocation: React.FC = () => {
                 size="sm"
                 variant={bulkSubmoduleSelect ? "primary" : "secondary"}
                 onClick={() => {
-                  setBulkSubmoduleSelect(false);
+                  setBulkSubmoduleSelect(v => !v);
                   setSelectedSubmodules([]);
                   setSelectedTestCases([]);
                 }}
+                disabled={!selectedSubmodule}
               >
                 {bulkSubmoduleSelect ? "Cancel Bulk" : "Bulk Select"}
               </Button>
@@ -806,7 +820,6 @@ export const Allocation: React.FC = () => {
               }}
             >
               {submodules.map((submodule: any) => {
-                // Only use bulk selection logic if bulkSubmoduleSelect is true
                 const isSelected = bulkSubmoduleSelect
                   ? selectedSubmodules.includes(String(submodule.subModuleId))
                   : selectedSubmodule === String(submodule.subModuleId);
@@ -1545,7 +1558,7 @@ export const Allocation: React.FC = () => {
                   <ReleaseCardsPanel />
                   {/* Allocate button appears if at least one release is selected */}
                   {selectedReleaseIds.length > 0 && (
-                    <div className="mt-4 flex flex-col space-y-3">
+                    <div className="mt-6 flex flex-col space-y-3">
                       {/* Allocation Mode Selection */}
                       <div className="flex items-center space-x-4">
                         <span className="text-sm font-medium text-gray-700">Allocation Mode:</span>
@@ -1585,16 +1598,7 @@ export const Allocation: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Mode Description */}
-                      <div className="text-xs text-gray-500">
-                        {allocationMode === "one-to-one"
-                          ? `Each test case will be allocated to each release individually (${selectedTestCases.length} × ${selectedReleaseIds.length} = ${selectedTestCases.length * selectedReleaseIds.length} API calls)`
-                          : allocationMode === "one-to-many"
-                          ? `Each test case will be allocated to all selected releases in one API call (${selectedTestCases.length} API calls)`
-                          : allocationMode === "bulk"
-                          ? `All selected test cases will be allocated to all selected releases in a single API call (1 API call)`
-                          : `All selected test cases will be allocated to all selected releases in a single API call (many-to-many)`}
-                      </div>
+                      
 
                       {/* Allocate Button */}
                       <div className="flex justify-end">
@@ -1731,12 +1735,14 @@ export const Allocation: React.FC = () => {
           {filteredTestCases.length > 0 ? (
             <TestCaseTable />
           ) : (
-            (selectedSubmodule || (bulkSubmoduleSelect && selectedSubmodules.length > 0)) && (
+            (selectedSubmodule || (bulkSubmoduleSelect && selectedSubmodules.length > 0) || (selectedModule && !selectedSubmodule && !bulkSubmoduleSelect)) && (
               <Card className="mb-4">
                 <CardContent className="p-8 text-center">
                   <div className="text-gray-500">
                     {bulkSubmoduleSelect && selectedSubmodules.length > 0 && selectedReleaseIds.length === 0
                       ? "Please select at least one release before using bulk submodule selection."
+                      : selectedModule && !selectedSubmodule && !bulkSubmoduleSelect
+                      ? "Please select a submodule or use bulk select to choose test cases."
                       : "No test cases found for the selected submodule(s)."}
                   </div>
                 </CardContent>
@@ -1752,10 +1758,14 @@ export const Allocation: React.FC = () => {
           {filteredTestCases.length > 0 ? (
             <TestCaseTable />
           ) : (
-            selectedSubmodule && (
+            (selectedSubmodule || (selectedModule && !selectedSubmodule)) && (
               <Card className="mb-4">
                 <CardContent className="p-8 text-center">
-                  <div className="text-gray-500">No test cases found for the selected submodule.</div>
+                  <div className="text-gray-500">
+                    {selectedModule && !selectedSubmodule
+                      ? "Please select a submodule to view test cases."
+                      : "No test cases found for the selected submodule."}
+                  </div>
                 </CardContent>
               </Card>
             )
