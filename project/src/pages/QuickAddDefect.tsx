@@ -207,17 +207,19 @@ const QuickAddDefect: React.FC<QuickAddDefectProps> = ({ projectModules, onDefec
 
   return (
     <div>
-      <Button
-        onClick={() => setIsModalOpen(true)}
-        className="flex flex-row items-center w-44 h-12 bg-white rounded-xl shadow border border-gray-200 px-0 py-1 gap-3 hover:shadow-lg hover:bg-gray-50 transition-all justify-start"
-        disabled={!selectedProjectId}
-        style={{ fontWeight: 500, borderStyle: 'solid' }}
-      >
-        <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-rose-500 ml-0">
+      <div className="relative flex items-center w-44 h-12">
+        <span className="absolute left-0 flex items-center justify-center w-12 h-12 rounded-lg bg-rose-500 shadow-md">
           <Bug size={20} style={{ color: '#fff' }} />
         </span>
-        <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Defect</span>
-      </Button>
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          className="pl-14 pr-4 py-1 bg-white rounded-xl shadow border border-gray-200 w-full h-12 flex items-center font-semibold text-gray-900 hover:shadow-lg hover:bg-gray-50 transition-all justify-start"
+          disabled={!selectedProjectId}
+          style={{ fontWeight: 500, borderStyle: 'solid' }}
+        >
+          <span className="text-base font-medium text-gray-900 whitespace-nowrap">Add Defect</span>
+        </Button>
+      </div>
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
