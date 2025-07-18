@@ -691,8 +691,9 @@ export const Allocation: React.FC = () => {
               size="sm"
               variant={bulkModuleSelect ? "primary" : "secondary"}
               onClick={() => {
-                setBulkModuleSelect((v) => !v);
+                setBulkModuleSelect(false);
                 setSelectedModules([]);
+                setSelectedTestCases([]);
               }}
             >
               {bulkModuleSelect ? "Cancel Bulk" : "Bulk Select"}
@@ -774,8 +775,9 @@ export const Allocation: React.FC = () => {
                 size="sm"
                 variant={bulkSubmoduleSelect ? "primary" : "secondary"}
                 onClick={() => {
-                  setBulkSubmoduleSelect((v) => !v);
+                  setBulkSubmoduleSelect(false);
                   setSelectedSubmodules([]);
+                  setSelectedTestCases([]);
                 }}
               >
                 {bulkSubmoduleSelect ? "Cancel Bulk" : "Bulk Select"}
