@@ -15,7 +15,7 @@ export interface GetSubmodulesResponse {
   statusCode: number;
 }
 
-export const getSubmodulesByModuleId = (moduleId: number): Promise<GetSubmodulesResponse> => {
+export const getSubmodulesByModuleId = (moduleId: number ): Promise<GetSubmodulesResponse> => {
   return axios.get<GetSubmodulesResponse>(
     `${BASE_URL}subModule/${moduleId}`
   ).then(({ data }) => data);
