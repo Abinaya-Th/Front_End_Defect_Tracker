@@ -17,6 +17,7 @@ import { getDefectTypeByProjectId } from '../api/dashboard/defecttype';
 import { getDefectRemarkRatioByProjectId } from '../api/dashboard/remarkratio';
 import { getDefectSeverityIndex } from '../api/dashboard/dsi';
 import { getDefectDensity } from '../api/KLOC/getKLOC';
+import { getDefectsByModule } from '../api/dashboard/defectbymodule';
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend);
 
 export const Dashboard: React.FC = () => {
@@ -57,6 +58,9 @@ export const Dashboard: React.FC = () => {
   const [defectDensity, setDefectDensity] = useState<{ kloc: number; defectCount: number; defectDensity?: number } | null>(null);
   const [loadingDefectDensity, setLoadingDefectDensity] = useState(false);
   const [defectDensityError, setDefectDensityError] = useState<string | null>(null);
+  const [defectsByModule, setDefectsByModule] = useState<any[]>([]);
+  const [loadingDefectsByModule, setLoadingDefectsByModule] = useState(false);
+  const [defectsByModuleError, setDefectsByModuleError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -209,6 +213,32 @@ export const Dashboard: React.FC = () => {
         setRemarkRatioError('Failed to load defect to remark ratio');
         setRemarkRatioData(null);
         setLoadingRemarkRatio(false);
+      });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setDefectsByModule([]);
+      return;
+    }
+    setLoadingDefectsByModule(true);
+    setDefectsByModuleError(null);
+    getDefectsByModule(selectedProjectId)
+      .then((res) => {
+        if (res && Array.isArray(res.data)) {
+          setDefectsByModule(res.data);
+        } else if (res && Array.isArray(res)) {
+          setDefectsByModule(res);
+        } else {
+          setDefectsByModule([]);
+          setDefectsByModuleError('Invalid defects by module data');
+        }
+        setLoadingDefectsByModule(false);
+      })
+      .catch(() => {
+        setDefectsByModuleError('Failed to load defects by module');
+        setDefectsByModule([]);
+        setLoadingDefectsByModule(false);
       });
   }, [selectedProjectId]);
 
@@ -947,52 +977,44 @@ export const Dashboard: React.FC = () => {
   {/* Defects by Module Pie Chart (added at the end) */}
   <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-8 flex flex-col items-center mt-10">
     <h2 className="text-xl font-bold mb-6 text-center">Defects by Module</h2>
-    <div className="w-72 h-72 mx-auto">
-      <ChartJSPie
-        data={{
-          labels: [
-            'Authentication',
-            'Payment',
-            'User Management',
-            'Reporting',
-            'Dashboard',
-            'Settings',
-          ],
-          datasets: [
-            {
-              data: [12, 8, 6, 4, 3, 2],
-              backgroundColor: [
-                '#4285F4', // Authentication
-                '#00B894', // Payment
-                '#FBBC05', // User Management
-                '#EA4335', // Reporting
-                '#A259F7', // Dashboard
-                '#00B8D9', // Settings
+    {loadingDefectsByModule ? (
+      <div className="text-gray-500">Loading...</div>
+    ) : defectsByModuleError ? (
+      <div className="text-red-500">{defectsByModuleError}</div>
+    ) : defectsByModule && defectsByModule.length > 0 ? (
+      <>
+        <div className="w-72 h-72 mx-auto">
+          <ChartJSPie
+            data={{
+              labels: defectsByModule.map((m) => m.name),
+              datasets: [
+                {
+                  data: defectsByModule.map((m) => m.value),
+                  backgroundColor: [
+                    '#4285F4', '#00B894', '#FBBC05', '#EA4335', '#A259F7', '#00B8D9', '#FF6F00', '#8E24AA', '#43A047', '#F4511E',
+                  ].slice(0, defectsByModule.length),
+                },
               ],
-            },
-          ],
-        }}
-        options={{ plugins: { legend: { display: false } } }}
-      />
-    </div>
-    <div className="mt-8 grid grid-cols-1 gap-2 w-full">
-      {/* Legend with counts and percentages */}
-      {[
-        { label: 'Authentication', color: '#4285F4', count: 12, pct: 34 },
-        { label: 'Payment', color: '#00B894', count: 8, pct: 23 },
-        { label: 'User Management', color: '#FBBC05', count: 6, pct: 17 },
-        { label: 'Reporting', color: '#EA4335', count: 4, pct: 11 },
-        { label: 'Dashboard', color: '#A259F7', count: 3, pct: 9 },
-        { label: 'Settings', color: '#00B8D9', count: 2, pct: 6 },
-      ].map((item) => (
-        <div key={item.label} className="flex items-center gap-3 text-base justify-center">
-          <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-          <span className="text-gray-700 w-40">{item.label}</span>
-          <span className="font-bold text-gray-900 w-8 text-right">{item.count}</span>
-          <span className="text-gray-500">({item.pct}%)</span>
+            }}
+            options={{ plugins: { legend: { display: false } } }}
+          />
         </div>
-      ))}
-    </div>
+        <div className="mt-8 grid grid-cols-1 gap-2 w-full">
+          {defectsByModule.map((item, idx) => (
+            <div key={item.name} className="flex items-center gap-3 text-base justify-center">
+              <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: [
+                '#4285F4', '#00B894', '#FBBC05', '#EA4335', '#A259F7', '#00B8D9', '#FF6F00', '#8E24AA', '#43A047', '#F4511E',
+              ][idx % 10] }}></span>
+              <span className="text-gray-700 w-40">{item.name}</span>
+              <span className="font-bold text-gray-900 w-8 text-right">{item.value}</span>
+              <span className="text-gray-500">({item.percentage?.toFixed(2) ?? 0}%)</span>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div className="text-gray-400">No data available.</div>
+    )}
   </div>
   </>
 );
