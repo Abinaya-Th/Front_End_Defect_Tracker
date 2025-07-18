@@ -1,3 +1,4 @@
+import { Pie as ChartJSPie } from 'react-chartjs-2';
 import React, { useEffect, useState } from "react";
 import { deleteDefectById } from '../api/defect/delete_defect';
 
@@ -1023,6 +1024,9 @@ export const Defects: React.FC = () => {
       });
   }, [selectedProjectId]);
 
+  // Pie chart modal state
+  const [pieModal, setPieModal] = React.useState<{ open: boolean; severity: string | null }>({ open: false, severity: null });
+
   return (
     <div className="max-w-6xl mx-auto">
 
@@ -1132,11 +1136,45 @@ export const Defects: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                  <div className="px-6 pb-3">
+                    <button
+                      className="mt-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-md font-medium text-xs border border-blue-100 hover:bg-blue-100 transition"
+                      onClick={() => setPieModal({ open: true, severity })}
+                    >
+                      View Chart
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
+      {/* Pie Chart Modal for Defect Severity Breakdown */}
+      {pieModal.open && pieModal.severity && (() => {
+        const severity = pieModal.severity;
+        const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
+        const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
+        const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+        const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
+        const pieData = {
+          labels: statusList.map(s => s.toUpperCase()),
+          datasets: [
+            {
+              data: statusCounts,
+              backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
+            },
+          ],
+        };
+        return (
+          <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}> 
+            <div className="flex flex-col items-center justify-center p-4">
+              <div className="w-64 h-64">
+                <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
       </div>
 
       {/* Add Defect Button */}
