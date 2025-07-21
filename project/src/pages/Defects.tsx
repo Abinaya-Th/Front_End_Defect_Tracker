@@ -46,6 +46,7 @@ import { getAllocatedUsersByModuleId } from '../api/module/getModule';
 import AlertModal from '../components/ui/AlertModal';
 import { getDefectSeveritySummary } from '../api/dashboard/dash_get';
 import { createKloc } from "../api/KLOC/putKLOC";
+import { getDevelopersWithRolesByProjectId } from "../api/bench/projectAllocation";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -103,11 +104,11 @@ export const Defects: React.FC = () => {
   const [klocInput, setKlocInput] = React.useState<number>(1);
   const handleKlocInputChange = async () => {
     console.log("999999999999999999999");
-    
+
     const value = Number(klocInput) || 1;
     setKloc(value);
     setKlocInput(value);
-    
+
     const payload = {
       projectId: Number(selectedProjectId),
       kloc: value,
@@ -119,9 +120,9 @@ export const Defects: React.FC = () => {
     } catch (error) {
       console.log("Failed to update KLOC:", error);
     }
-    
 
-    
+
+
   };
   React.useEffect(() => {
     if (typeof window !== 'undefined' && selectedProjectId) {
@@ -277,8 +278,7 @@ export const Defects: React.FC = () => {
       if (subModuleId) params.subModuleId = subModuleId;
     }
     if (filters.assignedTo) {
-      const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.assignedTo)?.id;
-      if (userId) params.assignToId = userId;
+      params.assignToId = filters.assignedTo;
     }
     if (filters.reportedBy) {
       const userId = userList && userList.find(u => `${u.firstName} ${u.lastName}` === filters.reportedBy)?.id;
@@ -506,7 +506,7 @@ export const Defects: React.FC = () => {
     // Fetch submodules for the selected module, then set subModuleId
     if (moduleId) {
       try {
-        const res = await getSubmodulesByModuleId(moduleId);
+        const res = await getSubmodulesByModuleId(Number(moduleId));
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
           name: sm.name || sm.subModuleName
@@ -651,7 +651,7 @@ export const Defects: React.FC = () => {
       setFormData(f => ({ ...f, subModuleId: '' }));
       return;
     }
-    getSubmodulesByModuleId(formData.moduleId)
+    getSubmodulesByModuleId(Number(formData.moduleId))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -679,7 +679,7 @@ export const Defects: React.FC = () => {
       setFilterSubmodules([]);
       return;
     }
-    getSubmodulesByModuleId(selectedModule.id)
+    getSubmodulesByModuleId(Number(selectedModule.id))
       .then(res => {
         const mapped = (res.data || []).map((sm: any) => ({
           id: sm.id?.toString() || sm.subModuleId?.toString(),
@@ -894,7 +894,7 @@ export const Defects: React.FC = () => {
     try {
       // Extract numeric part from defectId (e.g., DF00002 -> 2)
       const numericIdMatch = defectId.match(/(\d+)$/);
-      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : defectId;
+      const numericId = numericIdMatch ? parseInt(numericIdMatch[1], 10) : Number(defectId);
       const data = await getDefectHistoryByDefectId(numericId);
       setViewingDefectHistory(data);
     } catch (err: any) {
@@ -1024,8 +1024,29 @@ export const Defects: React.FC = () => {
       });
   }, [selectedProjectId]);
 
-  // Pie chart modal state
-  const [pieModal, setPieModal] = React.useState<{ open: boolean; severity: string | null }>({ open: false, severity: null });
+  // Add state for developers for the filter dropdown
+  const [projectDevelopers, setProjectDevelopers] = useState<{ id: number; name: string; role?: string }[]>([]);
+
+  // Fetch developers for the selected project for filter dropdown
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setProjectDevelopers([]);
+      return;
+    }
+    getDevelopersWithRolesByProjectId(Number(selectedProjectId))
+      .then(data => {
+        setProjectDevelopers(
+          (Array.isArray(data) ? data : []).map(dev => ({
+            id: dev.id,
+            name: dev.name || `${dev.firstName ?? ''} ${dev.lastName ?? ''}`.trim(),
+            role: dev.role
+          }))
+        );
+      })
+      .catch(() => setProjectDevelopers([]));
+  }, [selectedProjectId]);
+
+  const [pieModal, setPieModal] = useState<{ open: boolean; severity: string | null }>({ open: false, severity: null });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -1058,16 +1079,17 @@ export const Defects: React.FC = () => {
               min={1}
               className="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
               value={klocInput}
-            onChange={(e) => 
-            setKlocInput(Number(e.target.value) || 1)
-            }
+              onChange={(e) =>
+                setKlocInput(Number(e.target.value) || 1)
+              }
               style={{ minWidth: 60 }}
             />
             <button
               type="button"
               className={`ml-1 w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition disabled:opacity-50`}
-              onClick={() => {setKloc(klocInput),
-                 handleKlocInputChange();
+              onClick={() => {
+                setKloc(klocInput),
+                handleKlocInputChange();
               }}
               disabled={klocInput === kloc}
               title="Confirm KLOC value"
@@ -1149,32 +1171,32 @@ export const Defects: React.FC = () => {
             })}
           </div>
         )}
-      {/* Pie Chart Modal for Defect Severity Breakdown */}
-      {pieModal.open && pieModal.severity && (() => {
-        const severity = pieModal.severity;
-        const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
-        const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
-        const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
-        const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
-        const pieData = {
-          labels: statusList.map(s => s.toUpperCase()),
-          datasets: [
-            {
-              data: statusCounts,
-              backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
-            },
-          ],
-        };
-        return (
-          <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}> 
-            <div className="flex flex-col items-center justify-center p-4">
-              <div className="w-64 h-64">
-                <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+        {/* Pie Chart Modal for Defect Severity Breakdown */}
+        {pieModal.open && pieModal.severity && (() => {
+          const severity = pieModal.severity;
+          const statusList = defectStatuses.map(s => (s.defectStatusName || '').toLowerCase());
+          const statusColorMap = Object.fromEntries(defectStatuses.map(s => [(s.defectStatusName || '').toLowerCase(), s.colorCode]));
+          const summary = defectSeveritySummary[severity] || { statusCounts: {}, total: 0 };
+          const statusCounts = statusList.map(status => summary.statusCounts?.[status] || 0);
+          const pieData = {
+            labels: statusList.map(s => s.toUpperCase()),
+            datasets: [
+              {
+                data: statusCounts,
+                backgroundColor: statusList.map(s => statusColorMap[s] || '#ccc'),
+              },
+            ],
+          };
+          return (
+            <Modal isOpen={pieModal.open} onClose={() => setPieModal({ open: false, severity: null })} title={`Status Breakdown for ${severity.charAt(0).toUpperCase() + severity.slice(1)}`}>
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-64 h-64">
+                  <ChartJSPie data={pieData} options={{ plugins: { legend: { display: true, position: 'bottom' } } }} />
+                </div>
               </div>
-            </div>
-          </Modal>
-        );
-      })()}
+            </Modal>
+          );
+        })()}
       </div>
 
       {/* Add Defect Button */}
@@ -1338,8 +1360,10 @@ export const Defects: React.FC = () => {
               className="w-full h-8 text-xs border border-gray-300 rounded"
             >
               <option value="">All</option>
-              {userList.map((user) => (
-                <option key={user.id} value={`${user.firstName} ${user.lastName}`}>{user.firstName} {user.lastName}</option>
+              {projectDevelopers.map((dev) => (
+                <option key={dev.id} value={dev.id}>
+                  {dev.name}{dev.role ? ` (${dev.role})` : ""}
+                </option>
               ))}
             </select>
           </div>
