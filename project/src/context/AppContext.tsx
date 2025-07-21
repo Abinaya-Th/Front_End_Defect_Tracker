@@ -11,6 +11,7 @@ import {
   StatusTransition
 } from "../types/index";
 import { getModulesByProjectId } from "../api/module/getModule";
+import { getAllProjects } from '../api/projectget';
 
 interface Submodule {
   id: string;
@@ -186,158 +187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   ]);
 
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: "PR0001",
-      name: "Mobile Banking App",
-      prefix: "PR0001",
-      description: "Secure banking application for iOS and Android",
-      status: "active",
-      startDate: "2024-02-01",
-      endDate: "2024-08-31",
-      manager: "Sarah Johnson",
-      priority: "high",
-      projectType: "mobile",
-      progress: 45,
-      teamMembers: [],
-      createdAt: "2024-02-01T00:00:00Z",
-    },
-    {
-      id: "PR0002",
-      name: "Inventory Management",
-      prefix: "INVM",
-      description: "Enterprise inventory tracking system",
-      status: "completed",
-      startDate: "2023-09-01",
-      endDate: "2024-01-31",
-      manager: "Mike Brown",
-      priority: "medium",
-      projectType: "desktop",
-      progress: 100,
-      teamMembers: [],
-      createdAt: "2023-09-01T00:00:00Z",
-    },
-    {
-      id: "PR0003",
-      name: "E-commerce Platform",
-      prefix: "ECOM",
-      description: "Online shopping platform for multiple vendors",
-      status: "active",
-      startDate: "2024-03-01",
-      endDate: "2024-12-31",
-      manager: "Priya Singh",
-      priority: "high",
-      projectType: "web",
-      progress: 30,
-      teamMembers: [],
-      createdAt: "2024-03-01T00:00:00Z",
-    },
-    {
-      id: "PR0004",
-      name: "Healthcare Portal",
-      prefix: "HLTH",
-      description: "Patient and doctor management system",
-      status: "active",
-      startDate: "2024-01-15",
-      endDate: "2024-10-15",
-      manager: "David Lee",
-      priority: "medium",
-      projectType: "web",
-      progress: 55,
-      teamMembers: [],
-      createdAt: "2024-01-15T00:00:00Z",
-    },
-    {
-      id: "PR0005",
-      name: "Learning Management System",
-      prefix: "LMS",
-      description: "Platform for online courses and assessments",
-      status: "active",
-      startDate: "2024-04-01",
-      endDate: "2024-11-30",
-      manager: "Emily Clark",
-      priority: "high",
-      projectType: "web",
-      progress: 20,
-      teamMembers: [],
-      createdAt: "2024-04-01T00:00:00Z",
-    },
-    {
-      id: "PR0006",
-      name: "CRM Solution",
-      prefix: "CRM",
-      description: "Customer relationship management tool",
-      status: "inactive",
-      startDate: "2023-11-01",
-      endDate: "2024-09-30",
-      manager: "Olivia Turner",
-      priority: "low",
-      projectType: "desktop",
-      progress: 60,
-      teamMembers: [],
-      createdAt: "2023-11-01T00:00:00Z",
-    },
-    {
-      id: "PR0007",
-      name: "IoT Device Dashboard",
-      prefix: "IOTD",
-      description: "Dashboard for monitoring IoT devices",
-      status: "active",
-      startDate: "2024-05-01",
-      endDate: "2024-12-01",
-      manager: "Carlos Martinez",
-      priority: "medium",
-      projectType: "web",
-      progress: 10,
-      teamMembers: [],
-      createdAt: "2024-05-01T00:00:00Z",
-    },
-    {
-      id: "PR0008",
-      name: "Travel Booking System",
-      prefix: "TRVL",
-      description: "System for booking flights and hotels",
-      status: "active",
-      startDate: "2024-02-15",
-      endDate: "2024-10-31",
-      manager: "Sophia Kim",
-      priority: "high",
-      projectType: "web",
-      progress: 40,
-      teamMembers: [],
-      createdAt: "2024-02-15T00:00:00Z",
-    },
-    {
-      id: "PR0009",
-      name: "Fitness Tracker App",
-      prefix: "FIT",
-      description: "Mobile app for tracking fitness activities",
-      status: "active",
-      startDate: "2024-03-10",
-      endDate: "2024-09-30",
-      manager: "Liam Patel",
-      priority: "medium",
-      projectType: "mobile",
-      progress: 25,
-      teamMembers: [],
-      createdAt: "2024-03-10T00:00:00Z",
-    },
-    {
-      id: "PR0010",
-      name: "Event Management System",
-      prefix: "EVNT",
-      description: "Tool for managing events and registrations",
-      status: "completed",
-      startDate: "2023-06-01",
-      endDate: "2024-05-31",
-      manager: "Noah Brown",
-      priority: "low",
-      projectType: "web",
-      progress: 100,
-      teamMembers: [],
-      createdAt: "2023-09-01T00:00:00Z",
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const [defects, setDefects] = useState<Defect[]>([
     {
@@ -902,6 +752,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setModulesByProject((prev) => ({ ...prev, [selectedProjectId]: [] }));
       });
   }, [selectedProjectId]);
+
+  // Fetch real projects from backend on mount
+  useEffect(() => {
+    getAllProjects()
+      .then((data: any) => {
+        let projectsArray = Array.isArray(data)
+          ? data
+          : (data && Array.isArray(data.data))
+            ? data.data
+            : [];
+        setProjects(projectsArray);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch projects:', err);
+        setProjects([]);
+      });
+  }, []);
 
   return (
     <AppContext.Provider

@@ -460,7 +460,7 @@ export const Dashboard: React.FC = () => {
                     style={{ animationDelay: `${idx * 60}ms` }}
                   >
                     <ProjectCard
-                      name={project.name}
+                      name={project.name || project.projectName}
                       risk={risk}
                       defectCounts={{ high: highCount, medium: mediumCount, low: lowCount }}
                       onClick={() => setSelectedProjectId(project.id)}
@@ -504,21 +504,23 @@ export const Dashboard: React.FC = () => {
         {selectedProject && (
           <div className="bg-white rounded-2xl border border-gray-200 flex items-center justify-between px-8 py-4 mb-12" style={{ minHeight: '80px' }}>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{selectedProject.name}</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {selectedProject.name || selectedProject.projectName || 'Project'}
               </div>
+            </div>
             <div className="flex flex-col items-end">
               <span className="text-gray-500 text-sm mb-1">Status</span>
               {selectedProject.priority === 'high' && (
-                <span className="bg-red-100 text-red-700 rounded-full px-4 py-1 text-sm font-semibold">HIGH PRIORITY</span>
+                <span className="bg-red-100 text-red-700 rounded-full px-4 py-1 text-sm font-semibold mt-2">HIGH PRIORITY</span>
               )}
               {selectedProject.priority === 'medium' && (
-                <span className="bg-yellow-100 text-yellow-800 rounded-full px-4 py-1 text-sm font-semibold">MEDIUM PRIORITY</span>
+                <span className="bg-yellow-100 text-yellow-800 rounded-full px-4 py-1 text-sm font-semibold mt-2">MEDIUM PRIORITY</span>
               )}
               {selectedProject.priority === 'low' && (
-                <span className="bg-green-100 text-green-800 rounded-full px-4 py-1 text-sm font-semibold">LOW PRIORITY</span>
+                <span className="bg-green-100 text-green-800 rounded-full px-4 py-1 text-sm font-semibold mt-2">LOW PRIORITY</span>
               )}
             </div>
-                </div>
+          </div>
         )}
         {/* Defect Severity Breakdown */}
         <div className="mb-14">
